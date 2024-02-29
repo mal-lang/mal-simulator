@@ -1,1 +1,4 @@
-# mal-petting-zoo-simulator
+# Overview
+
+A MAL compliant Petting Zoo simulator.
+

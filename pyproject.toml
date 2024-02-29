@@ -1,0 +1,43 @@
+[project]
+name = "mal-petting-zoo-simulator"
+version = "0.0.3"
+authors = [
+  { name="Andrei Buhaiu", email="buhaiu@kth.se" },
+  { name="Jakob Nyberg", email="jaknyb@kth.se"}
+]
+description = "A MAL compliant petting zoo simulator."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "py2neo>=2021.2.3",
+  "python-jsonschema-objects>=0.4.1",
+  "mal-toolbox>=0.0.24",
+  "numpy>=1.21.4",
+  "pettingzoo>=1.24.2",
+  "gymnasium>=0.29.1, <1"
+]
+license = {text = "Apache Software License"}
+keywords = ["mal"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/mal-lang/mal-petting-zoo-simulator"
+"Bug Tracker" = "https://github.com/mal-lang/mal-petting-zoo-simulator/issues"
+"Repository" = "https://github.com/mal-lang/mal-petting-zoo-simulator"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["malpzsim*"]
+
+[tool.setuptools.package-data]
+maltoolbox = ["tests*"]

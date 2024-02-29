@@ -1,3 +1,14 @@
+# Project specific temp files
+*.json
+*.scad
+*.log
+*.yaml
+*.yml
+*.sCAD
+*.swp
+*.swo
+tmp/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
