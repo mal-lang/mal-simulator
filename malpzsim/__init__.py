@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-# MAL Petting Zoo Simulator v0.0.3
+# MAL Petting Zoo Simulator v0.0.4
 # Copyright 2024, Andrei Buhaiu.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ MAL Petting Zoo Simulator
 """
 
 __title__ = 'malpzsim'
-__version__ = '0.0.3'
+__version__ = '0.0.4'
 __authors__ = ['Andrei Buhaiu',
     'Jakob Nyberg']
 __license__ = 'Apache 2.0'
