@@ -127,17 +127,14 @@ class MalPettingZooSimulator(ParallelEnv):
             "remaining_ttc": num_objects * [0],
         }
 
-        observation["asset_type"] = [
-            self.asset_type(step) for step in self.attack_graph.nodes
-        ]
-
-        observation["asset_id"] = [
-            self.asset_id(step) for step in self.attack_graph.nodes
-        ]
-
-        observation["step_name"] = [
-            self.step_name(step) for step in self.attack_graph.nodes
-        ]
+        observation["asset_type"], observation["asset_id"], observation["step_name"] = (
+            zip(
+                *(
+                    (self.asset_type(step), self.asset_id(step), self.step_name(step))
+                    for step in self.attack_graph.nodes
+                )
+            )
+        )
 
         observation["edges"] = [
             [self._id_to_index[attack_step.id], self._id_to_index[child.id]]
