@@ -53,6 +53,32 @@ def _format_full_observation(observation):
     return obs_str
 
 
+def format_obs_var_sec(observation, index_to_id):
+    """
+    Return a formatted string of the sections of the observation that can
+    vary over time.
+    """
+    obs_str = ""
+
+    str_format = "{:>80} {:<5} {:<5} {:<}\n"
+    header = str_format.format("Id", "State", "RTTC", "Entry")
+    obs_str += header
+    listing_nr = 0
+    for entry in range(0, len(observation["observed_state"])):
+        if observation["is_observable"][entry]:
+            obs_str += str_format.format(
+                index_to_id[entry],
+                observation["observed_state"][entry],
+                observation["remaining_ttc"][entry],
+                entry,
+            )
+            listing_nr += 1
+        if listing_nr % 30 == 29:
+            obs_str += header
+
+    return obs_str
+
+
 class MalPettingZooSimulator(ParallelEnv):
     def __init__(
         self,
@@ -153,31 +179,6 @@ class MalPettingZooSimulator(ParallelEnv):
         }
 
         return np_obs
-
-    def _format_obs_var_sec(self, observation):
-        """
-        Return a formatted string of the sections of the observation that can
-        vary over time.
-        """
-        obs_str = ""
-
-        str_format = "{:>80} {:<5} {:<5} {:<}\n"
-        header = str_format.format("Id", "State", "RTTC", "Entry")
-        obs_str += header
-        listing_nr = 0
-        for entry in range(0, len(observation["observed_state"])):
-            if observation["is_observable"][entry]:
-                obs_str += str_format.format(
-                    self._index_to_id[entry],
-                    observation["observed_state"][entry],
-                    observation["remaining_ttc"][entry],
-                    entry,
-                )
-                listing_nr += 1
-            if listing_nr % 30 == 29:
-                obs_str += header
-
-        return obs_str
 
     def _format_info(self, info):
         can_act = "Yes" if info["action_mask"][0] > 0 else "No"
@@ -336,7 +337,7 @@ class MalPettingZooSimulator(ParallelEnv):
 
             logger.debug(
                 f'Observation for agent "{agent}":\n'
-                + self._format_obs_var_sec(observations[agent])
+                + format_obs_var_sec(observations[agent], self._index_to_id)
             )
             agent_info_str = self._format_info(infos[agent])
             logger.debug(f'Info for agent "{agent}":\n' + agent_info_str)
