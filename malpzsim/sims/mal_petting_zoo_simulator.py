@@ -250,7 +250,7 @@ class MalPettingZooSimulator(ParallelEnv):
 
         logger.debug("Creating and listing blank observation space.")
         self._blank_observation = self.create_blank_observation()
-        logger.debug(self._format_full_observation(self._blank_observation))
+        logger.debug(_format_full_observation(self._blank_observation))
 
         logger.info("Populate agents list with all possible agents.")
         self.agents = copy.deepcopy(self.possible_agents)
