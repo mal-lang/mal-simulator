@@ -40,7 +40,7 @@ attacker_only = False
 AGENT_ATTACKER = 'attacker'
 AGENT_DEFENDER = 'defender'
 
-lang_file = 'org.mal-lang.coreLang-1.0.0.mar'
+lang_file = 'tests/org.mal-lang.coreLang-1.0.0.mar'
 lang_spec = specification.load_language_specification_from_mar(lang_file)
 specification.save_language_specification_to_json(lang_spec, 'lang_spec.json')
 lang_classes_factory = classes_factory.LanguageClassesFactory(lang_spec)
@@ -50,7 +50,7 @@ lang_graph = mallanguagegraph.LanguageGraph()
 lang_graph.generate_graph(lang_spec)
 
 model = malmodel.Model('Test Model', lang_spec, lang_classes_factory)
-model.load_from_file('example_model.json')
+model.load_from_file('tests/example_model.json')
 
 attack_graph = malattackgraph.AttackGraph()
 attack_graph.generate_graph(lang_spec, model)
@@ -105,7 +105,7 @@ total_reward_defender = 0
 total_reward_attacker = 0
 
 while not done:
-    env.render()
+    #env.render()
     defender_action = defender.compute_action_from_dict(obs[AGENT_DEFENDER],
         infos[AGENT_DEFENDER]["action_mask"]) if not attacker_only else \
             null_action
@@ -146,7 +146,7 @@ while not done:
 
     print("---\n")
 
-env.render()
+#env.render()
 print("Game Over.")
 logger.debug('Game Over.')
 if not attacker_only:

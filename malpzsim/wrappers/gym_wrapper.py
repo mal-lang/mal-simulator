@@ -109,6 +109,10 @@ class DefenderEnv(gym.Env):
         return edges
 
 
+def register_envs():
+    gym.register("DefenderEnv-v0", entry_point=DefenderEnv)
+    gym.register("AttackerEnv-v0", entry_point=AttackerEnv)
+
 if __name__ == "__main__":
     gym.register("DefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
