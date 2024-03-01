@@ -1,3 +1,4 @@
+from itertools import tee
 import sys
 import copy
 import logging
@@ -71,10 +72,10 @@ class MalPettingZooSimulator(ParallelEnv):
         self.possible_agents = []
         self.agents = []
         self.agents_dict = {}
-
+        self.offset = 1
         self.unholy = kwargs.get(
             "unholy", False
-        )  # Separates attack step names from their assets in the observation. 
+        )  # Separates attack step names from their assets in the observation.
         # Not compliant with how the MAL language is supposed to work, but reduces the size of the observation signficiantly.
 
         self.init(self.max_iter)
@@ -83,7 +84,7 @@ class MalPettingZooSimulator(ParallelEnv):
     @functools.lru_cache(maxsize=None)
     def num_assets(self):
         return len(self.lang_graph.assets)
-    
+
     @property
     @functools.lru_cache(maxsize=None)
     def num_step_names(self):
@@ -93,11 +94,32 @@ class MalPettingZooSimulator(ParallelEnv):
             else len(set(s.attributes["name"] for s in self.lang_graph.attack_steps))
         )
 
+    def asset_type(self, step):
+        return (
+            self._asset_type_to_index[step.asset.metaconcept] + self.offset
+            if step.name != "firstSteps"
+            else 0
+        )
+
+    def step_name(self, step):
+        return (
+            (
+                self._step_name_to_index[step.asset.metaconcept + ":" + step.name]
+                + self.offset
+                if not self.unholy
+                else self._unholy_step_name_to_index[step.attributes["name"]]
+                + self.offset
+            )
+            if step.name != "firstSteps"
+            else 0
+        )
+
+    def asset_id(self, step):
+        return int(step.asset.id) if step.name != "firstSteps" else 0
+
     def create_blank_observation(self):
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
-        len(self.lang_graph.assets)
-        len(self.lang_graph.attack_steps)
 
         observation = {
             "is_observable": num_objects * [1],
@@ -105,39 +127,32 @@ class MalPettingZooSimulator(ParallelEnv):
             "remaining_ttc": num_objects * [0],
         }
 
-        observation["asset_type"] = []
-        observation["asset_id"] = []
-        observation["step_name"] = []
-        for step in self.attack_graph.nodes:
-            if step.name == "firstSteps":
-                observation["asset_type"].append(-1)
-                observation["asset_id"].append(-1)
-                observation["step_name"].append(-1)
-                continue
-            observation["asset_type"].append(
-                self._asset_type_to_index[step.asset.metaconcept]
-            )
-            observation["asset_id"].append(int(step.asset.id))
-            step_name_with_asset = step.asset.metaconcept + ":" + step.name
-            observation["step_name"].append(
-                self._step_name_to_index[step_name_with_asset] if not self.unholy else self._unholy_step_name_to_index[step.name]
-            )
+        observation["asset_type"] = [
+            self.asset_type(step) for step in self.attack_graph.nodes
+        ]
 
-        observation["edges"] = []
-        for attack_step in self.attack_graph.nodes:
-            for child in attack_step.children:
-                observation["edges"].append(
-                    [self._id_to_index[attack_step.id], self._id_to_index[child.id]]
-                )
+        observation["asset_id"] = [
+            self.asset_id(step) for step in self.attack_graph.nodes
+        ]
+
+        observation["step_name"] = [
+            self.step_name(step) for step in self.attack_graph.nodes
+        ]
+
+        observation["edges"] = [
+            [self._id_to_index[attack_step.id], self._id_to_index[child.id]]
+            for attack_step in self.attack_graph.nodes
+            for child in attack_step.children
+        ]
 
         np_obs = {
             "is_observable": np.array(observation["is_observable"], dtype=np.int8),
             "observed_state": np.array(observation["observed_state"], dtype=np.int8),
-            "remaining_ttc": np.array(observation["remaining_ttc"], dtype=np.int64),
-            "asset_type": np.array(observation["asset_type"], dtype=np.int64),
-            "asset_id": np.array(observation["asset_id"], dtype=np.int64),
-            "step_name": np.array(observation["step_name"], dtype=np.int64),
-            "edges": np.array(observation["edges"], dtype=np.int64),
+            "remaining_ttc": np.array(observation["remaining_ttc"], dtype=np.uint64),
+            "asset_type": np.array(observation["asset_type"], dtype=np.uint64),
+            "asset_id": np.array(observation["asset_id"], dtype=np.uint64),
+            "step_name": np.array(observation["step_name"], dtype=np.uint64),
+            "edges": np.array(observation["edges"], dtype=np.uint64),
         }
 
         return np_obs
@@ -205,13 +220,19 @@ class MalPettingZooSimulator(ParallelEnv):
                     0, sys.maxsize, shape=(num_objects,), dtype=np.int64
                 ),  # remaining TTC
                 "asset_type": Box(
-                    -1, num_lang_asset_types, shape=(num_objects,), dtype=np.int64
+                    0,
+                    num_lang_asset_types + self.offset,
+                    shape=(num_objects,),
+                    dtype=np.int64,
                 ),  # asset type
                 "asset_id": Box(
-                    -1, sys.maxsize, shape=(num_objects,), dtype=np.int64
+                    0, sys.maxsize, shape=(num_objects,), dtype=np.int64
                 ),  # asset id
                 "step_name": Box(
-                    -1, num_lang_attack_steps, shape=(num_objects,), dtype=np.int64
+                    0,
+                    num_lang_attack_steps + self.offset,
+                    shape=(num_objects,),
+                    dtype=np.int64,
                 ),  # attack/defense step name
                 "edges": Box(
                     0,
@@ -265,7 +286,7 @@ class MalPettingZooSimulator(ParallelEnv):
         }
 
         self._unholy_index_to_step_name = {
-            n.attributes['name'] for n in self.lang_graph.attack_steps
+            n.attributes["name"] for n in self.lang_graph.attack_steps
         }
         self._unholy_step_name_to_index = {
             n: i for i, n in enumerate(self._unholy_index_to_step_name)
