@@ -110,21 +110,21 @@ class DefenderEnv(gym.Env):
 
 
 def register_envs():
-    gym.register("DefenderEnv-v0", entry_point=DefenderEnv)
-    gym.register("AttackerEnv-v0", entry_point=AttackerEnv)
+    gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
+    gym.register("MALAttackerEnv-v0", entry_point=AttackerEnv)
 
 if __name__ == "__main__":
-    gym.register("DefenderEnv-v0", entry_point=DefenderEnv)
+    gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
-        "DefenderEnv-v0",
+        "MALDefenderEnv-v0",
         model_file="/storage/GitHub/mal-petting-zoo-simulator/tests/example_model.json",
         lang_file="/storage/GitHub/mal-petting-zoo-simulator/tests/org.mal-lang.coreLang-1.0.0.mar",
     )
     env_checker.check_env(env.unwrapped)
 
-    gym.register("AttackerEnv-v0", entry_point=AttackerEnv)
+    gym.register("MALAttackerEnv-v0", entry_point=AttackerEnv)
     env = gym.make(
-        "AttackerEnv-v0",
+        "MALAttackerEnv-v0",
         model_file="/storage/GitHub/mal-petting-zoo-simulator/tests/example_model.json",
         lang_file="/storage/GitHub/mal-petting-zoo-simulator/tests/org.mal-lang.coreLang-1.0.0.mar",
     )
