@@ -15,7 +15,8 @@
 # limitations under the License.
 #
 
-
+from malpzsim.wrappers.wrapper import LazyWrapper
+from malpzsim.wrappers.gym_wrapper import AttackerEnv, DefenderEnv
 """
 MAL Petting Zoo Simulator
 """
@@ -27,5 +28,5 @@ __authors__ = ['Andrei Buhaiu',
 __license__ = 'Apache 2.0'
 __docformat__ = 'restructuredtext en'
 
-__all__ = ()
+__all__ = ('LazyWrapper', 'AttackerEnv', 'DefenderEnv')
 

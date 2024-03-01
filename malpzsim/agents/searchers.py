@@ -101,3 +101,8 @@ class DepthFirstAttacker():
             current_target = targets.pop()
 
         return current_target, False
+
+AGENTS = {
+    BreadthFirstAttacker.__name__: BreadthFirstAttacker,
+    DepthFirstAttacker.__name__: DepthFirstAttacker,
+}

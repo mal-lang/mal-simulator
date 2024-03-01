@@ -51,8 +51,6 @@ class MalPettingZooSimulator(ParallelEnv):
         num_lang_attack_steps = len(self.lang_graph.attack_steps)
 
         observation = {
-            'action' : num_actions * [0],
-            'step' : num_objects * [0],
             'is_observable' : num_objects * [1],
             'observed_state' : num_objects * [-1],
             'remaining_ttc' : num_objects * [0]
@@ -80,7 +78,17 @@ class MalPettingZooSimulator(ParallelEnv):
                     [self._id_to_index[attack_step.id],
                     self._id_to_index[child.id]])
 
-        return observation
+        np_obs = {
+            'is_observable' : np.array(observation['is_observable'], dtype=np.int8),
+            'observed_state' : np.array(observation['observed_state'], dtype=np.int8),
+            'remaining_ttc' : np.array(observation['remaining_ttc'], dtype=np.int64),
+            'asset_type' : np.array(observation['asset_type'], dtype=np.int64),
+            'asset_id' : np.array(observation['asset_id'], dtype=np.int64),
+            'step_name' : np.array(observation['step_name'], dtype=np.int64),
+            'edges' : np.array(observation['edges'], dtype=np.int64)
+        }
+
+        return np_obs
 
     def _format_full_observation(self, observation):
         '''
@@ -88,7 +96,7 @@ class MalPettingZooSimulator(ParallelEnv):
         sections that will not change over time, these define the structure of
         the attack graph.
         '''
-        obs_str = f'Action: {observation["action"]}\n'
+        obs_str = f'Action: {observation.get("action", "")}\n'
 
         str_format = '{:<5} {:<6} {:<5} {:<5} {:<5} {:<5} {:<}\n'
         header = str_format.format(
@@ -184,7 +192,7 @@ class MalPettingZooSimulator(ParallelEnv):
                 'edges': Box(
                     0,
                     num_objects,
-                    shape=(2, num_edges),
+                    shape=(num_edges, 2),
                     dtype=np.int64,
                 ),  # edges between steps
             }
@@ -195,7 +203,7 @@ class MalPettingZooSimulator(ParallelEnv):
         num_actions = 2  # two actions: wait or use
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
-        return MultiDiscrete([num_actions, num_objects])
+        return MultiDiscrete([num_actions, num_objects], dtype=np.int64)
 
     def reset(self,
             seed: Optional[int] = None,
