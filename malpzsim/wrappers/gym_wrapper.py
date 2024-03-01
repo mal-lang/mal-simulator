@@ -13,6 +13,8 @@ AGENT_ATTACKER = "attacker"
 AGENT_DEFENDER = "defender"
 
 
+
+
 class AttackerEnv(gym.Env):
     metadata = {"render_modes": []}
 
@@ -48,6 +50,14 @@ class AttackerEnv(gym.Env):
 
     def render(self):
         return self.env.render()
+    
+    @property
+    def num_assets(self):
+        return self.env.sim.num_assets
+    
+    @property
+    def num_step_names(self):
+        return self.env.sim.num_step_names
 
 
 class DefenderEnv(gym.Env):
@@ -106,6 +116,15 @@ class DefenderEnv(gym.Env):
                     new_edge = np.array([c, p]).reshape((2, 1))
                     edges = np.concatenate((edges, new_edge), axis=1)
         return edges
+    
+    @property
+    def num_assets(self):
+        return self.env.sim.num_assets
+    
+    @property
+    def num_step_names(self):
+        return self.env.sim.num_step_names
+
 
 
 def register_envs():
