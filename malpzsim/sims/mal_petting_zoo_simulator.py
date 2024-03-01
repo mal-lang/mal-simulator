@@ -83,7 +83,7 @@ class MalPettingZooSimulator(ParallelEnv):
     @property
     @functools.lru_cache(maxsize=None)
     def num_assets(self):
-        return len(self.lang_graph.assets)
+        return len(self.lang_graph.assets) + self.offset
 
     @property
     @functools.lru_cache(maxsize=None)
@@ -92,7 +92,7 @@ class MalPettingZooSimulator(ParallelEnv):
             len(self.lang_graph.attack_steps)
             if not self.unholy
             else len(set(s.attributes["name"] for s in self.lang_graph.attack_steps))
-        )
+        ) + self.offset
 
     def asset_type(self, step):
         return (
