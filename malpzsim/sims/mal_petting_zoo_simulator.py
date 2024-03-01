@@ -59,6 +59,7 @@ class MalPettingZooSimulator(ParallelEnv):
         model: Model,
         attack_graph: AttackGraph,
         max_iter=ITERATIONS_LIMIT,
+        **kwargs,
     ):
         super().__init__()
         logger.info("Create Petting Zoo Mal Simulator.")
@@ -70,6 +71,11 @@ class MalPettingZooSimulator(ParallelEnv):
         self.possible_agents = []
         self.agents = []
         self.agents_dict = {}
+
+        self.unholy = kwargs.get(
+            "unholy", False
+        )  # Separates attack step names from their assets in the observation. 
+        # Not compliant with how the MAL language is supposed to work, but reduces the size of the observation signficiantly.
 
         self.init(self.max_iter)
 
@@ -100,7 +106,7 @@ class MalPettingZooSimulator(ParallelEnv):
             observation["asset_id"].append(int(step.asset.id))
             step_name_with_asset = step.asset.metaconcept + ":" + step.name
             observation["step_name"].append(
-                self._step_name_to_index[step_name_with_asset]
+                self._step_name_to_index[step_name_with_asset] if not self.unholy else self._unholy_step_name_to_index[step.name]
             )
 
         observation["edges"] = []
@@ -160,7 +166,11 @@ class MalPettingZooSimulator(ParallelEnv):
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
         num_lang_asset_types = len(self.lang_graph.assets)
-        num_lang_attack_steps = len(self.lang_graph.attack_steps)
+        num_lang_attack_steps = (
+            len(self.lang_graph.attack_steps)
+            if not self.unholy
+            else len(set(s.attributes["name"] for s in self.lang_graph.attack_steps))
+        )
         num_edges = len(self._blank_observation["edges"])
         # TODO action, step, and is_observable are never set. Figure out what
         # action and step should be set to or remove them if redundant.
@@ -239,6 +249,14 @@ class MalPettingZooSimulator(ParallelEnv):
         self._step_name_to_index = {
             n: i for i, n in enumerate(self._index_to_step_name)
         }
+
+        self._unholy_index_to_step_name = {
+            n.attributes['name'] for n in self.lang_graph.attack_steps
+        }
+        self._unholy_step_name_to_index = {
+            n: i for i, n in enumerate(self._unholy_index_to_step_name)
+        }
+
         str_format = "{:<5} {:<}\n"
         table = "\n" + str_format.format("Index", "Step Name")
         for entry in self._index_to_step_name:

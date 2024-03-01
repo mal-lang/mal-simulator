@@ -119,6 +119,7 @@ if __name__ == "__main__":
         "MALDefenderEnv-v0",
         model_file="/storage/GitHub/mal-petting-zoo-simulator/tests/example_model.json",
         lang_file="/storage/GitHub/mal-petting-zoo-simulator/tests/org.mal-lang.coreLang-1.0.0.mar",
+        unholy=True,
     )
     env_checker.check_env(env.unwrapped)
 
