@@ -171,11 +171,11 @@ class MalPettingZooSimulator(ParallelEnv):
         np_obs = {
             "is_observable": np.array(observation["is_observable"], dtype=np.int8),
             "observed_state": np.array(observation["observed_state"], dtype=np.int8),
-            "remaining_ttc": np.array(observation["remaining_ttc"], dtype=np.uint64),
-            "asset_type": np.array(observation["asset_type"], dtype=np.uint64),
-            "asset_id": np.array(observation["asset_id"], dtype=np.uint64),
-            "step_name": np.array(observation["step_name"], dtype=np.uint64),
-            "edges": np.array(observation["edges"], dtype=np.uint64),
+            "remaining_ttc": np.array(observation["remaining_ttc"], dtype=np.int64),
+            "asset_type": np.array(observation["asset_type"], dtype=np.int64),
+            "asset_id": np.array(observation["asset_id"], dtype=np.int64),
+            "step_name": np.array(observation["step_name"], dtype=np.int64),
+            "edges": np.array(observation["edges"], dtype=np.int64),
         }
 
         return np_obs
@@ -572,7 +572,7 @@ class MalPettingZooSimulator(ParallelEnv):
 
             logger.debug(
                 f'Observation for agent "{agent}":\n'
-                + self._format_obs_var_sec(agent_observation)
+                + format_obs_var_sec(agent_observation, self._index_to_id)
             )
             logger.debug(f'Rewards for agent "{agent}": ' + str(rewards[agent]))
             logger.debug(
