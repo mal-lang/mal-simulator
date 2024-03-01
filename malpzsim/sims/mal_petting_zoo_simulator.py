@@ -79,6 +79,20 @@ class MalPettingZooSimulator(ParallelEnv):
 
         self.init(self.max_iter)
 
+    @property
+    @functools.lru_cache(maxsize=None)
+    def num_assets(self):
+        return len(self.lang_graph.assets)
+    
+    @property
+    @functools.lru_cache(maxsize=None)
+    def num_step_names(self):
+        return (
+            len(self.lang_graph.attack_steps)
+            if not self.unholy
+            else len(set(s.attributes["name"] for s in self.lang_graph.attack_steps))
+        )
+
     def create_blank_observation(self):
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
