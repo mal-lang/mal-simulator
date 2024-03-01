@@ -12,7 +12,6 @@ from typing import Any
 
 
 class LazyWrapper(ParallelEnv):
-
     def __init__(self, **kwargs):
         lang_file = kwargs.pop("lang_file")
         model_file = kwargs.pop("model_file")
@@ -41,24 +40,24 @@ class LazyWrapper(ParallelEnv):
 
         # TODO - This is a temporary fix to set the rewards for the nodes in the attack graph
 
-        sim.attack_graph.get_node_by_id('Application:0:notPresent').reward = 2
-        sim.attack_graph.get_node_by_id('Application:0:supplyChainAuditing').reward = 7
-        sim.attack_graph.get_node_by_id('Application:1:notPresent').reward = 3
-        sim.attack_graph.get_node_by_id('Application:1:supplyChainAuditing').reward = 7
-        sim.attack_graph.get_node_by_id('SoftwareVulnerability:2:notPresent').reward = 4
-        sim.attack_graph.get_node_by_id('Data:3:notPresent').reward = 1
-        sim.attack_graph.get_node_by_id('Credentials:4:notPhishable').reward = 7
-        sim.attack_graph.get_node_by_id('Identity:5:notPresent').reward = 3.5
-        sim.attack_graph.get_node_by_id('ConnectionRule:6:restricted').reward = 4
-        sim.attack_graph.get_node_by_id('ConnectionRule:6:payloadInspection').reward = 3
-        sim.attack_graph.get_node_by_id('Application:7:notPresent').reward = 2
-        sim.attack_graph.get_node_by_id('Application:7:supplyChainAuditing').reward = 7
+        sim.attack_graph.get_node_by_id("Application:0:notPresent").reward = 2
+        sim.attack_graph.get_node_by_id("Application:0:supplyChainAuditing").reward = 7
+        sim.attack_graph.get_node_by_id("Application:1:notPresent").reward = 3
+        sim.attack_graph.get_node_by_id("Application:1:supplyChainAuditing").reward = 7
+        sim.attack_graph.get_node_by_id("SoftwareVulnerability:2:notPresent").reward = 4
+        sim.attack_graph.get_node_by_id("Data:3:notPresent").reward = 1
+        sim.attack_graph.get_node_by_id("Credentials:4:notPhishable").reward = 7
+        sim.attack_graph.get_node_by_id("Identity:5:notPresent").reward = 3.5
+        sim.attack_graph.get_node_by_id("ConnectionRule:6:restricted").reward = 4
+        sim.attack_graph.get_node_by_id("ConnectionRule:6:payloadInspection").reward = 3
+        sim.attack_graph.get_node_by_id("Application:7:notPresent").reward = 2
+        sim.attack_graph.get_node_by_id("Application:7:supplyChainAuditing").reward = 7
 
-        sim.attack_graph.get_node_by_id('Application:0:fullAccess').reward = 5
-        sim.attack_graph.get_node_by_id('Application:1:fullAccess').reward = 2
-        sim.attack_graph.get_node_by_id('Identity:5:assume').reward = 2
-        sim.attack_graph.get_node_by_id('Application:7:fullAccess').reward = 6
-        
+        sim.attack_graph.get_node_by_id("Application:0:fullAccess").reward = 5
+        sim.attack_graph.get_node_by_id("Application:1:fullAccess").reward = 2
+        sim.attack_graph.get_node_by_id("Identity:5:assume").reward = 2
+        sim.attack_graph.get_node_by_id("Application:7:fullAccess").reward = 6
+
         self.sim = sim
 
     def step(

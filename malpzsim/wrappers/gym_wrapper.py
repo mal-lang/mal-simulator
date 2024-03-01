@@ -1,7 +1,6 @@
 from typing import Any, Dict, SupportsFloat
 
 import gymnasium as gym
-from gymnasium.core import RenderFrame
 import gymnasium.utils.env_checker as env_checker
 
 import numpy as np
@@ -112,6 +111,7 @@ class DefenderEnv(gym.Env):
 def register_envs():
     gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
     gym.register("MALAttackerEnv-v0", entry_point=AttackerEnv)
+
 
 if __name__ == "__main__":
     gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)

@@ -2,15 +2,13 @@ import sys
 import copy
 import logging
 import functools
-from typing import List, Tuple, Optional
+from typing import Optional
 import numpy as np
 
 import maltoolbox
 from maltoolbox.model.model import Model
 from maltoolbox.language.languagegraph import LanguageGraph
 from maltoolbox.attackgraph.attackgraph import AttackGraph
-from maltoolbox.attackgraph.attacker import Attacker
-from maltoolbox.attackgraph.node import AttackGraphNode
 import maltoolbox.attackgraph.analyzers.apriori as apriori
 import maltoolbox.attackgraph.query as query
 from maltoolbox.ingestors import neo4j
@@ -76,11 +74,10 @@ class MalPettingZooSimulator(ParallelEnv):
         self.init(self.max_iter)
 
     def create_blank_observation(self):
-        num_actions = 2
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
-        num_lang_asset_types = len(self.lang_graph.assets)
-        num_lang_attack_steps = len(self.lang_graph.attack_steps)
+        len(self.lang_graph.assets)
+        len(self.lang_graph.attack_steps)
 
         observation = {
             "is_observable": num_objects * [1],
@@ -160,7 +157,6 @@ class MalPettingZooSimulator(ParallelEnv):
 
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent):
-        num_actions = 2
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
         num_lang_asset_types = len(self.lang_graph.assets)
