@@ -181,7 +181,7 @@ class MalPettingZooSimulator(ParallelEnv):
         return np_obs
 
     def _format_info(self, info):
-        can_act = "Yes" if info["action_mask"][0] > 0 else "No"
+        can_act = "Yes" if info["action_mask"][0][1] > 0 else "No"
         agent_info_str = f"Can act? {can_act}\n"
         for entry in range(0, len(info["action_mask"][1])):
             if info["action_mask"][1][entry] == 1:
@@ -309,13 +309,19 @@ class MalPettingZooSimulator(ParallelEnv):
         observations = {}
         infos = {}
 
+        can_wait = {
+            "attacker": 0,
+            "defender": 1,
+        }
+
         for agent in self.agents:
             observations[agent] = copy.deepcopy(self._blank_observation)
             # TODO Flag initial entry points for attacker
 
             available_actions = [0] * len(self.attack_graph.nodes)
             can_act = 0
-            if self.agents_dict[agent]["type"] == "defender":
+            agent_type = self.agents_dict[agent]["type"]
+            if agent_type == "defender":
                 enabled_defenses = query.get_enabled_defenses(self.attack_graph)
                 for node in query.get_defense_surface(self.attack_graph):
                     if node not in enabled_defenses:
@@ -323,7 +329,7 @@ class MalPettingZooSimulator(ParallelEnv):
                         available_actions[index] = 1
                         can_act = 1
 
-            if self.agents_dict[agent]["type"] == "attacker":
+            if agent_type == "attacker":
                 attacker = self.attack_graph.attackers[
                     self.agents_dict[agent]["attacker"]
                 ]
@@ -333,7 +339,9 @@ class MalPettingZooSimulator(ParallelEnv):
                         available_actions[index] = 1
                         can_act = 1
 
-            infos[agent] = {"action_mask": (can_act, available_actions)}
+            infos[agent] = {
+                "action_mask": ([can_wait[agent_type], can_act], available_actions)
+            }
 
             logger.debug(
                 f'Observation for agent "{agent}":\n'
@@ -489,6 +497,11 @@ class MalPettingZooSimulator(ParallelEnv):
                     '{self.agents_dict[agent]["type"]}'
                 )
 
+        can_wait = {
+            "attacker": 0,
+            "defender": 1,
+        }
+
         finished_agents = []
         # Fill in the agent observations, rewards, terminations, truncations,
         # and infos.
@@ -517,7 +530,8 @@ class MalPettingZooSimulator(ParallelEnv):
             # in the next iteration step. Then fill in all of the
             available_actions = [0] * len(self.attack_graph.nodes)
             can_act = 0
-            if self.agents_dict[agent]["type"] == "defender":
+            agent_type = self.agents_dict[agent]["type"]
+            if agent_type == "defender":
                 enabled_defenses = query.get_enabled_defenses(self.attack_graph)
                 for node in query.get_defense_surface(self.attack_graph):
                     if node not in enabled_defenses:
@@ -525,7 +539,7 @@ class MalPettingZooSimulator(ParallelEnv):
                         available_actions[index] = 1
                         can_act = 1
 
-            if self.agents_dict[agent]["type"] == "attacker":
+            if agent_type == "attacker":
                 attacker = self.attack_graph.attackers[
                     self.agents_dict[agent]["attacker"]
                 ]
@@ -535,7 +549,9 @@ class MalPettingZooSimulator(ParallelEnv):
                         available_actions[index] = 1
                         can_act = 1
 
-            infos[agent] = {"action_mask": (can_act, available_actions)}
+            infos[agent] = {
+                "action_mask": ([can_wait[agent_type], can_act], available_actions)
+            }
 
         # First calculate the attacker rewards and attackers' total reward
         attackers_total_rewards = 0
