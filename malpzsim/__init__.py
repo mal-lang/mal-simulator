@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-# MAL Petting Zoo Simulator v0.0.6
+# MAL Petting Zoo Simulator v0.0.10
 # Copyright 2024, Andrei Buhaiu.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
