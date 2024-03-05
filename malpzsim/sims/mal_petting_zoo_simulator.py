@@ -397,7 +397,8 @@ class MalPettingZooSimulator(ParallelEnv):
             self._index_to_id[defense_step]
         )
         logger.info(
-            f'Defender agent "{agent}" stepping ' f"through {defense_step_node.id}."
+            f'Defender agent "{agent}" stepping through '
+            f'{defense_step_node.id}.'
         )
         defense_step_node.defense_status = 1.0
         actions.append(defense_step)
@@ -519,7 +520,7 @@ class MalPettingZooSimulator(ParallelEnv):
             else:
                 logger.error(
                     f"Agent {agent} has unknown type: "
-                    '{self.agents_dict[agent]["type"]}'
+                    f'{self.agents_dict[agent]["type"]}'
                 )
 
             observations[agent] = agent_observation
@@ -588,7 +589,9 @@ class MalPettingZooSimulator(ParallelEnv):
                 f'Observation for agent "{agent}":\n'
                 + format_obs_var_sec(agent_observation, self._index_to_id)
             )
-            logger.debug(f'Rewards for agent "{agent}": ' + str(rewards[agent]))
+            logger.debug(
+                f'Rewards for agent "{agent}": ' + str(rewards[agent])
+            )
             logger.debug(
                 f'Termination for agent "{agent}": ' + str(terminations[agent])
             )
