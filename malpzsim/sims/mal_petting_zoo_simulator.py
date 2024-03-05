@@ -385,8 +385,7 @@ class MalPettingZooSimulator(ParallelEnv):
                 logger.debug(
                     f"Attacker {agent} has compromised " f"{attack_step_node.id}."
                 )
-                attacker.reached_attack_steps.append(attack_step_node)
-                attack_step_node.compromised_by.append(attacker)
+                attacker.compromise(attack_step_node)
             actions.append(attack_step)
             # TODO Update the attack surface of agent.attacker rather than
             # regenerating it every step.
