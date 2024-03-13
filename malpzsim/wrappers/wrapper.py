@@ -40,6 +40,22 @@ class LazyWrapper(ParallelEnv):
 
         # TODO - This is a temporary fix to set the rewards for the nodes in the attack graph
 
+
+
+        self.sim = sim
+
+    def step(
+        self, actions: dict
+    ) -> tuple[
+        dict, dict[Any, float], dict[Any, bool], dict[Any, bool], dict[Any, dict]
+    ]:
+        return self.sim.step(actions)
+
+    def reset(
+        self, seed: int | None = None, options: dict | None = None
+    ) -> tuple[dict, dict[Any, dict]]:
+        result = self.sim.reset(seed, options)
+        sim = self.sim
         sim.attack_graph.get_node_by_id("Application:0:notPresent").reward = 2
         sim.attack_graph.get_node_by_id("Application:0:supplyChainAuditing").reward = 7
         sim.attack_graph.get_node_by_id("Application:1:notPresent").reward = 3
@@ -57,21 +73,8 @@ class LazyWrapper(ParallelEnv):
         sim.attack_graph.get_node_by_id("Application:1:fullAccess").reward = 2
         sim.attack_graph.get_node_by_id("Identity:5:assume").reward = 2
         sim.attack_graph.get_node_by_id("Application:7:fullAccess").reward = 6
-
-        self.sim = sim
-
-    def step(
-        self, actions: dict
-    ) -> tuple[
-        dict, dict[Any, float], dict[Any, bool], dict[Any, bool], dict[Any, dict]
-    ]:
-        return self.sim.step(actions)
-
-    def reset(
-        self, seed: int | None = None, options: dict | None = None
-    ) -> tuple[dict, dict[Any, dict]]:
-        return self.sim.reset(seed, options)
-
+        return result
+    
     def observation_space(self, agent: Any) -> Space:
         return self.sim.observation_space(agent)
 
