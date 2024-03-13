@@ -67,3 +67,23 @@ def test_gym():
     )
     
     env_checker.check_env(env.unwrapped)
+
+def test_step():
+    gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
+    env = gym.make(
+        "MALDefenderEnv-v0",
+        model_file="tests/example_model.json",
+        lang_file="tests/org.mal-lang.coreLang-1.0.0.mar",
+        unholy=True,
+    )
+
+    done = False
+    obs, info = env.reset()
+    step = 0
+    while not done:
+        obs, reward, term, trunc, info = env.step((0,0))
+        done = term or trunc
+        print(obs, reward, done, info)
+        step += 1
+
+    assert done
