@@ -80,10 +80,15 @@ def test_step():
     done = False
     obs, info = env.reset()
     step = 0
+    _return = 0.0
     while not done:
-        obs, reward, term, trunc, info = env.step((0,0))
+        obs, reward, term, trunc, info = env.step((0, None))
         done = term or trunc
         print(obs, reward, done, info)
         step += 1
+        _return += reward
 
     assert done
+    assert _return < 0.0 
+
+
