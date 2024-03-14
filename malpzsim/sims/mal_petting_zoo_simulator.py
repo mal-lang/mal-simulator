@@ -167,6 +167,15 @@ class MalPettingZooSimulator(ParallelEnv):
             for child in attack_step.children
         ]
 
+        # Create reverse edges for defense steps. This was required by some of
+        # the defender agent logic.
+        for attack_step in self.attack_graph.nodes:
+            if attack_step.type == 'defense':
+                for child in attack_step.children:
+                    observation['edges'].append(
+                        [self._id_to_index[child.id],
+                        self._id_to_index[attack_step.id]])
+
         np_obs = {
             "is_observable": np.array(observation["is_observable"], dtype=np.int8),
             "observed_state": np.array(observation["observed_state"], dtype=np.int8),
