@@ -18,8 +18,6 @@ from malpzsim.wrappers.gym_wrapper import AttackerEnv, DefenderEnv
 def test_pz():
     logger = logging.getLogger(__name__)
 
-    null_action = (0, None)
-
     lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
     lang_spec = specification.load_language_specification_from_mar(lang_file)
     specification.save_language_specification_to_json(lang_spec, "tests/lang_spec.json")
