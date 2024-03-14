@@ -314,49 +314,8 @@ class MalPettingZooSimulator(ParallelEnv):
         logger.info("Populate agents list with all possible agents.")
         self.agents = copy.deepcopy(self.possible_agents)
 
-        observations = {}
-        infos = {}
-
-        can_wait = {
-            "attacker": 0,
-            "defender": 1,
-        }
-
-        for agent in self.agents:
-            observations[agent] = copy.deepcopy(self._blank_observation)
-            # TODO Flag initial entry points for attacker
-
-            available_actions = [0] * len(self.attack_graph.nodes)
-            can_act = 0
-            agent_type = self.agents_dict[agent]["type"]
-            if agent_type == "defender":
-                enabled_defenses = query.get_enabled_defenses(self.attack_graph)
-                for node in query.get_defense_surface(self.attack_graph):
-                    if node not in enabled_defenses:
-                        index = self._id_to_index[node.id]
-                        available_actions[index] = 1
-                        can_act = 1
-
-            if agent_type == "attacker":
-                attacker = self.attack_graph.attackers[
-                    self.agents_dict[agent]["attacker"]
-                ]
-                for node in query.get_attack_surface(self.attack_graph, attacker):
-                    if attacker not in node.compromised_by:
-                        index = self._id_to_index[node.id]
-                        available_actions[index] = 1
-                        can_act = 1
-
-            infos[agent] = {
-                "action_mask": ([can_wait[agent_type], can_act], available_actions)
-            }
-
-            logger.debug(
-                f'Observation for agent "{agent}":\n'
-                + format_obs_var_sec(observations[agent], self._index_to_id)
-            )
-            agent_info_str = self._format_info(infos[agent])
-            logger.debug(f'Info for agent "{agent}":\n' + agent_info_str)
+        observations, rewards, terminations, truncations, infos = \
+            self._observe_and_reward()
 
         return observations, infos
 
@@ -418,13 +377,11 @@ class MalPettingZooSimulator(ParallelEnv):
         apriori.calculate_viability_and_necessity(self.attack_graph)
         return actions
 
-    def _observe_attacker(self, attacker_agent, observation, actions):
+    def _observe_attacker(self, attacker_agent, observation):
         attacker = self.attack_graph.attackers[
             self.agents_dict[attacker_agent]["attacker"]
         ]
         nodes_to_remove = []
-        for action in actions:
-            observation["observed_state"][action] = 1
         for node in attacker.reached_attack_steps:
             if not query.is_node_traversable_by_attacker(node, attacker):
                 # The defender has activated a defense that prevents the
@@ -434,8 +391,7 @@ class MalPettingZooSimulator(ParallelEnv):
                 observation["observed_state"][index] = 0
                 continue
             index = self._id_to_index[node.id]
-            if observation["observed_state"][index] != 1:
-                observation["observed_state"][index] = 0
+            observation["observed_state"][index] = 1
 
         for node in nodes_to_remove:
             logger.debug(
@@ -450,60 +406,27 @@ class MalPettingZooSimulator(ParallelEnv):
             if observation["observed_state"][index] != 1:
                 observation["observed_state"][index] = 0
 
-    def _observe_defender(self, defender_agent, observation, actions):
+    def _observe_defender(self, defender_agent, observation):
         # TODO We should probably create a separate blank observation for the
         # defenders and just update that with the defense action taken so that
         # we do not have to go through the list of nodes every time.
-        for action in actions:
-            observation["observed_state"][action] = 1
         enabled_defenses = query.get_enabled_defenses(self.attack_graph)
         for node in self.attack_graph.nodes:
             index = self._id_to_index[node.id]
-            if observation["observed_state"][index] != 1:
-                if node in enabled_defenses:
+            if node in enabled_defenses:
+                observation["observed_state"][index] = 1
+            else:
+                if len(node.compromised_by) > 0:
                     observation["observed_state"][index] = 1
                 else:
                     observation["observed_state"][index] = 0
 
-    def step(self, actions):
-        """
-        step(action) takes in an action for each agent and should return the
-        - observations
-        - rewards
-        - terminations
-        - truncations
-        - infos
-        dicts where each dict looks like {agent_1: item_1, agent_2: item_2}
-        """
+    def _observe_and_reward(self):
         observations = {}
         rewards = {}
         terminations = {}
         truncations = {}
         infos = {}
-
-        logger.debug("Stepping through iteration " f"{self.cur_iter}/{self.max_iter}.")
-        logger.debug(f"Performing actions: {actions}.")
-
-        # Peform agent actions
-        current_step_attacker_actions = []
-        current_step_defender_actions = []
-        for agent in self.agents:
-            action = actions[agent]
-            if action[0] == 0:
-                continue
-
-            action_step = action[1]
-            if self.agents_dict[agent]["type"] == "attacker":
-                agent_actions = self._attacker_step(agent, action_step)
-                current_step_attacker_actions.extend(agent_actions)
-            elif self.agents_dict[agent]["type"] == "defender":
-                agent_actions = self._defender_step(agent, action_step)
-                current_step_defender_actions.extend(agent_actions)
-            else:
-                logger.error(
-                    f"Agent {agent} has unknown type: "
-                    '{self.agents_dict[agent]["type"]}'
-                )
 
         can_wait = {
             "attacker": 0,
@@ -519,12 +442,12 @@ class MalPettingZooSimulator(ParallelEnv):
             if self.agents_dict[agent]["type"] == "defender":
                 self._observe_defender(
                     agent,
-                    agent_observation,
-                    current_step_attacker_actions + current_step_defender_actions,
+                    agent_observation
                 )
             elif self.agents_dict[agent]["type"] == "attacker":
                 self._observe_attacker(
-                    agent, agent_observation, current_step_attacker_actions
+                    agent,
+                    agent_observation
                 )
             else:
                 logger.error(
@@ -596,7 +519,7 @@ class MalPettingZooSimulator(ParallelEnv):
 
             logger.debug(
                 f'Observation for agent "{agent}":\n'
-                + format_obs_var_sec(agent_observation, self._index_to_id)
+                + format_obs_var_sec(observations[agent], self._index_to_id)
             )
             logger.debug(
                 f'Rewards for agent "{agent}": ' + str(rewards[agent])
@@ -610,6 +533,41 @@ class MalPettingZooSimulator(ParallelEnv):
 
         for agent in finished_agents:
             self.agents.remove(agent)
+
+        return observations, rewards, terminations, truncations, infos
+
+    def step(self, actions):
+        """
+        step(action) takes in an action for each agent and should return the
+        - observations
+        - rewards
+        - terminations
+        - truncations
+        - infos
+        dicts where each dict looks like {agent_1: item_1, agent_2: item_2}
+        """
+        logger.debug("Stepping through iteration " f"{self.cur_iter}/{self.max_iter}.")
+        logger.debug(f"Performing actions: {actions}.")
+
+        # Peform agent actions
+        for agent in self.agents:
+            action = actions[agent]
+            if action[0] == 0:
+                continue
+
+            action_step = action[1]
+            if self.agents_dict[agent]["type"] == "attacker":
+                agent_actions = self._attacker_step(agent, action_step)
+            elif self.agents_dict[agent]["type"] == "defender":
+                agent_actions = self._defender_step(agent, action_step)
+            else:
+                logger.error(
+                    f"Agent {agent} has unknown type: "
+                    '{self.agents_dict[agent]["type"]}'
+                )
+
+        observations, rewards, terminations, truncations, infos = \
+            self._observe_and_reward()
 
         self.cur_iter += 1
 
