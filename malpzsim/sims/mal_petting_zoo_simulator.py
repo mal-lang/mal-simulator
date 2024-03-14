@@ -557,9 +557,9 @@ class MalPettingZooSimulator(ParallelEnv):
 
             action_step = action[1]
             if self.agents_dict[agent]["type"] == "attacker":
-                agent_actions = self._attacker_step(agent, action_step)
+                self._attacker_step(agent, action_step)
             elif self.agents_dict[agent]["type"] == "defender":
-                agent_actions = self._defender_step(agent, action_step)
+                self._defender_step(agent, action_step)
             else:
                 logger.error(
                     f"Agent {agent} has unknown type: "
