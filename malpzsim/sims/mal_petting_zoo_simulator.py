@@ -432,6 +432,9 @@ class MalPettingZooSimulator(ParallelEnv):
         }
 
         finished_agents = []
+        # If no attackers have any actions left that they could take the
+        # simulation will terminate.
+        attackers_done = True
         # Fill in the agent observations, rewards, terminations, truncations,
         # and infos.
         for agent in self.agents:
@@ -477,6 +480,7 @@ class MalPettingZooSimulator(ParallelEnv):
                         index = self._id_to_index[node.id]
                         available_actions[index] = 1
                         can_act = 1
+                        attackers_done = False
 
             infos[agent] = {
                 "action_mask": ([can_wait[agent_type], can_act], available_actions)
@@ -508,11 +512,20 @@ class MalPettingZooSimulator(ParallelEnv):
                 rewards[agent] = reward
 
         for agent in self.agents:
-            # TODO Implement termination appropriate conditions
-            terminations[agent] = False
+            # Terminate simulation if no attackers have actions that they
+            # could take.
+            terminations[agent] = attackers_done
+            if attackers_done:
+                logger.debug('No attacker has any actions left to perform '
+                    f'terminate agent \"{agent}\".')
             truncations[agent] = False
             if self.cur_iter >= self.max_iter:
+                logger.debug('Simulation has reached the maximum number of '
+                    f'iterations, {self.max_iter}, terminate agent '
+                    f'\"{agent}\".')
                 truncations[agent] = True
+
+            if terminations[agent] or truncations[agent]:
                 finished_agents.append(agent)
 
             logger.debug(
@@ -560,8 +573,8 @@ class MalPettingZooSimulator(ParallelEnv):
                 self._defender_step(agent, action_step)
             else:
                 logger.error(
-                    f"Agent {agent} has unknown type: "
-                    '{self.agents_dict[agent]["type"]}'
+                    f'Agent {agent} has unknown type: '
+                    f'{self.agents_dict[agent]["type"]}.'
                 )
 
         observations, rewards, terminations, truncations, infos = \

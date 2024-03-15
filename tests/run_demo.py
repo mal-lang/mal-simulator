@@ -120,16 +120,10 @@ while not done:
     else:
         print("Attacker Action: None")
         logger.debug("Attacker Action: None")
-        # Stop the attacker if it has run out of things to do since the
-        # experiment cannot progress any further.
-        # TODO Perhaps we want to only do this if none of the agents have
-        # anything to do or we may simply wish to have them running to accrue
-        # penalties/rewards. This was added just to make it easier to debug.
-        done = True
     action_dict = {AGENT_ATTACKER: attacker_action, AGENT_DEFENDER: defender_action}
     obs, rewards, terminated, truncated, infos = env.step(action_dict)
 
-    logger.debug("Attacker has compromised the following attack steps so " "far:")
+    logger.debug("Attacker has compromised the following attack steps so far:")
     attacker_obj = env.attack_graph.attackers[
         env.agents_dict[AGENT_ATTACKER]["attacker"]
     ]
