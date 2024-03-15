@@ -347,7 +347,7 @@ class MalPettingZooSimulator(ParallelEnv):
             f'Attacker agent "{agent}" stepping ' f"through {attack_step_node.id}."
         )
         if query.is_node_traversable_by_attacker(attack_step_node, attacker):
-            if attacker not in attack_step_node.compromised_by:
+            if not attack_step_node.is_compromised_by(attacker):
                 logger.debug(
                     f"Attacker {agent} has compromised " f"{attack_step_node.id}."
                 )
@@ -396,8 +396,7 @@ class MalPettingZooSimulator(ParallelEnv):
                 "Remove untraversable node from attacker "
                 f'"{attacker_agent}": {node.id}'
             )
-            attacker.reached_attack_steps.remove(node)
-            node.compromised_by.remove(attacker)
+            attacker.undo_compromise(node)
 
         for node in query.get_attack_surface(self.attack_graph, attacker):
             index = self._id_to_index[node.id]
@@ -407,14 +406,14 @@ class MalPettingZooSimulator(ParallelEnv):
     def _observe_defender(self, defender_agent, observation):
         # TODO We should probably create a separate blank observation for the
         # defenders and just update that with the defense action taken so that
-        # we do not have to go through the list of nodes every time.
-        enabled_defenses = query.get_enabled_defenses(self.attack_graph)
+        # we do not have to go through the list of nodes every time. In case
+        # we have multiple defenders
         for node in self.attack_graph.nodes:
             index = self._id_to_index[node.id]
-            if node in enabled_defenses:
+            if node.is_enabled_defense():
                 observation["observed_state"][index] = 1
             else:
-                if len(node.compromised_by) > 0:
+                if node.is_compromised():
                     observation["observed_state"][index] = 1
                 else:
                     observation["observed_state"][index] = 0
@@ -464,19 +463,17 @@ class MalPettingZooSimulator(ParallelEnv):
             can_act = 0
             agent_type = self.agents_dict[agent]["type"]
             if agent_type == "defender":
-                enabled_defenses = query.get_enabled_defenses(self.attack_graph)
                 for node in query.get_defense_surface(self.attack_graph):
-                    if node not in enabled_defenses:
-                        index = self._id_to_index[node.id]
-                        available_actions[index] = 1
-                        can_act = 1
+                    index = self._id_to_index[node.id]
+                    available_actions[index] = 1
+                    can_act = 1
 
             if agent_type == "attacker":
                 attacker = self.attack_graph.attackers[
                     self.agents_dict[agent]["attacker"]
                 ]
                 for node in query.get_attack_surface(self.attack_graph, attacker):
-                    if attacker not in node.compromised_by:
+                    if not node.is_compromised_by(attacker):
                         index = self._id_to_index[node.id]
                         available_actions[index] = 1
                         can_act = 1
