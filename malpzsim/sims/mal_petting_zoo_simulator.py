@@ -207,10 +207,8 @@ class MalPettingZooSimulator(ParallelEnv):
             else len(set(s.attributes["name"] for s in self.lang_graph.attack_steps))
         )
         num_edges = len(self._blank_observation["edges"])
-        # TODO action, step, and is_observable are never set. Figure out what
-        # action and step should be set to or remove them if redundant.
-        # is_observable will be filled in once the observability of the attack
-        # graph is determined.
+        # TODO is_observable is never set. It will be filled in once the
+        # observability of the attack graph is determined.
         return Dict(
             {
                 "is_observable": Box(
