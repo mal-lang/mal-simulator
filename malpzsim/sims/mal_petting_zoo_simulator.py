@@ -586,9 +586,9 @@ class MalPettingZooSimulator(ParallelEnv):
         logger.debug("Ingest attack graph into Neo4J database.")
         neo4j.ingest_attack_graph(
             self.attack_graph,
-            maltoolbox.neo4j_configs["uri"],
-            maltoolbox.neo4j_configs["username"],
-            maltoolbox.neo4j_configs["password"],
-            maltoolbox.neo4j_configs["dbname"],
+            neo4j_configs["uri"],
+            neo4j_configs["username"],
+            neo4j_configs["password"],
+            neo4j_configs["dbname"],
             delete=True,
         )

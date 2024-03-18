@@ -43,7 +43,7 @@ specification.save_language_specification_to_json(lang_spec, "lang_spec.json")
 lang_classes_factory = LanguageClassesFactory(lang_spec)
 lang_classes_factory.create_classes()
 
-lang_graph = mallanguagegraph.LanguageGraph(lang_spec)
+lang_graph = LanguageGraph(lang_spec)
 
 model = Model("Test Model", lang_spec, lang_classes_factory)
 model.load_from_file("tests/example_model.json")
