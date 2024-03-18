@@ -5,12 +5,13 @@ import functools
 from typing import Optional
 import numpy as np
 
-import maltoolbox
-from maltoolbox.model.model import Model
-from maltoolbox.language.languagegraph import LanguageGraph
-from maltoolbox.attackgraph.attackgraph import AttackGraph
-import maltoolbox.attackgraph.analyzers.apriori as apriori
-import maltoolbox.attackgraph.query as query
+from maltoolbox.attackgraph.analyzers import apriori
+from maltoolbox.attackgraph import query
+
+from maltoolbox import neo4j_configs
+from maltoolbox.model import Model
+from maltoolbox.language import LanguageGraph
+from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.ingestors import neo4j
 
 from gymnasium.spaces import MultiDiscrete, Box, Dict

@@ -1,11 +1,9 @@
 from gymnasium.spaces.space import Space
 from pettingzoo.utils.env import ParallelEnv
 
-from maltoolbox.language import classes_factory
-from maltoolbox.language import specification
-from maltoolbox.language import languagegraph as mallanguagegraph
-from maltoolbox.attackgraph import attackgraph as malattackgraph
-from maltoolbox.model import model as malmodel
+from maltoolbox.language import LanguageClassesFactory, LanguageGraph, specification
+from maltoolbox.attackgraph import AttackGraph
+from maltoolbox.model import Model
 
 from malpzsim.sims.mal_petting_zoo_simulator import MalPettingZooSimulator
 from typing import Any
@@ -17,17 +15,15 @@ class LazyWrapper(ParallelEnv):
         model_file = kwargs.pop("model_file")
         agents = kwargs.pop("agents", {})
         lang_spec = specification.load_language_specification_from_mar(str(lang_file))
-        lang_classes_factory = classes_factory.LanguageClassesFactory(lang_spec)
+        lang_classes_factory = LanguageClassesFactory(lang_spec)
         lang_classes_factory.create_classes()
 
-        lang_graph = mallanguagegraph.LanguageGraph()
-        lang_graph.generate_graph(lang_spec)
+        lang_graph = LanguageGraph(lang_spec)
 
-        model = malmodel.Model("Test Model", lang_spec, lang_classes_factory)
+        model = Model("Test Model", lang_spec, lang_classes_factory)
         model.load_from_file(model_file)
 
-        attack_graph = malattackgraph.AttackGraph()
-        attack_graph.generate_graph(lang_spec, model)
+        attack_graph = AttackGraph(lang_spec, model)
         attack_graph.attach_attackers(model)
 
         sim = MalPettingZooSimulator(lang_graph, model, attack_graph, **kwargs)
@@ -74,7 +70,7 @@ class LazyWrapper(ParallelEnv):
         sim.attack_graph.get_node_by_id("Identity:5:assume").reward = 2
         sim.attack_graph.get_node_by_id("Application:7:fullAccess").reward = 6
         return result
-    
+
     def observation_space(self, agent: Any) -> Space:
         return self.sim.observation_space(agent)
 

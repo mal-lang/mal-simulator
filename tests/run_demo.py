@@ -2,11 +2,9 @@ from json import JSONEncoder
 import numpy as np
 import logging
 
-from maltoolbox.language import classes_factory
-from maltoolbox.language import specification
-from maltoolbox.language import languagegraph as mallanguagegraph
-from maltoolbox.attackgraph import attackgraph as malattackgraph
-from maltoolbox.model import model as malmodel
+from maltoolbox.language import LanguageClassesFactory, LanguageGraph, specification
+from maltoolbox.attackgraph import AttackGraph
+from maltoolbox.model import Model
 
 from malpzsim.agents.keyboard_input import KeyboardAgent
 from malpzsim.agents.searchers import BreadthFirstAttacker
@@ -42,17 +40,15 @@ AGENT_DEFENDER = "defender"
 lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
 lang_spec = specification.load_language_specification_from_mar(lang_file)
 specification.save_language_specification_to_json(lang_spec, "lang_spec.json")
-lang_classes_factory = classes_factory.LanguageClassesFactory(lang_spec)
+lang_classes_factory = LanguageClassesFactory(lang_spec)
 lang_classes_factory.create_classes()
 
-lang_graph = mallanguagegraph.LanguageGraph()
-lang_graph.generate_graph(lang_spec)
+lang_graph = mallanguagegraph.LanguageGraph(lang_spec)
 
-model = malmodel.Model("Test Model", lang_spec, lang_classes_factory)
+model = Model("Test Model", lang_spec, lang_classes_factory)
 model.load_from_file("tests/example_model.json")
 
-attack_graph = malattackgraph.AttackGraph()
-attack_graph.generate_graph(lang_spec, model)
+attack_graph = AttackGraph(lang_spec, model)
 attack_graph.attach_attackers(model)
 attack_graph.save_to_file("tmp/attack_graph.json")
 
