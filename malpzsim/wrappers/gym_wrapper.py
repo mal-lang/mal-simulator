@@ -15,8 +15,6 @@ AGENT_ATTACKER = "attacker"
 AGENT_DEFENDER = "defender"
 
 
-
-
 class AttackerEnv(gym.Env):
     metadata = {"render_modes": []}
 
@@ -52,11 +50,11 @@ class AttackerEnv(gym.Env):
 
     def render(self):
         return self.env.render()
-    
+
     @property
     def num_assets(self):
         return self.env.sim.num_assets
-    
+
     @property
     def num_step_names(self):
         return self.env.sim.num_step_names
@@ -81,8 +79,10 @@ class DefenderEnv(gym.Env):
         super().reset(seed=seed, options=options)
         self.attacker = self.attacker_class({"seed": seed, "randomize": self.randomize})
         obs, info = self.env.reset(seed=seed, options=options)
+
         self.attacker_obs = obs[AGENT_ATTACKER]
         self.attacker_mask = info[AGENT_ATTACKER]["action_mask"]
+
         return obs[AGENT_DEFENDER], info[AGENT_DEFENDER]
 
     def step(
@@ -118,17 +118,20 @@ class DefenderEnv(gym.Env):
                     new_edge = np.array([c, p]).reshape((2, 1))
                     edges = np.concatenate((edges, new_edge), axis=1)
         return edges
-    
+
     @property
     def num_assets(self):
         return self.env.sim.num_assets
-    
+
     @property
     def num_step_names(self):
         return self.env.sim.num_step_names
 
+
 def _to_binary(val, max_val):
-    return np.array(list(np.binary_repr(val, width=max_val.bit_length())), dtype=np.int64)
+    return np.array(
+        list(np.binary_repr(val, width=max_val.bit_length())), dtype=np.int64
+    )
 
 
 def vec_to_binary(vec, max_val):
@@ -141,14 +144,25 @@ class LabeledGraphWrapper(Wrapper):
 
         self.num_assets = self.env.unwrapped.num_assets
         self.num_steps = self.env.unwrapped.num_step_names
-        num_nodes = self.env.observation_space['observed_state'].shape[0]
+        num_nodes = self.env.observation_space["observed_state"].shape[0]
         num_commands = 2
-        self.observation_space = spaces.Dict({
-            "nodes": spaces.Box(0, 1, shape=(num_nodes, (3).bit_length() + self.num_assets.bit_length() + self.num_steps.bit_length()), dtype=np.int8),
-            "edges": self.env.observation_space["edges"],
-            "mask_0": spaces.Box(0, 1, shape=(num_commands,), dtype=np.int8),
-            "mask_1": spaces.Box(0, 1, shape=(num_nodes,), dtype=np.int8),
-        }
+        self.observation_space = spaces.Dict(
+            {
+                "nodes": spaces.Box(
+                    0,
+                    1,
+                    shape=(
+                        num_nodes,
+                        (3).bit_length()
+                        + self.num_assets.bit_length()
+                        + self.num_steps.bit_length(),
+                    ),
+                    dtype=np.int8,
+                ),
+                "edges": self.env.observation_space["edges"],
+                "mask_0": spaces.Box(0, 1, shape=(num_commands,), dtype=np.int8),
+                "mask_1": spaces.Box(0, 1, shape=(num_nodes,), dtype=np.int8),
+            }
         )
         pass
 
@@ -159,7 +173,9 @@ class LabeledGraphWrapper(Wrapper):
         obs, info = self.env.reset(**kwargs)
         return self._to_graph(obs, info), info
 
-    def step(self, action: Any) -> tuple[Any, SupportsFloat, bool, bool, dict[str, Any]]:
+    def step(
+        self, action: Any
+    ) -> tuple[Any, SupportsFloat, bool, bool, dict[str, Any]]:
         obs, reward, terminated, truncated, info = self.env.step(action)
         return self._to_graph(obs, info), reward, terminated, truncated, info
 
@@ -170,9 +186,15 @@ class LabeledGraphWrapper(Wrapper):
                 vec_to_binary(obs["asset_type"], self.num_assets),
                 vec_to_binary(obs["step_name"], self.num_steps),
             ],
-            axis=1
+            axis=1,
         )
-        return {"nodes": nodes, "edges": obs["edges"], "mask_0": info['action_mask'][0], "mask_1": info['action_mask'][1]}
+        return {
+            "nodes": nodes,
+            "edges": obs["edges"],
+            "mask_0": info["action_mask"][0],
+            "mask_1": info["action_mask"][1],
+        }
+
 
 def register_envs():
     gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)

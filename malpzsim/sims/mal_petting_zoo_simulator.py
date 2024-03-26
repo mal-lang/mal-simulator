@@ -171,11 +171,11 @@ class MalPettingZooSimulator(ParallelEnv):
         # Create reverse edges for defense steps. This was required by some of
         # the defender agent logic.
         for attack_step in self.attack_graph.nodes:
-            if attack_step.type == 'defense':
+            if attack_step.type == "defense":
                 for child in attack_step.children:
-                    observation['edges'].append(
-                        [self._id_to_index[child.id],
-                        self._id_to_index[attack_step.id]])
+                    observation["edges"].append(
+                        [self._id_to_index[child.id], self._id_to_index[attack_step.id]]
+                    )
 
         np_obs = {
             "is_observable": np.array(observation["is_observable"], dtype=np.int8),
@@ -313,8 +313,9 @@ class MalPettingZooSimulator(ParallelEnv):
         logger.info("Populate agents list with all possible agents.")
         self.agents = copy.deepcopy(self.possible_agents)
 
-        observations, rewards, terminations, truncations, infos = \
+        observations, rewards, terminations, truncations, infos = (
             self._observe_and_reward()
+        )
 
         return observations, infos
 
@@ -364,8 +365,7 @@ class MalPettingZooSimulator(ParallelEnv):
             self._index_to_id[defense_step]
         )
         logger.info(
-            f'Defender agent "{agent}" stepping through '
-            f'{defense_step_node.id}.'
+            f'Defender agent "{agent}" stepping through ' f"{defense_step_node.id}."
         )
         defense_step_node.defense_status = 1.0
         actions.append(defense_step)
@@ -441,15 +441,9 @@ class MalPettingZooSimulator(ParallelEnv):
             # Collect agent observations
             agent_observation = copy.deepcopy(self._blank_observation)
             if self.agents_dict[agent]["type"] == "defender":
-                self._observe_defender(
-                    agent,
-                    agent_observation
-                )
+                self._observe_defender(agent, agent_observation)
             elif self.agents_dict[agent]["type"] == "attacker":
-                self._observe_attacker(
-                    agent,
-                    agent_observation
-                )
+                self._observe_attacker(agent, agent_observation)
             else:
                 logger.error(
                     f"Agent {agent} has unknown type: "
@@ -514,13 +508,17 @@ class MalPettingZooSimulator(ParallelEnv):
             # could take.
             terminations[agent] = attackers_done
             if attackers_done:
-                logger.debug('No attacker has any actions left to perform '
-                    f'terminate agent \"{agent}\".')
+                logger.debug(
+                    "No attacker has any actions left to perform "
+                    f'terminate agent "{agent}".'
+                )
             truncations[agent] = False
             if self.cur_iter >= self.max_iter:
-                logger.debug('Simulation has reached the maximum number of '
-                    f'iterations, {self.max_iter}, terminate agent '
-                    f'\"{agent}\".')
+                logger.debug(
+                    "Simulation has reached the maximum number of "
+                    f"iterations, {self.max_iter}, terminate agent "
+                    f'"{agent}".'
+                )
                 truncations[agent] = True
 
             if terminations[agent] or truncations[agent]:
@@ -530,9 +528,7 @@ class MalPettingZooSimulator(ParallelEnv):
                 f'Observation for agent "{agent}":\n'
                 + format_obs_var_sec(observations[agent], self._index_to_id)
             )
-            logger.debug(
-                f'Rewards for agent "{agent}": ' + str(rewards[agent])
-            )
+            logger.debug(f'Rewards for agent "{agent}": ' + str(rewards[agent]))
             logger.debug(
                 f'Termination for agent "{agent}": ' + str(terminations[agent])
             )
@@ -575,8 +571,9 @@ class MalPettingZooSimulator(ParallelEnv):
                     f'{self.agents_dict[agent]["type"]}.'
                 )
 
-        observations, rewards, terminations, truncations, infos = \
+        observations, rewards, terminations, truncations, infos = (
             self._observe_and_reward()
+        )
 
         self.cur_iter += 1
 

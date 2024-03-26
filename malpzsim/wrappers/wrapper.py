@@ -36,8 +36,6 @@ class LazyWrapper(ParallelEnv):
 
         # TODO - This is a temporary fix to set the rewards for the nodes in the attack graph
 
-
-
         self.sim = sim
 
     def step(

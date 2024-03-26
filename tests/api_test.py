@@ -54,7 +54,7 @@ def test_gym():
         lang_file="tests/org.mal-lang.coreLang-1.0.0.mar",
         unholy=True,
     )
-    
+
     env_checker.check_env(env.unwrapped)
 
     gym.register("MALAttackerEnv-v0", entry_point=AttackerEnv)
@@ -63,8 +63,9 @@ def test_gym():
         model_file="tests/example_model.json",
         lang_file="tests/org.mal-lang.coreLang-1.0.0.mar",
     )
-    
+
     env_checker.check_env(env.unwrapped)
+
 
 def test_step():
     gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
@@ -87,6 +88,4 @@ def test_step():
         _return += reward
 
     assert done
-    assert _return < 0.0 
-
-
+    assert _return < 0.0
