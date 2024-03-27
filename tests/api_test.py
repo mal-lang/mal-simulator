@@ -4,7 +4,7 @@ from maltoolbox.language import classes_factory
 from maltoolbox.language import specification
 from maltoolbox.language import languagegraph as mallanguagegraph
 from maltoolbox.attackgraph import attackgraph as malattackgraph
-from maltoolbox.model import model as malmodel
+from maltoolbox.model import Model
 
 from pettingzoo.test import parallel_api_test
 
@@ -13,7 +13,7 @@ import gymnasium as gym
 from gymnasium.utils import env_checker
 
 from malpzsim.wrappers.gym_wrapper import AttackerEnv, DefenderEnv
-
+import numpy as np
 
 def test_pz():
     logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ def test_pz():
     lang_graph = mallanguagegraph.LanguageGraph()
     lang_graph.generate_graph(lang_spec)
 
-    model = malmodel.Model("Test Model", lang_spec, lang_classes_factory)
+    model = Model("Test Model", lang_spec, lang_classes_factory)
     model.load_from_file("tests/example_model.json")
 
     attack_graph = malattackgraph.AttackGraph()
@@ -67,7 +67,7 @@ def test_gym():
     env_checker.check_env(env.unwrapped)
 
 
-def test_step():
+def test_episode():
     gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
@@ -88,4 +88,23 @@ def test_step():
         _return += reward
 
     assert done
-    assert _return < 0.0
+    assert _return < 0.0 # If the defender does nothing then it will get a penalty for being attacked
+
+def test_defender_penalty():
+    gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
+    env = gym.make(
+        "MALDefenderEnv-v0",
+        model_file="tests/example_model.json",
+        lang_file="tests/org.mal-lang.coreLang-1.0.0.mar",
+        unholy=True,
+    )
+
+
+    _, info = env.reset()
+
+    possible_defense_steps = np.flatnonzero(info['action_mask'][1])
+    step = np.random.choice(possible_defense_steps)
+    _, reward, _, _, info = env.step((1, step))
+    assert reward < 0 # All defense steps cost something
+
+
