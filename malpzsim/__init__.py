@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+import logging
+
 from malpzsim.wrappers.wrapper import LazyWrapper
 from malpzsim.wrappers.gym_wrapper import AttackerEnv, DefenderEnv, register_envs
 
@@ -29,3 +31,11 @@ __license__ = "Apache 2.0"
 __docformat__ = "restructuredtext en"
 
 __all__ = ("LazyWrapper", "AttackerEnv", "DefenderEnv", "register_envs")
+
+formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%m-%d %H:%M')
+file_handler = logging.FileHandler('tmp/malpzsim_log.txt', mode='w')
+file_handler.setFormatter(formatter)
+
+logger = logging.getLogger(__name__)
+logger.addHandler(file_handler)
+logger.setLevel(logging.DEBUG)
