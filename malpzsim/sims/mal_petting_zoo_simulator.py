@@ -263,7 +263,6 @@ class MalPettingZooSimulator(ParallelEnv):
         attack_graph = AttackGraph()
         attack_graph.load_from_file('tmp/original_attack_graph.json',
             self.model)
-        attack_graph.attach_attackers(self.model)
         apriori.calculate_viability_and_necessity(attack_graph)
         self.attack_graph = attack_graph
         return self.init(self.max_iter)
