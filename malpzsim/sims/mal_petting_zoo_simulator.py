@@ -315,6 +315,15 @@ class MalPettingZooSimulator(ParallelEnv):
 
         logger.info("Populate agents list with all possible agents.")
         self.agents = copy.deepcopy(self.possible_agents)
+        self.attack_surfaces = {}
+        for agent in self.agents:
+            if self.agents_dict[agent]["type"] == "attacker":
+                attacker = self.attack_graph.attackers[
+                    self.agents_dict[agent]["attacker"]]
+                self.attack_surfaces[agent] = query.get_attack_surface(
+                    self.attack_graph, attacker)
+            else:
+                self.attack_surfaces[agent] = []
 
         observations, rewards, terminations, truncations, infos = (
             self._observe_and_reward()
@@ -328,7 +337,8 @@ class MalPettingZooSimulator(ParallelEnv):
             f"attacker index {attacker}."
         )
         self.possible_agents.append(agent_name)
-        self.agents_dict[agent_name] = {"type": "attacker", "attacker": attacker}
+        self.agents_dict[agent_name] = {"type": "attacker",
+            "attacker": attacker}
 
     def register_defender(self, agent_name):
         # Defenders are run first so that the defenses prevent the attacker
@@ -349,17 +359,28 @@ class MalPettingZooSimulator(ParallelEnv):
             self._index_to_id[attack_step]
         )
         logger.info(
-            f'Attacker agent "{agent}" stepping ' f"through {attack_step_node.id}."
+            f'Attacker agent "{agent}" stepping through {attack_step_node.id}.'
         )
         if query.is_node_traversable_by_attacker(attack_step_node, attacker):
             if not attack_step_node.is_compromised_by(attacker):
                 logger.debug(
-                    f"Attacker {agent} has compromised " f"{attack_step_node.id}."
+                    f"Attacker {agent} has compromised {attack_step_node.id}."
                 )
                 attacker.compromise(attack_step_node)
+                self.attack_surfaces[agent] = \
+                    query.update_attack_surface_add_nodes(
+                        self.attack_graph,
+                        attacker,
+                        self.attack_surfaces[agent],
+                        [attack_step_node])
             actions.append(attack_step)
             # TODO Update the attack surface of agent.attacker rather than
             # regenerating it every step.
+        else:
+            logger.warning(
+                f'Attacker \"{agent}\" tried to compromise untraversable '
+                f'attack step \"{attack_step_node.id}\".'
+            )
         return actions
 
     def _defender_step(self, agent, defense_step):
@@ -377,6 +398,16 @@ class MalPettingZooSimulator(ParallelEnv):
         # TODO Update the defense surface of the defender agent rather than
         # regenerating it every step.
         apriori.calculate_viability_and_necessity(self.attack_graph)
+        for agent_el in self.agents:
+            if self.agents_dict[agent_el]["type"] == "attacker":
+                attacker = self.attack_graph.attackers[
+                    self.agents_dict[agent_el]["attacker"]]
+                self.attack_surfaces[agent_el] = \
+                    query.update_attack_surface_remove_nodes(
+                        self.attack_graph,
+                        attacker,
+                        self.attack_surfaces[agent_el],
+                        [defense_step_node])
         return actions
 
     def _observe_attacker(self, attacker_agent, observation):
@@ -402,7 +433,7 @@ class MalPettingZooSimulator(ParallelEnv):
             )
             attacker.undo_compromise(node)
 
-        for node in query.get_attack_surface(self.attack_graph, attacker):
+        for node in self.attack_surfaces[attacker_agent]:
             index = self._id_to_index[node.id]
             if observation["observed_state"][index] != 1:
                 observation["observed_state"][index] = 0
@@ -470,7 +501,7 @@ class MalPettingZooSimulator(ParallelEnv):
                 attacker = self.attack_graph.attackers[
                     self.agents_dict[agent]["attacker"]
                 ]
-                for node in query.get_attack_surface(self.attack_graph, attacker):
+                for node in self.attack_surfaces[agent]:
                     if not node.is_compromised_by(attacker):
                         index = self._id_to_index[node.id]
                         available_actions[index] = 1
