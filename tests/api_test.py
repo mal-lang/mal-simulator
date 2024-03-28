@@ -1,22 +1,21 @@
 import logging
+import numpy as np
+import gymnasium as gym
+from gymnasium.utils import env_checker
+from pettingzoo.test import parallel_api_test
 
 from maltoolbox.language import classes_factory
 from maltoolbox.language import specification
 from maltoolbox.language import languagegraph as mallanguagegraph
 from maltoolbox.attackgraph import attackgraph as malattackgraph
-from maltoolbox.model import Model
-
-from pettingzoo.test import parallel_api_test
+from maltoolbox import model as malmodel
 
 from malpzsim.sims.mal_petting_zoo_simulator import MalPettingZooSimulator
-import gymnasium as gym
-from gymnasium.utils import env_checker
-
 from malpzsim.wrappers.gym_wrapper import AttackerEnv, DefenderEnv
-import numpy as np
+
+logger = logging.getLogger(__name__)
 
 def test_pz():
-    logger = logging.getLogger(__name__)
 
     lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
     lang_spec = specification.load_language_specification_from_mar(lang_file)
@@ -24,14 +23,12 @@ def test_pz():
     lang_classes_factory = classes_factory.LanguageClassesFactory(lang_spec)
     lang_classes_factory.create_classes()
 
-    lang_graph = mallanguagegraph.LanguageGraph()
-    lang_graph.generate_graph(lang_spec)
+    lang_graph = mallanguagegraph.LanguageGraph(lang_spec)
 
     model = Model("Test Model", lang_spec, lang_classes_factory)
     model.load_from_file("tests/example_model.json")
 
-    attack_graph = malattackgraph.AttackGraph()
-    attack_graph.generate_graph(lang_spec, model)
+    attack_graph = malattackgraph.AttackGraph(lang_spec, model)
     attack_graph.attach_attackers(model)
     attack_graph.save_to_file("tmp/attack_graph.json")
 
@@ -47,10 +44,12 @@ def test_pz():
 
 
 def test_gym():
+    logger.debug("Run Gym Test.")
     gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
-        model_file="tests/example_model.json",
+        model_file="tests/demo1_model.json",
+        attack_graph_file="tests/demo1_attack_graph.json",
         lang_file="tests/org.mal-lang.coreLang-1.0.0.mar",
         unholy=True,
     )
@@ -60,7 +59,8 @@ def test_gym():
     gym.register("MALAttackerEnv-v0", entry_point=AttackerEnv)
     env = gym.make(
         "MALAttackerEnv-v0",
-        model_file="tests/example_model.json",
+        model_file="tests/demo1_model.json",
+        attack_graph_file="tests/demo1_attack_graph.json",
         lang_file="tests/org.mal-lang.coreLang-1.0.0.mar",
     )
 
@@ -68,12 +68,14 @@ def test_gym():
 
 
 def test_episode():
+    logger.debug("Run Episode Test.")
     gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
-        model_file="tests/example_model.json",
+        model_file="tests/demo1_model.json",
+        attack_graph_file="tests/demo1_attack_graph.json",
         lang_file="tests/org.mal-lang.coreLang-1.0.0.mar",
-        unholy=True,
+        unholy=False,
     )
 
     done = False
@@ -83,7 +85,7 @@ def test_episode():
     while not done:
         obs, reward, term, trunc, info = env.step((0, None))
         done = term or trunc
-        print(obs, reward, done, info)
+        logger.debug(f"Step {step}:{obs}, {reward}, {done}, {info}")
         step += 1
         _return += reward
 
