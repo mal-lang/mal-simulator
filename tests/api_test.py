@@ -25,7 +25,7 @@ def test_pz():
 
     lang_graph = mallanguagegraph.LanguageGraph(lang_spec)
 
-    model = Model("Test Model", lang_spec, lang_classes_factory)
+    model = malmodel.Model("Test Model", lang_spec, lang_classes_factory)
     model.load_from_file("tests/example_model.json")
 
     attack_graph = malattackgraph.AttackGraph(lang_spec, model)
