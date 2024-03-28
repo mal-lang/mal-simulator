@@ -5,17 +5,16 @@ import functools
 from typing import Optional
 import numpy as np
 
-from maltoolbox.attackgraph.analyzers import apriori
-from maltoolbox.attackgraph import query
+from gymnasium.spaces import MultiDiscrete, Box, Dict
+from pettingzoo import ParallelEnv
 
 from maltoolbox import neo4j_configs
 from maltoolbox.model import Model
 from maltoolbox.language import LanguageGraph
 from maltoolbox.attackgraph import AttackGraph
+from maltoolbox.attackgraph.analyzers import apriori
+from maltoolbox.attackgraph import query
 from maltoolbox.ingestors import neo4j
-
-from gymnasium.spaces import MultiDiscrete, Box, Dict
-from pettingzoo import ParallelEnv
 
 ITERATIONS_LIMIT = int(1e9)
 
@@ -95,6 +94,8 @@ class MalPettingZooSimulator(ParallelEnv):
         self.attack_graph = attack_graph
         self.max_iter = max_iter
 
+        self.attack_graph.save_to_file('tmp/original_attack_graph.json')
+
         self.possible_agents = []
         self.agents = []
         self.agents_dict = {}
@@ -153,6 +154,8 @@ class MalPettingZooSimulator(ParallelEnv):
             "remaining_ttc": num_objects * [0],
         }
 
+        logger.debug(f'Create blank observation with {num_objects} attack '
+            'steps.')
         observation["asset_type"], observation["asset_id"], observation["step_name"] = (
             zip(
                 *(
@@ -257,11 +260,12 @@ class MalPettingZooSimulator(ParallelEnv):
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         logger.info("Resetting simulator.")
-        # Regenerate the attack graph from the model
-        self.attack_graph = AttackGraph(self.model.lang_spec, self.model)
-        self.attack_graph.attach_attackers(self.model)
-        apriori.calculate_viability_and_necessity(self.attack_graph)
-
+        attack_graph = AttackGraph()
+        attack_graph.load_from_file('tmp/original_attack_graph.json',
+            self.model)
+        attack_graph.attach_attackers(self.model)
+        apriori.calculate_viability_and_necessity(attack_graph)
+        self.attack_graph = attack_graph
         return self.init(self.max_iter)
 
     def init(self, max_iter=ITERATIONS_LIMIT):

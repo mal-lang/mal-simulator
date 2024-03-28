@@ -1,3 +1,5 @@
+from typing import Any
+
 from gymnasium.spaces.space import Space
 from pettingzoo.utils.env import ParallelEnv
 
@@ -6,7 +8,6 @@ from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.model import Model
 
 from malpzsim.sims.mal_petting_zoo_simulator import MalPettingZooSimulator
-from typing import Any
 
 
 class LazyWrapper(ParallelEnv):
