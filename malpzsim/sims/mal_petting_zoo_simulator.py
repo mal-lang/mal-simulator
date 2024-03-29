@@ -46,8 +46,8 @@ def _format_full_observation(observation):
             obs_str += header
 
     obs_str += "\nEdges:\n"
-    for edge in observation["edges"]:
-        obs_str += str(edge) + "\n"
+    for index in range(0, len(observation["edges"][0])):
+        obs_str += f"({str(observation["edges"][0][index])}, {str(observation["edges"][1][index])})\n"
 
     return obs_str
 
@@ -165,20 +165,20 @@ class MalPettingZooSimulator(ParallelEnv):
             )
         )
 
-        observation["edges"] = [
-            [self._id_to_index[attack_step.id], self._id_to_index[child.id]]
-            for attack_step in self.attack_graph.nodes
-            for child in attack_step.children
-        ]
+        observation["edges"] = [[],[]]
+
+        for attack_step in self.attack_graph.nodes:
+            for child in attack_step.children:
+                observation["edges"][0].append(self._id_to_index[attack_step.id])
+                observation["edges"][1].append(self._id_to_index[child.id])
 
         # Create reverse edges for defense steps. This was required by some of
         # the defender agent logic.
         for attack_step in self.attack_graph.nodes:
             if attack_step.type == "defense":
                 for child in attack_step.children:
-                    observation["edges"].append(
-                        [self._id_to_index[child.id], self._id_to_index[attack_step.id]]
-                    )
+                    observation['edges'][0].append(self._id_to_index[child.id])
+                    observation['edges'][1].append(self._id_to_index[attack_step.id])
 
         np_obs = {
             "is_observable": np.array(observation["is_observable"], dtype=np.int8),
@@ -245,7 +245,7 @@ class MalPettingZooSimulator(ParallelEnv):
                 "edges": Box(
                     0,
                     num_objects,
-                    shape=(num_edges, 2),
+                    shape=(2, num_edges),
                     dtype=np.int64,
                 ),  # edges between steps
             }
