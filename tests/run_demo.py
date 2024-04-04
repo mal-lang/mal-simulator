@@ -2,7 +2,7 @@ from json import JSONEncoder
 import numpy as np
 import logging
 
-from maltoolbox.language import LanguageClassesFactory, LanguageGraph, specification
+from maltoolbox.language import LanguageClassesFactory, LanguageGraph
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.model import Model
 
@@ -12,6 +12,9 @@ from malsim.sims.mal_simulator import MalSimulator
 
 
 logger = logging.getLogger(__name__)
+logging.getLogger().setLevel(logging.DEBUG)
+logging.getLogger("maltoolbox").setLevel(logging.DEBUG)
+
 
 # Raise the logging level for the py2neo module to clean the logs a bit
 # cleaner.
@@ -38,18 +41,15 @@ AGENT_ATTACKER = "attacker"
 AGENT_DEFENDER = "defender"
 
 lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
-lang_spec = specification.load_language_specification_from_mar(lang_file)
-specification.save_language_specification_to_json(lang_spec, "lang_spec.json")
-lang_classes_factory = LanguageClassesFactory(lang_spec)
+
+lang_graph = LanguageGraph.from_mar_archive(lang_file)
+lang_classes_factory = LanguageClassesFactory(lang_graph)
 lang_classes_factory.create_classes()
 
-lang_graph = LanguageGraph(lang_spec)
+model = Model.load_from_file("tests/example_model.yml", lang_classes_factory)
 
-model = Model("Test Model", lang_spec, lang_classes_factory)
-model.load_from_file("tests/example_model.json")
-
-attack_graph = AttackGraph(lang_spec, model)
-attack_graph.attach_attackers(model)
+attack_graph = AttackGraph(lang_graph, model)
+attack_graph.attach_attackers()
 attack_graph.save_to_file("tmp/attack_graph.json")
 
 env = MalSimulator(lang_graph, model, attack_graph, max_iter=500)
@@ -116,10 +116,16 @@ while not done:
     else:
         print("Attacker Action: None")
         logger.debug("Attacker Action: None")
+        # Stop the attacker if it has run out of things to do since the
+        # experiment cannot progress any further.
+        # TODO Perhaps we want to only do this if none of the agents have
+        # anything to do or we may simply wish to have them running to accrue
+        # penalties/rewards. This was added just to make it easier to debug.
+        done = True
     action_dict = {AGENT_ATTACKER: attacker_action, AGENT_DEFENDER: defender_action}
     obs, rewards, terminated, truncated, infos = env.step(action_dict)
 
-    logger.debug("Attacker has compromised the following attack steps so far:")
+    logger.debug("Attacker has compromised the following attack steps so " "far:")
     attacker_obj = env.attack_graph.attackers[
         env.agents_dict[AGENT_ATTACKER]["attacker"]
     ]

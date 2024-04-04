@@ -297,7 +297,7 @@ class MalSimulator(ParallelEnv):
             table += str_format.format(self._asset_type_to_index[entry], entry)
         logger.debug(table)
 
-        self._index_to_step_name = [n.name for n in self.lang_graph.attack_steps]
+        self._index_to_step_name = [n.asset.name + ":" + n.name for n in self.lang_graph.attack_steps]
         self._step_name_to_index = {
             n: i for i, n in enumerate(self._index_to_step_name)
         }

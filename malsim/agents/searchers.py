@@ -17,6 +17,10 @@ def get_new_targets(
     return new_targets, surface_indexes
 
 
+class PassiveAttacker:
+    def compute_action_from_dict(self, observation, mask):
+        return (0, None)
+
 class BreadthFirstAttacker:
     def __init__(self, agent_config: dict) -> None:
         self.targets: Deque[int] = deque([])

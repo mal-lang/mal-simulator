@@ -39,7 +39,7 @@ class LazyWrapper(ParallelEnv):
             # Otherwise we generate the attack graph based on the model
             # provided.
             attack_graph = AttackGraph(lang_spec, model)
-            attack_graph.attach_attackers(model)
+            attack_graph.attach_attackers()
 
         sim = MalSimulator(lang_graph,
             model,

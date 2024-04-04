@@ -28,8 +28,9 @@ def test_pz():
     model = malmodel.Model("Test Model", lang_spec, lang_classes_factory)
     model.load_from_file("tests/example_model.json")
 
-    attack_graph = malattackgraph.AttackGraph(lang_spec, model)
-    attack_graph.attach_attackers(model)
+    attack_graph = malattackgraph.AttackGraph()
+    attack_graph.generate_graph(lang_spec, model)
+    attack_graph.attach_attackers()
     attack_graph.save_to_file("tmp/attack_graph.json")
 
     env = MalSimulator(lang_graph, model, attack_graph, max_iter=5)
