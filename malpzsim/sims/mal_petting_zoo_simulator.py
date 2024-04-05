@@ -319,15 +319,18 @@ class MalPettingZooSimulator(ParallelEnv):
 
         logger.info("Populate agents list with all possible agents.")
         self.agents = copy.deepcopy(self.possible_agents)
-        self.attack_surfaces = {}
+        self.action_surfaces = {}
         for agent in self.agents:
             if self.agents_dict[agent]["type"] == "attacker":
                 attacker = self.attack_graph.attackers[
                     self.agents_dict[agent]["attacker"]]
-                self.attack_surfaces[agent] = query.get_attack_surface(
+                self.action_surfaces[agent] = query.get_attack_surface(
                     self.attack_graph, attacker)
+            elif self.agents_dict[agent]["type"] == "defender":
+                self.action_surfaces[agent] = query.get_defense_surface(
+                    self.attack_graph)
             else:
-                self.attack_surfaces[agent] = []
+                self.action_surfaces[agent] = []
 
         observations, rewards, terminations, truncations, infos = (
             self._observe_and_reward()
@@ -371,11 +374,11 @@ class MalPettingZooSimulator(ParallelEnv):
                     f"Attacker {agent} has compromised {attack_step_node.id}."
                 )
                 attacker.compromise(attack_step_node)
-                self.attack_surfaces[agent] = \
+                self.action_surfaces[agent] = \
                     query.update_attack_surface_add_nodes(
                         self.attack_graph,
                         attacker,
-                        self.attack_surfaces[agent],
+                        self.action_surfaces[agent],
                         [attack_step_node])
             actions.append(attack_step)
             # TODO Update the attack surface of agent.attacker rather than
@@ -406,12 +409,14 @@ class MalPettingZooSimulator(ParallelEnv):
             if self.agents_dict[agent_el]["type"] == "attacker":
                 attacker = self.attack_graph.attackers[
                     self.agents_dict[agent_el]["attacker"]]
-                self.attack_surfaces[agent_el] = \
+                self.action_surfaces[agent_el] = \
                     query.update_attack_surface_remove_nodes(
                         self.attack_graph,
                         attacker,
-                        self.attack_surfaces[agent_el],
+                        self.action_surfaces[agent_el],
                         [defense_step_node])
+            elif self.agents_dict[agent_el]["type"] == "defender":
+                self.action_surfaces[agent_el].remove(defense_step_node)
         return actions
 
     def _observe_attacker(self, attacker_agent, observation):
@@ -437,7 +442,7 @@ class MalPettingZooSimulator(ParallelEnv):
             )
             attacker.undo_compromise(node)
 
-        for node in self.attack_surfaces[attacker_agent]:
+        for node in self.action_surfaces[attacker_agent]:
             index = self._id_to_index[node.id]
             if observation["observed_state"][index] != 1:
                 observation["observed_state"][index] = 0
@@ -496,7 +501,7 @@ class MalPettingZooSimulator(ParallelEnv):
             can_act = 0
             agent_type = self.agents_dict[agent]["type"]
             if agent_type == "defender":
-                for node in query.get_defense_surface(self.attack_graph):
+                for node in self.action_surfaces[agent]:
                     index = self._id_to_index[node.id]
                     available_actions[index] = 1
                     can_act = 1
@@ -505,7 +510,7 @@ class MalPettingZooSimulator(ParallelEnv):
                 attacker = self.attack_graph.attackers[
                     self.agents_dict[agent]["attacker"]
                 ]
-                for node in self.attack_surfaces[agent]:
+                for node in self.action_surfaces[agent]:
                     if not node.is_compromised_by(attacker):
                         index = self._id_to_index[node.id]
                         available_actions[index] = 1
