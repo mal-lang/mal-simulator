@@ -4,6 +4,7 @@ import logging
 import functools
 from typing import Optional
 import numpy as np
+import threading
 
 from gymnasium.spaces import MultiDiscrete, Box, Dict
 from pettingzoo import ParallelEnv
@@ -93,8 +94,10 @@ class MalPettingZooSimulator(ParallelEnv):
         self.model = model
         self.attack_graph = attack_graph
         self.max_iter = max_iter
+        self.attack_graph_backup_filename = \
+            f'tmp/{threading.get_ident()}_original_attack_graph.json'
 
-        self.attack_graph.save_to_file('tmp/original_attack_graph.json')
+        self.attack_graph.save_to_file(self.attack_graph_backup_filename)
 
         self.possible_agents = []
         self.agents = []
@@ -261,7 +264,7 @@ class MalPettingZooSimulator(ParallelEnv):
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         logger.info("Resetting simulator.")
         attack_graph = AttackGraph()
-        attack_graph.load_from_file('tmp/original_attack_graph.json',
+        attack_graph.load_from_file(self.attack_graph_backup_filename,
             self.model)
         apriori.calculate_viability_and_necessity(attack_graph)
         self.attack_graph = attack_graph
