@@ -66,6 +66,33 @@ def test_gym():
 
     env_checker.check_env(env.unwrapped)
 
+def test_random_defender_actions():
+    gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
+    
+    env = gym.make(
+        "MALDefenderEnv-v0",
+        model_file="2024_04_05_16_16_generated_model.json",
+        attack_graph_file="2024_04_05_16_16_generated_attack_graph.json",
+        lang_file="org.mal-lang.coreLang-1.0.0.mar",
+    )
+    
+    def available_steps(x):
+        np.flatnonzero(x["hacked_action_mask"][1])
+
+    def available_actions(x):
+        np.flatnonzero(x["hacked_action_mask"][0])
+
+    done = False
+    _, info = env.reset()
+    while not done:
+        available_s = available_steps(info)
+        defense = np.random.choice(1, available_s)
+        available_a = available_actions(info)
+        action = np.random.choice(1, available_a)
+
+        _, _, term, trunc, info = env.step((action, defense))
+        done = term or trunc
+
 
 def test_episode():
     logger.debug("Run Episode Test.")
@@ -110,3 +137,4 @@ def test_defender_penalty():
     assert reward < 0 # All defense steps cost something
 
 
+test_random_defender_actions()
