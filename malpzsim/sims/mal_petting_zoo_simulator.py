@@ -92,6 +92,8 @@ class MalPettingZooSimulator(ParallelEnv):
         logger.info("Create Petting Zoo Mal Simulator.")
         self.lang_graph = lang_graph
         self.model = model
+        apriori.calculate_viability_and_necessity(attack_graph)
+        apriori.prune_unviable_and_unnecessary_nodes(attack_graph)
         self.attack_graph = attack_graph
         self.max_iter = max_iter
         self.attack_graph_backup_filename = \
@@ -266,7 +268,6 @@ class MalPettingZooSimulator(ParallelEnv):
         attack_graph = AttackGraph()
         attack_graph.load_from_file(self.attack_graph_backup_filename,
             self.model)
-        apriori.calculate_viability_and_necessity(attack_graph)
         self.attack_graph = attack_graph
         return self.init(self.max_iter)
 
