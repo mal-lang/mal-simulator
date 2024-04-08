@@ -416,7 +416,12 @@ class MalPettingZooSimulator(ParallelEnv):
                         self.action_surfaces[agent_el],
                         [defense_step_node])
             elif self.agents_dict[agent_el]["type"] == "defender":
-                self.action_surfaces[agent_el].remove(defense_step_node)
+                if defense_step_node in self.action_surfaces[agent_el]:
+                    # TODO Evaluate this clause. I am not convinced that the
+                    # agent should ever be able to ask for a defense not
+                    # present in the defense surface, but maybe it is good to
+                    # have for testing.
+                    self.action_surfaces[agent_el].remove(defense_step_node)
         return actions
 
     def _observe_attacker(self, attacker_agent, observation):
