@@ -53,10 +53,14 @@ def _format_full_observation(observation):
     return obs_str
 
 
-def format_obs_var_sec(observation, index_to_id):
+def format_obs_var_sec(observation, index_to_id, included_values = [-1, 0, 1]):
     """
     Return a formatted string of the sections of the observation that can
     vary over time.
+    Arguments:
+    observation     - the observation to format
+    included_values - the values to list, any values not present in the list
+                      will be filtered out
     """
     obs_str = ""
 
@@ -65,7 +69,8 @@ def format_obs_var_sec(observation, index_to_id):
     obs_str += header
     listing_nr = 0
     for entry in range(0, len(observation["observed_state"])):
-        if observation["is_observable"][entry]:
+        if observation["is_observable"][entry] and \
+                observation["observed_state"][entry] in included_values:
             obs_str += str_format.format(
                 index_to_id[entry],
                 observation["observed_state"][entry],
@@ -574,7 +579,8 @@ class MalPettingZooSimulator(ParallelEnv):
 
             logger.debug(
                 f'Observation for agent "{agent}":\n'
-                + format_obs_var_sec(observations[agent], self._index_to_id)
+                + format_obs_var_sec(observations[agent], self._index_to_id,
+                    included_values = [0, 1])
             )
             logger.debug(f'Rewards for agent "{agent}": ' + str(rewards[agent]))
             logger.debug(
