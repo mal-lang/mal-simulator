@@ -386,8 +386,6 @@ class MalPettingZooSimulator(ParallelEnv):
                         self.action_surfaces[agent],
                         [attack_step_node])
             actions.append(attack_step)
-            # TODO Update the attack surface of agent.attacker rather than
-            # regenerating it every step.
         else:
             logger.warning(
                 f'Attacker \"{agent}\" tried to compromise untraversable '
@@ -395,38 +393,78 @@ class MalPettingZooSimulator(ParallelEnv):
             )
         return actions
 
+    def update_viability_with_eviction(self, node):
+        """
+        Update the viability of the node in the graph and evict any nodes
+        that are no longer viable from any attackers' action surface.
+        Propagate this recursively via children as long as changes occur.
+
+        Arguments:
+        node       - the node to propagate updates from
+        """
+        logger.debug(
+            f'Update viability with eviction for node \"{node.id}\"'
+        )
+        if not node.is_viable:
+            # This is more of a sanity check, it should never be called on
+            # viable nodes.
+            for agent in self.agents:
+                if self.agents_dict[agent]["type"] == "attacker":
+                    try:
+                        self.action_surfaces[agent].remove(node)
+                    except ValueError:
+                        # Optimization: the attacker is told to remove
+                        # the node from its attack surface even if it
+                        # may have not been present to save one extra
+                        # lookup.
+                        pass
+            for child in node.children:
+                original_value = child.is_viable
+                if child.type == 'or':
+                    child.is_viable = False
+                    for parent in child.parents:
+                        child.is_viable = child.is_viable or parent.is_viable
+                if child.type == 'and':
+                    child.is_viable = False
+
+                if child.is_viable != original_value:
+                    self.update_viability_with_eviction(child)
+
+
     def _defender_step(self, agent, defense_step):
         actions = []
         defense_step_node = self.attack_graph.get_node_by_id(
             self._index_to_id[defense_step]
         )
         logger.info(
-            f'Defender agent "{agent}" stepping through ' f"{defense_step_node.id}."
+            f'Defender agent "{agent}" stepping through {defense_step_node.id}.'
         )
+        if defense_step_node not in self.action_surfaces[agent]:
+            logger.info(
+                f'Defender agent "{agent}" tried to step through '
+                f'{defense_step_node.id} which is not part of its defense '
+                'surface. Defender step will skip'
+            )
+            return actions
+
         defense_step_node.defense_status = 1.0
+        defense_step_node.is_viable = False
+        self.update_viability_with_eviction(defense_step_node)
         actions.append(defense_step)
-        # TODO Update the viability and necessity values related to this
-        # defense rather than recalculating them every step.
-        # TODO Update the defense surface of the defender agent rather than
-        # regenerating it every step.
-        apriori.calculate_viability_and_necessity(self.attack_graph)
+
+        # Remove defense from all defender agents' action surfaces since it is
+        # already enabled.
         for agent_el in self.agents:
-            if self.agents_dict[agent_el]["type"] == "attacker":
-                attacker = self.attack_graph.attackers[
-                    self.agents_dict[agent_el]["attacker"]]
-                self.action_surfaces[agent_el] = \
-                    query.update_attack_surface_remove_nodes(
-                        self.attack_graph,
-                        attacker,
-                        self.action_surfaces[agent_el],
-                        [defense_step_node])
-            elif self.agents_dict[agent_el]["type"] == "defender":
-                if defense_step_node in self.action_surfaces[agent_el]:
-                    # TODO Evaluate this clause. I am not convinced that the
-                    # agent should ever be able to ask for a defense not
-                    # present in the defense surface, but maybe it is good to
-                    # have for testing.
+            if self.agents_dict[agent_el]["type"] == "defender":
+                try:
                     self.action_surfaces[agent_el].remove(defense_step_node)
+                except ValueError:
+                    # Optimization: the defender is told to remove
+                    # the node from its defense surface even if it
+                    # may have not been present to save one extra
+                    # lookup.
+                    pass
+
         return actions
 
     def _observe_attacker(self, attacker_agent, observation):
