@@ -10,8 +10,8 @@ from maltoolbox.language import languagegraph as mallanguagegraph
 from maltoolbox.attackgraph import attackgraph as malattackgraph
 from maltoolbox import model as malmodel
 
-from malpzsim.sims.mal_petting_zoo_simulator import MalPettingZooSimulator
-from malpzsim.wrappers.gym_wrapper import AttackerEnv, DefenderEnv
+from malsim.sims.mal_simulator import MalSimulator
+from malsim.wrappers.gym_wrapper import AttackerEnv, DefenderEnv
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ def test_pz():
     attack_graph.attach_attackers(model)
     attack_graph.save_to_file("tmp/attack_graph.json")
 
-    env = MalPettingZooSimulator(lang_graph, model, attack_graph, max_iter=5)
+    env = MalSimulator(lang_graph, model, attack_graph, max_iter=5)
 
     env.register_attacker("attacker", 0)
     env.register_defender("defender")

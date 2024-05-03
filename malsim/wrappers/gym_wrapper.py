@@ -7,8 +7,8 @@ from gymnasium import spaces
 from gymnasium.core import RenderFrame
 import numpy as np
 
-from malpzsim.wrappers.wrapper import LazyWrapper
-from malpzsim.agents import searchers
+from malsim.wrappers.wrapper import LazyWrapper
+from malsim.agents import searchers
 
 
 AGENT_ATTACKER = "attacker"
@@ -205,8 +205,8 @@ if __name__ == "__main__":
     gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
-        model_file="/storage/GitHub/mal-petting-zoo-simulator/tests/example_model.json",
-        lang_file="/storage/GitHub/mal-petting-zoo-simulator/tests/org.mal-lang.coreLang-1.0.0.mar",
+        model_file="/storage/GitHub/mal-simulator/tests/example_model.json",
+        lang_file="/storage/GitHub/mal-simulator/tests/org.mal-lang.coreLang-1.0.0.mar",
         unholy=True,
     )
     env_checker.check_env(env.unwrapped)
@@ -214,7 +214,7 @@ if __name__ == "__main__":
     gym.register("MALAttackerEnv-v0", entry_point=AttackerEnv)
     env = gym.make(
         "MALAttackerEnv-v0",
-        model_file="/storage/GitHub/mal-petting-zoo-simulator/tests/example_model.json",
-        lang_file="/storage/GitHub/mal-petting-zoo-simulator/tests/org.mal-lang.coreLang-1.0.0.mar",
+        model_file="/storage/GitHub/mal-simulator/tests/example_model.json",
+        lang_file="/storage/GitHub/mal-simulator/tests/org.mal-lang.coreLang-1.0.0.mar",
     )
     env_checker.check_env(env.unwrapped)

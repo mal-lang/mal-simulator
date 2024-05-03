@@ -1,6 +1,6 @@
 # Overview
 
-A MAL compliant Petting Zoo simulator.
+A MAL compliant simulator.
 
 # Installation 
-```pip install mal-petting-zoo-simulator```
+```pip install mal-simulator```

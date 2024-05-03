@@ -1,5 +1,5 @@
 [project]
-name = "mal-petting-zoo-simulator"
+name = "mal-simulator"
 version = "0.0.21"
 authors = [
   { name="Andrei Buhaiu", email="buhaiu@kth.se" },
@@ -7,7 +7,7 @@ authors = [
   { name="Nikolaos Kakouros", email="nkak@kth.se" }
 
 ]
-description = "A MAL compliant petting zoo simulator."
+description = "A MAL compliant simulator."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -30,16 +30,16 @@ classifiers = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/mal-lang/mal-petting-zoo-simulator"
-"Bug Tracker" = "https://github.com/mal-lang/mal-petting-zoo-simulator/issues"
-"Repository" = "https://github.com/mal-lang/mal-petting-zoo-simulator"
+"Homepage" = "https://github.com/mal-lang/mal-simulator"
+"Bug Tracker" = "https://github.com/mal-lang/mal-simulator/issues"
+"Repository" = "https://github.com/mal-lang/mal-simulator"
 
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["malpzsim*"]
+include = ["malsim*"]
 
 [tool.setuptools.package-data]
 maltoolbox = ["tests*"]

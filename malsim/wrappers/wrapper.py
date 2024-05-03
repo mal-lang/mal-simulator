@@ -7,7 +7,7 @@ from maltoolbox.language import LanguageClassesFactory, LanguageGraph, specifica
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.model import Model
 
-from malpzsim.sims.mal_petting_zoo_simulator import MalPettingZooSimulator
+from malsim.sims.mal_simulator import MalSimulator
 
 
 class LazyWrapper(ParallelEnv):
@@ -41,7 +41,7 @@ class LazyWrapper(ParallelEnv):
             attack_graph = AttackGraph(lang_spec, model)
             attack_graph.attach_attackers(model)
 
-        sim = MalPettingZooSimulator(lang_graph,
+        sim = MalSimulator(lang_graph,
             model,
             attack_graph,
             **kwargs)

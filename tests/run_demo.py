@@ -6,9 +6,9 @@ from maltoolbox.language import LanguageClassesFactory, LanguageGraph, specifica
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.model import Model
 
-from malpzsim.agents.keyboard_input import KeyboardAgent
-from malpzsim.agents.searchers import BreadthFirstAttacker
-from malpzsim.sims.mal_petting_zoo_simulator import MalPettingZooSimulator
+from malsim.agents.keyboard_input import KeyboardAgent
+from malsim.agents.searchers import BreadthFirstAttacker
+from malsim.sims.mal_simulator import MalSimulator
 
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ attack_graph = AttackGraph(lang_spec, model)
 attack_graph.attach_attackers(model)
 attack_graph.save_to_file("tmp/attack_graph.json")
 
-env = MalPettingZooSimulator(lang_graph, model, attack_graph, max_iter=500)
+env = MalSimulator(lang_graph, model, attack_graph, max_iter=500)
 
 env.register_attacker(AGENT_ATTACKER, 0)
 env.register_defender(AGENT_DEFENDER)

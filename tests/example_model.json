@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "name": "Petting Zoo Example Model",
+    "name": "MAL Simulator Example Model",
     "langVersion": "1.0.0",
     "langID": "org.mal-lang.coreLang",
     "malVersion": "0.1.0-SNAPSHOT",

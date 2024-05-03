@@ -37,7 +37,7 @@ jobs:
       runs-on: ubuntu-latest
       environment:
         name: pypi
-        url: https://pypi.org/p/mal-petting-zoo-simulator
+        url: https://pypi.org/p/mal-simulator
       permissions:
         id-token: write  # IMPORTANT: mandatory for trusted publishing
 
@@ -58,7 +58,7 @@ jobs:
       runs-on: ubuntu-latest
       environment:
         name: testpypi
-        url: https://test.pypi.org/p/mal-petting-zoo-simulator
+        url: https://test.pypi.org/p/mal-simulator
       permissions:
         id-token: write  # IMPORTANT: mandatory for trusted publishing
 

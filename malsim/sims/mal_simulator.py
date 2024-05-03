@@ -84,7 +84,7 @@ def format_obs_var_sec(observation, index_to_id, included_values = [-1, 0, 1]):
     return obs_str
 
 
-class MalPettingZooSimulator(ParallelEnv):
+class MalSimulator(ParallelEnv):
     def __init__(
         self,
         lang_graph: LanguageGraph,
@@ -94,7 +94,7 @@ class MalPettingZooSimulator(ParallelEnv):
         **kwargs,
     ):
         super().__init__()
-        logger.info("Create Petting Zoo Mal Simulator.")
+        logger.info("Create Mal Simulator.")
         self.lang_graph = lang_graph
         self.model = model
         apriori.calculate_viability_and_necessity(attack_graph)
@@ -277,7 +277,7 @@ class MalPettingZooSimulator(ParallelEnv):
         return self.init(self.max_iter)
 
     def init(self, max_iter=ITERATIONS_LIMIT):
-        logger.info("Initializing MAL Petting Zoo ParralelEnv Simulator.")
+        logger.info("Initializing MAL ParralelEnv Simulator.")
         logger.debug("Creating and listing mapping tables.")
         self._index_to_id = [n.id for n in self.attack_graph.nodes]
         self._id_to_index = {n: i for i, n in enumerate(self._index_to_id)}
