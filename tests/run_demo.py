@@ -73,23 +73,23 @@ done = False
 # TODO Have a nice and configurable way of doing this when we have the
 # scenario configuration format decided upon.
 MAX_REWARD = int(1e9)
-env.attack_graph.get_node_by_id("Application:0:notPresent").reward = 50
-env.attack_graph.get_node_by_id("Application:0:supplyChainAuditing").reward = MAX_REWARD
-env.attack_graph.get_node_by_id("Application:1:notPresent").reward = 30
-env.attack_graph.get_node_by_id("Application:1:supplyChainAuditing").reward = MAX_REWARD
+env.attack_graph.get_node_by_id("OS App:notPresent").reward = 50
+env.attack_graph.get_node_by_id("OS App:supplyChainAuditing").reward = MAX_REWARD
+env.attack_graph.get_node_by_id("Program 1:notPresent").reward = 30
+env.attack_graph.get_node_by_id("Program 1:supplyChainAuditing").reward = MAX_REWARD
 env.attack_graph.get_node_by_id("SoftwareVulnerability:2:notPresent").reward = 40
 env.attack_graph.get_node_by_id("Data:3:notPresent").reward = 20
 env.attack_graph.get_node_by_id("Credentials:4:notPhishable").reward = MAX_REWARD
 env.attack_graph.get_node_by_id("Identity:5:notPresent").reward = 35
 env.attack_graph.get_node_by_id("ConnectionRule:6:restricted").reward = 40
 env.attack_graph.get_node_by_id("ConnectionRule:6:payloadInspection").reward = 30
-env.attack_graph.get_node_by_id("Application:7:notPresent").reward = 50
-env.attack_graph.get_node_by_id("Application:7:supplyChainAuditing").reward = MAX_REWARD
+env.attack_graph.get_node_by_id("Other OS App:notPresent").reward = 50
+env.attack_graph.get_node_by_id("Other OS App:supplyChainAuditing").reward = MAX_REWARD
 
-env.attack_graph.get_node_by_id("Application:0:fullAccess").reward = 100
-env.attack_graph.get_node_by_id("Application:1:fullAccess").reward = 50
+env.attack_graph.get_node_by_id("OS App:fullAccess").reward = 100
+env.attack_graph.get_node_by_id("Program 1:fullAccess").reward = 50
 env.attack_graph.get_node_by_id("Identity:5:assume").reward = 50
-env.attack_graph.get_node_by_id("Application:7:fullAccess").reward = 200
+env.attack_graph.get_node_by_id("Other OS App:fullAccess").reward = 200
 
 
 logger.info("Starting game.")
