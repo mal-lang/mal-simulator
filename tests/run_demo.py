@@ -1,3 +1,8 @@
+import sys
+import os
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 from json import JSONEncoder
 import numpy as np
 import logging
@@ -40,7 +45,13 @@ attacker_only = False
 AGENT_ATTACKER = "attacker"
 AGENT_DEFENDER = "defender"
 
+
+#MAL toolbox to load the graph attack
 lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
+lang_spec = specification.load_language_specification_from_mar(lang_file)
+specification.save_language_specification_to_json(lang_spec, "lang_spec.json")
+lang_classes_factory = LanguageClassesFactory(lang_spec)
+lang_classes_factory.create_classes()
 
 lang_graph = LanguageGraph.from_mar_archive(lang_file)
 lang_classes_factory = LanguageClassesFactory(lang_graph)

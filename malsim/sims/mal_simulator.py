@@ -6,6 +6,8 @@ from typing import Optional
 import numpy as np
 import threading
 
+from typing import Iterable
+
 from gymnasium.spaces import MultiDiscrete, Box, Dict
 from pettingzoo import ParallelEnv
 
@@ -117,6 +119,9 @@ class MalSimulator(ParallelEnv):
 
         self.init(self.max_iter)
 
+    def __call__(self):
+        return self
+
     @property
     @functools.lru_cache(maxsize=None)
     def num_assets(self):
@@ -153,6 +158,9 @@ class MalSimulator(ParallelEnv):
 
     def asset_id(self, step):
         return int(step.asset.id) if step.name != "firstSteps" else 0
+
+    def agent_iter(self):
+        return None
 
     def create_blank_observation(self):
         # For now, an `object` is an attack step
@@ -211,7 +219,7 @@ class MalSimulator(ParallelEnv):
         return agent_info_str
 
     @functools.lru_cache(maxsize=None)
-    def observation_space(self, agent):
+    def observation_space(self, agent=None):
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
         num_lang_asset_types = len(self.lang_graph.assets)
@@ -262,7 +270,7 @@ class MalSimulator(ParallelEnv):
         )
 
     @functools.lru_cache(maxsize=None)
-    def action_space(self, agent):
+    def action_space(self, agent=None):
         num_actions = 2  # two actions: wait or use
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
