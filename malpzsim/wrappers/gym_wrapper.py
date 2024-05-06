@@ -1,4 +1,10 @@
+import sys
+import os
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..','..'))
+
 from typing import Any, Dict, SupportsFloat
+
 
 import gymnasium as gym
 import gymnasium.utils.env_checker as env_checker
@@ -9,7 +15,6 @@ import numpy as np
 
 from malpzsim.wrappers.wrapper import LazyWrapper
 from malpzsim.agents import searchers
-
 
 AGENT_ATTACKER = "attacker"
 AGENT_DEFENDER = "defender"
@@ -203,18 +208,20 @@ def register_envs():
 
 if __name__ == "__main__":
     gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
+
+
     env = gym.make(
         "MALDefenderEnv-v0",
-        model_file="/storage/GitHub/mal-petting-zoo-simulator/tests/example_model.json",
-        lang_file="/storage/GitHub/mal-petting-zoo-simulator/tests/org.mal-lang.coreLang-1.0.0.mar",
-        unholy=True,
+        model_file=os.path.join(os.path.dirname(__file__), '..','..','tests','example_model.json'),
+        lang_file=os.path.join(os.path.dirname(__file__), '..','..','tests','org.mal-lang.coreLang-1.0.0.mar'),
+        unholy=True
     )
     env_checker.check_env(env.unwrapped)
 
     gym.register("MALAttackerEnv-v0", entry_point=AttackerEnv)
     env = gym.make(
         "MALAttackerEnv-v0",
-        model_file="/storage/GitHub/mal-petting-zoo-simulator/tests/example_model.json",
-        lang_file="/storage/GitHub/mal-petting-zoo-simulator/tests/org.mal-lang.coreLang-1.0.0.mar",
+        model_file=os.path.join(os.path.dirname(__file__), '..','..','tests','example_model.json'),
+        lang_file=os.path.join(os.path.dirname(__file__), '..','..','tests','org.mal-lang.coreLang-1.0.0.mar')
     )
     env_checker.check_env(env.unwrapped)

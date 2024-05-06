@@ -1,3 +1,8 @@
+import sys
+import os
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 from json import JSONEncoder
 import numpy as np
 import logging
@@ -37,7 +42,9 @@ attacker_only = False
 AGENT_ATTACKER = "attacker"
 AGENT_DEFENDER = "defender"
 
-lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
+
+#MAL toolbox to load the graph attack
+lang_file = "org.mal-lang.coreLang-1.0.0.mar"
 lang_spec = specification.load_language_specification_from_mar(lang_file)
 specification.save_language_specification_to_json(lang_spec, "lang_spec.json")
 lang_classes_factory = LanguageClassesFactory(lang_spec)
@@ -46,13 +53,14 @@ lang_classes_factory.create_classes()
 lang_graph = LanguageGraph(lang_spec)
 
 model = Model("Test Model", lang_spec, lang_classes_factory)
-model.load_from_file("tests/example_model.json")
+model.load_from_file("example_model.json")
 
 attack_graph = AttackGraph(lang_spec, model)
 attack_graph.attach_attackers(model)
 attack_graph.save_to_file("tmp/attack_graph.json")
 
 env = MalPettingZooSimulator(lang_graph, model, attack_graph, max_iter=500)
+
 
 env.register_attacker(AGENT_ATTACKER, 0)
 env.register_defender(AGENT_DEFENDER)
@@ -69,27 +77,29 @@ attacker = (
 obs, infos = env.reset()
 done = False
 
+
+
 # Set rewards
 # TODO Have a nice and configurable way of doing this when we have the
 # scenario configuration format decided upon.
 MAX_REWARD = int(1e9)
-env.attack_graph.get_node_by_id("Application:0:notPresent").reward = 50
-env.attack_graph.get_node_by_id("Application:0:supplyChainAuditing").reward = MAX_REWARD
-env.attack_graph.get_node_by_id("Application:1:notPresent").reward = 30
-env.attack_graph.get_node_by_id("Application:1:supplyChainAuditing").reward = MAX_REWARD
-env.attack_graph.get_node_by_id("SoftwareVulnerability:2:notPresent").reward = 40
-env.attack_graph.get_node_by_id("Data:3:notPresent").reward = 20
-env.attack_graph.get_node_by_id("Credentials:4:notPhishable").reward = MAX_REWARD
-env.attack_graph.get_node_by_id("Identity:5:notPresent").reward = 35
-env.attack_graph.get_node_by_id("ConnectionRule:6:restricted").reward = 40
-env.attack_graph.get_node_by_id("ConnectionRule:6:payloadInspection").reward = 30
-env.attack_graph.get_node_by_id("Application:7:notPresent").reward = 50
-env.attack_graph.get_node_by_id("Application:7:supplyChainAuditing").reward = MAX_REWARD
+env.attack_graph.get_node_by_id("OS App:0:notPresent").reward = 50
+env.attack_graph.get_node_by_id("OS App:0:successfulReverseReach").reward = MAX_REWARD
+env.attack_graph.get_node_by_id("OS App:0:networkConnectInspected").reward = 30
+env.attack_graph.get_node_by_id("OS App:0:successfulUnsafeUserActivity").reward = MAX_REWARD
+env.attack_graph.get_node_by_id("SoftwareVulnerability:2:2:lowPrivilegesRequired").reward = 40
+env.attack_graph.get_node_by_id("Data:3:3:applicationRespondConnect").reward = 20
+env.attack_graph.get_node_by_id("Credentials:4:4:attemptDenyFromReplica").reward = MAX_REWARD
+env.attack_graph.get_node_by_id("Identity:5:5:attemptAssume").reward = 35
+env.attack_graph.get_node_by_id("Credentials:4:4:notDisclosed").reward = 40
+env.attack_graph.get_node_by_id("ConnectionRule:6:6:successfulAccessNetworksUninspected").reward = 30
+env.attack_graph.get_node_by_id("OS App:0:successfulRead").reward = 50
+env.attack_graph.get_node_by_id("OS App:0:specificAccessNetworkConnect").reward = MAX_REWARD
 
-env.attack_graph.get_node_by_id("Application:0:fullAccess").reward = 100
-env.attack_graph.get_node_by_id("Application:1:fullAccess").reward = 50
-env.attack_graph.get_node_by_id("Identity:5:assume").reward = 50
-env.attack_graph.get_node_by_id("Application:7:fullAccess").reward = 200
+env.attack_graph.get_node_by_id("OS App:0:specificAccessFromNetworkConnection").reward = 100
+env.attack_graph.get_node_by_id("OS App:0:fullAccess").reward = 50
+env.attack_graph.get_node_by_id("Identity:5:5:assume").reward = 50
+env.attack_graph.get_node_by_id("OS App:0:attemptReadFromSoftProdVulnerability").reward = 200
 
 
 logger.info("Starting game.")
@@ -110,6 +120,7 @@ while not done:
         obs[AGENT_ATTACKER], infos[AGENT_ATTACKER]["action_mask"]
     )
 
+    print(infos[AGENT_ATTACKER])
     if attacker_action[1] is not None:
         print("Attacker Action: ", reverse_vocab[attacker_action[1]])
         logger.debug(f"Attacker Action: {reverse_vocab[attacker_action[1]]}")
@@ -117,6 +128,9 @@ while not done:
         print("Attacker Action: None")
         logger.debug("Attacker Action: None")
     action_dict = {AGENT_ATTACKER: attacker_action, AGENT_DEFENDER: defender_action}
+
+
+
     obs, rewards, terminated, truncated, infos = env.step(action_dict)
 
     logger.debug("Attacker has compromised the following attack steps so far:")
