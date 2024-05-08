@@ -6,8 +6,6 @@ from typing import Optional
 import numpy as np
 import threading
 
-from typing import Iterable
-
 from gymnasium.spaces import MultiDiscrete, Box, Dict
 from pettingzoo import ParallelEnv
 

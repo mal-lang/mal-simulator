@@ -9,16 +9,9 @@ import logging
 import numpy as np
 import gymnasium as gym
 from gymnasium.utils import env_checker
-from pettingzoo.test import parallel_api_test, parallel_seed_test, seed_test
+from pettingzoo.test import parallel_api_test
 
 from os import path
-
-
-from maltoolbox.language import classes_factory
-from maltoolbox.language import specification
-from maltoolbox.language import languagegraph as mallanguagegraph
-from maltoolbox.attackgraph import attackgraph as malattackgraph
-from maltoolbox import model as malmodel
 
 from malsim.sims.mal_simulator import MalSimulator
 from malsim.wrappers.gym_wrapper import AttackerEnv, DefenderEnv
