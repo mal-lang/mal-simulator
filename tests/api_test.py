@@ -24,20 +24,22 @@ AGENT_DEFENDER = "defender"
 ACTION_TERMINATE = "terminate"
 ACTION_WAIT = "wait"
 
-model_file_name='example_model.json'
+model_file_name='tests/example_model.json'
 attack_graph_file_name=path.join('tmp','attack_graph.json')
-lang_file_name='org.mal-lang.coreLang-1.0.0.mar'
+lang_file_name='tests/org.mal-lang.coreLang-1.0.0.mar'
 
+def register_gym_agent(agent_id, entry_point):
+    if agent_id not in gym.envs.registry.keys():
+        gym.register(agent_id, entry_point=entry_point)
 
 def test_pz(env: MalSimulator):
     logger.debug("Run Parrallel API test.")
     parallel_api_test(env)
 
-
 #Check that an environment follows Gym API
 def test_gym():
     logger.debug("Run Gym Test.")
-    gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
+    register_gym_agent("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
         model_file=model_file_name,
@@ -46,7 +48,7 @@ def test_gym():
         unholy=False,
     )
     env_checker.check_env(env.unwrapped)
-    gym.register("MALAttackerEnv-v0", entry_point=AttackerEnv)
+    register_gym_agent("MALAttackerEnv-v0", entry_point=AttackerEnv)
     env = gym.make(
         "MALAttackerEnv-v0",
         model_file=model_file_name,
@@ -57,7 +59,7 @@ def test_gym():
 
 
 def test_random_defender_actions():
-    gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
+    register_gym_agent("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
         model_file=model_file_name,
@@ -84,7 +86,7 @@ def test_random_defender_actions():
 
 def test_episode():
     logger.debug("Run Episode Test.")
-    gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
+    register_gym_agent("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
         model_file=model_file_name,
@@ -109,7 +111,7 @@ def test_episode():
 
 
 def test_defender_penalty():
-    gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
+    register_gym_agent("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
         model_file=model_file_name,

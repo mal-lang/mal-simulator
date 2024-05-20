@@ -19,11 +19,9 @@ class LazyWrapper(ParallelEnv):
         else:
             attack_graph_file = ""
         agents = kwargs.pop("agents", {})
-        lang_spec = LanguageGraph.from_mar_archive(
+        lang_graph = LanguageGraph.from_mar_archive(
             str(lang_file))
-        lang_classes_factory = LanguageClassesFactory(lang_spec)
-
-        lang_graph = LanguageGraph(lang_spec)
+        lang_classes_factory = LanguageClassesFactory(lang_graph)
 
         model = Model.load_from_file(model_file, lang_classes_factory)
 
@@ -32,11 +30,12 @@ class LazyWrapper(ParallelEnv):
             attack_graph = AttackGraph()
             attack_graph.load_from_file(filename = attack_graph_file,
                 model = model)
+            attack_graph.model = model
             attack_graph.attach_attackers()
         else:
             # Otherwise we generate the attack graph based on the model
             # provided.
-            attack_graph = AttackGraph(lang_spec, model)
+            attack_graph = AttackGraph(lang_graph, model)
             attack_graph.attach_attackers()
 
         sim = MalSimulator(lang_graph,

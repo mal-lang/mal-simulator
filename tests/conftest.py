@@ -2,34 +2,21 @@ from os import path
 import pytest
 from malsim.sims.mal_simulator import MalSimulator
 
-from maltoolbox.language import specification
-from maltoolbox.language import classes_factory
-from maltoolbox.attackgraph import attackgraph as malattackgraph
-from maltoolbox.language import languagegraph as mallanguagegraph
-from maltoolbox import model as malmodel
+from maltoolbox.wrappers import create_attack_graph
 
-model_file_name='example_model.json'
+model_file_name='tests/example_model.json'
 attack_graph_file_name=path.join('tmp','attack_graph.json')
-lang_file_name='org.mal-lang.coreLang-1.0.0.mar'
+lang_file_name='tests/org.mal-lang.coreLang-1.0.0.mar'
 
 
 @pytest.fixture(scope="session", name="env")
 def fixture_env()-> MalSimulator:
 
-    lang_file = lang_file_name
-    lang_spec = specification.load_language_specification_from_mar(lang_file)
-    specification.save_language_specification_to_json(lang_spec,
-        "lang_spec.json")
-    lang_classes_factory = classes_factory.LanguageClassesFactory(lang_spec)
-    lang_classes_factory.create_classes()
+    attack_graph = create_attack_graph(lang_file_name, model_file_name)
+    lang_graph = attack_graph.lang_graph
 
-    lang_graph = mallanguagegraph.LanguageGraph(lang_spec)
+    model = attack_graph.model
 
-    model = malmodel.Model("Test Model", lang_spec, lang_classes_factory)
-    model.load_from_file(model_file_name)
-
-    attack_graph = malattackgraph.AttackGraph(lang_spec, model)
-    attack_graph.attach_attackers(model)
     attack_graph.save_to_file(attack_graph_file_name)
 
     env = MalSimulator(lang_graph,
