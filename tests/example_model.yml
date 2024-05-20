@@ -1,45 +1,112 @@
----
 assets:
-  0: Application
-  1: Application
-  2: SoftwareVulnerability
-  3: Data
-  4: Credentials
-  5: Identity
-  6: ConnectionRule
-  7: Application
+  0:
+    defenses:
+      notPresent: 0.0
+      supplyChainAuditing: 0.0
+    metaconcept: Application
+    name: OS App
+  1:
+    defenses:
+      notPresent: 0.0
+      supplyChainAuditing: 0.0
+    metaconcept: Application
+    name: Program 1
+  2:
+    defenses:
+      availabilityImpactLimitations: 0.0
+      confidentialityImpactLimitations: 0.0
+      highComplexityExploitRequired: 0.0
+      highPrivilegesRequired: 0.0
+      integrityImpactLimitations: 0.0
+      localAccessRequired: 0.0
+      lowPrivilegesRequired: 0.0
+      networkAccessRequired: 0.0
+      notPresent: 0.0
+      physicalAccessRequired: 0.0
+      userInteractionRequired: 0.0
+    metaconcept: SoftwareVulnerability
+    name: SoftwareVulnerability:2
+  3:
+    defenses:
+      notPresent: 0.0
+    metaconcept: Data
+    name: Data:3
+  4:
+    defenses:
+      notPhishable: 0.0
+    metaconcept: Credentials
+    name: Credentials:4
+  5:
+    defenses:
+      notPresent: 0.0
+    metaconcept: Identity
+    name: Identity:5
+  6:
+    defenses:
+      payloadInspection: 0.0
+      restricted: 0.0
+    metaconcept: ConnectionRule
+    name: ConnectionRule:6
+  7:
+    defenses:
+      notPresent: 0.0
+      supplyChainAuditing: 0.0
+    metaconcept: Application
+    name: Other OS App
 associations:
-  - metaconcept: AppExecution
-    appExecutedApps: 1
-    hostApp: 0
-  - metaconcept: ApplicationVulnerability_SoftwareVulnerability_Application
-    application: 0
-    vulnerabilities: 2
-  - metaconcept: AppContainment
-    containedData: 3
-    containingApp: 1
-  - metaconcept: IdentityCredentials
-    credentials: 4
-    identities: 5
-  - metaconcept: InfoContainment
-    containerData: 3
-    information: 4
-  - metaconcept: ApplicationConnection
-    appConnections: 6
-    applications: [0, 7]
-  - metaconcept: ExecutionPrivilegeAccess
-    execPrivApps: 7
-    executionPrivIAMs: 5
+- association:
+    appExecutedApps:
+    - 1
+    hostApp:
+    - 0
+  metaconcept: AppExecution
+- association:
+    application:
+    - 0
+    vulnerabilities:
+    - 2
+  metaconcept: ApplicationVulnerability_SoftwareVulnerability_Application
+- association:
+    containedData:
+    - 3
+    containingApp:
+    - 1
+  metaconcept: AppContainment
+- association:
+    credentials:
+    - 4
+    identities:
+    - 5
+  metaconcept: IdentityCredentials
+- association:
+    containerData:
+    - 3
+    information:
+    - 4
+  metaconcept: InfoContainment
+- association:
+    appConnections:
+    - 6
+    applications:
+    - 0
+    - 7
+  metaconcept: ApplicationConnection
+- association:
+    execPrivApps:
+    - 7
+    executionPrivIAMs:
+    - 5
+  metaconcept: ExecutionPrivilegeAccess
 attackers:
   8:
     entry_points:
       0:
         attack_steps:
-          - networkConnectUninspected
+        - networkConnectUninspected
     name: Attacker:8
 metadata:
   info: Created by the mal-toolbox model python module.
   langID: org.mal-lang.coreLang
   langVersion: 1.0.0
   malVersion: 0.1.0-SNAPSHOT
-  name: Petting Zoo Example Model
+  name: MAL Simulator Example Model
