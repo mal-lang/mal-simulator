@@ -44,3 +44,6 @@ include = ["malsim*"]
 
 [tool.setuptools.package-data]
 maltoolbox = ["tests*"]
+
+[tool.pytest.ini_options]
+pythonpath = ['.']
