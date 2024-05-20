@@ -3,7 +3,7 @@ from typing import Any
 from gymnasium.spaces.space import Space
 from pettingzoo.utils.env import ParallelEnv
 
-from maltoolbox.language import LanguageClassesFactory, LanguageGraph, specification
+from maltoolbox.language import LanguageClassesFactory, LanguageGraph
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.model import Model
 
