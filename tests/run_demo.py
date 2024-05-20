@@ -44,7 +44,6 @@ lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
 
 lang_graph = LanguageGraph.from_mar_archive(lang_file)
 lang_classes_factory = LanguageClassesFactory(lang_graph)
-lang_classes_factory.create_classes()
 
 model = Model.load_from_file("tests/example_model.yml", lang_classes_factory)
 

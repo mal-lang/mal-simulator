@@ -19,22 +19,20 @@ class LazyWrapper(ParallelEnv):
         else:
             attack_graph_file = ""
         agents = kwargs.pop("agents", {})
-        lang_spec = specification.load_language_specification_from_mar(
+        lang_spec = LanguageGraph.from_mar_archive(
             str(lang_file))
         lang_classes_factory = LanguageClassesFactory(lang_spec)
-        lang_classes_factory.create_classes()
 
         lang_graph = LanguageGraph(lang_spec)
 
-        model = Model("Test Model", lang_spec, lang_classes_factory)
-        model.load_from_file(model_file)
+        model = Model.load_from_file(model_file, lang_classes_factory)
 
         if attack_graph_file != "":
             # If we were provided with an attack graph file we load it.
             attack_graph = AttackGraph()
             attack_graph.load_from_file(filename = attack_graph_file,
                 model = model)
-            attack_graph.attach_attackers(model)
+            attack_graph.attach_attackers()
         else:
             # Otherwise we generate the attack graph based on the model
             # provided.
