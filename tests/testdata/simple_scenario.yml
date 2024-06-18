@@ -1,0 +1,16 @@
+lang_file: ../org.mal-lang.coreLang-1.0.0.mar
+model_file: example_model.json
+
+# Rewards for each attack step
+rewards:
+  OS App:notPresent: 2
+  OS App:supplyChainAuditing: 7
+  Program 1:notPresent: 3
+  Program 1:supplyChainAuditing: 7
+  SoftwareVulnerability:4:notPresent: 4
+  Data:5:notPresent: 1
+  Credentials:6:notPhishable: 7
+  Identity:11:notPresent: 3.5
+
+# The possible entry points (?)
+entry_points: []
