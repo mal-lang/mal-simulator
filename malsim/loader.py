@@ -37,8 +37,15 @@ def load_scenario(scenario_file: str) -> AttackGraph:
         # entrypoints = scenario.get('entrypoints')
 
         attack_graph = create_attack_graph(lang_file, model_file)
+
+        # Set the rewards according to scenario description
         for attack_step_id, reward in rewards.items():
             node = attack_graph.get_node_by_id(attack_step_id)
+            if node is None:
+                raise LookupError(
+                    f"Could not set reward to node {attack_step_id}"
+                    " since it was not found in the attack graph"
+                )
             node.reward = reward
 
         return attack_graph
