@@ -19,6 +19,21 @@ def path_relative_to_file_dir(rel_path, file):
     )
     return os.path.join(file_dir_path, rel_path)
 
+def apply_scenario_rewards(
+        attack_graph: AttackGraph, rewards: dict[str, float]
+    ) -> None:
+    """Go through rewards, add them to referenced nodes in the AttackGraph"""
+
+    # Set the rewards according to scenario rewards
+    for attack_step_id, reward in rewards.items():
+        node = attack_graph.get_node_by_id(attack_step_id)
+        if node is None:
+            raise LookupError(
+                f"Could not set reward to node {attack_step_id}"
+                " since it was not found in the attack graph"
+            )
+        node.reward = reward
+
 
 def load_scenario(scenario_file: str) -> AttackGraph:
     """Load a scenario from a scenario file to an AttackGraph"""
@@ -37,15 +52,6 @@ def load_scenario(scenario_file: str) -> AttackGraph:
         # entrypoints = scenario.get('entrypoints')
 
         attack_graph = create_attack_graph(lang_file, model_file)
-
-        # Set the rewards according to scenario description
-        for attack_step_id, reward in rewards.items():
-            node = attack_graph.get_node_by_id(attack_step_id)
-            if node is None:
-                raise LookupError(
-                    f"Could not set reward to node {attack_step_id}"
-                    " since it was not found in the attack graph"
-                )
-            node.reward = reward
+        apply_scenario_rewards(attack_graph, rewards)
 
         return attack_graph
