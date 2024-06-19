@@ -1,7 +1,7 @@
 """Test functions that load scenarios"""
 
 import os
-from malsim.loader import load_scenario
+from malsim.scenario import load_scenario
 
 
 def path_relative_to_tests(filename):
