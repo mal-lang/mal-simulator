@@ -276,9 +276,9 @@ class MalSimulator(ParallelEnv):
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         logger.info("Resetting simulator.")
-        attack_graph = AttackGraph()
-        attack_graph.load_from_file(self.attack_graph_backup_filename,
-            self.model)
+        attack_graph = AttackGraph.load_from_file(
+            self.attack_graph_backup_filename, self.model
+        )
         self.attack_graph = attack_graph
         return self.init(self.max_iter)
 
