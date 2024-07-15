@@ -334,9 +334,9 @@ class MalSimulator(ParallelEnv):
         for agent in self.agents:
             if self.agents_dict[agent]["type"] == "attacker":
                 attacker = self.attack_graph.attackers[
-                    self.agents_dict[agent]["attacker"]]
-                self.action_surfaces[agent] = query.get_attack_surface(
-                    self.attack_graph, attacker)
+                    self.agents_dict[agent]["attacker"]
+                ]
+                self.action_surfaces[agent] = query.get_attack_surface(attacker)
             elif self.agents_dict[agent]["type"] == "defender":
                 self.action_surfaces[agent] = query.get_defense_surface(
                     self.attack_graph)
@@ -387,10 +387,10 @@ class MalSimulator(ParallelEnv):
                 attacker.compromise(attack_step_node)
                 self.action_surfaces[agent] = \
                     query.update_attack_surface_add_nodes(
-                        self.attack_graph,
                         attacker,
                         self.action_surfaces[agent],
-                        [attack_step_node])
+                        [attack_step_node]
+                    )
             actions.append(attack_step)
         else:
             logger.warning(
