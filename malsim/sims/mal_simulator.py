@@ -65,11 +65,19 @@ class MalSimulator(ParallelEnv):
     @property
     @functools.lru_cache(maxsize=None)
     def num_assets(self):
+        """Return the number of asset types
+        Return:
+            int  - num asset types of language graph
+        """
         return len(self.lang_graph.assets) + self.offset
 
     @property
     @functools.lru_cache(maxsize=None)
     def num_step_names(self):
+        """Return the number of attack steps
+        Return:
+            int  - num attack steps of language graph
+        """
         return (
             len(self.lang_graph.attack_steps)
             if not self.unholy
@@ -77,6 +85,12 @@ class MalSimulator(ParallelEnv):
         ) + self.offset
 
     def asset_type(self, step):
+        """Return the id of the asset type of the given `step`
+        Args:
+            step    - a step from attack graph
+        Return:
+            int     - asset type id
+        """
         return (
             self._asset_type_to_index[step.asset.type] + self.offset
             if step.name != "firstSteps"
@@ -84,6 +98,12 @@ class MalSimulator(ParallelEnv):
         )
 
     def step_name(self, step):
+        """Return the id of the step name of the given `step`
+        Args:
+            step    - a step from attack graph
+        Return:
+            int     - id representing the step name
+        """
         return (
             (
                 self._step_name_to_index[step.asset.type + ":" + step.name]
@@ -97,6 +117,12 @@ class MalSimulator(ParallelEnv):
         )
 
     def asset_id(self, step):
+        """Get the asset id of given `step`
+        Args:
+            step    - a step from attack graph
+        Return:
+            int     - the id of the steps asset
+        """
         return int(step.asset.id) if step.name != "firstSteps" else 0
 
     def agent_iter(self):
