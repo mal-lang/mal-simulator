@@ -136,7 +136,7 @@ class MalSimulator(ParallelEnv):
 
     def asset_type(self, step):
         return (
-            self._asset_type_to_index[step.asset.metaconcept] + self.offset
+            self._asset_type_to_index[step.asset.type] + self.offset
             if step.name != "firstSteps"
             else 0
         )
@@ -144,7 +144,7 @@ class MalSimulator(ParallelEnv):
     def step_name(self, step):
         return (
             (
-                self._step_name_to_index[step.asset.metaconcept + ":" + step.name]
+                self._step_name_to_index[step.asset.type + ":" + step.name]
                 + self.offset
                 if not self.unholy
                 else self._unholy_step_name_to_index[step.attributes["name"]]
