@@ -286,6 +286,7 @@ class MalSimulator(ParallelEnv):
         logger.info("Initializing MAL ParralelEnv Simulator.")
         logger.debug("Creating and listing mapping tables.")
         self._index_to_id = [n.id for n in self.attack_graph.nodes]
+        self._index_to_full_name = [n.full_name for n in self.attack_graph.nodes]
         self._id_to_index = {n: i for i, n in enumerate(self._index_to_id)}
         str_format = "{:<5} {:<}\n"
         table = "\n" + str_format.format("Index", "Attack Step Id")
