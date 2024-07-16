@@ -24,7 +24,7 @@ AGENT_DEFENDER = "defender"
 ACTION_TERMINATE = "terminate"
 ACTION_WAIT = "wait"
 
-model_file_name='tests/example_model.json'
+model_file_name='tests/example_model.yml'
 attack_graph_file_name=path.join('tmp','attack_graph.json')
 lang_file_name='tests/org.mal-lang.coreLang-1.0.0.mar'
 
