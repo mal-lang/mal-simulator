@@ -3,13 +3,13 @@ assets:
     defenses:
       notPresent: 0.0
       supplyChainAuditing: 0.0
-    metaconcept: Application
+    type: Application
     name: OS App
   1:
     defenses:
       notPresent: 0.0
       supplyChainAuditing: 0.0
-    metaconcept: Application
+    type: Application
     name: Program 1
   2:
     defenses:
@@ -24,79 +24,72 @@ assets:
       notPresent: 0.0
       physicalAccessRequired: 0.0
       userInteractionRequired: 0.0
-    metaconcept: SoftwareVulnerability
+    type: SoftwareVulnerability
     name: SoftwareVulnerability:2
   3:
     defenses:
       notPresent: 0.0
-    metaconcept: Data
+    type: Data
     name: Data:3
   4:
     defenses:
       notPhishable: 0.0
-    metaconcept: Credentials
+    type: Credentials
     name: Credentials:4
   5:
     defenses:
       notPresent: 0.0
-    metaconcept: Identity
+    type: Identity
     name: Identity:5
   6:
     defenses:
       payloadInspection: 0.0
       restricted: 0.0
-    metaconcept: ConnectionRule
+    type: ConnectionRule
     name: ConnectionRule:6
   7:
     defenses:
       notPresent: 0.0
       supplyChainAuditing: 0.0
-    metaconcept: Application
+    type: Application
     name: Other OS App
 associations:
-- association:
+- AppExecution:
     appExecutedApps:
     - 1
     hostApp:
     - 0
-  metaconcept: AppExecution
-- association:
+- ApplicationVulnerability_SoftwareVulnerability_Application:
     application:
     - 0
     vulnerabilities:
     - 2
-  metaconcept: ApplicationVulnerability_SoftwareVulnerability_Application
-- association:
+- AppContainment:
     containedData:
     - 3
     containingApp:
     - 1
-  metaconcept: AppContainment
-- association:
+- IdentityCredentials:
     credentials:
     - 4
     identities:
     - 5
-  metaconcept: IdentityCredentials
-- association:
+- InfoContainment:
     containerData:
     - 3
     information:
     - 4
-  metaconcept: InfoContainment
-- association:
+- ApplicationConnection:
     appConnections:
     - 6
     applications:
     - 0
     - 7
-  metaconcept: ApplicationConnection
-- association:
+- ExecutionPrivilegeAccess:
     execPrivApps:
     - 7
     executionPrivIAMs:
     - 5
-  metaconcept: ExecutionPrivilegeAccess
 attackers:
   8:
     entry_points:
