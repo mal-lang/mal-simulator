@@ -66,7 +66,7 @@ env.register_defender(AGENT_DEFENDER)
 
 control_attacker = False
 
-reverse_vocab = env._index_to_id
+reverse_vocab = env._index_to_full_name
 
 defender = KeyboardAgent(reverse_vocab)
 attacker = (
