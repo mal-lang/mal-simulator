@@ -27,9 +27,7 @@ class LazyWrapper(ParallelEnv):
 
         if attack_graph_file != "":
             # If we were provided with an attack graph file we load it.
-            attack_graph = AttackGraph()
-            attack_graph.load_from_file(filename = attack_graph_file,
-                model = model)
+            attack_graph = AttackGraph.load_from_file(attack_graph_file, model=model)
             attack_graph.model = model
             attack_graph.attach_attackers()
         else:
