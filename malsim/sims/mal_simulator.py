@@ -585,8 +585,8 @@ class MalSimulator(ParallelEnv):
                     self.agents_dict[agent]["attacker"]
                 ]
                 for node in attacker.reached_attack_steps:
-                    if hasattr(node, "reward"):
-                        reward += node.reward
+                    if hasattr(node, "extras"):
+                        reward += node.extras.get('reward', 0)
 
                 attackers_total_rewards += reward
                 rewards[agent] = reward
@@ -597,8 +597,8 @@ class MalSimulator(ParallelEnv):
             if self.agents_dict[agent]["type"] == "defender":
                 reward = -attackers_total_rewards
                 for node in query.get_enabled_defenses(self.attack_graph):
-                    if hasattr(node, "reward"):
-                        reward -= node.reward
+                    if hasattr(node, "extras"):
+                        reward -= node.extras.get('reward', 0)
                 rewards[agent] = reward
 
         for agent in self.agents:
