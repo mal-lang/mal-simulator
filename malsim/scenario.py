@@ -32,7 +32,7 @@ def apply_scenario_rewards(
                 f"Could not set reward to node {attack_step_full_name}"
                 " since it was not found in the attack graph"
             )
-        node.reward = reward
+        node.extras['reward'] = reward
 
 
 def load_scenario(scenario_file: str) -> AttackGraph:
