@@ -81,23 +81,23 @@ done = False
 # scenario configuration format decided upon.
 MAX_REWARD = int(1e9)
 
-env.attack_graph.get_node_by_full_name("OS App:notPresent").reward = 50
-env.attack_graph.get_node_by_full_name("OS App:supplyChainAuditing").reward = MAX_REWARD
-env.attack_graph.get_node_by_full_name("Program 1:notPresent").reward = 30
-env.attack_graph.get_node_by_full_name("Program 1:supplyChainAuditing").reward = MAX_REWARD
-env.attack_graph.get_node_by_full_name("SoftwareVulnerability:2:notPresent").reward = 40
-env.attack_graph.get_node_by_full_name("Data:3:notPresent").reward = 20
-env.attack_graph.get_node_by_full_name("Credentials:4:notPhishable").reward = MAX_REWARD
-env.attack_graph.get_node_by_full_name("Identity:5:notPresent").reward = 35
-env.attack_graph.get_node_by_full_name("ConnectionRule:6:restricted").reward = 40
-env.attack_graph.get_node_by_full_name("ConnectionRule:6:payloadInspection").reward = 30
-env.attack_graph.get_node_by_full_name("Other OS App:notPresent").reward = 50
-env.attack_graph.get_node_by_full_name("Other OS App:supplyChainAuditing").reward = MAX_REWARD
+env.attack_graph.get_node_by_full_name("OS App:notPresent").extras['reward'] = 50
+env.attack_graph.get_node_by_full_name("OS App:supplyChainAuditing").extras['reward'] = MAX_REWARD
+env.attack_graph.get_node_by_full_name("Program 1:notPresent").extras['reward'] = 30
+env.attack_graph.get_node_by_full_name("Program 1:supplyChainAuditing").extras['reward'] = MAX_REWARD
+env.attack_graph.get_node_by_full_name("SoftwareVulnerability:2:notPresent").extras['reward'] = 40
+env.attack_graph.get_node_by_full_name("Data:3:notPresent").extras['reward'] = 20
+env.attack_graph.get_node_by_full_name("Credentials:4:notPhishable").extras['reward'] = MAX_REWARD
+env.attack_graph.get_node_by_full_name("Identity:5:notPresent").extras['reward'] = 35
+env.attack_graph.get_node_by_full_name("ConnectionRule:6:restricted").extras['reward'] = 40
+env.attack_graph.get_node_by_full_name("ConnectionRule:6:payloadInspection").extras['reward'] = 30
+env.attack_graph.get_node_by_full_name("Other OS App:notPresent").extras['reward'] = 50
+env.attack_graph.get_node_by_full_name("Other OS App:supplyChainAuditing").extras['reward'] = MAX_REWARD
 
-env.attack_graph.get_node_by_full_name("OS App:fullAccess").reward = 100
-env.attack_graph.get_node_by_full_name("Program 1:fullAccess").reward = 50
-env.attack_graph.get_node_by_full_name("Identity:5:assume").reward = 50
-env.attack_graph.get_node_by_full_name("Other OS App:fullAccess").reward = 200
+env.attack_graph.get_node_by_full_name("OS App:fullAccess").extras['reward'] = 100
+env.attack_graph.get_node_by_full_name("Program 1:fullAccess").extras['reward'] = 50
+env.attack_graph.get_node_by_full_name("Identity:5:assume").extras['reward'] = 50
+env.attack_graph.get_node_by_full_name("Other OS App:fullAccess").extras['reward'] = 200
 
 
 logger.info("Starting game.")
