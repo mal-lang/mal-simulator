@@ -25,11 +25,11 @@ def apply_scenario_rewards(
     """Go through rewards, add them to referenced nodes in the AttackGraph"""
 
     # Set the rewards according to scenario rewards
-    for attack_step_id, reward in rewards.items():
-        node = attack_graph.get_node_by_id(attack_step_id)
+    for attack_step_full_name, reward in rewards.items():
+        node = attack_graph.get_node_by_full_name(attack_step_full_name)
         if node is None:
             raise LookupError(
-                f"Could not set reward to node {attack_step_id}"
+                f"Could not set reward to node {attack_step_full_name}"
                 " since it was not found in the attack graph"
             )
         node.reward = reward
