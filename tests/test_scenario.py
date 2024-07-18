@@ -23,19 +23,19 @@ def test_load_scenario():
     )
 
     # Verify rewards were added as defined in './testdata/simple_scenario.yml'
-    assert attack_graph.get_node_by_id('OS App:notPresent')\
-        .reward == 2
-    assert attack_graph.get_node_by_id('OS App:supplyChainAuditing')\
-        .reward == 7
-    assert attack_graph.get_node_by_id('Program 1:notPresent')\
-        .reward == 3
-    assert attack_graph.get_node_by_id('Program 1:supplyChainAuditing')\
-        .reward == 7
-    assert attack_graph.get_node_by_id('SoftwareVulnerability:4:notPresent')\
-        .reward == 4
-    assert attack_graph.get_node_by_id('Data:5:notPresent')\
-        .reward == 1
-    assert attack_graph.get_node_by_id('Credentials:6:notPhishable')\
-        .reward == 7
-    assert attack_graph.get_node_by_id('Identity:11:notPresent')\
-        .reward == 3.5
+    assert attack_graph.get_node_by_full_name('OS App:notPresent')\
+        .extras['reward'] == 2
+    assert attack_graph.get_node_by_full_name('OS App:supplyChainAuditing')\
+        .extras['reward'] == 7
+    assert attack_graph.get_node_by_full_name('Program 1:notPresent')\
+        .extras['reward'] == 3
+    assert attack_graph.get_node_by_full_name('Program 1:supplyChainAuditing')\
+        .extras['reward'] == 7
+    assert attack_graph.get_node_by_full_name('SoftwareVulnerability:4:notPresent')\
+        .extras['reward'] == 4
+    assert attack_graph.get_node_by_full_name('Data:5:notPresent')\
+        .extras['reward'] == 1
+    assert attack_graph.get_node_by_full_name('Credentials:6:notPhishable')\
+        .extras['reward'] == 7
+    assert attack_graph.get_node_by_full_name('Identity:11:notPresent')\
+        .extras['reward'] == 3.5
