@@ -136,7 +136,7 @@ class MalSimulator(ParallelEnv):
 
     def asset_type(self, step):
         return (
-            self._asset_type_to_index[step.asset.metaconcept] + self.offset
+            self._asset_type_to_index[step.asset.type] + self.offset
             if step.name != "firstSteps"
             else 0
         )
@@ -144,7 +144,7 @@ class MalSimulator(ParallelEnv):
     def step_name(self, step):
         return (
             (
-                self._step_name_to_index[step.asset.metaconcept + ":" + step.name]
+                self._step_name_to_index[step.asset.type + ":" + step.name]
                 + self.offset
                 if not self.unholy
                 else self._unholy_step_name_to_index[step.attributes["name"]]
@@ -276,9 +276,9 @@ class MalSimulator(ParallelEnv):
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         logger.info("Resetting simulator.")
-        attack_graph = AttackGraph()
-        attack_graph.load_from_file(self.attack_graph_backup_filename,
-            self.model)
+        attack_graph = AttackGraph.load_from_file(
+            self.attack_graph_backup_filename, self.model
+        )
         self.attack_graph = attack_graph
         return self.init(self.max_iter)
 
@@ -286,6 +286,7 @@ class MalSimulator(ParallelEnv):
         logger.info("Initializing MAL ParralelEnv Simulator.")
         logger.debug("Creating and listing mapping tables.")
         self._index_to_id = [n.id for n in self.attack_graph.nodes]
+        self._index_to_full_name = [n.full_name for n in self.attack_graph.nodes]
         self._id_to_index = {n: i for i, n in enumerate(self._index_to_id)}
         str_format = "{:<5} {:<}\n"
         table = "\n" + str_format.format("Index", "Attack Step Id")
@@ -334,9 +335,9 @@ class MalSimulator(ParallelEnv):
         for agent in self.agents:
             if self.agents_dict[agent]["type"] == "attacker":
                 attacker = self.attack_graph.attackers[
-                    self.agents_dict[agent]["attacker"]]
-                self.action_surfaces[agent] = query.get_attack_surface(
-                    self.attack_graph, attacker)
+                    self.agents_dict[agent]["attacker"]
+                ]
+                self.action_surfaces[agent] = query.get_attack_surface(attacker)
             elif self.agents_dict[agent]["type"] == "defender":
                 self.action_surfaces[agent] = query.get_defense_surface(
                     self.attack_graph)
@@ -387,10 +388,10 @@ class MalSimulator(ParallelEnv):
                 attacker.compromise(attack_step_node)
                 self.action_surfaces[agent] = \
                     query.update_attack_surface_add_nodes(
-                        self.attack_graph,
                         attacker,
                         self.action_surfaces[agent],
-                        [attack_step_node])
+                        [attack_step_node]
+                    )
             actions.append(attack_step)
         else:
             logger.warning(
@@ -584,8 +585,8 @@ class MalSimulator(ParallelEnv):
                     self.agents_dict[agent]["attacker"]
                 ]
                 for node in attacker.reached_attack_steps:
-                    if hasattr(node, "reward"):
-                        reward += node.reward
+                    if hasattr(node, "extras"):
+                        reward += node.extras.get('reward', 0)
 
                 attackers_total_rewards += reward
                 rewards[agent] = reward
@@ -596,8 +597,8 @@ class MalSimulator(ParallelEnv):
             if self.agents_dict[agent]["type"] == "defender":
                 reward = -attackers_total_rewards
                 for node in query.get_enabled_defenses(self.attack_graph):
-                    if hasattr(node, "reward"):
-                        reward -= node.reward
+                    if hasattr(node, "extras"):
+                        reward -= node.extras.get('reward', 0)
                 rewards[agent] = reward
 
         for agent in self.agents:
