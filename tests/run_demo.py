@@ -10,6 +10,7 @@ import logging
 from maltoolbox.language import LanguageClassesFactory, LanguageGraph
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.model import Model
+from maltoolbox.wrappers import create_attack_graph
 
 from malsim.agents.keyboard_input import KeyboardAgent
 from malsim.agents.searchers import BreadthFirstAttacker
