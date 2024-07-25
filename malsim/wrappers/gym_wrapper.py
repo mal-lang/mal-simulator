@@ -1,4 +1,4 @@
-from typing import Any, Dict, SupportsFloat
+from typing import Any, Dict, SupportsFloat, Type, Literal
 
 import gymnasium as gym
 import gymnasium.utils.env_checker as env_checker
@@ -63,12 +63,13 @@ class AttackerEnv(gym.Env):
 class DefenderEnv(gym.Env):
     metadata = {"render_modes": []}
 
-    def __init__(self, **kwargs: Dict[str, Any]) -> None:
+    def __init__(self, **kwargs: str) -> None:
         attacker_class: str = str(kwargs.pop("attacker_class", "BreadthFirstAttacker"))
         self.randomize = kwargs.pop("randomize_attacker_behavior", False)
         self.render_mode = kwargs.pop("render_mode", None)
         agents = {AGENT_ATTACKER: AGENT_ATTACKER, AGENT_DEFENDER: AGENT_DEFENDER}
         self.env = LazyWrapper(agents=agents, **kwargs)
+
         self.attacker_class = searchers.AGENTS[attacker_class]
         self.observation_space = self.env.observation_space(AGENT_DEFENDER)
         self.action_space = self.env.action_space(AGENT_DEFENDER)

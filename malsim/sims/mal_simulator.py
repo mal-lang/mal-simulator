@@ -106,9 +106,9 @@ class MalSimulator(ParallelEnv):
 
         self.attack_graph.save_to_file(self.attack_graph_backup_filename)
 
-        self.possible_agents = []
-        self.agents = []
-        self.agents_dict = {}
+        self.possible_agents: list[str] = []
+        self.agents: list = []
+        self.agents_dict: dict = {}
         self.offset = 1
         self.unholy = kwargs.get(
             "unholy", False

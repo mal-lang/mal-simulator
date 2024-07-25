@@ -35,6 +35,7 @@ class KeyboardAgent:
 
         def get_action_object(user_input: str) -> tuple:
             node = int(user_input) if user_input != "" else None
+            assert node is not None, "node is None"
             action = associated_action[action_strings[node]] if user_input != "" else 0
             return node, action
 
