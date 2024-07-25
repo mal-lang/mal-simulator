@@ -1,5 +1,7 @@
 """Test MalSimulator class"""
-from maltoolbox.attackgraph import AttackGraph
+import copy
+
+from maltoolbox.attackgraph import AttackGraph, Attacker
 from malsim.sims.mal_simulator import MalSimulator
 
 def test_malsimulator(corelang_lang_graph, model):
@@ -111,7 +113,7 @@ def test_malsimulator_format_info(corelang_lang_graph, model):
 def test_malsimulator_observation_space(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
-    sim.observation_space()  # TODO: agent param needed?
+    sim.observation_space()
 
 def test_malsimulator_action_space(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
@@ -120,48 +122,143 @@ def test_malsimulator_action_space(corelang_lang_graph, model):
 
 
 def test_malsimulator_reset(corelang_lang_graph, model):
+    """Make sure attack graph is reset"""
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
+
+    attack_graph_before = sim.attack_graph
     sim.reset()
+    attack_graph_after = sim.attack_graph
 
-# def test_malsimulator_init(corelang_lang_graph, model):
-#     attack_graph = AttackGraph(corelang_lang_graph, model)
-#     MalSimulator(corelang_lang_graph, model, attack_graph)
+    # Make sure the attack graph is not the same object but identical
+    assert attack_graph_before != attack_graph_after
+    assert attack_graph_before._to_dict() == attack_graph_after._to_dict()
 
-
-# def test_malsimulator_register_attacker(corelang_lang_graph, model):
-#     attack_graph = AttackGraph(corelang_lang_graph, model)
-#     MalSimulator(corelang_lang_graph, model, attack_graph)
-
-
-# def test_malsimulator_register_defender(corelang_lang_graph, model):
-#     attack_graph = AttackGraph(corelang_lang_graph, model)
-#     MalSimulator(corelang_lang_graph, model, attack_graph)
-
-
-# def test_malsimulator_attacker_step(corelang_lang_graph, model):
-#     attack_graph = AttackGraph(corelang_lang_graph, model)
-#     MalSimulator(corelang_lang_graph, model, attack_graph)
+def test_malsimulator_init(corelang_lang_graph, model):
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
+    sim.init()
+    assert sim._index_to_id
+    assert sim._index_to_full_name
+    assert sim._id_to_index
 
 
-# def test_malsimulator_defender_step(corelang_lang_graph, model):
-#     attack_graph = AttackGraph(corelang_lang_graph, model)
-#     MalSimulator(corelang_lang_graph, model, attack_graph)
+def test_malsimulator_register_attacker(corelang_lang_graph, model):
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
+    agent_name = "attacker1"
+    attacker = 1
+    sim.register_attacker(agent_name, attacker)
+    assert agent_name in sim.possible_agents
+    assert agent_name in sim.agents_dict
 
 
-# def test_malsimulator_observe_attacker(corelang_lang_graph, model):
-#     attack_graph = AttackGraph(corelang_lang_graph, model)
-#     MalSimulator(corelang_lang_graph, model, attack_graph)
+def test_malsimulator_register_defender(corelang_lang_graph, model):
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
+    agent_name = "defender1"
+    sim.register_defender(agent_name)
+    assert agent_name in sim.possible_agents
+    assert agent_name in sim.agents_dict
 
 
-# def test_malsimulator_observe_defender(corelang_lang_graph, model):
-#     attack_graph = AttackGraph(corelang_lang_graph, model)
-#     MalSimulator(corelang_lang_graph, model, attack_graph)
+def test_malsimulator_attacker_step(corelang_lang_graph, model):
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+
+    attacker = Attacker('attacker1', id=0)
+    attack_graph.add_attacker(attacker, attacker.id)
+    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
+
+    sim.register_attacker(attacker.name, attacker.id)
+    sim.init() # Have to do again after register_attacker
+
+    # Can not attack the notPresent step
+    defense_step = attack_graph.get_node_by_full_name('OS App:notPresent')
+    actions = sim._attacker_step(attacker.name, defense_step.id)
+    assert not actions
+
+    # Can attack the attemptUseVulnerability step!
+    attack_step = attack_graph.get_node_by_full_name('OS App:attemptUseVulnerability')
+    actions = sim._attacker_step(attacker.name, attack_step.id)
+    assert actions == [attack_step.id]
 
 
-# def test_malsimulator_observe_and_reward(corelang_lang_graph, model):
-#     attack_graph = AttackGraph(corelang_lang_graph, model)
-#     MalSimulator(corelang_lang_graph, model, attack_graph)
+# def test_malsimulator_update_viability_with_eviction(corelang_lang_graph, model):
+#     pass
+
+def test_malsimulator_defender_step(corelang_lang_graph, model):
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
+
+    defender_name = "defender"
+    sim.register_defender(defender_name)
+    sim.init() # Have to do again after register
+
+    defense_step = attack_graph.get_node_by_full_name(
+        'OS App:notPresent')
+    actions = sim._defender_step(defender_name, defense_step.id)
+    assert actions == [defense_step.id]
+
+    # Can not defend attack_step
+    attack_step = attack_graph.get_node_by_full_name('OS App:attemptUseVulnerability')
+    actions = sim._defender_step(defender_name, attack_step.id)
+    assert not actions
+
+def test_malsimulator_observe_attacker(corelang_lang_graph, model):
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    attacker = Attacker('attacker1', id=0)
+    attack_graph.add_attacker(attacker, attacker.id)
+    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
+
+    sim.register_attacker(attacker.name, attacker.id)
+    sim.init() # Have to do again after register_attacker
+
+    agent = attacker.name
+    agent_observation = copy.deepcopy(sim._blank_observation)
+    # .observe_attacker goes through reached_attack_steps and action surface
+    # TODO: set reached attack steps and see the behaviour.
+    # TODO: where are reached_attack_steps actually set??
+    sim._observe_attacker(agent, agent_observation)
+
+
+def test_malsimulator_observe_defender(corelang_lang_graph, model):
+    """Make sure ._observe_defender observes nodes and set observed state"""
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
+    defender_name = "defender"
+    sim.register_defender(defender_name)
+    sim.init() # Have to do again after register
+
+    observation = copy.deepcopy(sim._blank_observation)
+
+    # Assert that observed state is not 1 before observe_defender
+    nodes_to_observe = [
+        node for node in sim.attack_graph.nodes
+        if node.is_enabled_defense() or node.is_compromised()
+    ]
+
+    # Assert that observed state is not set before observe_defender
+    assert len(nodes_to_observe) == 3
+    for node in nodes_to_observe:
+        index = sim._id_to_index[node.id]
+        # Make sure not observed before
+        assert observation["observed_state"][index] == -1
+
+    sim._observe_defender(defender_name, observation)
+
+    # Assert that observed state is 1 after observe_defender
+    for node in nodes_to_observe:
+        index = sim._id_to_index[node.id]
+        # Make sure observed after
+        assert observation["observed_state"][index] == 1
+
+
+def test_malsimulator_observe_and_reward(corelang_lang_graph, model):
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
+    sim._observe_and_reward()
+    # TODO: test that things happen as they should
+    # TODO: Again: how are reached_attack_steps set?
 
 
 # def test_malsimulator_update_viability_with_eviction(corelang_lang_graph, model):
