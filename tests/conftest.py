@@ -70,5 +70,4 @@ def model(corelang_lang_graph):
     """
     # Init LanguageClassesFactory
     lang_classes_factory = LanguageClassesFactory(corelang_lang_graph)
-    model_file = path_testdata("example_model_new.json")
-    return Model.load_from_file(model_file, lang_classes_factory)
+    return Model.load_from_file(model_file_name, lang_classes_factory)
