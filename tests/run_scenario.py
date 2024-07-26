@@ -7,20 +7,14 @@ from json import JSONEncoder
 import numpy as np
 import logging
 
-from maltoolbox.language import LanguageClassesFactory, LanguageGraph
-from maltoolbox.attackgraph import AttackGraph
-from maltoolbox.model import Model
-
 from malsim.scenario import load_scenario
 from malsim.agents.keyboard_input import KeyboardAgent
-from malsim.agents.searchers import BreadthFirstAttacker
 from malsim.sims.mal_simulator import MalSimulator
 
 
 logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.DEBUG)
 logging.getLogger("maltoolbox").setLevel(logging.DEBUG)
-
 
 # Raise the logging level for the py2neo module to clean the logs a bit
 py2neo_logger = logging.getLogger("py2neo")

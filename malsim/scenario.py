@@ -35,6 +35,20 @@ def apply_scenario_rewards(
         node.extras['reward'] = reward
 
 
+def apply_scenario_attacker_entrypoints(
+        attack_graph: AttackGraph, entry_points: dict
+) -> None:
+    """Go through attacker entry points from scenario file and add
+    them to the referenced attacker in the attack graph"""
+    # Set the attacker entrypoint according to scenario rewards
+    for attacker_id, entry_point_name in entry_points.items():
+        attacker = attack_graph.get_attacker_by_id(attacker_id)
+        entry_point = attack_graph.get_node_by_full_name(entry_point_name)
+
+        if entry_point not in attacker.entry_points:
+            attacker.entry_points.append(entry_point)
+
+
 def load_scenario(scenario_file: str) -> AttackGraph:
     """Load a scenario from a scenario file to an AttackGraph"""
 
@@ -48,10 +62,14 @@ def load_scenario(scenario_file: str) -> AttackGraph:
             scenario['model_file'],
             s_file
         )
-        rewards = scenario['rewards']
-        # entrypoints = scenario.get('entrypoints')
 
+        # Create the attack graph from the model + lang
         attack_graph = create_attack_graph(lang_file, model_file)
+
+        # Apply rewards and entrypoints to attack graph
+        rewards = scenario.get('rewards', [])
         apply_scenario_rewards(attack_graph, rewards)
+        entry_points = scenario.get('attacker_entry_points', [])
+        apply_scenario_attacker_entrypoints(attack_graph, entry_points)
 
         return attack_graph
