@@ -10,8 +10,6 @@ from gymnasium.spaces import MultiDiscrete, Box, Dict
 from pettingzoo import ParallelEnv
 
 from maltoolbox import neo4j_configs
-from maltoolbox.model import Model
-from maltoolbox.language import LanguageGraph
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.attackgraph.analyzers import apriori
 from maltoolbox.attackgraph import query
