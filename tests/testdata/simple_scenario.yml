@@ -17,4 +17,5 @@ rewards:
 
 # The possible entry points (?)
 attacker_entry_points:
-  0: 'Credentials:6:attemptCredentialsReuse'
+  0:
+    - 'Credentials:6:attemptCredentialsReuse'

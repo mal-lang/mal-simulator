@@ -50,12 +50,20 @@ def apply_scenario_attacker_entrypoints(
     """Go through attacker entry points from scenario file and add
     them to the referenced attacker in the attack graph"""
     # Set the attacker entrypoint according to scenario rewards
-    for attacker_id, entry_point_name in entry_points.items():
+    for attacker_id, entry_point_names in entry_points.items():
         attacker = attack_graph.get_attacker_by_id(attacker_id)
-        entry_point = attack_graph.get_node_by_full_name(entry_point_name)
 
-        if entry_point not in attacker.entry_points:
-            attacker.entry_points.append(entry_point)
+        if not attacker:
+            raise LookupError(f"Attacker {attacker_id} does not exist")
+
+        for entry_point_name in entry_point_names:
+            entry_point = attack_graph.get_node_by_full_name(entry_point_name)
+
+            if not entry_point:
+                raise LookupError(f"Node {entry_point_name} does not exist")
+
+            if entry_point not in attacker.entry_points:
+                attacker.entry_points.append(entry_point)
 
 
 def load_scenario(scenario_file: str) -> AttackGraph:
