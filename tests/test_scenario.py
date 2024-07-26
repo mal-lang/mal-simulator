@@ -18,7 +18,7 @@ def test_load_scenario():
     """Make sure we can load a scenario"""
 
     # Load the scenario
-    attack_graph = load_scenario(
+    attack_graph, _ = load_scenario(
         path_relative_to_tests('./testdata/simple_scenario.yml')
     )
 
