@@ -5,6 +5,14 @@ import yaml
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.wrappers import create_attack_graph
 
+from .agents.searchers import BreadthFirstAttacker, DepthFirstAttacker
+from .agents.keyboard_input import KeyboardAgent
+
+agent_class_name_to_class = {
+    'BreadthFirstAttacker': BreadthFirstAttacker,
+    'DepthFirstAttacker': DepthFirstAttacker,
+    'KeyboardAgent': KeyboardAgent
+}
 
 def path_relative_to_file_dir(rel_path, file):
     """Returns the absolute path of a relative path in  a second file
@@ -18,6 +26,7 @@ def path_relative_to_file_dir(rel_path, file):
         os.path.realpath(file.name)
     )
     return os.path.join(file_dir_path, rel_path)
+
 
 def apply_scenario_rewards(
         attack_graph: AttackGraph, rewards: dict[str, float]
@@ -72,4 +81,13 @@ def load_scenario(scenario_file: str) -> AttackGraph:
         entry_points = scenario.get('attacker_entry_points', [])
         apply_scenario_attacker_entrypoints(attack_graph, entry_points)
 
-        return attack_graph
+        # Create config object which is also returned
+        config = {}
+        if a_class := scenario.get('attacker_class'):
+            assert a_class in agent_class_name_to_class
+            config['attacker_class'] = agent_class_name_to_class.get(a_class)
+        if d_class := scenario.get('defender_class'):
+            assert d_class in agent_class_name_to_class
+            config['defender_class'] = agent_class_name_to_class.get(d_class)
+
+        return attack_graph, config

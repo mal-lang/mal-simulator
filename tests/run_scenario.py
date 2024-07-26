@@ -34,18 +34,16 @@ class NumpyArrayEncoder(JSONEncoder):
 
 
 attacker_only = False
-
 AGENT_ATTACKER = "attacker"
 AGENT_DEFENDER = "defender"
 
 def run_simulation(scenario_file):
     """Run a simulation for scenario"""
     # Load the attack graph from scenario
-    attack_graph = load_scenario(scenario_file)
-    attack_graph.save_to_file("tmp/attack_graph.json")
+    attack_graph, config = load_scenario(scenario_file)
 
     # TODO: why send langgraph and model in separate args?
-    env = MalSimulator( 
+    env = MalSimulator(
         attack_graph.lang_graph,
         attack_graph.model,
         attack_graph,
@@ -58,11 +56,9 @@ def run_simulation(scenario_file):
     control_attacker = False
     reverse_vocab = env._index_to_full_name
 
-    defender = KeyboardAgent(reverse_vocab)
-    attacker = (
-        KeyboardAgent(reverse_vocab) if control_attacker
-        else BreadthFirstAttacker({})
-    )
+    defender = config.get('defender_class')(reverse_vocab)
+    attacker = (KeyboardAgent(reverse_vocab) if control_attacker
+                else config.get('attacker_class')({}))
 
     obs, infos = env.reset()
     done = False

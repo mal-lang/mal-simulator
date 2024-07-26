@@ -1,6 +1,9 @@
 lang_file: ../org.mal-lang.coreLang-1.0.0.mar
 model_file: example_model.json
 
+attacker_class: 'BreadthFirstAttacker'
+defender_class: 'KeyboardAgent'
+
 # Rewards for each attack step
 rewards:
   OS App:notPresent: 2
