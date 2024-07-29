@@ -221,32 +221,6 @@
       }
     ],
     "attackers": {
-      "14": {
-        "name": "Attacker:14",
-        "entry_points": {
-          "6": {
-            "attack_steps": [
-              "attemptCredentialsReuse"
-            ]
-          },
-          "7": {
-            "attack_steps": [
-              "attemptCredentialsReuse",
-              "guessCredentials"
-            ]
-          },
-          "0": {
-            "attack_steps": [
-              "softwareProductAbuse"
-            ]
-          },
-          "9": {
-            "attack_steps": [
-              "attemptCredentialsReuse"
-            ]
-          }
-        }
-      },
       "15": {
         "name": "Attacker:15",
         "entry_points": {

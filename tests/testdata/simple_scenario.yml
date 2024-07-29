@@ -15,7 +15,8 @@ rewards:
   Credentials:6:notPhishable: 7
   Identity:11:notPresent: 3.5
 
-# The possible entry points (?)
+# Add entry points to AttackGraph with attacker_ids
+# and attack step full_names
 attacker_entry_points:
   0:
     - 'Credentials:6:attemptCredentialsReuse'

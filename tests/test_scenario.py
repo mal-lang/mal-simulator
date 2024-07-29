@@ -39,3 +39,12 @@ def test_load_scenario():
         .extras['reward'] == 7
     assert attack_graph.get_node_by_full_name('Identity:11:notPresent')\
         .extras['reward'] == 3.5
+
+    # Verify attacker entrypoint was added
+    # 0: ['Credentials:6:attemptCredentialsReuse']
+    attack_step = attack_graph.get_node_by_full_name(
+        'Credentials:6:attemptCredentialsReuse'
+    )
+    attacker_id = 0
+    assert attack_step in attack_graph\
+        .get_attacker_by_id(attacker_id).entry_points
