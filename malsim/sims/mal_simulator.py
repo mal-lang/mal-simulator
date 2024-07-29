@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import sys
 import copy
 import logging
 import functools
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 import numpy as np
 import threading
 
@@ -14,6 +16,10 @@ from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.attackgraph.analyzers import apriori
 from maltoolbox.attackgraph import query
 from maltoolbox.ingestors import neo4j
+
+if TYPE_CHECKING:
+    from maltoolbox.language import LanguageGraph
+    from maltoolbox.model import Model
 
 ITERATIONS_LIMIT = int(1e9)
 
