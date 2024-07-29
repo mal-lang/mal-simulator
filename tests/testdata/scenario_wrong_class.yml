@@ -1,8 +1,8 @@
 lang_file: ../org.mal-lang.coreLang-1.0.0.mar
 model_file: example_model.json
 
-attacker_agent_class: 'BreadthFirstAttacker'
-defender_agent_class: 'KeyboardAgent'
+attacker_agent_class: 'BananaAttacker'
+defender_agent_class: 'FishAttacker'
 
 # Rewards for each attack step
 rewards:

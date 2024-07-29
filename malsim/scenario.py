@@ -27,6 +27,35 @@ agent_class_name_to_class = {
     'KeyboardAgent': KeyboardAgent
 }
 
+# All required fields in scenario yml file
+required_fields = [
+    'lang_file',
+    'model_file',
+    'attacker_agent_class',
+    'defender_agent_class',
+]
+
+# All allowed fields in scenario yml fild
+allowed_fields = required_fields + [
+    'rewards',
+    'attacker_entry_points',
+]
+
+
+def verify_scenario(scenario_dict):
+    """Verify scenario file keys"""
+
+    # Verify that all keys in dict are supported
+    for key in scenario_dict.keys():
+        if key not in allowed_fields:
+            raise SyntaxError(f"The setting '{key}' is not supported")
+
+    # Verify that all required fields are in scenario file
+    for key in required_fields:
+        if key not in scenario_dict:
+            raise RuntimeError(f"Setting '{key}' missing from scenario file")
+
+
 def path_relative_to_file_dir(rel_path, file):
     """Returns the absolute path of a relative path in  a second file
 
@@ -84,6 +113,8 @@ def load_scenario(scenario_file: str) -> AttackGraph:
 
     with open(scenario_file, 'r', encoding='utf-8') as s_file:
         scenario = yaml.safe_load(s_file)
+        verify_scenario(scenario)
+
         lang_file = path_relative_to_file_dir(
             scenario['lang_file'],
             s_file
@@ -104,11 +135,16 @@ def load_scenario(scenario_file: str) -> AttackGraph:
 
         # Create config object which is also returned
         config = {}
-        if a_class := scenario.get('attacker_class'):
-            assert a_class in agent_class_name_to_class
-            config['attacker_class'] = agent_class_name_to_class.get(a_class)
-        if d_class := scenario.get('defender_class'):
-            assert d_class in agent_class_name_to_class
-            config['defender_class'] = agent_class_name_to_class.get(d_class)
+        if a_class := scenario.get('attacker_agent_class'):
+            if a_class not in agent_class_name_to_class:
+                raise LookupError(f"Agent class '{a_class}' not supported")
+            config['attacker_agent_class'] = \
+                agent_class_name_to_class.get(a_class)
+
+        if d_class := scenario.get('defender_agent_class'):
+            if d_class not in agent_class_name_to_class:
+                raise LookupError(f"Agent class '{d_class}' not supported")
+            config['defender_agent_class'] = \
+                agent_class_name_to_class.get(d_class)
 
         return attack_graph, config

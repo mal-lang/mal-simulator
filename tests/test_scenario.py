@@ -1,7 +1,11 @@
 """Test functions that load scenarios"""
 
 import os
+import pytest
+
 from malsim.scenario import load_scenario
+from malsim.agents.keyboard_input import KeyboardAgent
+from malsim.agents.searchers import BreadthFirstAttacker
 
 
 def path_relative_to_tests(filename):
@@ -18,7 +22,7 @@ def test_load_scenario():
     """Make sure we can load a scenario"""
 
     # Load the scenario
-    attack_graph, _ = load_scenario(
+    attack_graph, config = load_scenario(
         path_relative_to_tests('./testdata/simple_scenario.yml')
     )
 
@@ -48,3 +52,18 @@ def test_load_scenario():
     attacker_id = 0
     assert attack_step in attack_graph\
         .get_attacker_by_id(attacker_id).entry_points
+
+    assert config.get('attacker_agent_class') == BreadthFirstAttacker
+    assert config.get('defender_agent_class') == KeyboardAgent
+
+
+def test_load_scenario_agent_class_error():
+    """Make sure we get error when loading with wrong class"""
+
+    # Load the scenario
+    with pytest.raises(LookupError):
+        load_scenario(
+            path_relative_to_tests(
+                './testdata/scenario_wrong_class.yml'
+            )
+        )
