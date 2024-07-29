@@ -1,3 +1,16 @@
+"""
+A collection of functions used to load 'scenarios'.
+
+A scenario is a combination of:
+    - a MAL language
+    - a MAL model
+    - optionally defined rewards
+    - optionally defined attacker entrypoints
+    - Additional simulation configurations
+        - attacker_class
+        - defender_class
+"""
+
 import os
 
 import yaml
