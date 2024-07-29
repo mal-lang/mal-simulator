@@ -26,7 +26,12 @@ def run_simulation(attack_graph: AttackGraph, sim_config):
     AGENT_ATTACKER = 'attacker1'
     AGENT_DEFENDER = 'defender1'
 
-    env = MalSimulator(attack_graph, max_iter=500)
+    env = MalSimulator(
+        attack_graph.lang_graph,
+        attack_graph.model,
+        attack_graph,
+        max_iter=500
+    )
 
     # Register attacker and defender
     env.register_attacker(AGENT_ATTACKER, 0)
