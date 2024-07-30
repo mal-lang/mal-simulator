@@ -1,8 +1,9 @@
+from __future__ import annotations
 import sys
 import copy
 import logging
 import functools
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 import numpy as np
 import threading
 
@@ -17,12 +18,15 @@ from maltoolbox.attackgraph.analyzers import apriori
 from maltoolbox.attackgraph import query
 from maltoolbox.ingestors import neo4j
 
+if TYPE_CHECKING:
+    from maltoolbox.attackgraph import AttackGraphNode
+
 ITERATIONS_LIMIT = int(1e9)
 
 logger = logging.getLogger(__name__)
 
 
-def _format_full_observation(observation):
+def _format_full_observation(observation: dict):
     """
     Return a formatted string of the entire observation. This includes
     sections that will not change over time, these define the structure of
@@ -53,7 +57,11 @@ def _format_full_observation(observation):
     return obs_str
 
 
-def format_obs_var_sec(observation, index_to_id, included_values = [-1, 0, 1]):
+def format_obs_var_sec(
+        observation: dict,
+        index_to_id: dict,
+        included_values: list = [-1, 0, 1]
+    ):
     """
     Return a formatted string of the sections of the observation that can
     vary over time.
@@ -134,14 +142,14 @@ class MalSimulator(ParallelEnv):
             else len(set(s.attributes["name"] for s in self.lang_graph.attack_steps))
         ) + self.offset
 
-    def asset_type(self, step):
+    def asset_type(self, step: AttackGraphNode):
         return (
             self._asset_type_to_index[step.asset.type] + self.offset
             if step.name != "firstSteps"
             else 0
         )
 
-    def step_name(self, step):
+    def step_name(self, step: AttackGraphNode):
         return (
             (
                 self._step_name_to_index[step.asset.type + ":" + step.name]
@@ -154,7 +162,7 @@ class MalSimulator(ParallelEnv):
             else 0
         )
 
-    def asset_id(self, step):
+    def asset_id(self, step: AttackGraphNode):
         return int(step.asset.id) if step.name != "firstSteps" else 0
 
     def agent_iter(self):
@@ -274,7 +282,11 @@ class MalSimulator(ParallelEnv):
         num_objects = len(self.attack_graph.nodes)
         return MultiDiscrete([num_actions, num_objects], dtype=np.int64)
 
-    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
+    def reset(
+            self,
+            seed: Optional[int] = None,
+            options: Optional[dict] = None
+        ):
         logger.info("Resetting simulator.")
         attack_graph = AttackGraph.load_from_file(
             self.attack_graph_backup_filename, self.model
@@ -282,7 +294,7 @@ class MalSimulator(ParallelEnv):
         self.attack_graph = attack_graph
         return self.init(self.max_iter)
 
-    def init(self, max_iter=ITERATIONS_LIMIT):
+    def init(self, max_iter: int = ITERATIONS_LIMIT):
         logger.info("Initializing MAL ParralelEnv Simulator.")
         logger.debug("Creating and listing mapping tables.")
         self._index_to_id = [n.id for n in self.attack_graph.nodes]
@@ -350,7 +362,7 @@ class MalSimulator(ParallelEnv):
 
         return observations, infos
 
-    def register_attacker(self, agent_name, attacker: int):
+    def register_attacker(self, agent_name: str, attacker: int):
         logger.info(
             f'Register attacker "{agent_name}" agent with '
             f"attacker index {attacker}."
@@ -438,7 +450,7 @@ class MalSimulator(ParallelEnv):
                     self.update_viability_with_eviction(child)
 
 
-    def _defender_step(self, agent, defense_step):
+    def _defender_step(self, agent: str, defense_step: int):
         actions = []
         defense_step_node = self.attack_graph.get_node_by_id(
             self._index_to_id[defense_step]
@@ -474,7 +486,7 @@ class MalSimulator(ParallelEnv):
 
         return actions
 
-    def _observe_attacker(self, attacker_agent, observation):
+    def _observe_attacker(self, attacker_agent: str, observation: dict):
         attacker = self.attack_graph.attackers[
             self.agents_dict[attacker_agent]["attacker"]
         ]
@@ -502,7 +514,7 @@ class MalSimulator(ParallelEnv):
             if observation["observed_state"][index] != 1:
                 observation["observed_state"][index] = 0
 
-    def _observe_defender(self, defender_agent, observation):
+    def _observe_defender(self, defender_agent, observation: dict):
         # TODO We should probably create a separate blank observation for the
         # defenders and just update that with the defense action taken so that
         # we do not have to go through the list of nodes every time. In case
@@ -640,7 +652,7 @@ class MalSimulator(ParallelEnv):
 
         return observations, rewards, terminations, truncations, infos
 
-    def step(self, actions):
+    def step(self, actions: dict):
         """
         step(action) takes in an action for each agent and should return the
         - observations
