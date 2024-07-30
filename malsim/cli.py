@@ -6,6 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from .sims.mal_simulator import MalSimulator
+from .agents.keyboard_input import KeyboardAgent
 from .scenario import load_scenario
 
 if TYPE_CHECKING:
@@ -39,10 +40,12 @@ def run_simulation(attack_graph: AttackGraph, sim_config):
 
     # Initialize defender and attacker according to classes
     reverse_vocab = env._index_to_full_name
-    defender_class = sim_config.get('defender_agent_class')
+    defender_class = sim_config['defender_agent_class']
     defender = defender_class(reverse_vocab) if defender_class else None
-    attacker_class = sim_config.get('attacker_agent_class')
-    attacker = attacker_class({})
+    attacker_class = sim_config['attacker_agent_class']
+    attacker = (attacker_class(reverse_vocab)
+                if attacker_class == KeyboardAgent
+                else attacker_class({}))
 
     obs, infos = env.reset()
     done = False
