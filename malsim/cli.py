@@ -39,9 +39,9 @@ def run_simulation(attack_graph: AttackGraph, sim_config):
 
     # Initialize defender and attacker according to classes
     reverse_vocab = env._index_to_full_name
-    defender_class = sim_config.get('defender_class')
+    defender_class = sim_config.get('defender_agent_class')
     defender = defender_class(reverse_vocab) if defender_class else None
-    attacker_class = sim_config.get('attacker_class')
+    attacker_class = sim_config.get('attacker_agent_class')
     attacker = attacker_class({})
 
     obs, infos = env.reset()
