@@ -128,9 +128,9 @@ def load_scenario(scenario_file: str) -> AttackGraph:
         attack_graph = create_attack_graph(lang_file, model_file)
 
         # Apply rewards and entrypoints to attack graph
-        rewards = scenario.get('rewards', [])
+        rewards = scenario.get('rewards', {})
         apply_scenario_rewards(attack_graph, rewards)
-        entry_points = scenario.get('attacker_entry_points', [])
+        entry_points = scenario.get('attacker_entry_points', {})
         apply_scenario_attacker_entrypoints(attack_graph, entry_points)
 
         # Create config object which is also returned
