@@ -1,4 +1,4 @@
-from typing import Any, Dict, SupportsFloat, Type, Literal
+from typing import Any, Dict, SupportsFloat
 
 import gymnasium as gym
 import gymnasium.utils.env_checker as env_checker

@@ -1,7 +1,7 @@
 import logging
 
 from collections import deque
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 import numpy as np
 
