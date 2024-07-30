@@ -108,7 +108,7 @@ def apply_scenario_attacker_entrypoints(
                 attacker.entry_points.append(entry_point)
 
 
-def load_scenario(scenario_file: str) -> AttackGraph:
+def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:
     """Load a scenario from a scenario file to an AttackGraph"""
 
     with open(scenario_file, 'r', encoding='utf-8') as s_file:
