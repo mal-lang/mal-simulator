@@ -91,14 +91,24 @@ class MalSimulator(ParallelEnv):
         model: Model,
         attack_graph: AttackGraph,
         max_iter=ITERATIONS_LIMIT,
+        prune_unviable_unnecessary: bool = True,
         **kwargs,
     ):
+        """
+        Args:
+            lang_graph                  -   The language graph to use
+            model                       -   The model to use
+            attack_graph                -   The attack graph to use
+            max_iter                    -   Max iterations in simulation
+            prune_unviable_unnecessary  -   Prunes graph if set to true
+        """
         super().__init__()
         logger.info("Create Mal Simulator.")
         self.lang_graph = lang_graph
         self.model = model
         apriori.calculate_viability_and_necessity(attack_graph)
-        apriori.prune_unviable_and_unnecessary_nodes(attack_graph)
+        if prune_unviable_unnecessary:
+            apriori.prune_unviable_and_unnecessary_nodes(attack_graph)
         self.attack_graph = attack_graph
         self.max_iter = max_iter
         self.attack_graph_backup_filename = \
