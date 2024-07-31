@@ -20,7 +20,7 @@ logging.getLogger().setLevel(logging.INFO)
 def run_simulation(attack_graph: AttackGraph, sim_config: dict):
     """Run a simulation on an attack graph with given config"""
 
-    attack_graph.save_to_file("tmp/attack_graph.json")
+    attack_graph.save_to_file("tmp/attack_graph.yml")
 
     # Constants
     NULL_ACTION = (0, None)
