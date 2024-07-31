@@ -95,7 +95,7 @@ def run_simulation(attack_graph: AttackGraph, sim_config: dict):
         for step in attacker_obj.reached_attack_steps:
             logger.debug(step.id)
 
-        logger.info("Attacker Reward: %s", rewards[AGENT_ATTACKER])
+        logger.info("Attacker Reward: %s", rewards.get(AGENT_ATTACKER))
 
         if defender_agent:
             logger.info("Defender Reward: %s", rewards.get(AGENT_DEFENDER))
@@ -103,7 +103,7 @@ def run_simulation(attack_graph: AttackGraph, sim_config: dict):
         total_reward_defender += rewards.get(AGENT_DEFENDER, 0) if defender_agent else 0
         total_reward_attacker += rewards.get(AGENT_ATTACKER, 0)
 
-        done |= terminated[AGENT_ATTACKER] or truncated[AGENT_ATTACKER]
+        done |= terminated.get(AGENT_ATTACKER, True) or truncated.get(AGENT_ATTACKER, True)
 
         print("---\n")
 
