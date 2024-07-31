@@ -15,7 +15,13 @@ class KeyboardAgent:
         self.vocab = vocab
 
     def compute_action_from_dict(self, obs: dict, mask: tuple) -> tuple:
+        """Return action id and action
+        Args:
+        obs     -
+        mask    -
+        """
         def valid_action(user_input: str) -> bool:
+            """Decide if input string is valid action index"""
             if user_input == "":
                 return True
 
@@ -34,10 +40,13 @@ class KeyboardAgent:
             return node < len(available_actions) and node >= 0
 
         def get_action_object(user_input: str) -> tuple:
+            """Return index of action and action for user input string
+            or None, 0 if user_input is empty string"""
             node = int(user_input) if user_input != "" else None
             action = associated_action[action_strings[node]] if user_input != "" else 0
             return node, action
 
+        # Return non zero indexes of values in mask[1]
         available_actions = np.flatnonzero(mask[1])
 
         action_strings = [self.vocab[i] for i in available_actions]

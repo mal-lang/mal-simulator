@@ -129,6 +129,8 @@ class MalSimulator(ParallelEnv):
         return None
 
     def create_blank_observation(self):
+        """Create and return initial blank observation"""
+
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
 
@@ -252,6 +254,7 @@ class MalSimulator(ParallelEnv):
 
 
     def _format_info(self, info):
+        """Craft string that tells what agent can do"""
         can_act = "Yes" if info["action_mask"][0][1] > 0 else "No"
         agent_info_str = f"Can act? {can_act}\n"
         for entry in range(0, len(info["action_mask"][1])):
@@ -262,6 +265,7 @@ class MalSimulator(ParallelEnv):
 
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent=None):
+        """No idea what happens here"""
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
         num_lang_asset_types = len(self.lang_graph.assets)
@@ -319,6 +323,7 @@ class MalSimulator(ParallelEnv):
         return MultiDiscrete([num_actions, num_objects], dtype=np.int64)
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
+        """Reset simulator by reloading attack graph and running init()"""
         logger.info("Resetting simulator.")
         attack_graph = AttackGraph.load_from_file(
             self.attack_graph_backup_filename, self.model
@@ -327,6 +332,11 @@ class MalSimulator(ParallelEnv):
         return self.init(self.max_iter)
 
     def init(self, max_iter=ITERATIONS_LIMIT):
+        """Initialize the simulator
+
+        Create lookup dicts, create 'table', add attackers,
+        run _observe_and_reward and return obs and info from it.
+        """
         logger.info("Initializing MAL ParralelEnv Simulator.")
         logger.debug("Creating and listing mapping tables.")
         self._index_to_id = [n.id for n in self.attack_graph.nodes]
@@ -403,6 +413,7 @@ class MalSimulator(ParallelEnv):
         return observations, infos
 
     def register_attacker(self, agent_name, attacker: int):
+        """Add attacker with given `agent_name` with id `attacker`"""
         logger.info(
             f'Register attacker "{agent_name}" agent with '
             f"attacker index {attacker}."
@@ -412,6 +423,7 @@ class MalSimulator(ParallelEnv):
             "attacker": attacker}
 
     def register_defender(self, agent_name):
+        """Add defender with given `agent_name`"""
         # Defenders are run first so that the defenses prevent the attacker
         # appropriately in case the attacker selects an attack step that the
         # defender safeguards against in the same step.
@@ -424,6 +436,12 @@ class MalSimulator(ParallelEnv):
         return NotImplementedError
 
     def _attacker_step(self, agent, attack_step):
+        """Take a step in simulation for attacker
+
+        Args:
+        agent       - the agent_name
+        attack_step - the attack_step to step through
+        """
         actions = []
         attacker = self.attack_graph.attackers[self.agents_dict[agent]["attacker"]]
         attack_step_node = self.attack_graph.get_node_by_id(
@@ -502,6 +520,12 @@ class MalSimulator(ParallelEnv):
 
 
     def _defender_step(self, agent, defense_step):
+        """Take a step for a defender agent
+
+        Args:
+        agent           -   the agent_name of the defender
+        defense_step    -   the defense step to step through
+        """
         actions = []
         defense_step_node = self.attack_graph.get_node_by_id(
             self._index_to_id[defense_step]
@@ -544,6 +568,7 @@ class MalSimulator(ParallelEnv):
         return actions
 
     def _observe_attacker(self, attacker_agent, observation):
+        """Set values in `observation` if the attacker can observe (TODO?)"""
         attacker = self.attack_graph.attackers[
             self.agents_dict[attacker_agent]["attacker"]
         ]
@@ -573,6 +598,7 @@ class MalSimulator(ParallelEnv):
                 observation["observed_state"][index] = 0
 
     def _observe_defender(self, defender_agent, observation):
+        """Set values in `observation` if the defender can observe (TODO?)"""
         # TODO We should probably create a separate blank observation for the
         # defenders and just update that with the defense action taken so that
         # we do not have to go through the list of nodes every time. In case
@@ -588,6 +614,7 @@ class MalSimulator(ParallelEnv):
                     observation["observed_state"][index] = 0
 
     def _observe_and_reward(self):
+        """Go through all agents, observe and set the rewards"""
         observations = {}
         rewards = {}
         terminations = {}

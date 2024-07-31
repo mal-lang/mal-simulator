@@ -19,6 +19,7 @@ def get_new_targets(
 
 class PassiveAttacker:
     def compute_action_from_dict(self, observation, mask):
+        """Action is always 'wait'"""
         return (0, None)
 
 class BreadthFirstAttacker:
