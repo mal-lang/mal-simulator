@@ -14,6 +14,7 @@ rewards:
   Data:5:notPresent: 1
   Credentials:6:notPhishable: 7
   Identity:11:notPresent: 3.5
+  Identity:8:assume: 50
 
 # Add entry points to AttackGraph with attacker names
 # and attack step full_names
