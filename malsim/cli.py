@@ -41,9 +41,9 @@ def run_simulation(attack_graph: AttackGraph, sim_config):
     # Initialize defender and attacker according to classes
     reverse_vocab = env._index_to_full_name
     defender_class = sim_config['defender_agent_class']
-    defender = defender_class(reverse_vocab) if defender_class else None
+    defender_agent = defender_class(reverse_vocab) if defender_class else None
     attacker_class = sim_config['attacker_agent_class']
-    attacker = (attacker_class(reverse_vocab)
+    attacker_agent = (attacker_class(reverse_vocab)
                 if attacker_class == KeyboardAgent
                 else attacker_class({}))
 
@@ -56,14 +56,15 @@ def run_simulation(attack_graph: AttackGraph, sim_config):
     total_reward_attacker = 0
 
     while not done:
-        defender_action = (
-            defender.compute_action_from_dict(
-                obs[AGENT_DEFENDER], infos[AGENT_DEFENDER]["action_mask"]
+
+        defender_action = NULL_ACTION
+        if defender_agent:
+            defender_action = defender_agent.compute_action_from_dict(
+                obs[AGENT_DEFENDER],
+                infos[AGENT_DEFENDER]["action_mask"]
             )
-            if defender
-            else NULL_ACTION
-        )
-        attacker_action = attacker.compute_action_from_dict(
+
+        attacker_action = attacker_agent.compute_action_from_dict(
             obs[AGENT_ATTACKER],
             infos[AGENT_ATTACKER]["action_mask"]
         )
@@ -96,11 +97,11 @@ def run_simulation(attack_graph: AttackGraph, sim_config):
 
         logger.info("Attacker Reward: %s", rewards[AGENT_ATTACKER])
 
-        if defender:
-            logger.info("Defender Reward: %s", rewards[AGENT_DEFENDER])
+        if defender_agent:
+            logger.info("Defender Reward: %s", rewards.get(AGENT_DEFENDER))
 
-        total_reward_defender += rewards[AGENT_DEFENDER] if defender else 0
-        total_reward_attacker += rewards[AGENT_ATTACKER]
+        total_reward_defender += rewards.get(AGENT_DEFENDER, 0) if defender_agent else 0
+        total_reward_attacker += rewards.get(AGENT_ATTACKER, 0)
 
         done |= terminated[AGENT_ATTACKER] or truncated[AGENT_ATTACKER]
 
@@ -108,7 +109,7 @@ def run_simulation(attack_graph: AttackGraph, sim_config):
 
     logger.info("Game Over.")
 
-    if defender:
+    if defender_agent:
         logger.info("Total Defender Reward: %s", total_reward_defender)
     logger.info("Total Attacker Reward: %s", total_reward_attacker)
 
