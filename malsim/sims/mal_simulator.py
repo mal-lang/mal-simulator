@@ -451,7 +451,7 @@ class MalSimulator(ParallelEnv):
 
 
     def _defender_step(self, agent: str, defense_step: int):
-        actions = []
+        actions: list[int] = []
         defense_step_node = self.attack_graph.get_node_by_id(
             self._index_to_id[defense_step]
         )
@@ -514,7 +514,7 @@ class MalSimulator(ParallelEnv):
             if observation["observed_state"][index] != 1:
                 observation["observed_state"][index] = 0
 
-    def _observe_defender(self, defender_agent, observation: dict):
+    def _observe_defender(self, defender_agent: str, observation: dict):
         # TODO We should probably create a separate blank observation for the
         # defenders and just update that with the defense action taken so that
         # we do not have to go through the list of nodes every time. In case
