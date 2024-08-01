@@ -113,12 +113,22 @@ def test_malsimulator_format_info(corelang_lang_graph, model):
 def test_malsimulator_observation_space(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
-    sim.observation_space()
+    observation_space = sim.observation_space()
+    assert set(observation_space.keys()) == {
+        'is_observable', 'observed_state', 'remaining_ttc',
+        'asset_type', 'asset_id', 'step_name', 'edges'
+    }
+    # All values in the observation space dict are of type Box
+    # which comes from gymnasium.spaces (Box is a Space)
+    # spaces have a shape (tuple) and a datatype (from numpy)
+
 
 def test_malsimulator_action_space(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
-    sim.action_space()
+    action_space = sim.action_space()
+    # action_space is a 'MultiDiscrete' (from gymnasium.spaces)
+    assert action_space.shape == (2,)
 
 
 def test_malsimulator_reset(corelang_lang_graph, model):
@@ -141,6 +151,7 @@ def test_malsimulator_init(corelang_lang_graph, model):
     assert sim._index_to_id
     assert sim._index_to_full_name
     assert sim._id_to_index
+    # TODO: test agent populating
 
 
 def test_malsimulator_register_attacker(corelang_lang_graph, model):
@@ -281,3 +292,4 @@ def test_malsimulator_step(corelang_lang_graph, model):
 
     actions = {}
     sim.step(actions)
+    # TODO: see that correct methods are called depending on agents
