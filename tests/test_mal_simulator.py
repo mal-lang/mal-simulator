@@ -147,7 +147,7 @@ def test_malsimulator_reset(corelang_lang_graph, model):
 def test_malsimulator_init(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
-    sim.init()
+    obs, infos = sim.init()
     assert sim._index_to_id
     assert sim._index_to_full_name
     assert sim._id_to_index
@@ -288,8 +288,22 @@ def test_malsimulator_update_viability_with_eviction(corelang_lang_graph, model)
 
 def test_malsimulator_step(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
+    attack_graph.attach_attackers()
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
 
-    actions = {}
+    agent_name = "attacker1"
+    attacker_id = attack_graph.attackers[0].id
+    sim.register_attacker(agent_name, attacker_id)
+    assert not sim.action_surfaces
+
+    # run init to enable attackers
+    obs, infos = sim.init()
+
+    # Run step() with action crafted in test
+    action = 0
+    step = attack_graph.get_node_by_full_name('OS App:attemptUseVulnerability')
+    actions = {agent_name: (action, step)}
     sim.step(actions)
-    # TODO: see that correct methods are called depending on agents
+
+    assert agent_name in sim.action_surfaces
+    assert step in sim.action_surfaces[agent_name]
