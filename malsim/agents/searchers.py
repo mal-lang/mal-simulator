@@ -38,6 +38,7 @@ class BreadthFirstAttacker:
         )
 
     def compute_action_from_dict(self, observation: Dict[str, Any], mask: tuple):
+        """From observation, find possible targets and select next one"""
         new_targets, surface_indexes = get_new_targets(observation, self.targets, mask)
 
         # Add new targets to the back of the queue
@@ -67,6 +68,7 @@ class BreadthFirstAttacker:
         targets: Union[List[int], Deque[int]],
         attack_surface: Set[int],
     ) -> int:
+        """Select next target using breadth first technique"""
         # If the current target was not compromised, put it
         # back, but on the bottom of the stack.
         if current_target in attack_surface:
@@ -98,6 +100,7 @@ class DepthFirstAttacker:
         )
 
     def compute_action_from_dict(self, observation: Dict[str, Any], mask: tuple):
+        """From observation, find possible targets and select next one"""
         new_targets, surface_indexes = get_new_targets(observation, self.targets, mask)
 
         # Add new targets to the top of the stack
@@ -120,6 +123,7 @@ class DepthFirstAttacker:
         targets: Union[List[int], Deque[int]],
         attack_surface: Set[int],
     ) -> int:
+        """Select next target using depth first technique"""
         if current_target in attack_surface:
             return current_target, False
 

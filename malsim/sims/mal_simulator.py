@@ -254,7 +254,7 @@ class MalSimulator(ParallelEnv):
 
 
     def _format_info(self, info):
-        """Craft string that tells what agent can do"""
+        """Craft string from agent info that tells what agent can do"""
         can_act = "Yes" if info["action_mask"][0][1] > 0 else "No"
         agent_info_str = f"Can act? {can_act}\n"
         for entry in range(0, len(info["action_mask"][1])):
@@ -265,7 +265,7 @@ class MalSimulator(ParallelEnv):
 
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent=None):
-        """No idea what happens here"""
+        """Create observation space"""
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
         num_lang_asset_types = len(self.lang_graph.assets)
@@ -317,6 +317,7 @@ class MalSimulator(ParallelEnv):
 
     @functools.lru_cache(maxsize=None)
     def action_space(self, agent=None):
+        """Create action space"""
         num_actions = 2  # two actions: wait or use
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
@@ -568,7 +569,7 @@ class MalSimulator(ParallelEnv):
         return actions
 
     def _observe_attacker(self, attacker_agent, observation):
-        """Set values in `observation` if the attacker can observe (TODO?)"""
+        """Set values in `observation` if the attacker can observe (?)"""
         attacker = self.attack_graph.attackers[
             self.agents_dict[attacker_agent]["attacker"]
         ]
@@ -598,7 +599,7 @@ class MalSimulator(ParallelEnv):
                 observation["observed_state"][index] = 0
 
     def _observe_defender(self, defender_agent, observation):
-        """Set values in `observation` if the defender can observe (TODO?)"""
+        """Set values in `observation` if the defender can observe (?)"""
         # TODO We should probably create a separate blank observation for the
         # defenders and just update that with the defense action taken so that
         # we do not have to go through the list of nodes every time. In case
