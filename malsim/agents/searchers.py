@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 def get_new_targets(
     observation: dict,
-    discovered_targets: set[int] | deque[int] | list[int],
+    discovered_targets: deque[int],
     mask: tuple
 ) -> tuple[list, list]:
     attack_surface = mask[1]
@@ -95,7 +95,7 @@ class BreadthFirstAttacker:
 class DepthFirstAttacker:
     def __init__(self, agent_config: dict) -> None:
         self.current_target: Optional[int] = -1
-        self.targets: list[int] = []
+        self.targets: deque[int] = deque()
         seed = (
             agent_config["seed"]
             if agent_config.get("seed", None)
