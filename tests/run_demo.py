@@ -59,7 +59,6 @@ model = Model.load_from_file("tests/example_model.yml", lang_classes_factory)
 attack_graph = AttackGraph(lang_graph, model)
 attack_graph.attach_attackers()
 attack_graph.save_to_file("tmp/attack_graph.json")
-
 env = MalSimulator(lang_graph, model, attack_graph, max_iter=500)
 
 env.register_attacker(AGENT_ATTACKER, 0)

@@ -28,7 +28,7 @@ model_file_name='tests/example_model.yml'
 attack_graph_file_name=path.join('tmp','attack_graph.json')
 lang_file_name='tests/org.mal-lang.coreLang-1.0.0.mar'
 
-def register_gym_agent(agent_id, entry_point):
+def register_gym_agent(agent_id: str, entry_point):
     if agent_id not in gym.envs.registry.keys():
         gym.register(agent_id, entry_point=entry_point)
 
@@ -67,6 +67,7 @@ def test_random_defender_actions():
         lang_file=lang_file_name,
     )
     def available_steps(x):
+        # TODO/BUG: No return statement?
         np.flatnonzero(x["action_mask"][1])
 
     def available_actions(x):
