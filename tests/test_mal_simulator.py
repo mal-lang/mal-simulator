@@ -258,14 +258,26 @@ def test_malsimulator_observe_and_reward(corelang_lang_graph, model):
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
     sim._observe_and_reward()
     # TODO: test that things happen as they should
-    # TODO: Again: how are reached_attack_steps set?
 
 
-# def test_malsimulator_update_viability_with_eviction(corelang_lang_graph, model):
-#     attack_graph = AttackGraph(corelang_lang_graph, model)
-#     MalSimulator(corelang_lang_graph, model, attack_graph)
+def test_malsimulator_update_viability_with_eviction(corelang_lang_graph, model):
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
+    attempt_vuln_node = attack_graph.get_node_by_full_name('OS App:attemptUseVulnerability')
+    assert attempt_vuln_node.is_viable
+    success_vuln_node = attack_graph.get_node_by_full_name('OS App:successfulUseVulnerability')
+    assert success_vuln_node.is_viable
+
+    # Make attempt unviable
+    attempt_vuln_node.is_viable = False
+    sim.update_viability_with_eviction(attempt_vuln_node)
+    # Should make success unviable
+    assert not success_vuln_node.is_viable
 
 
-# def test_malsimulator_step(corelang_lang_graph, model):
-#     attack_graph = AttackGraph(corelang_lang_graph, model)
-#     MalSimulator(corelang_lang_graph, model, attack_graph)
+def test_malsimulator_step(corelang_lang_graph, model):
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
+
+    actions = {}
+    sim.step(actions)
