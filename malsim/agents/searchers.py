@@ -37,10 +37,11 @@ class BreadthFirstAttacker:
         )
 
     def compute_action_from_dict(self, observation: Dict[str, Any], mask: tuple):
-        new_targets, surface_indexes = get_new_targets(observation, self.targets, mask)
+        new_targets, surface_indexes = \
+            get_new_targets(observation, self.targets, mask)
 
         # Add new targets to the back of the queue
-        # if desired, shuffle the new targets to make the attacker more unpredictable
+        # if desired, shuffle new targets to make attacker more unpredictable
         if self.rng:
             self.rng.shuffle(new_targets)
         for c in new_targets:
@@ -72,13 +73,14 @@ class BreadthFirstAttacker:
             targets.appendleft(current_target)
             current_target = targets.pop()
 
+        done = False
         while current_target not in attack_surface:
             if len(targets) == 0:
-                return None, True
-
+                current_target = None
+                done = True
             current_target = targets.pop()
 
-        return current_target, False
+        return current_target, done
 
 
 class DepthFirstAttacker:
@@ -122,13 +124,14 @@ class DepthFirstAttacker:
         if current_target in attack_surface:
             return current_target, False
 
+        done = False
         while current_target not in attack_surface:
             if len(targets) == 0:
-                return None, True
-
+                current_target = None
+                done  = True
             current_target = targets.pop()
 
-        return current_target, False
+        return current_target, done
 
 
 AGENTS = {
