@@ -110,10 +110,13 @@ class MalSimulator(ParallelEnv):
         self.agents = []
         self.agents_dict = {}
         self.offset = 1
+
+        # 'unholy' separates attack step names assets in observation.
+        # Not compliant with how the MAL language is supposed to work,
+        # but reduces the size of the observation signficiantly.
         self.unholy = kwargs.get(
             "unholy", False
-        )  # Separates attack step names from their assets in the observation.
-        # Not compliant with how the MAL language is supposed to work, but reduces the size of the observation signficiantly.
+        )
 
         self.init(self.max_iter)
 
@@ -170,16 +173,16 @@ class MalSimulator(ParallelEnv):
             "remaining_ttc": num_objects * [0],
         }
 
-        logger.debug(f'Create blank observation with {num_objects} attack '
-            'steps.')
-        observation["asset_type"], observation["asset_id"], observation["step_name"] = (
-            zip(
-                *(
-                    (self.asset_type(step), self.asset_id(step), self.step_name(step))
-                    for step in self.attack_graph.nodes
-                )
-            )
+        logger.debug(
+            'Create blank observation with %d attack steps.', num_objects
         )
+
+        observation["asset_type"] = [
+            self.asset_type(step) for step in self.attack_graph.nodes]
+        observation["asset_id"] = [
+            self.asset_id(step) for step in self.attack_graph.nodes]
+        observation["step_name"] = [
+            self.step_name(step) for step in self.attack_graph.nodes]
 
         observation["edges"] = [
             [self._id_to_index[attack_step.id], self._id_to_index[child.id]]
@@ -221,12 +224,13 @@ class MalSimulator(ParallelEnv):
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
         num_lang_asset_types = len(self.lang_graph.assets)
-        num_lang_attack_steps = (
-            len(self.lang_graph.attack_steps)
-            if not self.unholy
-            else len(set(s.attributes["name"] for s in self.lang_graph.attack_steps))
-        )
+        num_lang_attack_steps = len(self.lang_graph.attack_steps)
+        if self.unholy:
+            num_lang_attack_steps = len(
+                {s.attributes["name"] for s in self.lang_graph.attack_steps}
+            )
         num_edges = len(self._blank_observation["edges"])
+
         # TODO is_observable is never set. It will be filled in once the
         # observability of the attack graph is determined.
         return Dict(
@@ -285,36 +289,35 @@ class MalSimulator(ParallelEnv):
     def init(self, max_iter=ITERATIONS_LIMIT):
         logger.info("Initializing MAL ParralelEnv Simulator.")
         logger.debug("Creating and listing mapping tables.")
+
         self._index_to_id = [n.id for n in self.attack_graph.nodes]
         self._index_to_full_name = [n.full_name for n in self.attack_graph.nodes]
         self._id_to_index = {n: i for i, n in enumerate(self._index_to_id)}
+        self._index_to_asset_type = [n.name for n in self.lang_graph.assets]
+        self._asset_type_to_index = {
+            n: i for i, n in enumerate(self._index_to_asset_type)}
+        self._index_to_step_name = [
+            n.asset.name + ":" + n.name for n in self.lang_graph.attack_steps]
+        self._step_name_to_index = {
+            n: i for i, n in enumerate(self._index_to_step_name)}
+        self._unholy_index_to_step_name = {
+            n.attributes["name"] for n in self.lang_graph.attack_steps}
+        self._unholy_step_name_to_index = {
+            n: i for i, n in enumerate(self._unholy_index_to_step_name)}
+
         str_format = "{:<5} {:<}\n"
         table = "\n" + str_format.format("Index", "Attack Step Id")
         for entry in self._index_to_id:
             table += str_format.format(self._id_to_index[entry], entry)
         logger.debug(table)
 
-        self._index_to_asset_type = [n.name for n in self.lang_graph.assets]
-        self._asset_type_to_index = {
-            n: i for i, n in enumerate(self._index_to_asset_type)
-        }
         str_format = "{:<5} {:<}\n"
         table = "\n" + str_format.format("Index", "Asset Type")
         for entry in self._index_to_asset_type:
-            table += str_format.format(self._asset_type_to_index[entry], entry)
+            table += str_format.format(
+                self._asset_type_to_index[entry], entry
+            )
         logger.debug(table)
-
-        self._index_to_step_name = [n.asset.name + ":" + n.name for n in self.lang_graph.attack_steps]
-        self._step_name_to_index = {
-            n: i for i, n in enumerate(self._index_to_step_name)
-        }
-
-        self._unholy_index_to_step_name = {
-            n.attributes["name"] for n in self.lang_graph.attack_steps
-        }
-        self._unholy_step_name_to_index = {
-            n: i for i, n in enumerate(self._unholy_index_to_step_name)
-        }
 
         str_format = "{:<5} {:<}\n"
         table = "\n" + str_format.format("Index", "Step Name")
@@ -344,20 +347,19 @@ class MalSimulator(ParallelEnv):
             else:
                 self.action_surfaces[agent] = []
 
-        observations, rewards, terminations, truncations, infos = (
-            self._observe_and_reward()
-        )
-
+        observations, _, _, _, infos = self._observe_and_reward()
         return observations, infos
 
-    def register_attacker(self, agent_name, attacker: int):
+    def register_attacker(self, agent_name, attacker_id: int):
         logger.info(
             f'Register attacker "{agent_name}" agent with '
-            f"attacker index {attacker}."
+            f"attacker index {attacker_id}."
         )
         self.possible_agents.append(agent_name)
-        self.agents_dict[agent_name] = {"type": "attacker",
-            "attacker": attacker}
+        self.agents_dict[agent_name] = {
+            "type": "attacker",
+            "attacker": attacker_id
+        }
 
     def register_defender(self, agent_name):
         # Defenders are run first so that the defenses prevent the attacker
@@ -373,7 +375,8 @@ class MalSimulator(ParallelEnv):
 
     def _attacker_step(self, agent, attack_step):
         actions = []
-        attacker = self.attack_graph.attackers[self.agents_dict[agent]["attacker"]]
+        attacker_id = self.agents_dict[agent]["attacker"]
+        attacker = self.attack_graph.attackers[attacker_id]
         attack_step_node = self.attack_graph.get_node_by_id(
             self._index_to_id[attack_step]
         )
@@ -412,30 +415,32 @@ class MalSimulator(ParallelEnv):
         logger.debug(
             f'Update viability with eviction for node \"{node.id}\"'
         )
-        if not node.is_viable:
-            # This is more of a sanity check, it should never be called on
-            # viable nodes.
-            for agent in self.agents:
-                if self.agents_dict[agent]["type"] == "attacker":
-                    try:
-                        self.action_surfaces[agent].remove(node)
-                    except ValueError:
-                        # Optimization: the attacker is told to remove
-                        # the node from its attack surface even if it
-                        # may have not been present to save one extra
-                        # lookup.
-                        pass
-            for child in node.children:
-                original_value = child.is_viable
-                if child.type == 'or':
-                    child.is_viable = False
-                    for parent in child.parents:
-                        child.is_viable = child.is_viable or parent.is_viable
-                if child.type == 'and':
-                    child.is_viable = False
 
-                if child.is_viable != original_value:
-                    self.update_viability_with_eviction(child)
+        if node.is_viable:
+            # Sanity check, should never be called on viable nodes.
+            return
+
+        for agent in self.agents:
+            if self.agents_dict[agent]["type"] == "attacker":
+                try:
+                    self.action_surfaces[agent].remove(node)
+                except ValueError:
+                    # Optimization: the attacker is told to remove
+                    # the node from its attack surface even if it
+                    # may have not been present to save one extra
+                    # lookup.
+                    pass
+        for child in node.children:
+            original_value = child.is_viable
+            if child.type == 'or':
+                child.is_viable = False
+                for parent in child.parents:
+                    child.is_viable = child.is_viable or parent.is_viable
+            if child.type == 'and':
+                child.is_viable = False
+
+            if child.is_viable != original_value:
+                self.update_viability_with_eviction(child)
 
 
     def _defender_step(self, agent, defense_step):
@@ -475,9 +480,9 @@ class MalSimulator(ParallelEnv):
         return actions
 
     def _observe_attacker(self, attacker_agent, observation):
-        attacker = self.attack_graph.attackers[
-            self.agents_dict[attacker_agent]["attacker"]
-        ]
+
+        attacker_id = self.agents_dict[attacker_agent]["attacker"]
+        attacker = self.attack_graph.attackers[attacker_id]
         nodes_to_remove = []
         for node in attacker.reached_attack_steps:
             if not query.is_node_traversable_by_attacker(node, attacker):
