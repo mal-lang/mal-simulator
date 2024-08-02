@@ -164,7 +164,6 @@ class LabeledGraphWrapper(Wrapper):
                 "mask_1": spaces.Box(0, 1, shape=(num_nodes,), dtype=np.int8),
             }
         )
-        pass
 
     def render(self) -> RenderFrame | list[RenderFrame] | None:
         return self.env.render()
