@@ -129,7 +129,12 @@ class MalSimulator(ParallelEnv):
         return None
 
     def create_blank_observation(self):
-        """Create and return initial blank observation"""
+        """Create and return blank observation
+
+        Blank observation contains static/invariant parts of the attack graph
+        and initializes the variant values (observed_state, remaining_ttc)
+        to their defaults values
+        """
 
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
@@ -265,7 +270,7 @@ class MalSimulator(ParallelEnv):
 
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent=None):
-        """Create observation space"""
+        """Defines and returns observation space"""
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
         num_lang_asset_types = len(self.lang_graph.assets)
@@ -317,14 +322,14 @@ class MalSimulator(ParallelEnv):
 
     @functools.lru_cache(maxsize=None)
     def action_space(self, agent=None):
-        """Create action space"""
+        """Defines and returns action space"""
         num_actions = 2  # two actions: wait or use
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
         return MultiDiscrete([num_actions, num_objects], dtype=np.int64)
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
-        """Reset simulator by reloading attack graph and running init()"""
+        """Reset simulator by reloading attack graph from file and run init()"""
         logger.info("Resetting simulator.")
         attack_graph = AttackGraph.load_from_file(
             self.attack_graph_backup_filename, self.model
@@ -335,7 +340,7 @@ class MalSimulator(ParallelEnv):
     def init(self, max_iter=ITERATIONS_LIMIT):
         """Initialize the simulator
 
-        Create lookup dicts, create 'table', add attackers,
+        Create lookup dicts/lists (print them out for debug), add attackers,
         run _observe_and_reward and return obs and info from it.
         """
         logger.info("Initializing MAL ParralelEnv Simulator.")
@@ -414,7 +419,9 @@ class MalSimulator(ParallelEnv):
         return observations, infos
 
     def register_attacker(self, agent_name, attacker: int):
-        """Add attacker with given `agent_name` with id `attacker`"""
+        """Register attacker with given `agent_name` as possible agent
+        `attacker` is the index pointing to the attacker in the
+        attackgraph.attackers list"""
         logger.info(
             f'Register attacker "{agent_name}" agent with '
             f"attacker index {attacker}."
@@ -424,7 +431,7 @@ class MalSimulator(ParallelEnv):
             "attacker": attacker}
 
     def register_defender(self, agent_name):
-        """Add defender with given `agent_name`"""
+        """Register defender with given `agent_name`"""
         # Defenders are run first so that the defenses prevent the attacker
         # appropriately in case the attacker selects an attack step that the
         # defender safeguards against in the same step.
@@ -569,7 +576,8 @@ class MalSimulator(ParallelEnv):
         return actions
 
     def _observe_attacker(self, attacker_agent, observation):
-        """Set values in `observation` if the attacker can observe (?)"""
+        """Set values in `observation` of attacker to 0 or 1 (-1 is default)
+        if attack step is compromised or not."""
         attacker = self.attack_graph.attackers[
             self.agents_dict[attacker_agent]["attacker"]
         ]
@@ -599,7 +607,8 @@ class MalSimulator(ParallelEnv):
                 observation["observed_state"][index] = 0
 
     def _observe_defender(self, defender_agent, observation):
-        """Set values in `observation` if the defender can observe (?)"""
+        """Set values in `observation` for defender and set to 1 or 0
+        if defense/attack step enabled/compromised or not"""
         # TODO We should probably create a separate blank observation for the
         # defenders and just update that with the defense action taken so that
         # we do not have to go through the list of nodes every time. In case
