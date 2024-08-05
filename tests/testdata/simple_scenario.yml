@@ -18,5 +18,5 @@ rewards:
 # Add entry points to AttackGraph with attacker_ids
 # and attack step full_names
 attacker_entry_points:
-  0:
+  'Attacker1': 
     - 'Credentials:6:attemptCredentialsReuse'

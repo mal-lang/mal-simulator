@@ -15,7 +15,7 @@ import os
 
 import yaml
 
-from maltoolbox.attackgraph import AttackGraph
+from maltoolbox.attackgraph import AttackGraph, Attacker
 from maltoolbox.wrappers import create_attack_graph
 
 from .agents.searchers import BreadthFirstAttacker, DepthFirstAttacker
@@ -92,20 +92,20 @@ def apply_scenario_attacker_entrypoints(
     """Go through attacker entry points from scenario file and add
     them to the referenced attacker in the attack graph"""
     # Set the attacker entrypoint according to scenario rewards
-    for attacker_id, entry_point_names in entry_points.items():
-        attacker = attack_graph.get_attacker_by_id(attacker_id)
 
-        if not attacker:
-            raise LookupError(f"Attacker {attacker_id} does not exist")
+    for attacker_name, entry_point_names in entry_points.items():
+        attacker_entry_points = []
 
         for entry_point_name in entry_point_names:
             entry_point = attack_graph.get_node_by_full_name(entry_point_name)
-
             if not entry_point:
                 raise LookupError(f"Node {entry_point_name} does not exist")
 
-            if entry_point not in attacker.entry_points:
-                attacker.entry_points.append(entry_point)
+            if entry_point not in attacker_entry_points:
+                attacker_entry_points.append(entry_point)
+
+        attacker = Attacker(attacker_name, attacker_entry_points)
+        attack_graph.add_attacker(attacker)
 
 
 def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:

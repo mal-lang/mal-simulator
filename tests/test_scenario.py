@@ -49,9 +49,13 @@ def test_load_scenario():
     attack_step = attack_graph.get_node_by_full_name(
         'Credentials:6:attemptCredentialsReuse'
     )
-    attacker_id = 0
-    assert attack_step in attack_graph\
-        .get_attacker_by_id(attacker_id).entry_points
+
+    attacker_name = "Attacker1"
+    attacker = next(
+        (attacker for attacker in attack_graph.attackers
+         if attacker.name == attacker_name)
+    )
+    assert attack_step in attacker.entry_points
 
     assert config.get('attacker_agent_class') == BreadthFirstAttacker
     assert config.get('defender_agent_class') == KeyboardAgent
