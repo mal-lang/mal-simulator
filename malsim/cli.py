@@ -126,10 +126,16 @@ def main():
         type=str,
         help="Can be found in https://github.com/mal-lang/malsim-scenarios/"
     )
+    parser.add_argument(
+        '-o', '--output-attack-graph', type=str,
+        help="If set to a path, attack graph will be dumped there",
+    )
     args = parser.parse_args()
 
     # Load AttackGraph and config from scenario file and run simulation
     attack_graph, sim_config = load_scenario(args.scenario_file)
+    if args.output_attack_graph:
+        attack_graph.save_to_file(args.output_attack_graph)
     run_simulation(attack_graph, sim_config)
 
 
