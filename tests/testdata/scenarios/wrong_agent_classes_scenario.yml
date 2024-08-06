@@ -1,5 +1,5 @@
-lang_file: ../org.mal-lang.coreLang-1.0.0.mar
-model_file: simple_test_model.yml
+lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
+model_file: ../models/simple_test_model.yml
 
 attacker_agent_class: 'BananaAttacker'
 defender_agent_class: 'FishAttacker'
