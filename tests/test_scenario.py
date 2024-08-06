@@ -44,12 +44,14 @@ def test_load_scenario():
     assert attack_graph.get_node_by_full_name('Identity:11:notPresent')\
         .extras['reward'] == 3.5
 
+    # One attacker from model + one attacker from scenario
+    # (both are acceptable ways to add attackers to attackgraph)
+    assert len(attack_graph.attackers) == 2
+
     # Verify attacker entrypoint was added
-    # 0: ['Credentials:6:attemptCredentialsReuse']
     attack_step = attack_graph.get_node_by_full_name(
         'Credentials:6:attemptCredentialsReuse'
     )
-
     attacker_name = "Attacker1"
     attacker = next(
         (attacker for attacker in attack_graph.attackers
@@ -59,6 +61,27 @@ def test_load_scenario():
 
     assert config.get('attacker_agent_class') == BreadthFirstAttacker
     assert config.get('defender_agent_class') == KeyboardAgent
+
+
+def test_load_scenario_no_attacker_in_model():
+    """Make sure we can load a scenario"""
+
+    # Load the scenario
+    attack_graph, _ = load_scenario(
+        path_relative_to_tests('./testdata/scenario_no_attacker_in_model.yml')
+    )
+
+    # Verify one attacker entrypoint was added (model is missing attacker)
+    assert len(attack_graph.attackers) == 1
+    attack_step = attack_graph.get_node_by_full_name(
+        'Credentials:6:attemptCredentialsReuse'
+    )
+    attacker_name = "Attacker1"
+    attacker = next(
+        (attacker for attacker in attack_graph.attackers
+         if attacker.name == attacker_name)
+    )
+    assert attack_step in attacker.entry_points
 
 
 def test_load_scenario_agent_class_error():
