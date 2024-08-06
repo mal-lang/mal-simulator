@@ -1,5 +1,5 @@
-lang_file: ../org.mal-lang.coreLang-1.0.0.mar
-model_file: example_model.json
+lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
+model_file: ../models/example_model.json
 
 attacker_agent_class: 'BreadthFirstAttacker'
 defender_agent_class: 'KeyboardAgent'

@@ -1,5 +1,5 @@
-lang_file: org.mal-lang.trainingLang-1.0.0.mar
-model_file: traininglang_model.yml
+lang_file: ../langs/org.mal-lang.trainingLang-1.0.0.mar
+model_file: ../models/traininglang_model.yml
 
 # Rewards for each attack step
 rewards:

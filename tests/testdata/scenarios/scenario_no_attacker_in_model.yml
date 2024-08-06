@@ -1,8 +1,8 @@
-lang_file: ../org.mal-lang.coreLang-1.0.0.mar
-model_file: example_model.json
+lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
+model_file: ../models/example_model_no_attacker.json
 
-attacker_agent_class: 'BananaAttacker'
-defender_agent_class: 'FishAttacker'
+attacker_agent_class: 'BreadthFirstAttacker'
+defender_agent_class: 'KeyboardAgent'
 
 # Rewards for each attack step
 rewards:
@@ -18,5 +18,5 @@ rewards:
 # Add entry points to AttackGraph with attacker_ids
 # and attack step full_names
 attacker_entry_points:
-  0:
+  'Attacker1': 
     - 'Credentials:6:attemptCredentialsReuse'
