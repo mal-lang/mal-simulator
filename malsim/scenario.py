@@ -94,17 +94,17 @@ def apply_scenario_attacker_entrypoints(
     # Set the attacker entrypoint according to scenario rewards
 
     for attacker_name, entry_point_names in entry_points.items():
-        attacker_entry_points = []
+        attacker = Attacker(
+            attacker_name, entry_points=[], reached_attack_steps=[]
+        )
 
         for entry_point_name in entry_point_names:
             entry_point = attack_graph.get_node_by_full_name(entry_point_name)
             if not entry_point:
                 raise LookupError(f"Node {entry_point_name} does not exist")
+            attacker.compromise(entry_point)
 
-            if entry_point not in attacker_entry_points:
-                attacker_entry_points.append(entry_point)
-
-        attacker = Attacker(attacker_name, attacker_entry_points)
+        attacker.entry_points = attacker.reached_attack_steps
         attack_graph.add_attacker(attacker)
 
 
