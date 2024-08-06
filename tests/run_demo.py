@@ -54,7 +54,7 @@ lang_classes_factory = LanguageClassesFactory(lang_graph)
 lang_graph = LanguageGraph.from_mar_archive(lang_file)
 lang_classes_factory = LanguageClassesFactory(lang_graph)
 
-model = Model.load_from_file("tests/testdata/models/example_model.yml", lang_classes_factory)
+model = Model.load_from_file("tests/scenario_run_demo/run_demo_model.json", lang_classes_factory)
 
 attack_graph = AttackGraph(lang_graph, model)
 attack_graph.attach_attackers()
