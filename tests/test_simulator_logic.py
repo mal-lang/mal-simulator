@@ -1,14 +1,24 @@
 from maltoolbox.attackgraph import AttackGraphNode, AttackGraph, Attacker
+from maltoolbox.wrappers import create_attack_graph
 from maltoolbox.attackgraph.analyzers import apriori
 from maltoolbox.attackgraph.query import is_node_traversable_by_attacker
 
+from malsim.sims.mal_simulator import MalSimulator
 
 # Helpers
+def add_viable_defense_node(attack_graph):
+    """defense node with defense status off -> viable"""
+    defense_node = AttackGraphNode(
+        'defense', 'DefenseNode', existence_status=True, defense_status=False)
+    attack_graph.add_node(defense_node)
+    return defense_node
+
+
 def add_viable_and_node(attack_graph):
     """and-node with viable parents -> viable"""
     and_node = AttackGraphNode('and', 'AndNode', existence_status=True)
-    and_node_parent1 = AttackGraphNode('or', 'AndNodeParent1', children=and_node)
-    and_node_parent2 = AttackGraphNode('or', 'AndNodeParent2', children=and_node)
+    and_node_parent1 = AttackGraphNode('or', 'AndNodeParent1', children=[and_node])
+    and_node_parent2 = AttackGraphNode('or', 'AndNodeParent2', children=[and_node])
     and_node.parents = [and_node_parent1, and_node_parent2]
     attack_graph.add_node(and_node)
     attack_graph.add_node(and_node_parent1)
@@ -20,7 +30,7 @@ def add_viable_and_node(attack_graph):
 def add_viable_or_node(attack_graph):
     """or-node with viable parent -> viable"""
     or_node = AttackGraphNode('or', 'OrNode')
-    or_node_parent = AttackGraphNode('or', 'OrNodeParent', children=or_node)
+    or_node_parent = AttackGraphNode('or', 'OrNodeParent', children=[or_node])
     or_node.parents.append(or_node_parent)
     attack_graph.add_node(or_node)
     attack_graph.add_node(or_node_parent)
@@ -69,6 +79,7 @@ def add_non_viable_or_node(attack_graph):
     apriori.evaluate_viability(or_node)
     return or_node
 
+# Tests
 
 def test_existance():
     pass
@@ -96,7 +107,7 @@ def test_viability_viable_nodes():
 
     # or-node with viable parent -> viable
     or_node = AttackGraphNode('or', 'OrNode')
-    or_node_parent = AttackGraphNode('or', 'OrNodeParent', children=or_node)
+    or_node_parent = AttackGraphNode('or', 'OrNodeParent', children=[or_node])
     or_node.parents.append(or_node_parent)
     attack_graph.add_node(or_node)
     attack_graph.add_node(or_node_parent)
@@ -106,8 +117,8 @@ def test_viability_viable_nodes():
 
     # and-node with viable parents -> viable
     and_node2 = AttackGraphNode('and', 'AndNode', existence_status=True)
-    and_node_parent1 = AttackGraphNode('or', 'AndNodeParent1', children=and_node2)
-    and_node_parent2 = AttackGraphNode('or', 'AndNodeParent2', children=and_node2)
+    and_node_parent1 = AttackGraphNode('or', 'AndNodeParent1', children=[and_node2])
+    and_node_parent2 = AttackGraphNode('or', 'AndNodeParent2', children=[and_node2])
     and_node2.parents = [and_node_parent1, and_node_parent2]
     attack_graph.add_node(and_node)
     attack_graph.add_node(and_node_parent1)
@@ -351,18 +362,53 @@ def test_traversability_not_traversable():
     attacker.compromise(parent)
     assert not is_node_traversable_by_attacker(viable_or_node, attacker)
 
-def test_state_transitions_attack_step():
-    """
-    The state transition for an attack step has more factors than the defense steps.
-    """
 
-    # Attack step will occur if:
-    # - IsAttackStep(x)
-    # - AttackerSelected(x)
-    # - TTC=0
-    # - Traversable(x)
-    attack_graph = AttackGraph()
-    and_node = add_traversable_and_node(attack_graph)
+def test_state_transitions_attack_step():
+    """This is more to show the definitions"""
+
+    lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
+    model_file = "tests/example_model.yml"
+    attack_graph = create_attack_graph(lang_file, model_file)
+
+    env = MalSimulator(
+        attack_graph.lang_graph,
+        attack_graph.model,
+        attack_graph
+    )
+
+    attack_step_full_name = 'OS App:localConnect'
+    attacker_entry_point = attack_graph.get_node_by_full_name(
+        attack_step_full_name
+    )
+
+    assert attacker_entry_point.is_viable
+    assert attacker_entry_point.is_necessary
+
+    attacker1 = Attacker(
+        "attacker1",
+        id=0
+    )
+    attacker1.compromise(attacker_entry_point)
+
+    attack_node_index = env._index_to_full_name.index(attack_step_full_name)
+    env.register_attacker(attacker1.name, attacker1.id)
+    env.reset()
+
+    action_dict = {attacker1.name: (1, attack_node_index)}
+    observations, rewards, terminations, truncations, infos = env.step(action_dict)
+
+    # Currently all TTCs are 0, this will change
+    attacker_obs = observations[attacker1.name]
+    for ttc in attacker_obs['remaining_ttc']:
+        assert ttc == 0
+    assert attacker_obs['observed_state'][attack_node_index] == 1
+    for child in attacker_entry_point.children:
+        child_node_index = env._index_to_full_name.index(child.full_name)
+        if not is_node_traversable_by_attacker(child, attacker1):
+            assert attacker_obs['observed_state'][child_node_index] == -1
+        else:
+            assert attacker_obs['observed_state'][child_node_index] == 0
+    assert attacker_entry_point.is_compromised()
 
 
 def test_state_transitions_defense_step():
@@ -376,7 +422,7 @@ def test_state_transitions_defense_step():
     # - TTC=0
     # - Traversable(x)
     attack_graph = AttackGraph()
-    and_node = add_traversable_and_node(attack_graph)
+    _ = add_traversable_and_node(attack_graph)
 
 
 def test_ttc():
