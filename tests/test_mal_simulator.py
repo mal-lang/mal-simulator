@@ -54,17 +54,46 @@ def test_malsimulator_asset_id(corelang_lang_graph, model):
 
 
 def test_malsimulator_create_blank_observation(corelang_lang_graph, model):
+    """Make sure blank observation contains correct default values"""
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
 
     num_objects = len(attack_graph.nodes)
     blank_observation = sim.create_blank_observation()
+
     assert len(blank_observation['is_observable']) == num_objects
+
     assert len(blank_observation['observed_state']) == num_objects
+    for state in blank_observation['observed_state']:
+        assert state == -1  # This is the default (which we get in blank observation)
+
     assert len(blank_observation['remaining_ttc']) == num_objects
+    for ttc in blank_observation['remaining_ttc']:
+        assert ttc == 0  # TTC is currently always 0 no matter what
+
+    # asset_type_index points us to an asset type in sim._index_to_asset_type
+    # the index where asset_type_index lies on will point to an attack step id in sim._index_to_id
+    # The type we get from sim._index_to_asset_type[asset_type_index - sim.offset]
+    # should be the same as the asset type of attack step with id index in attack graph
     assert len(blank_observation['asset_type']) == num_objects
+    for index, asset_type_index in enumerate(blank_observation['asset_type']):
+        # Note: offset is decremented from asset_type_index
+        expected_type = sim._index_to_asset_type[asset_type_index - sim.offset]
+        node_id = sim._index_to_id[index]
+        node = attack_graph.get_node_by_id(node_id)
+        assert node.asset.type == expected_type
+
+    # asset_id on index X in blank_observation['asset_id']
+    # should be the same as the id of the asset of attack step X
     assert len(blank_observation['asset_id']) == num_objects
+    for index, expected_asset_id in enumerate(blank_observation['asset_id']):
+        node_id = sim._index_to_id[index]
+        node = attack_graph.get_node_by_id(node_id)
+        assert node.asset.id == expected_asset_id
+
     assert len(blank_observation['step_name']) == num_objects
+    # TODO: Understand how step_name is created
+
     expected_num_edges = sum([1 for step in attack_graph.nodes
                                 for child in step.children] +
                                 # We expect all defenses again (reversed)
@@ -300,10 +329,19 @@ def test_malsimulator_step(corelang_lang_graph, model):
     obs, infos = sim.init()
 
     # Run step() with action crafted in test
-    action = 0
+    action = 1
     step = attack_graph.get_node_by_full_name('OS App:attemptUseVulnerability')
-    actions = {agent_name: (action, step)}
-    sim.step(actions)
+    step_index = sim._id_to_index[step.id]
+    actions = {agent_name: (action, step_index)}
+    observations, rewards, terminations, truncations, infos = sim.step(actions)
+    assert len(observations[agent_name]['observed_state']) == len(attack_graph.nodes)
+
+    # Make sure 'OS App:attemptUseVulnerability' is observed and set to 1 (active)
+    assert observations[agent_name]['observed_state'][step_index] == 1
+    for child in step.children:
+        child_step_index = sim._id_to_index[child.id]
+        # Make sure 'OS App:attemptUseVulnerability' children are observed and set to 0 (not active)
+        assert observations[agent_name]['observed_state'][child_step_index] == 0
 
     assert agent_name in sim.action_surfaces
     assert step in sim.action_surfaces[agent_name]
