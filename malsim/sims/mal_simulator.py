@@ -357,15 +357,15 @@ class MalSimulator(ParallelEnv):
         observations, _, _, _, infos = self._observe_and_reward()
         return observations, infos
 
-    def register_attacker(self, agent_name, attacker_id: int):
+    def register_attacker(self, agent_name, attacker_index: int):
         logger.info(
             f'Register attacker "{agent_name}" agent with '
-            f"attacker index {attacker_id}."
+            f"attacker index {attacker_index}."
         )
         self.possible_agents.append(agent_name)
         self.agents_dict[agent_name] = {
             "type": "attacker",
-            "attacker": attacker_id
+            "attacker": attacker_index
         }
 
     def register_defender(self, agent_name):
@@ -382,8 +382,8 @@ class MalSimulator(ParallelEnv):
 
     def _attacker_step(self, agent, attack_step):
         actions = []
-        attacker_id = self.agents_dict[agent]["attacker"]
-        attacker = self.attack_graph.attackers[attacker_id]
+        attacker_index = self.agents_dict[agent]["attacker"]
+        attacker = self.attack_graph.attackers[attacker_index]
         attack_step_node = self.attack_graph.get_node_by_id(
             self._index_to_id[attack_step]
         )
@@ -488,8 +488,8 @@ class MalSimulator(ParallelEnv):
 
     def _observe_attacker(self, attacker_agent, observation):
 
-        attacker_id = self.agents_dict[attacker_agent]["attacker"]
-        attacker = self.attack_graph.attackers[attacker_id]
+        attacker_index = self.agents_dict[attacker_agent]["attacker"]
+        attacker = self.attack_graph.attackers[attacker_index]
         nodes_to_remove = []
         for node in attacker.reached_attack_steps:
             if not query.is_node_traversable_by_attacker(node, attacker):
