@@ -23,12 +23,12 @@ class KeyboardAgent:
             if not user_input.isnumeric():
                 return False
 
-            action_id = int(user_input)
-            if action_id < 0 or action_id >= len(action_strings):
-                # action_id not within length of action_strings
+            action_index = int(user_input)
+            if action_index < 0 or action_index >= len(action_strings):
+                # action_index not within length of action_strings
                 return False
 
-            action_name = action_strings[action_id]
+            action_name = action_strings[action_index]
             action = associated_action.get(action_name, None)
 
             if action is None:
@@ -38,19 +38,19 @@ class KeyboardAgent:
             if action == 0:
                 return True  # wait is always valid
 
-            # Return true if action_id is within available_actions length
-            return 0 <= action_id < len(available_actions)
+            # Return true if action_index is within available_actions length
+            return 0 <= action_index < len(available_actions)
 
         def get_action_object(user_input: str) -> tuple:
 
             if user_input == "":
-                action_id = None
+                action_index = None
                 action = 0
             else:
-                action_id = int(user_input)
-                action = associated_action[action_strings[action_id]]
+                action_index = int(user_input)
+                action = associated_action[action_strings[action_index]]
 
-            return action_id, action
+            return action_index, action
 
         available_actions = np.flatnonzero(mask[1])
 
