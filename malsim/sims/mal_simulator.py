@@ -287,6 +287,16 @@ class MalSimulator(ParallelEnv):
         return self.init(self.max_iter)
 
     def init(self, max_iter=ITERATIONS_LIMIT):
+
+        def _print_table(headers: tuple, rows: list[tuple]):
+            """Debug print two-column table with given headers and rows"""
+            row_format = "{:<5} {:<}\n"
+            table = "\n" + row_format.format(*headers)
+            for row in rows:
+                table += row_format.format(*row)
+            logger.debug(table)
+            print(table)
+
         logger.info("Initializing MAL ParralelEnv Simulator.")
         logger.debug("Creating and listing mapping tables.")
 
@@ -305,25 +315,22 @@ class MalSimulator(ParallelEnv):
         self._unholy_step_name_to_index = {
             n: i for i, n in enumerate(self._unholy_index_to_step_name)}
 
-        str_format = "{:<5} {:<}\n"
-        table = "\n" + str_format.format("Index", "Attack Step Id")
-        for entry in self._index_to_id:
-            table += str_format.format(self._id_to_index[entry], entry)
-        logger.debug(table)
+        _print_table(
+            ("Index", "Attack Step Id"),
+            [(self._id_to_index[id], id) for id in self._index_to_id]
+        )
 
-        str_format = "{:<5} {:<}\n"
-        table = "\n" + str_format.format("Index", "Asset Type")
-        for entry in self._index_to_asset_type:
-            table += str_format.format(
-                self._asset_type_to_index[entry], entry
-            )
-        logger.debug(table)
+        _print_table(
+            ("Index", "Asset Type"),
+            [(self._asset_type_to_index[asset_type], asset_type)
+             for asset_type in self._index_to_asset_type]
+        )
 
-        str_format = "{:<5} {:<}\n"
-        table = "\n" + str_format.format("Index", "Step Name")
-        for entry in self._index_to_step_name:
-            table += str_format.format(self._step_name_to_index[entry], entry)
-        logger.debug(table)
+        _print_table(
+            ("Index", "Step Name"),
+            [(self._step_name_to_index[step_name], step_name)
+             for step_name in self._index_to_step_name]
+        )
 
         self.max_iter = max_iter
         self.cur_iter = 0
