@@ -343,14 +343,14 @@ class MalSimulator(ParallelEnv):
         self.agents = copy.deepcopy(self.possible_agents)
         self.action_surfaces = {}
         for agent in self.agents:
-            if self.agents_dict[agent]["type"] == "attacker":
-                attacker = self.attack_graph.attackers[
-                    self.agents_dict[agent]["attacker"]
-                ]
-                self.action_surfaces[agent] = query.get_attack_surface(attacker)
-            elif self.agents_dict[agent]["type"] == "defender":
-                self.action_surfaces[agent] = query.get_defense_surface(
-                    self.attack_graph)
+            agent_dict = self.agents_dict[agent]
+            if agent_dict["type"] == "attacker":
+                attacker = self.attack_graph.attackers[agent_dict["attacker"]]
+                self.action_surfaces[agent] = \
+                    query.get_attack_surface(attacker)
+            elif agent_dict["type"] == "defender":
+                self.action_surfaces[agent] = \
+                    query.get_defense_surface(self.attack_graph)
             else:
                 self.action_surfaces[agent] = []
 
