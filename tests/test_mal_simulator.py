@@ -174,13 +174,32 @@ def test_malsimulator_reset(corelang_lang_graph, model):
     assert attack_graph_before._to_dict() == attack_graph_after._to_dict()
 
 def test_malsimulator_init(corelang_lang_graph, model):
+    """Make sure init initializes vectors and agents"""
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
     obs, infos = sim.init()
     assert sim._index_to_id
     assert sim._index_to_full_name
     assert sim._id_to_index
-    # TODO: test agent populating
+
+    agent_name = "testagent"
+    agent_id = 0
+    agent_entry_point = attack_graph.get_node_by_full_name(
+        'OS App:networkConnectUninspected')
+
+    attacker = Attacker(
+        agent_name,
+        entry_points=[agent_entry_point],
+        reached_attack_steps=[agent_entry_point]
+    )
+    attack_graph.add_attacker(attacker, agent_id)
+    sim.register_attacker(agent_name, agent_id)
+    assert agent_name in sim.possible_agents
+    assert agent_name in sim.agents_dict
+    assert agent_name not in sim.agents
+    sim.init()
+    # Make sure agent was added (and not removed)
+    assert agent_name in sim.agents
 
 
 def test_malsimulator_register_attacker(corelang_lang_graph, model):
