@@ -19,7 +19,6 @@ class KeyboardAgent:
             if user_input == "":
                 # Empty string interpreted as 'do nothing'
                 return True
-
             if not user_input.isnumeric():
                 return False
 
@@ -34,7 +33,6 @@ class KeyboardAgent:
             if action is None:
                 # action_name not in associated_action dict
                 return False
-
             if action == 0:
                 return True  # wait is always valid
 

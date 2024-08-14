@@ -167,31 +167,30 @@ class MalSimulator(ParallelEnv):
         # For now, an `object` is an attack step
         num_objects = len(self.attack_graph.nodes)
 
-        observation = {
-            "is_observable": num_objects * [1],
-            "observed_state": num_objects * [-1],
-            "remaining_ttc": num_objects * [0],
-        }
-
         logger.debug(
             'Create blank observation with %d attack steps.', num_objects
         )
 
-        observation["asset_type"] = [
-            self.asset_type(step) for step in self.attack_graph.nodes]
-        observation["asset_id"] = [
-            self.asset_id(step) for step in self.attack_graph.nodes]
-        observation["step_name"] = [
-            self.step_name(step) for step in self.attack_graph.nodes]
+        observation = {
+            "is_observable": num_objects * [1],
+            "observed_state": num_objects * [-1],
+            "remaining_ttc": num_objects * [0],
+            "asset_type": [self.asset_type(step)
+                           for step in self.attack_graph.nodes],
+            "asset_id": [self.asset_id(step)
+                         for step in self.attack_graph.nodes],
+            "step_name": [self.step_name(step)
+                          for step in self.attack_graph.nodes],
+        }
 
+        # Add edges to observation
         observation["edges"] = [
             [self._id_to_index[attack_step.id], self._id_to_index[child.id]]
             for attack_step in self.attack_graph.nodes
             for child in attack_step.children
         ]
 
-        # Create reverse edges for defense steps. This was required by some of
-        # the defender agent logic.
+        # Reverse edges for defense steps (required by some defender agent logic)
         for attack_step in self.attack_graph.nodes:
             if attack_step.type == "defense":
                 for child in attack_step.children:
@@ -199,6 +198,7 @@ class MalSimulator(ParallelEnv):
                         [self._id_to_index[child.id], self._id_to_index[attack_step.id]]
                     )
 
+        # Convert to numpy arrays
         np_obs = {
             "is_observable": np.array(observation["is_observable"], dtype=np.int8),
             "observed_state": np.array(observation["observed_state"], dtype=np.int8),
