@@ -12,7 +12,7 @@ from pettingzoo import ParallelEnv
 from maltoolbox import neo4j_configs
 from maltoolbox.model import Model
 from maltoolbox.language import LanguageGraph
-from maltoolbox.attackgraph import AttackGraph
+from maltoolbox.attackgraph import AttackGraph, Attacker
 from maltoolbox.attackgraph.analyzers import apriori
 from maltoolbox.attackgraph import query
 from maltoolbox.ingestors import neo4j
@@ -474,33 +474,50 @@ class MalSimulator(ParallelEnv):
 
         return actions
 
+    def _observe_reached_attack_steps_children(
+            self, attacker: Attacker, observation: dict) -> None:
+        """Update observed state to match reached attack steps by setting
+        reached attack step children observed state to 0 (unreached)
+        instead of -1 (unknown)"""
+
+        for node in attacker.reached_attack_steps:
+            for child_node in node.children:
+                child_node_index = self._id_to_index[child_node.id]
+                observation["observed_state"][child_node_index] = 0
+
     def _observe_attacker(self, attacker_agent, observation):
+        """Uncompromise reached attack steps that are untraversable and
+        update observed state of the attacker to match reached_attack_steps"""
         attacker = self.attack_graph.attackers[
             self.agents_dict[attacker_agent]["attacker"]
         ]
-        nodes_to_remove = []
+
+        untraversable_nodes = []
         for node in attacker.reached_attack_steps:
-            if not query.is_node_traversable_by_attacker(node, attacker):
+            node_index = self._id_to_index[node.id]
+
+            if query.is_node_traversable_by_attacker(node, attacker):
+                # Traversable reached nodes set to 1 in observed state
+                observation["observed_state"][node_index] = 1
+
+            else:
                 # The defender has activated a defense that prevents the
                 # attacker from exploiting this attack step any longer.
-                nodes_to_remove.append(node)
-                index = self._id_to_index[node.id]
-                observation["observed_state"][index] = 0
-                continue
-            index = self._id_to_index[node.id]
-            observation["observed_state"][index] = 1
+                observation["observed_state"][node_index] = 0
+                untraversable_nodes.append(node)
 
-        for node in nodes_to_remove:
-            logger.debug(
-                "Remove untraversable node from attacker "
-                f'"{attacker_agent}": {node.id}'
-            )
-            attacker.undo_compromise(node)
+        # Uncompromise nodes that are not traversable. This removes them from
+        # reached_attack_steps and has to be done outside of previous loop.
+        for node in untraversable_nodes:
+                logger.debug(
+                    "Remove untraversable node from attacker "
+                    f'"{attacker_agent}": {node.id}'
+                )
+                attacker.undo_compromise(node)
 
-        for node in self.action_surfaces[attacker_agent]:
-            index = self._id_to_index[node.id]
-            if observation["observed_state"][index] != 1:
-                observation["observed_state"][index] = 0
+        self._observe_reached_attack_steps_children(
+            attacker_agent, observation
+        )
 
     def _observe_defender(self, defender_agent, observation):
         # TODO We should probably create a separate blank observation for the
