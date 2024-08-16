@@ -364,7 +364,7 @@ def test_traversability_not_traversable():
 
 
 def test_state_transitions_attack_step():
-    """This is more to show the definitions"""
+    """Show the definitions and verify the observation values"""
 
     lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
     model_file = "tests/example_model.yml"
@@ -413,7 +413,6 @@ def test_state_transitions_attack_step():
 
 def test_state_transitions_defense_step():
     """
-    The state transition for an attack step has more factors than the defense steps.
     """
 
     # Attack step will occur if:
@@ -421,8 +420,60 @@ def test_state_transitions_defense_step():
     # - AttackerSelected(x)
     # - TTC=0
     # - Traversable(x)
-    attack_graph = AttackGraph()
-    _ = add_traversable_and_node(attack_graph)
+
+    lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
+    model_file = "tests/example_model.yml"
+    attack_graph = create_attack_graph(lang_file, model_file)
+
+    env = MalSimulator(
+        attack_graph.lang_graph,
+        attack_graph.model,
+        attack_graph
+    )
+
+    # We need an attacker so the simulation doesn't terminate
+    attack_step_full_name = 'OS App:localConnect'
+    attacker_entry_point = attack_graph.get_node_by_full_name(
+        attack_step_full_name
+    )
+
+    attacker1 = Attacker(
+        "attacker1",
+        id=0
+    )
+    attacker1.compromise(attacker_entry_point)
+    attack_node_index = env._index_to_full_name.index(attack_step_full_name)
+    env.register_attacker(attacker1.name, attacker1.id)
+
+    defense_step_full_name = 'OS App:notPresent'
+    defenders_entry_point = attack_graph.get_node_by_full_name(
+        defense_step_full_name
+    )
+
+    assert defenders_entry_point.is_viable
+
+    defender1 = "defender1"
+    defense_node_index = env._index_to_full_name.index(defense_step_full_name)
+    env.register_defender(defender1)
+    assert defender1 in env.possible_agents
+    env.reset()
+    assert defender1 in env.agents
+
+    action_dict = {
+        defender1: (1, defense_node_index),
+        attacker1.name: (1, attack_node_index)
+    }
+    observations, rewards, terminations, truncations, infos = env.step(action_dict)
+    # Currently all TTCs are 0, this will change
+    defender_obs = observations[defender1]
+    for node in attack_graph.nodes:
+        if node.type == "defense":
+            node_index = env._index_to_full_name.index(node.full_name)
+            default_defense_value = node.asset._properties[node.name].default()
+            if node_index == defense_node_index:
+                assert defender_obs['observed_state'][node_index] == 1
+            else:
+                assert defender_obs['observed_state'][node_index] == default_defense_value
 
 
 def test_ttc():
