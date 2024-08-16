@@ -756,13 +756,12 @@ class MalSimulator(ParallelEnv):
         """
         logger.debug("Stepping through iteration " f"{self.cur_iter}/{self.max_iter}.")
         logger.debug(f"Performing actions: {actions}.")
-
         # Peform agent actions
+
         for agent in self.agents:
             action = actions[agent]
             if action[0] == 0:
                 continue
-
             action_step = action[1]
             if self.agents_dict[agent]["type"] == "attacker":
                 self._attacker_step(agent, action_step)
