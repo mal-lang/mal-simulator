@@ -476,14 +476,6 @@ def test_state_transitions_defense_step():
                 assert defender_obs['observed_state'][node_index] == default_defense_value
 
 
-def test_ttc():
-    pass
-
-
-def test_actions():
-    pass
-
-
 def test_cost_and_reward():
     pass
 
@@ -493,6 +485,43 @@ def test_observation():
 
 
 def test_termination():
-    pass
+    """Show the definitions and verify the observation values"""
 
+    lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
+    model_file = "tests/example_model.yml"
+    attack_graph = create_attack_graph(lang_file, model_file)
 
+    env = MalSimulator(
+        attack_graph.lang_graph,
+        attack_graph.model,
+        attack_graph,
+        max_iter=2
+    )
+
+    attack_step_full_name = 'OS App:localConnect'
+    attacker_entry_point = attack_graph.get_node_by_full_name(
+        attack_step_full_name
+    )
+
+    assert attacker_entry_point.is_viable
+    assert attacker_entry_point.is_necessary
+
+    attacker1 = Attacker(
+        "attacker1",
+        id=0
+    )
+    attacker1.compromise(attacker_entry_point)
+
+    attack_node_index = env._index_to_full_name.index(attack_step_full_name)
+    env.register_attacker(attacker1.name, attacker1.id)
+    env.reset()
+
+    action_dict = {attacker1.name: (1, attack_node_index)}
+
+    env.step(action_dict)
+    assert env.agents
+    env.step(action_dict)
+    assert env.agents
+    env.step(action_dict)
+    # This step is > max_iters and agents are removed
+    assert not env.agents
