@@ -539,7 +539,7 @@ def test_observation():
     pass
 
 
-def test_termination():
+def test_termination_max_iters():
     """Show the definitions and verify the observation values"""
 
     lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
@@ -581,4 +581,48 @@ def test_termination():
     env.step(action_dict)
 
     # This step is > max_iters and agents are removed
+    assert not env.agents
+
+
+def test_termination_no_traversable():
+    """Show the definitions and verify the observation values"""
+
+    lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
+    model_file = "tests/example_model.yml"
+    attack_graph = create_attack_graph(lang_file, model_file)
+    attack_step_full_name = 'OS App:softwareCheck'
+    attacker_entry_point = attack_graph.get_node_by_full_name(
+        attack_step_full_name
+    )
+
+    assert not attacker_entry_point.is_viable
+    assert attacker_entry_point.is_necessary
+
+    attacker1 = Attacker("attacker1", id=0)
+    attack_graph.add_attacker(
+        attacker1,
+        entry_points=[attacker_entry_point.id],
+        reached_attack_steps=[attacker_entry_point.id]
+    )
+
+    assert attacker_entry_point.children
+    for child in attacker_entry_point.children:
+        # No children to traverse
+        assert not is_node_traversable_by_attacker(child, attacker1)
+
+    env = MalSimulator(
+        attack_graph.lang_graph,
+        attack_graph.model,
+        attack_graph,
+        max_iter=2
+    )
+
+    attack_node_index = env._index_to_full_name.index(attack_step_full_name)
+    env.register_attacker(attacker1.name, attacker1.id)
+    env.reset()
+
+    action_dict = {attacker1.name: (1, attack_node_index)}
+
+    env.step(action_dict)
+    # No traversable step for attacker, so it is removed
     assert not env.agents
