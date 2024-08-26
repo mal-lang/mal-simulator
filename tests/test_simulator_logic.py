@@ -418,25 +418,24 @@ def test_state_transitions_attack_step():
             assert attacker_obs['observed_state'][child_node_index] == 0
 
 
-def test_state_transitions_defense_step():
-    """
-    """
-
-    # Attack step will occur if:
-    # - IsAttackStep(x)
-    # - AttackerSelected(x)
-    # - TTC=0
-    # - Traversable(x)
-
+def create_simulator():
     lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
     model_file = "tests/example_model.yml"
     attack_graph = create_attack_graph(lang_file, model_file)
 
-    env = MalSimulator(
+    return MalSimulator(
         attack_graph.lang_graph,
         attack_graph.model,
         attack_graph
     )
+
+
+def test_state_transitions_defense_step():
+    """
+    """
+
+    env = create_simulator()
+    attack_graph = env.attack_graph
 
     # We need an attacker so the simulation doesn't terminate
     attack_step_full_name = 'OS App:localConnect'
@@ -470,6 +469,11 @@ def test_state_transitions_defense_step():
         defender1: (1, defense_node_index),
         attacker1.name: (1, attack_node_index)
     }
+    # Attack step will occur if:
+    # - IsAttackStep(x)
+    # - AttackerSelected(x)
+    # - TTC=0
+    # - Traversable(x)
     observations, rewards, terminations, truncations, infos = env.step(action_dict)
     # Currently all TTCs are 0, this will change
     defender_obs = observations[defender1]
@@ -484,8 +488,54 @@ def test_state_transitions_defense_step():
 
 
 def test_cost_and_reward():
-    pass
 
+    lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
+    model_file = "tests/example_model.yml"
+    attack_graph = create_attack_graph(lang_file, model_file)
+
+    # Prepare entrypoint node
+    entrypoint1_full_name = 'OS App:localConnect'
+    attacker_entry_point1 = attack_graph.get_node_by_full_name(
+        entrypoint1_full_name
+    )
+    entrypoint2_full_name = 'OS App:authenticate'
+    attacker_entry_point2 = attack_graph.get_node_by_full_name(
+        entrypoint2_full_name
+    )
+
+    # Add attacker to attack graph
+    attacker1 = Attacker(
+        "attacker1", id=0,
+        entry_points=[attacker_entry_point1, attacker_entry_point2],
+        reached_attack_steps=[attacker_entry_point1, attacker_entry_point2]
+    )
+    attack_graph.add_attacker(attacker1, attacker1.id)
+
+    # Prepare action step node and add reward
+    next_attackstep_full_name = 'OS App:localAccess'
+    next_attackstep = attack_graph.get_node_by_full_name(
+        next_attackstep_full_name
+    )
+    next_attackstep.extras['reward'] = 100
+
+    # Create simulator
+    env = MalSimulator(
+        attack_graph.lang_graph,
+        attack_graph.model,
+        attack_graph
+    )
+    env.register_attacker(attacker1.name, attacker1.id)
+
+    # Reset needed to register attacker
+    observations, infos = env.reset()
+
+    # Select next attackstep and perform step
+    next_attackstep_index = env._index_to_full_name.index(next_attackstep_full_name)
+    action_dict = {attacker1.name: (1, next_attackstep_index)}
+    observations, rewards, terminations, truncations, infos = env.step(action_dict)
+
+    # Make sure reward was given
+    assert rewards[attacker1.name] == next_attackstep.extras['reward']
 
 def test_observation():
     pass
