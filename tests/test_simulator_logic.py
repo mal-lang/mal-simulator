@@ -431,8 +431,7 @@ def create_simulator():
 
 
 def test_state_transitions_defense_step():
-    """
-    """
+    """Make sure step is performed and observations set correctly"""
 
     env = create_simulator()
     attack_graph = env.attack_graph
@@ -547,13 +546,6 @@ def test_termination():
     model_file = "tests/example_model.yml"
     attack_graph = create_attack_graph(lang_file, model_file)
 
-    env = MalSimulator(
-        attack_graph.lang_graph,
-        attack_graph.model,
-        attack_graph,
-        max_iter=2
-    )
-
     attack_step_full_name = 'OS App:localConnect'
     attacker_entry_point = attack_graph.get_node_by_full_name(
         attack_step_full_name
@@ -562,11 +554,19 @@ def test_termination():
     assert attacker_entry_point.is_viable
     assert attacker_entry_point.is_necessary
 
-    attacker1 = Attacker(
-        "attacker1",
-        id=0
+    attacker1 = Attacker("attacker1", id=0)
+    attack_graph.add_attacker(
+        attacker1,
+        entry_points=[attacker_entry_point.id],
+        reached_attack_steps=[attacker_entry_point.id]
     )
-    attacker1.compromise(attacker_entry_point)
+
+    env = MalSimulator(
+        attack_graph.lang_graph,
+        attack_graph.model,
+        attack_graph,
+        max_iter=2
+    )
 
     attack_node_index = env._index_to_full_name.index(attack_step_full_name)
     env.register_attacker(attacker1.name, attacker1.id)
@@ -579,5 +579,6 @@ def test_termination():
     env.step(action_dict)
     assert env.agents
     env.step(action_dict)
+
     # This step is > max_iters and agents are removed
     assert not env.agents
