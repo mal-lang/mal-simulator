@@ -450,7 +450,6 @@ def test_state_transitions_defense_step():
     attacker1.compromise(attacker_entry_point)
     attack_node_index = env._index_to_full_name.index(attack_step_full_name)
     env.register_attacker(attacker1.name, attacker1.id)
-
     defense_step_full_name = 'OS App:notPresent'
     defenders_entry_point = attack_graph.get_node_by_full_name(
         defense_step_full_name
@@ -504,13 +503,12 @@ def test_cost_and_reward():
     )
 
     # Add attacker to attack graph
-    attacker1 = Attacker(
-        "attacker1", id=0,
-        entry_points=[attacker_entry_point1, attacker_entry_point2],
-        reached_attack_steps=[attacker_entry_point1, attacker_entry_point2]
+    attacker1 = Attacker("attacker1", id=0)
+    attack_graph.add_attacker(
+        attacker=attacker1,
+        entry_points=[attacker_entry_point1.id, attacker_entry_point2.id],
+        reached_attack_steps=[attacker_entry_point1.id, attacker_entry_point2.id]
     )
-    attack_graph.add_attacker(attacker1, attacker1.id)
-
     # Prepare action step node and add reward
     next_attackstep_full_name = 'OS App:localAccess'
     next_attackstep = attack_graph.get_node_by_full_name(
@@ -526,8 +524,9 @@ def test_cost_and_reward():
     )
     env.register_attacker(attacker1.name, attacker1.id)
 
-    # Reset needed to register attacker
     observations, infos = env.reset()
+    # Make sure next attackstep can be traversed
+    assert is_node_traversable_by_attacker(next_attackstep, attacker1)
 
     # Select next attackstep and perform step
     next_attackstep_index = env._index_to_full_name.index(next_attackstep_full_name)
