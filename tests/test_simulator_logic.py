@@ -574,13 +574,20 @@ def test_termination_max_iters():
 
     action_dict = {attacker1.name: (1, attack_node_index)}
 
-    env.step(action_dict)
+    _, _, terminations, truncations, _ = env.step(action_dict)
+    assert not terminations[attacker1.name]
+    assert not truncations[attacker1.name]
     assert env.agents
-    env.step(action_dict)
-    assert env.agents
-    env.step(action_dict)
 
-    # This step is > max_iters and agents are removed
+    _, _, terminations, truncations, _ = env.step(action_dict)
+    assert not terminations[attacker1.name]
+    assert not truncations[attacker1.name]
+    assert env.agents
+
+    _, _, terminations, truncations, _ = env.step(action_dict)
+    assert not terminations[attacker1.name]
+    # This step is > max_iters and agent is removed/truncated
+    assert truncations[attacker1.name]
     assert not env.agents
 
 
