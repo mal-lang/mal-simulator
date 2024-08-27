@@ -371,7 +371,7 @@ class MalSimulator(ParallelEnv):
         self.agents_dict[agent_name] = {"type": "attacker",
             "attacker": attacker}
 
-    def register_defender(self, agent_name):
+    def register_defender(self, agent_name: str):
         # Defenders are run first so that the defenses prevent the attacker
         # appropriately in case the attacker selects an attack step that the
         # defender safeguards against in the same step.
@@ -383,7 +383,7 @@ class MalSimulator(ParallelEnv):
         # Should return a state for all agents
         return NotImplementedError
 
-    def _attacker_step(self, agent, attack_step):
+    def _attacker_step(self, agent: str, attack_step: int):
         actions = []
         attacker = self.attack_graph.attackers[self.agents_dict[agent]["attacker"]]
         attack_step_node = self.attack_graph.get_node_by_id(
@@ -412,7 +412,7 @@ class MalSimulator(ParallelEnv):
             )
         return actions
 
-    def update_viability_with_eviction(self, node):
+    def update_viability_with_eviction(self, node: AttackGraphNode):
         """
         Update the viability of the node in the graph and evict any nodes
         that are no longer viable from any attackers' action surface.
