@@ -84,6 +84,19 @@ def test_load_scenario_no_attacker_in_model():
     assert attack_step in attacker.entry_points
 
 
+def test_load_scenario_no_defender_agent():
+    """Make sure we can load a scenario"""
+
+    # Load the scenario
+    _, config = load_scenario(
+        path_relative_to_tests(
+            './testdata/scenarios/no_defender_agent_scenario.yml'
+        )
+    )
+    assert 'defender_agent_class' not in config
+    assert config['attacker_agent_class'].__name__ == 'BreadthFirstAttacker'
+
+
 def test_load_scenario_agent_class_error():
     """Make sure we get error when loading with wrong class"""
 

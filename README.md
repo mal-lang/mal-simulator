@@ -19,7 +19,9 @@ lang_file: <path to .mar-archive>
 model_file: <path to json/yml model>
 
 attacker_agent_class: 'BreadthFirstAttacker' | 'DepthFirstAttacker' | 'KeyboardAgent'
-defender_agent_class: 'BreadthFirstAttacker' | 'DepthFirstAttacker' | 'KeyboardAgent'
+
+# For defender_agent_class, null and False are treated the same - no defender will be used in the simulation
+defender_agent_class: 'BreadthFirstAttacker' | 'DepthFirstAttacker' | 'KeyboardAgent' | null | False
 
 # Rewards for each attack step
 rewards:
@@ -39,6 +41,19 @@ attacker_entry_points:
   # example:
   # 'Attacker1':
   #   - 'Credentials:6:attemptCredentialsReuse'
+```
+
+## Loading a scenario with python
+
+```python
+from malsim.scenarios import load_scenario
+
+scenario_file = "scenario.yml"
+attack_graph, sim_config = load_scenario(args.scenario_file)
+
+# At this point, the attack graph and sim_config (which contains the agent classes) can be used
+# for running a simulation (refer to malsim.cli.run_simulation to see example of this)
+
 ```
 
 ## Running a scenario simulation with the CLI
