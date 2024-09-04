@@ -1,5 +1,5 @@
 lang_file: ../org.mal-lang.coreLang-1.0.0.mar
-model_file: example_model.json
+model_file: simple_test_model.yml
 
 attacker_agent_class: 'BananaAttacker'
 defender_agent_class: 'FishAttacker'
@@ -15,8 +15,8 @@ rewards:
   Credentials:6:notPhishable: 7
   Identity:11:notPresent: 3.5
 
-# Add entry points to AttackGraph with attacker_ids
+# Add entry points to AttackGraph with attacker names
 # and attack step full_names
 attacker_entry_points:
-  0:
+  'Attacker1':
     - 'Credentials:6:attemptCredentialsReuse'

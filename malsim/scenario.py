@@ -57,7 +57,7 @@ def verify_scenario(scenario_dict):
 
 
 def path_relative_to_file_dir(rel_path, file):
-    """Returns the absolute path of a relative path in  a second file
+    """Returns the absolute path of a relative path in a second file
 
     Arguments:
     rel_path    - relative path to append to dir of `file`
@@ -91,7 +91,6 @@ def apply_scenario_attacker_entrypoints(
 ) -> None:
     """Go through attacker entry points from scenario file and add
     them to the referenced attacker in the attack graph"""
-    # Set the attacker entrypoint according to scenario rewards
 
     for attacker_name, entry_point_names in entry_points.items():
         attacker = Attacker(

@@ -43,6 +43,8 @@ def run_simulation(scenario_file):
     attack_graph, config = load_scenario(scenario_file)
 
     # TODO: why send langgraph and model in separate args?
+    # Update this to just send the attack graph after mal-toolbox 0.2.0 is
+    # released.
     env = MalSimulator(
         attack_graph.lang_graph,
         attack_graph.model,

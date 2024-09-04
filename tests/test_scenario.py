@@ -68,7 +68,7 @@ def test_load_scenario_no_attacker_in_model():
 
     # Load the scenario
     attack_graph, _ = load_scenario(
-        path_relative_to_tests('./testdata/scenario_no_attacker_in_model.yml')
+        path_relative_to_tests('./testdata/no_existing_attacker_in_model_scenario.yml')
     )
 
     # Verify one attacker entrypoint was added (model is missing attacker)
@@ -91,6 +91,6 @@ def test_load_scenario_agent_class_error():
     with pytest.raises(LookupError):
         load_scenario(
             path_relative_to_tests(
-                './testdata/scenario_wrong_class.yml'
+                './testdata/wrong_agent_classes_scenario.yml'
             )
         )
