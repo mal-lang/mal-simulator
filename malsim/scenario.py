@@ -129,8 +129,16 @@ def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:
         # Apply rewards and entrypoints to attack graph
         rewards = scenario.get('rewards', {})
         apply_scenario_rewards(attack_graph, rewards)
+
         entry_points = scenario.get('attacker_entry_points', {})
-        apply_scenario_attacker_entrypoints(attack_graph, entry_points)
+        if entry_points:
+            # Override attackers in attack graph if
+            # entry points defined in scenario
+            for attacker in attack_graph.attackers:
+                attack_graph.remove_attacker(attacker)
+
+            # Apply attacker entry points from scenario
+            apply_scenario_attacker_entrypoints(attack_graph, entry_points)
 
         # Create config object which is also returned
         config = {}

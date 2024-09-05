@@ -44,9 +44,8 @@ def test_load_scenario():
     assert attack_graph.get_node_by_full_name('Identity:11:notPresent')\
         .extras['reward'] == 3.5
 
-    # One attacker from model + one attacker from scenario
-    # (both are acceptable ways to add attackers to attackgraph)
-    assert len(attack_graph.attackers) == 2
+    # One attacker from scenario (overrides attacker from model)
+    assert len(attack_graph.attackers) == 1
 
     # Verify attacker entrypoint was added
     attack_step = attack_graph.get_node_by_full_name(
@@ -82,6 +81,29 @@ def test_load_scenario_no_attacker_in_model():
          if attacker.name == attacker_name)
     )
     assert attack_step in attacker.entry_points
+
+
+def test_load_scenario_attacker_in_model():
+    """
+    Make sure model attacker is removed if scenario has attacker
+    Make sure model attacker is not removed if scenario has no attacker
+    """
+
+    # Load the scenario that has entry point defined
+    attack_graph, _ = load_scenario(
+        path_relative_to_tests(
+            'testdata/scenarios/simple_scenario.yml')
+    )
+    assert len(attack_graph.attackers) == 1
+    assert attack_graph.attackers[0].name == 'Attacker1' # From scenario
+
+    # Load the scenario that has no entry point defined
+    attack_graph, _ = load_scenario(
+        path_relative_to_tests(
+            'testdata/scenarios/no_entry_points_simple_scenario.yml')
+    )
+    assert len(attack_graph.attackers) == 1
+    assert attack_graph.attackers[0].name == 'Attacker:15' # From model
 
 
 def test_load_scenario_no_defender_agent():
