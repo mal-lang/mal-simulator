@@ -480,7 +480,8 @@ class MalSimulator(ParallelEnv):
         ]
         nodes_to_remove = []
         for node in attacker.reached_attack_steps:
-            if not query.is_node_traversable_by_attacker(node, attacker):
+            if node not in attacker.entry_points and \
+                    not query.is_node_traversable_by_attacker(node, attacker):
                 # The defender has activated a defense that prevents the
                 # attacker from exploiting this attack step any longer.
                 nodes_to_remove.append(node)
