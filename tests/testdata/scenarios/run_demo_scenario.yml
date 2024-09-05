@@ -25,8 +25,3 @@ rewards:
   Program 1:fullAccess: 50
   Identity:5:assume: 50
   Other OS App:fullAccess: 200
-
-# Possibility to add attackers and their entry points
-# attacker_entry_points:
-#   'Attacker1': 
-#     - 'Credentials:6:attemptCredentialsReuse'

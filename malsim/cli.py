@@ -43,8 +43,8 @@ def run_simulation(attack_graph: AttackGraph, sim_config: dict):
 
     defender_class = sim_config.get('defender_agent_class') # optional
     defender_agent = (defender_class(reverse_vocab)
-                      if defender_class == KeyboardAgent
-                      else defender_class({})
+                          if defender_class == KeyboardAgent
+                          else defender_class({})
                       if defender_class
                       else None)
 

@@ -1,7 +1,9 @@
 # Project specific temp files
+*.json
 *.scad
 *.log
 *.yaml
+*.yml
 *.sCAD
 *.swp
 *.swo

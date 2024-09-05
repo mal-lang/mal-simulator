@@ -32,7 +32,7 @@ rewards:
   # Program 1:notPresent: 3
   ...
 
-# Add entry points to AttackGraph with attacker_ids
+# Add entry points to AttackGraph with attacker names
 # and attack step full_names
 attacker_entry_points:
   <attacker name>:
@@ -43,7 +43,7 @@ attacker_entry_points:
   #   - 'Credentials:6:attemptCredentialsReuse'
 ```
 
-## Loading a scenario with python
+## Loading a scenario from a python script
 
 ```python
 from malsim.scenarios import load_scenario
