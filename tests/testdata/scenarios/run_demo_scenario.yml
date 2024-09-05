@@ -1,8 +1,8 @@
 # A scenario that will run the same simulation as run_demo.py
 # in the malsim CLI with `malsim run_demo_scenario.yml`
 
-lang_file: ../testdata/langs/org.mal-lang.coreLang-1.0.0.mar
-model_file: run_demo_model.json
+lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
+model_file: ../models/run_demo_model.json
 
 attacker_agent_class: 'BreadthFirstAttacker'
 defender_agent_class: 'KeyboardAgent'
