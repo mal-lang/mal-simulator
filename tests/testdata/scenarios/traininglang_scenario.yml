@@ -3,14 +3,19 @@ model_file: ../models/traininglang_model.yml
 
 # Rewards for each attack step
 rewards:
-  Host 0:notPresent: 2
-  Host 1:notPresent: 7
+  Host:0:notPresent: 2
+  Host:0:access: 4
+  Host:1:notPresent: 7
+  Host:1:access: 5
   Data:2:notPresent: 8
+  Data:2:read: 5
+  Data:2:modify: 10
 
 # The possible entry points
 attacker_entry_points:
-  0:
+  'Attacker1':
     - 'User:3:phishing'
+    - 'Host:0:connect'
 
 attacker_agent_class: 'BreadthFirstAttacker'
 defender_agent_class: 'KeyboardAgent'

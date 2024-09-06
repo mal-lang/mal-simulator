@@ -96,6 +96,7 @@ def apply_scenario_attacker_entrypoints(
         attacker = Attacker(
             attacker_name, entry_points=[], reached_attack_steps=[]
         )
+        attack_graph.add_attacker(attacker)
 
         for entry_point_name in entry_point_names:
             entry_point = attack_graph.get_node_by_full_name(entry_point_name)
@@ -104,7 +105,6 @@ def apply_scenario_attacker_entrypoints(
             attacker.compromise(entry_point)
 
         attacker.entry_points = attacker.reached_attack_steps
-        attack_graph.add_attacker(attacker)
 
 
 def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:

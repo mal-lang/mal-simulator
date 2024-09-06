@@ -1,17 +1,11 @@
 assets:
   0:
-    defenses:
-      notPresent: 0.0
-    name: Host 0
+    name: Host:0
     type: Host
   1:
-    defenses:
-      notPresent: 0.0
-    name: Host 1
+    name: Host:1
     type: Host
   2:
-    defenses:
-      notPresent: 0.0
     name: Data:2
     type: Data
   3:
@@ -23,33 +17,36 @@ assets:
 
 associations:
 
-- NetworkHostAccess:
+- HostsInNetworks:
     hosts:
     - 0
     - 1
     networks:
     - 4
-- HostUsers:
+- UsersOnHosts:
     users:
     - 3
     hosts:
     - 0
-- HostData:
+- DataOnHosts:
     data:
     - 2
-    host:
+    hosts:
     - 0
 
 attackers:
   5:
     entry_points:
+      0:
+        attack_steps:
+        - connect
       3:
         attack_steps:
-        - phish
-    name: Attacker:5
+        - phishing
+    name: Attacker1
 
 metadata:
-  MAL-Toolbox Version: 0.0.40
+  MAL-Toolbox Version: 0.1.8
   info: Created manually by Joakim.
   langID: org.mal-lang.trainingLang
   langVersion: 1.0.0
