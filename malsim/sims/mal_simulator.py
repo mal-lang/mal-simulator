@@ -26,68 +26,6 @@ ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
 
 
-def _format_full_observation(observation):
-    """
-    Return a formatted string of the entire observation. This includes
-    sections that will not change over time, these define the structure of
-    the attack graph.
-    """
-    obs_str = f'Action: {observation.get("action", "")}\n'
-
-    str_format = "{:<5} {:<6} {:<5} {:<5} {:<5} {:<5} {:<}\n"
-    header = str_format.format("Entry", "Is_Obs", "State", "RTTC", "Type", "Id", "Step")
-    obs_str += header
-    for entry in range(0, len(observation["observed_state"])):
-        obs_str += str_format.format(
-            entry,
-            observation["is_observable"][entry],
-            observation["observed_state"][entry],
-            observation["remaining_ttc"][entry],
-            observation["asset_type"][entry],
-            observation["asset_id"][entry],
-            observation["step_name"][entry],
-        )
-        if entry % 30 == 29:
-            obs_str += header
-
-    obs_str += "\nEdges:\n"
-    for edge in observation["edges"]:
-        obs_str += str(edge) + "\n"
-
-    return obs_str
-
-
-def format_obs_var_sec(observation, index_to_id, included_values = [-1, 0, 1]):
-    """
-    Return a formatted string of the sections of the observation that can
-    vary over time.
-    Arguments:
-    observation     - the observation to format
-    included_values - the values to list, any values not present in the list
-                      will be filtered out
-    """
-    obs_str = ""
-
-    str_format = "{:>80} {:<5} {:<5} {:<}\n"
-    header = str_format.format("Id", "State", "RTTC", "Entry")
-    obs_str += header
-    listing_nr = 0
-    for entry in range(0, len(observation["observed_state"])):
-        if observation["is_observable"][entry] and \
-                observation["observed_state"][entry] in included_values:
-            obs_str += str_format.format(
-                index_to_id[entry],
-                observation["observed_state"][entry],
-                observation["remaining_ttc"][entry],
-                entry,
-            )
-            listing_nr += 1
-        if listing_nr % 30 == 29:
-            obs_str += header
-
-    return obs_str
-
-
 class MalSimulator(ParallelEnv):
     def __init__(
         self,
@@ -212,12 +150,88 @@ class MalSimulator(ParallelEnv):
 
         return np_obs
 
+    def format_full_observation(self, observation):
+        """
+        Return a formatted string of the entire observation. This includes
+        sections that will not change over time, these define the structure of
+        the attack graph.
+        """
+        obs_str = f'Action: {observation.get("action", "")}\n'
+
+        str_format = "{:<5} {:<80} {:<6} {:<5} {:<5} {:<5} {:<5} {:<}\n"
+        header = str_format.format(
+            "Entry",
+            "Name",
+            "Is_Obs",
+            "State",
+            "RTTC",
+            "Type",
+            "Id",
+            "Step"
+        )
+        obs_str += header
+        for entry in range(0, len(observation["observed_state"])):
+            obs_str += str_format.format(
+                entry,
+                self._index_to_full_name[entry],
+                observation["is_observable"][entry],
+                observation["observed_state"][entry],
+                observation["remaining_ttc"][entry],
+                observation["asset_type"][entry],
+                observation["asset_id"][entry],
+                observation["step_name"][entry],
+            )
+            if entry % 30 == 29:
+                obs_str += header
+
+        obs_str += "\nEdges:\n"
+        for edge in observation["edges"]:
+            obs_str += str(edge) + "\n"
+
+        return obs_str
+
+
+    def format_obs_var_sec(self,
+        observation,
+        included_values = [-1, 0, 1]):
+        """
+        Return a formatted string of the sections of the observation that can
+        vary over time.
+        Arguments:
+        observation     - the observation to format
+        included_values - the values to list, any values not present in the list
+                          will be filtered out
+        """
+        obs_str = ""
+
+        str_format = "{:>5} {:>80} {:<5} {:<5} {:<}\n"
+        header = str_format.format("Id", "Name", "State", "RTTC", "Entry")
+        obs_str += header
+        listing_nr = 0
+        for entry in range(0, len(observation["observed_state"])):
+            if observation["is_observable"][entry] and \
+                    observation["observed_state"][entry] in included_values:
+                obs_str += str_format.format(
+                    self._index_to_id[entry],
+                    self._index_to_full_name[entry],
+                    observation["observed_state"][entry],
+                    observation["remaining_ttc"][entry],
+                    entry,
+                )
+                listing_nr += 1
+            if listing_nr % 30 == 29:
+                obs_str += header
+
+        return obs_str
+
+
     def _format_info(self, info):
         can_act = "Yes" if info["action_mask"][0][1] > 0 else "No"
         agent_info_str = f"Can act? {can_act}\n"
         for entry in range(0, len(info["action_mask"][1])):
             if info["action_mask"][1][entry] == 1:
-                agent_info_str += f"{self._index_to_id[entry]}\n"
+                agent_info_str += f"{self._index_to_id[entry]} " \
+                    "{self._index_to_full_name[entry]}\n"
         return agent_info_str
 
     @functools.lru_cache(maxsize=None)
@@ -292,10 +306,18 @@ class MalSimulator(ParallelEnv):
         self._index_to_id = [n.id for n in self.attack_graph.nodes]
         self._index_to_full_name = [n.full_name for n in self.attack_graph.nodes]
         self._id_to_index = {n: i for i, n in enumerate(self._index_to_id)}
-        str_format = "{:<5} {:<}\n"
-        table = "\n" + str_format.format("Index", "Attack Step Id")
+        str_format = "{:<5} {:<15} {:<}\n"
+        table = "\n" + str_format.format(
+            "Index",
+            "Attack Step Id",
+            "Attack Step Full Name"
+        )
         for entry in self._index_to_id:
-            table += str_format.format(self._id_to_index[entry], entry)
+            table += str_format.format(
+                self._id_to_index[entry],
+                entry,
+                self._index_to_full_name[self._id_to_index[entry]]
+            )
         logger.debug(table)
 
         self._index_to_asset_type = [n.name for n in self.lang_graph.assets]
@@ -331,7 +353,7 @@ class MalSimulator(ParallelEnv):
 
         logger.debug("Creating and listing blank observation space.")
         self._blank_observation = self.create_blank_observation()
-        logger.debug(_format_full_observation(self._blank_observation))
+        logger.debug(self.format_full_observation(self._blank_observation))
 
         logger.info("Populate agents list with all possible agents.")
         self.agents = copy.deepcopy(self.possible_agents)
@@ -382,12 +404,18 @@ class MalSimulator(ParallelEnv):
             self._index_to_id[attack_step]
         )
         logger.info(
-            f'Attacker agent "{agent}" stepping through {attack_step_node.id}.'
+            'Attacker agent "%s" stepping through "%s"(%d).',
+            agent,
+            attack_step_node.full_name,
+            attack_step_node.id
         )
         if query.is_node_traversable_by_attacker(attack_step_node, attacker):
             if not attack_step_node.is_compromised_by(attacker):
                 logger.debug(
-                    f"Attacker {agent} has compromised {attack_step_node.id}."
+                    'Attacker agent "%s" has compromised "%s"(%d).',
+                    agent,
+                    attack_step_node.full_name,
+                    attack_step_node.id
                 )
                 attacker.compromise(attack_step_node)
                 self.action_surfaces[agent] = \
@@ -399,8 +427,11 @@ class MalSimulator(ParallelEnv):
             actions.append(attack_step)
         else:
             logger.warning(
-                f'Attacker \"{agent}\" tried to compromise untraversable '
-                f'attack step \"{attack_step_node.id}\".'
+                'Attacker agent "%s" tried to compromise untraversable '
+                'attack step"%s"(%d).',
+                agent,
+                attack_step_node.full_name,
+                attack_step_node.id
             )
         return actions
 
@@ -414,7 +445,9 @@ class MalSimulator(ParallelEnv):
         node       - the node to propagate updates from
         """
         logger.debug(
-            f'Update viability with eviction for node \"{node.id}\"'
+            'Update viability with eviction for node "%s"(%d)',
+            node.full_name,
+            node.id
         )
         if not node.is_viable:
             # This is more of a sanity check, it should never be called on
@@ -448,13 +481,19 @@ class MalSimulator(ParallelEnv):
             self._index_to_id[defense_step]
         )
         logger.info(
-            f'Defender agent "{agent}" stepping through {defense_step_node.id}.'
+            'Defender agent "%s" stepping through "%s"(%d).',
+            agent,
+            defense_step_node.full_name,
+            defense_step_node.id
         )
         if defense_step_node not in self.action_surfaces[agent]:
-            logger.info(
-                f'Defender agent "{agent}" tried to step through '
-                f'{defense_step_node.id} which is not part of its defense '
-                'surface. Defender step will skip'
+            logger.warning(
+                'Defender agent "%s" tried to step through "%s"(%d).'
+                'which is not part of its defense surface. Defender '
+                'step will skip',
+                agent,
+                defense_step_node.full_name,
+                defense_step_node.id
             )
             return actions
 
@@ -629,7 +668,7 @@ class MalSimulator(ParallelEnv):
 
             logger.debug(
                 f'Observation for agent "{agent}":\n'
-                + format_obs_var_sec(observations[agent], self._index_to_id,
+                + self.format_obs_var_sec(observations[agent],
                     included_values = [0, 1])
             )
             logger.debug(f'Rewards for agent "{agent}": ' + str(rewards[agent]))
