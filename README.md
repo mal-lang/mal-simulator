@@ -14,7 +14,7 @@ Use the malsim CLI to run run simulations on scenarios.
 Scenarios consist of MAL language, model, rewards, agent classes and attacker entrypoints,
 they are a setup for running a simulation. They can be written down in a yaml file like this:
 
-```
+```yml
 lang_file: <path to .mar-archive>
 model_file: <path to json/yml model>
 
@@ -32,16 +32,19 @@ rewards:
   # Program 1:notPresent: 3
   ...
 
-# Add entry points to AttackGraph with attacker names
-# and attack step full_names
+# Add entry points to AttackGraph with attacker name and attack step full_names.
+# NOTE: If attacker entry points defined in both model and scenario,
+#       the scenario overrides the ones in the model.
 attacker_entry_points:
   <attacker name>:
-    - <attack attack step>
+    - <attack step full name>
 
   # example:
   # 'Attacker1':
   #   - 'Credentials:6:attemptCredentialsReuse'
 ```
+
+Note: When defining attackers and entrypoints in a scenario, these override potential attackers in the model.
 
 ## Loading a scenario from a python script
 
@@ -66,4 +69,5 @@ positional arguments:
 
 ```
 
-This will create an attack using the configuration in the scenarios file, applying the rewards, adding the attacker and running the simulation with the attacker agents specified.
+This will create an attack using the configuration in the scenarios file, applying the rewards, adding the attacker and running the simulation with the attacker.
+Currently having more than one attacker in the scenario file will have no effect to how the simulation is run, it will only run the first one as an agent.
