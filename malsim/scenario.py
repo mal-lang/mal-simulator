@@ -96,6 +96,7 @@ def apply_scenario_attacker_entrypoints(
         attacker = Attacker(
             attacker_name, entry_points=[], reached_attack_steps=[]
         )
+        attack_graph.add_attacker(attacker)
 
         for entry_point_name in entry_point_names:
             entry_point = attack_graph.get_node_by_full_name(entry_point_name)
@@ -104,7 +105,6 @@ def apply_scenario_attacker_entrypoints(
             attacker.compromise(entry_point)
 
         attacker.entry_points = attacker.reached_attack_steps
-        attack_graph.add_attacker(attacker)
 
 
 def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:
@@ -129,8 +129,16 @@ def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:
         # Apply rewards and entrypoints to attack graph
         rewards = scenario.get('rewards', {})
         apply_scenario_rewards(attack_graph, rewards)
+
         entry_points = scenario.get('attacker_entry_points', {})
-        apply_scenario_attacker_entrypoints(attack_graph, entry_points)
+        if entry_points:
+            # Override attackers in attack graph if
+            # entry points defined in scenario
+            for attacker in attack_graph.attackers:
+                attack_graph.remove_attacker(attacker)
+
+            # Apply attacker entry points from scenario
+            apply_scenario_attacker_entrypoints(attack_graph, entry_points)
 
         # Create config object which is also returned
         config = {}

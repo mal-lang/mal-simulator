@@ -23,7 +23,7 @@ def test_load_scenario():
 
     # Load the scenario
     attack_graph, config = load_scenario(
-        path_relative_to_tests('./testdata/simple_scenario.yml')
+        path_relative_to_tests('./testdata/scenarios/simple_scenario.yml')
     )
 
     # Verify rewards were added as defined in './testdata/simple_scenario.yml'
@@ -44,9 +44,8 @@ def test_load_scenario():
     assert attack_graph.get_node_by_full_name('Identity:11:notPresent')\
         .extras['reward'] == 3.5
 
-    # One attacker from model + one attacker from scenario
-    # (both are acceptable ways to add attackers to attackgraph)
-    assert len(attack_graph.attackers) == 2
+    # One attacker from scenario (overrides attacker from model)
+    assert len(attack_graph.attackers) == 1
 
     # Verify attacker entrypoint was added
     attack_step = attack_graph.get_node_by_full_name(
@@ -68,7 +67,7 @@ def test_load_scenario_no_attacker_in_model():
 
     # Load the scenario
     attack_graph, _ = load_scenario(
-        path_relative_to_tests('./testdata/no_existing_attacker_in_model_scenario.yml')
+        path_relative_to_tests('./testdata/scenarios/no_existing_attacker_in_model_scenario.yml')
     )
 
     # Verify one attacker entrypoint was added (model is missing attacker)
@@ -84,6 +83,42 @@ def test_load_scenario_no_attacker_in_model():
     assert attack_step in attacker.entry_points
 
 
+def test_load_scenario_attacker_in_model():
+    """
+    Make sure model attacker is removed if scenario has attacker
+    Make sure model attacker is not removed if scenario has no attacker
+    """
+
+    # Load the scenario that has entry point defined
+    attack_graph, _ = load_scenario(
+        path_relative_to_tests(
+            'testdata/scenarios/simple_scenario.yml')
+    )
+    assert len(attack_graph.attackers) == 1
+    assert attack_graph.attackers[0].name == 'Attacker1' # From scenario
+
+    # Load the scenario that has no entry point defined
+    attack_graph, _ = load_scenario(
+        path_relative_to_tests(
+            'testdata/scenarios/no_entry_points_simple_scenario.yml')
+    )
+    assert len(attack_graph.attackers) == 1
+    assert attack_graph.attackers[0].name == 'Attacker:15' # From model
+
+
+def test_load_scenario_no_defender_agent():
+    """Make sure we can load a scenario"""
+
+    # Load the scenario
+    _, config = load_scenario(
+        path_relative_to_tests(
+            './testdata/scenarios/no_defender_agent_scenario.yml'
+        )
+    )
+    assert 'defender_agent_class' not in config
+    assert config['attacker_agent_class'].__name__ == 'BreadthFirstAttacker'
+
+
 def test_load_scenario_agent_class_error():
     """Make sure we get error when loading with wrong class"""
 
@@ -91,6 +126,6 @@ def test_load_scenario_agent_class_error():
     with pytest.raises(LookupError):
         load_scenario(
             path_relative_to_tests(
-                './testdata/wrong_agent_classes_scenario.yml'
+                './testdata/scenarios/wrong_agent_classes_scenario.yml'
             )
         )

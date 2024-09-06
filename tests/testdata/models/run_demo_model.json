@@ -1,0 +1,119 @@
+{
+  "metadata": {
+      "name": "Example Model",
+      "langVersion": "1.0.0",
+      "langID": "org.mal-lang.coreLang",
+      "malVersion": "0.1.0-SNAPSHOT",
+      "MAL-Toolbox Version": "0.1.6",
+      "info": "Created by the mal-toolbox model python module."
+  },
+  "assets": {
+      "0": {
+          "name": "OS App",
+          "type": "Application"
+      },
+      "1": {
+          "name": "Program 1",
+          "type": "Application"
+      },
+      "2": {
+          "name": "SoftwareVulnerability:2",
+          "type": "SoftwareVulnerability"
+      },
+      "3": {
+          "name": "Data:3",
+          "type": "Data"
+      },
+      "4": {
+          "name": "Credentials:4",
+          "type": "Credentials"
+      },
+      "5": {
+          "name": "Identity:5",
+          "type": "Identity"
+      },
+      "6": {
+          "name": "ConnectionRule:6",
+          "type": "ConnectionRule"
+      },
+      "7": {
+          "name": "Other OS App",
+          "type": "Application"
+      }
+  },
+  "associations": [
+      {
+          "AppExecution": {
+              "hostApp": [
+                  0
+              ],
+              "appExecutedApps": [
+                  1
+              ]
+          }
+      },
+      {
+          "ApplicationVulnerability_SoftwareVulnerability_Application": {
+              "vulnerabilities": [
+                  2
+              ],
+              "application": [
+                  0
+              ]
+          }
+      },
+      {
+          "AppContainment": {
+              "containedData": [
+                  3
+              ],
+              "containingApp": [
+                  1
+              ]
+          }
+      },
+      {
+          "IdentityCredentials": {
+              "identities": [
+                  5
+              ],
+              "credentials": [
+                  4
+              ]
+          }
+      },
+      {
+          "InfoContainment": {
+              "containerData": [
+                  3
+              ],
+              "information": [
+                  4
+              ]
+          }
+      },
+      {
+          "ApplicationConnection": {
+              "applications": [
+                  0,
+                  7
+              ],
+              "appConnections": [
+                  6
+              ]
+          }
+      }
+  ],
+  "attackers": {
+      "8": {
+          "name": "Attacker:8",
+          "entry_points": {
+              "0": {
+                  "attack_steps": [
+                      "networkConnectUninspected"
+                  ]
+              }
+          }
+      }
+  }
+}

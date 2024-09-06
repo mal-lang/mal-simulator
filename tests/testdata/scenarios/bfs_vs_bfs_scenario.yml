@@ -1,8 +1,8 @@
-lang_file: ../org.mal-lang.coreLang-1.0.0.mar
-model_file: simple_test_model.yml
+lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
+model_file: ../models/simple_test_model.yml
 
-attacker_agent_class: 'BananaAttacker'
-defender_agent_class: 'FishAttacker'
+attacker_agent_class: 'BreadthFirstAttacker'
+defender_agent_class: 'BreadthFirstAttacker'
 
 # Rewards for each attack step
 rewards:
@@ -14,6 +14,7 @@ rewards:
   Data:5:notPresent: 1
   Credentials:6:notPhishable: 7
   Identity:11:notPresent: 3.5
+  Identity:8:assume: 50
 
 # Add entry points to AttackGraph with attacker names
 # and attack step full_names

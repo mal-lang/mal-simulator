@@ -24,9 +24,9 @@ AGENT_DEFENDER = "defender"
 ACTION_TERMINATE = "terminate"
 ACTION_WAIT = "wait"
 
-model_file_name='tests/example_model.yml'
+model_file_name='tests/testdata/models/simple_test_model.yml'
 attack_graph_file_name=path.join('tmp','attack_graph.json')
-lang_file_name='tests/org.mal-lang.coreLang-1.0.0.mar'
+lang_file_name='tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar'
 
 def register_gym_agent(agent_id, entry_point):
     if agent_id not in gym.envs.registry.keys():

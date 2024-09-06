@@ -1,0 +1,54 @@
+assets:
+  0:
+    name: Host:0
+    type: Host
+  1:
+    name: Host:1
+    type: Host
+  2:
+    name: Data:2
+    type: Data
+  3:
+    name: User:3
+    type: User
+  4:
+    name: Network:3
+    type: Network
+
+associations:
+
+- HostsInNetworks:
+    hosts:
+    - 0
+    - 1
+    networks:
+    - 4
+- UsersOnHosts:
+    users:
+    - 3
+    hosts:
+    - 0
+- DataOnHosts:
+    data:
+    - 2
+    hosts:
+    - 0
+
+attackers:
+  5:
+    entry_points:
+      0:
+        attack_steps:
+        - connect
+      3:
+        attack_steps:
+        - phishing
+    name: Attacker1
+
+metadata:
+  MAL-Toolbox Version: 0.1.8
+  info: Created manually by Joakim.
+  langID: org.mal-lang.trainingLang
+  langVersion: 1.0.0
+  malVersion: 0.1.0-SNAPSHOT
+  name: Simple Example Model for trainingLang

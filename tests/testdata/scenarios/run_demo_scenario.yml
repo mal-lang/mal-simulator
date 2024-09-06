@@ -1,0 +1,27 @@
+# A scenario that will run the same simulation as run_demo.py
+# in the malsim CLI with `malsim run_demo_scenario.yml`
+
+lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
+model_file: ../models/run_demo_model.json
+
+attacker_agent_class: 'BreadthFirstAttacker'
+defender_agent_class: 'KeyboardAgent'
+
+# Rewards for each attack step (same as in run_demo.py)
+rewards:
+  OS App:notPresent: 50
+  OS App:supplyChainAuditing: 1000000000
+  Program 1:notPresent: 30
+  Program 1:supplyChainAuditing: 1000000000
+  SoftwareVulnerability:2:notPresent: 40
+  Data:3:notPresent: 20
+  Credentials:4:notPhishable: 1000000000
+  Identity:5:notPresent: 35
+  ConnectionRule:6:restricted: 40
+  ConnectionRule:6:payloadInspection: 30
+  Other OS App:notPresent: 50
+  Other OS App:supplyChainAuditing: 1000000000
+  OS App:fullAccess: 100
+  Program 1:fullAccess: 50
+  Identity:5:assume: 50
+  Other OS App:fullAccess: 200
