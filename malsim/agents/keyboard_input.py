@@ -17,11 +17,13 @@ class KeyboardAgent:
     def compute_action_from_dict(self, obs: dict, mask: tuple) -> tuple:
         """Return action id and action
         Args:
-        obs     -
-        mask    -
+        obs     - The observation for the agent. Not currently used, it is
+                  included to maintain the same interface.
+        mask    - The action mask for the agent. The mask is what the
+                  available actions are computed from.
         """
         def valid_action(user_input: str) -> bool:
-            """Decide if input string is valid action index"""
+            """Decide if input string is a valid available action index"""
             if user_input == "":
                 return True
 
@@ -46,7 +48,8 @@ class KeyboardAgent:
             action = associated_action[action_strings[node]] if user_input != "" else 0
             return node, action
 
-        # Return non zero indexes of values in mask[1]
+        # The non-zero values in the second item of the mask determine which
+        # actions are available to the agent.
         available_actions = np.flatnonzero(mask[1])
 
         action_strings = [self.vocab[i] for i in available_actions]

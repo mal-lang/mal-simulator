@@ -38,7 +38,10 @@ class BreadthFirstAttacker:
         )
 
     def compute_action_from_dict(self, observation: Dict[str, Any], mask: tuple):
-        """From observation, find possible targets and select next one"""
+        """
+        Add the new targets possible targets based on the action mask and
+        add them to the back of the queue and select next one
+        """
         new_targets, surface_indexes = get_new_targets(observation, self.targets, mask)
 
         # Add new targets to the back of the queue
