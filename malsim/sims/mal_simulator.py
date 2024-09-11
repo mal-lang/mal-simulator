@@ -55,7 +55,8 @@ class MalSimulator(ParallelEnv):
         self.unholy = kwargs.get(
             "unholy", False
         )  # Separates attack step names from their assets in the observation.
-        # Not compliant with how the MAL language is supposed to work, but reduces the size of the observation signficiantly.
+        # Not compliant with how the MAL language is supposed to work,
+        # but reduces the size of the observation signficiantly.
 
         self.init(self.max_iter)
 
@@ -224,7 +225,6 @@ class MalSimulator(ParallelEnv):
 
         return obs_str
 
-
     def _format_info(self, info):
         can_act = "Yes" if info["action_mask"][0][1] > 0 else "No"
         agent_info_str = f"Can act? {can_act}\n"
@@ -293,6 +293,7 @@ class MalSimulator(ParallelEnv):
         return MultiDiscrete([num_actions, num_objects], dtype=np.int64)
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
+        # TODO: params not used by method
         logger.info("Resetting simulator.")
         attack_graph = AttackGraph.load_from_file(
             self.attack_graph_backup_filename, self.model
@@ -392,6 +393,16 @@ class MalSimulator(ParallelEnv):
         logger.info(f'Register defender "{agent_name}" agent.')
         self.possible_agents.insert(0, agent_name)
         self.agents_dict[agent_name] = {"type": "defender"}
+
+    def get_attacker_agents(self):
+        """Return agents_dict but only with attacker agents"""
+        return {k: v for k, v in self.agents_dict.items()
+                if v['type'] == "attacker"}
+
+    def get_defender_agents(self):
+        """Return agents_dict but only with defender agents"""
+        return {k: v for k, v in self.agents_dict.items()
+                if v['type'] == "defender"}
 
     def state(self):
         # Should return a state for all agents
