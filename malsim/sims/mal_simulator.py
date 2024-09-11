@@ -63,102 +63,64 @@ class MalSimulator(ParallelEnv):
         self.possible_agents = []
         self.agents = []
         self.agents_dict = {}
-        self.offset = 1
-        self.unholy = kwargs.get(
-            "unholy", False
-        )  # Separates attack step names from their assets in the observation.
-        # Not compliant with how the MAL language is supposed to work,
-        # but reduces the size of the observation signficiantly.
 
         self.init(self.max_iter)
+
 
     def __call__(self):
         return self
 
-    @property
-    @functools.lru_cache(maxsize=None)
-    def num_assets(self):
-        return len(self.lang_graph.assets) + self.offset
-
-    @property
-    @functools.lru_cache(maxsize=None)
-    def num_step_names(self):
-        return (
-            len(self.lang_graph.attack_steps)
-            if not self.unholy
-            else len(set(s.attributes["name"] for s in self.lang_graph.attack_steps))
-        ) + self.offset
-
-    def asset_type(self, step):
-        return (
-            self._asset_type_to_index[step.asset.type] + self.offset
-            if step.name != "firstSteps"
-            else 0
-        )
-
-    def step_name(self, step):
-        return (
-            (
-                self._step_name_to_index[step.asset.type + ":" + step.name]
-                + self.offset
-                if not self.unholy
-                else self._unholy_step_name_to_index[step.attributes["name"]]
-                + self.offset
-            )
-            if step.name != "firstSteps"
-            else 0
-        )
-
-    def asset_id(self, step):
-        return int(step.asset.id) if step.name != "firstSteps" else 0
-
-    def agent_iter(self):
-        return None
 
     def create_blank_observation(self):
         # For now, an `object` is an attack step
-        num_objects = len(self.attack_graph.nodes)
+        num_steps = len(self.attack_graph.nodes)
 
         observation = {
-            "is_observable": num_objects * [1],
-            "observed_state": num_objects * [-1],
-            "remaining_ttc": num_objects * [0],
+            "is_observable": num_steps * [1],
+            "observed_state": num_steps * [-1],
+            "remaining_ttc": num_steps * [0],
+            "asset_type": [self._asset_type_to_index[step.asset.type]
+                for step in self.attack_graph.nodes],
+            "asset_id": [step.asset.id
+                for step in self.attack_graph.nodes],
+            "step_name": [self._step_name_to_index[
+                    str(step.asset.type + ":" + step.name)]
+                for step in self.attack_graph.nodes],
         }
 
-        logger.debug(f'Create blank observation with {num_objects} attack '
+        logger.debug(f'Create blank observation with {num_steps} attack '
             'steps.')
-        observation["asset_type"], observation["asset_id"], observation["step_name"] = (
-            zip(
-                *(
-                    (self.asset_type(step), self.asset_id(step), self.step_name(step))
-                    for step in self.attack_graph.nodes
-                )
-            )
-        )
 
-        observation["edges"] = [
+        # Add attack graph edges to observation
+        observation["attack_graph_edges"] = [
             [self._id_to_index[attack_step.id], self._id_to_index[child.id]]
-            for attack_step in self.attack_graph.nodes
-            for child in attack_step.children
+                for attack_step in self.attack_graph.nodes
+                    for child in attack_step.children
         ]
 
-        # Create reverse edges for defense steps. This was required by some of
-        # the defender agent logic.
+        # Add reverse attack graph edges for defense steps (required by some
+        # defender agent logic)
         for attack_step in self.attack_graph.nodes:
             if attack_step.type == "defense":
                 for child in attack_step.children:
-                    observation["edges"].append(
-                        [self._id_to_index[child.id], self._id_to_index[attack_step.id]]
+                    observation["attack_graph_edges"].append(
+                        [self._id_to_index[child.id],
+                            self._id_to_index[attack_step.id]]
                     )
 
+
         np_obs = {
-            "is_observable": np.array(observation["is_observable"], dtype=np.int8),
-            "observed_state": np.array(observation["observed_state"], dtype=np.int8),
-            "remaining_ttc": np.array(observation["remaining_ttc"], dtype=np.int64),
+            "is_observable": np.array(observation["is_observable"],
+                dtype=np.int8),
+            "observed_state": np.array(observation["observed_state"],
+                dtype=np.int8),
+            "remaining_ttc": np.array(observation["remaining_ttc"],
+                dtype=np.int64),
             "asset_type": np.array(observation["asset_type"], dtype=np.int64),
             "asset_id": np.array(observation["asset_id"], dtype=np.int64),
             "step_name": np.array(observation["step_name"], dtype=np.int64),
-            "edges": np.array(observation["edges"], dtype=np.int64),
+            "attack_graph_edges": np.array(observation["attack_graph_edges"],
+                dtype=np.int64),
         }
 
         return np_obs
@@ -198,7 +160,7 @@ class MalSimulator(ParallelEnv):
                 obs_str += header
 
         obs_str += "\nEdges:\n"
-        for edge in observation["edges"]:
+        for edge in observation["attack_graph_edges"]:
             obs_str += str(edge) + "\n"
 
         return obs_str
@@ -249,51 +211,49 @@ class MalSimulator(ParallelEnv):
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent=None):
         # For now, an `object` is an attack step
-        num_objects = len(self.attack_graph.nodes)
+        num_steps = len(self.attack_graph.nodes)
         num_lang_asset_types = len(self.lang_graph.assets)
-        num_lang_attack_steps = (
-            len(self.lang_graph.attack_steps)
-            if not self.unholy
-            else len(set(s.attributes["name"] for s in self.lang_graph.attack_steps))
-        )
-        num_edges = len(self._blank_observation["edges"])
+        num_lang_attack_steps = len(self.lang_graph.attack_steps)
+        num_lang_association_types = len(self.lang_graph.associations)
+        num_attack_graph_edges = len(
+            self._blank_observation["attack_graph_edges"])
         # TODO is_observable is never set. It will be filled in once the
         # observability of the attack graph is determined.
         return Dict(
             {
                 "is_observable": Box(
-                    0, 1, shape=(num_objects,), dtype=np.int8
+                    0, 1, shape=(num_steps,), dtype=np.int8
                 ),  #  0 for unobservable,
                 #  1 for observable
                 "observed_state": Box(
-                    -1, 1, shape=(num_objects,), dtype=np.int8
+                    -1, 1, shape=(num_steps,), dtype=np.int8
                 ),  # -1 for unknown,
                 #  0 for disabled/not compromised,
                 #  1 for enabled/compromised
                 "remaining_ttc": Box(
-                    0, sys.maxsize, shape=(num_objects,), dtype=np.int64
+                    0, sys.maxsize, shape=(num_steps,), dtype=np.int64
                 ),  # remaining TTC
                 "asset_type": Box(
                     0,
-                    num_lang_asset_types + self.offset,
-                    shape=(num_objects,),
+                    num_lang_asset_types,
+                    shape=(num_steps,),
                     dtype=np.int64,
                 ),  # asset type
                 "asset_id": Box(
-                    0, sys.maxsize, shape=(num_objects,), dtype=np.int64
+                    0, sys.maxsize, shape=(num_steps,), dtype=np.int64
                 ),  # asset id
                 "step_name": Box(
                     0,
-                    num_lang_attack_steps + self.offset,
-                    shape=(num_objects,),
+                    num_lang_attack_steps,
+                    shape=(num_steps,),
                     dtype=np.int64,
                 ),  # attack/defense step name
-                "edges": Box(
+                "attack_graph_edges": Box(
                     0,
-                    num_objects,
-                    shape=(num_edges, 2),
+                    num_steps,
+                    shape=(num_attack_graph_edges, 2),
                     dtype=np.int64,
-                ),  # edges between steps
+                ),  # edges between attack graph steps
             }
         )
 
@@ -301,8 +261,8 @@ class MalSimulator(ParallelEnv):
     def action_space(self, agent=None):
         num_actions = 2  # two actions: wait or use
         # For now, an `object` is an attack step
-        num_objects = len(self.attack_graph.nodes)
-        return MultiDiscrete([num_actions, num_objects], dtype=np.int64)
+        num_steps = len(self.attack_graph.nodes)
+        return MultiDiscrete([num_actions, num_steps], dtype=np.int64)
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         logger.info("Resetting simulator.")
@@ -345,13 +305,6 @@ class MalSimulator(ParallelEnv):
         self._index_to_step_name = [n.asset.name + ":" + n.name for n in self.lang_graph.attack_steps]
         self._step_name_to_index = {
             n: i for i, n in enumerate(self._index_to_step_name)
-        }
-
-        self._unholy_index_to_step_name = {
-            n.attributes["name"] for n in self.lang_graph.attack_steps
-        }
-        self._unholy_step_name_to_index = {
-            n: i for i, n in enumerate(self._unholy_index_to_step_name)
         }
 
         str_format = "{:<5} {:<}\n"
