@@ -187,4 +187,35 @@ def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:
         return attack_graph, config
 
 
-        return attack_graph, config
+def create_simulator_from_scenario(
+        scenario_file: str, **kwargs
+    ) -> tuple[MalSimulator, dict]:
+    """Creates and returns a MalSimulator created according to scenario file
+
+    A wrapper that loads the graph and config from the scenario file
+    and returns a MalSimulator object with registered agents according
+    to the configuration.
+
+    Args:
+    - scenario_file: the file name of the scenario
+
+    Returns:
+    - MalSimulator: the resulting simulator
+    """
+
+    attack_graph, conf = load_scenario(scenario_file)
+
+    sim = MalSimulator(
+        attack_graph.lang_graph,
+        attack_graph.model,
+        attack_graph,
+        **kwargs
+    )
+
+    for agent_id, agent_info in conf['agents'].items():
+        if agent_info['type'] == "attacker":
+            sim.register_attacker(agent_id, 0)
+        elif agent_info['type'] == "defender":
+            sim.register_defender(agent_id)
+
+    return sim, conf
