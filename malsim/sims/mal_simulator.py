@@ -474,20 +474,20 @@ class MalSimulator(ParallelEnv):
 
         return actions
 
-    def _observe_reached_attack_steps_children(
-            self, attacker: Attacker, observation: dict) -> None:
-        """Update observed state to match reached attack steps by setting
-        reached attack step children observed state to 0 (unreached)
-        instead of -1 (unknown)"""
-
-        for node in attacker.reached_attack_steps:
-            for child_node in node.children:
-                child_node_index = self._id_to_index[child_node.id]
-                observation["observed_state"][child_node_index] = 0
 
     def _observe_attacker(self, attacker_agent, observation):
-        """Uncompromise reached attack steps that are untraversable and
-        update observed state of the attacker to match reached_attack_steps"""
+        """
+        Fill in the attacker observation based on the currently reached attack
+        steps and their children.
+
+        Arguments:
+        attacker_agent  - the attacker agent to fill in the observation for
+        observation     - the blank observation to fill in
+
+        Uncompromise reached attack steps that are untraversable and
+        update observed state of the attacker to match reached_attack_steps
+        """
+
         attacker = self.attack_graph.attackers[
             self.agents_dict[attacker_agent]["attacker"]
         ]
@@ -506,8 +506,7 @@ class MalSimulator(ParallelEnv):
                 observation["observed_state"][node_index] = 0
                 untraversable_nodes.append(node)
 
-        # Uncompromise nodes that are not traversable. This removes them from
-        # reached_attack_steps and has to be done outside of previous loop.
+        # Uncompromise nodes that are not traversable.
         for node in untraversable_nodes:
                 logger.debug(
                     "Remove untraversable node from attacker "
@@ -515,9 +514,11 @@ class MalSimulator(ParallelEnv):
                 )
                 attacker.undo_compromise(node)
 
-        self._observe_reached_attack_steps_children(
-            attacker_agent, observation
-        )
+        for node in attacker.reached_attack_steps:
+            for child_node in node.children:
+                child_node_index = self._id_to_index[child_node.id]
+                observation["observed_state"][child_node_index] = 0
+
 
     def _observe_defender(self, defender_agent, observation):
         # TODO We should probably create a separate blank observation for the
