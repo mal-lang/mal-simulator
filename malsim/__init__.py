@@ -17,7 +17,6 @@
 
 import logging
 
-from malsim.wrappers.wrapper import LazyWrapper
 from malsim.wrappers.gym_wrapper import AttackerEnv, DefenderEnv, register_envs
 
 """
@@ -30,7 +29,7 @@ __authors__ = ["Andrei Buhaiu", "Joakim Loxdal", "Jakob Nyberg", "Nikolaos Kakou
 __license__ = "Apache 2.0"
 __docformat__ = "restructuredtext en"
 
-__all__ = ("LazyWrapper", "AttackerEnv", "DefenderEnv", "register_envs")
+__all__ = ("AttackerEnv", "DefenderEnv", "register_envs")
 
 formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%m-%d %H:%M')
 file_handler = logging.FileHandler('tmp/malsim_log.txt', mode='w')
