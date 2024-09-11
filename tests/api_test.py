@@ -11,8 +11,6 @@ import gymnasium as gym
 from gymnasium.utils import env_checker
 from pettingzoo.test import parallel_api_test
 
-from os import path
-
 from malsim.sims.mal_simulator import MalSimulator
 from malsim.wrappers.gym_wrapper import AttackerEnv, DefenderEnv
 from malsim.agents.searchers import BreadthFirstAttacker, DepthFirstAttacker
@@ -24,9 +22,8 @@ AGENT_DEFENDER = "defender"
 ACTION_TERMINATE = "terminate"
 ACTION_WAIT = "wait"
 
-model_file_name='tests/testdata/models/simple_test_model.yml'
-attack_graph_file_name=path.join('tmp','attack_graph.json')
-lang_file_name='tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar'
+scenario_file='tests/testdata/scenarios/simple_scenario.yml'
+scenario_file_no_defender='tests/testdata/scenarios/no_defender_agent_scenario.yml'
 
 def register_gym_agent(agent_id, entry_point):
     if agent_id not in gym.envs.registry.keys():
@@ -42,18 +39,14 @@ def test_gym():
     register_gym_agent("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
-        model_file=model_file_name,
-        attack_graph_file=attack_graph_file_name,
-        lang_file=lang_file_name,
+        scenario_file=scenario_file,
         unholy=False,
     )
     env_checker.check_env(env.unwrapped)
     register_gym_agent("MALAttackerEnv-v0", entry_point=AttackerEnv)
     env = gym.make(
         "MALAttackerEnv-v0",
-        model_file=model_file_name,
-        attack_graph_file=attack_graph_file_name,
-        lang_file=lang_file_name,
+        scenario_file=scenario_file_no_defender,
     )
     env_checker.check_env(env.unwrapped)
 
@@ -62,9 +55,7 @@ def test_random_defender_actions():
     register_gym_agent("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
-        model_file=model_file_name,
-        attack_graph_file=attack_graph_file_name,
-        lang_file=lang_file_name,
+        scenario_file=scenario_file,
     )
     def available_steps(x):
         np.flatnonzero(x["action_mask"][1])
@@ -89,9 +80,7 @@ def test_episode():
     register_gym_agent("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
-        model_file=model_file_name,
-        attack_graph_file=attack_graph_file_name,
-        lang_file=lang_file_name,
+        scenario_file=scenario_file,
         unholy=False,
     )
 
@@ -114,8 +103,7 @@ def test_defender_penalty():
     register_gym_agent("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
-        model_file=model_file_name,
-        lang_file=lang_file_name,
+        scenario_file=scenario_file,
         unholy=False,
     )
 
