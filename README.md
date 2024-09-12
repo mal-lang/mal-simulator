@@ -48,26 +48,48 @@ Note: When defining attackers and entrypoints in a scenario, these override pote
 
 ## Loading a scenario from a python script
 
+### Load attack graph and config
+
+If you just want to load a resulting attack graph from a scenario, use `malsim.scenarios.load_scenario`.
+
 ```python
 from malsim.scenarios import load_scenario
 
 scenario_file = "scenario.yml"
-attack_graph, sim_config = load_scenario(args.scenario_file)
-
-# At this point, the attack graph and sim_config (which contains the agent classes) can be used
-# for running a simulation (refer to malsim.cli.run_simulation to see example of this)
+attack_graph, sim_config = load_scenario(scenario_file)
 
 ```
+
+### Load simulator and config
+
+If you instead want to load a simulator, use `malsim.scenarios.load_scenario_simulation_config`.
+
+```python
+from malsim.scenarios import load_scenario_simulation_config
+
+scenario_file = "scenario.yml"
+mal_simulator, sim_config = load_scenario_simulation_config(scenario_file)
+
+```
+The returned MalSimulator contains the attackgraph created from
+the scenario, as well as registered agents. At this point, simulator and sim_config
+(which contains the agent classes) can be used for running a simulation
+(refer to malsim.cli.run_simulation or wrappers.gym_wrappers to see example of this).
+
 
 ## Running a scenario simulation with the CLI
 
 ```
-usage: malsim [-h] scenario_file
+usage: malsim [-h] [-o OUTPUT_ATTACK_GRAPH] scenario_file
 
 positional arguments:
-  scenario_file  Examples can be found in https://github.com/mal-lang/malsim-scenarios/
+  scenario_file         Can be found in https://github.com/mal-lang/malsim-scenarios/
 
+options:
+  -h, --help            show this help message and exit
+  -o OUTPUT_ATTACK_GRAPH, --output-attack-graph OUTPUT_ATTACK_GRAPH
+                        If set to a path, attack graph will be dumped there
 ```
 
-This will create an attack using the configuration in the scenarios file, applying the rewards, adding the attacker and running the simulation with the attacker.
+This will create an attack using the configuration in the scenarios file, apply the rewards, add the attacker and run the simulation with the attacker.
 Currently having more than one attacker in the scenario file will have no effect to how the simulation is run, it will only run the first one as an agent.
