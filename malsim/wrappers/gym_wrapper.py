@@ -131,21 +131,28 @@ class DefenderEnv(gym.Env):
         self.randomize = kwargs.pop("randomize_attacker_behavior", False)
         self.render_mode = kwargs.pop("render_mode", None)
 
-        self.sim, conf = create_simulator_from_scenario(scenario_file, **kwargs)
+        self.sim, conf = \
+            create_simulator_from_scenario(scenario_file, **kwargs)
 
         # Select first attacker and first defender for the simulation
         # currently only one of each agent is supported
-        self.attacker_agent_id: str = list(self.sim.get_attacker_agents().keys())[0]
-        self.defender_agent_id: str = list(self.sim.get_defender_agents().keys())[0]
+        self.attacker_agent_id = next(iter(self.sim.get_attacker_agents()))
+        self.defender_agent_id = next(iter(self.sim.get_defender_agents()))
+
+
+        if not self.attacker_agent_id:
+            raise RuntimeError(
+                "Attacker agent must be specified in scenario"
+                " when running DefenderEnv"
+            )
 
         self.attacker_class = conf["agents"][self.attacker_agent_id]["agent_class"]
-        self.attacker = self.attacker_class({})
+        self.attacker = None  # set in .reset()
+        self.attacker_obs = None  # set in .reset()
+        self.attacker_mask = None # set in .reset()
 
         self.observation_space = self.sim.observation_space(self.defender_agent_id)
         self.action_space = self.sim.action_space(self.defender_agent_id)
-
-        self.attacker_obs = None
-        self.attacker_mask = None
 
     def reset(
         self, *, seed: int | None = None, options: dict[str, Any] | None = None
@@ -165,6 +172,8 @@ class DefenderEnv(gym.Env):
     def step(
         self, action: Any
     ) -> tuple[Any, SupportsFloat, bool, bool, dict[str, Any]]:
+
+        # Calculate attacker opponent action
         attacker_action = self.attacker.compute_action_from_dict(
             self.attacker_obs, self.attacker_mask
         )
@@ -292,6 +301,7 @@ def register_envs():
 
 
 if __name__ == "__main__":
+    # DefenderEnv with attacker opponent
     gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
@@ -299,9 +309,17 @@ if __name__ == "__main__":
     )
     env_checker.check_env(env.unwrapped)
 
+    # AttackerEnv with no defender opponent
     gym.register("MALAttackerEnv-v0", entry_point=AttackerEnv)
     env = gym.make(
         "MALAttackerEnv-v0",
         scenario_file="tests/testdata/scenarios/no_defender_agent_scenario.yml",
+    )
+    env_checker.check_env(env.unwrapped)
+
+    # AttackerEnv with defender opponent (not KeyboardAgent)
+    env = gym.make(
+        "MALAttackerEnv-v0",
+        scenario_file="tests/testdata/scenarios/bfs_vs_bfs_scenario.yml",
     )
     env_checker.check_env(env.unwrapped)
