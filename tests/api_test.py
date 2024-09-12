@@ -24,6 +24,7 @@ ACTION_WAIT = "wait"
 
 scenario_file='tests/testdata/scenarios/simple_scenario.yml'
 scenario_file_no_defender='tests/testdata/scenarios/no_defender_agent_scenario.yml'
+scenario_file_bfs_vs_bfs='tests/testdata/scenarios/bfs_vs_bfs_scenario.yml'
 
 def register_gym_agent(agent_id, entry_point):
     if agent_id not in gym.envs.registry.keys():
@@ -43,12 +44,39 @@ def test_gym():
         unholy=False,
     )
     env_checker.check_env(env.unwrapped)
+    assert env.unwrapped.defender_agent_id == AGENT_DEFENDER
+    assert env.unwrapped.attacker_agent_id == AGENT_ATTACKER
+    assert env.unwrapped.attacker_class == BreadthFirstAttacker
+    assert env.unwrapped.attacker.__class__ == BreadthFirstAttacker
+
     register_gym_agent("MALAttackerEnv-v0", entry_point=AttackerEnv)
     env = gym.make(
         "MALAttackerEnv-v0",
         scenario_file=scenario_file_no_defender,
     )
+    assert env.unwrapped.defender_agent_id is None
+    assert env.unwrapped.defender_class is None
+    assert env.unwrapped.defender is None
+    assert env.unwrapped.attacker_agent_id == AGENT_ATTACKER
+
     env_checker.check_env(env.unwrapped)
+    env = gym.make(
+        "MALAttackerEnv-v0",
+        scenario_file=scenario_file_bfs_vs_bfs,
+    )
+    env_checker.check_env(env.unwrapped)
+    assert env.unwrapped.defender_agent_id == AGENT_DEFENDER
+    assert env.unwrapped.defender_class == BreadthFirstAttacker
+    assert env.unwrapped.defender.__class__ == BreadthFirstAttacker
+    assert env.unwrapped.attacker_agent_id == AGENT_ATTACKER
+
+    with pytest.raises(ValueError):
+        # A scenario with KeyboardAgent as defender should
+        # not be allowed in AttackerEnv
+        env = gym.make(
+            "MALAttackerEnv-v0",
+            scenario_file=scenario_file,
+        )
 
 
 def test_random_defender_actions():
@@ -187,4 +215,3 @@ def test_env_multiple_steps(env: MalSimulator) -> None:
         obs, reward, terminated, truncated, info = env.step(action)
         assert "attacker" in obs
         assert "defender" in obs
-
