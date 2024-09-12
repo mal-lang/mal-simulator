@@ -243,7 +243,7 @@ class MalSimulator(ParallelEnv):
         for entry in range(0, len(info["action_mask"][1])):
             if info["action_mask"][1][entry] == 1:
                 agent_info_str += f"{self._index_to_id[entry]} " \
-                    "{self._index_to_full_name[entry]}\n"
+                    f"{self._index_to_full_name[entry]}\n"
         return agent_info_str
 
     @functools.lru_cache(maxsize=None)
