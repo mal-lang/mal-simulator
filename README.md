@@ -62,13 +62,13 @@ attack_graph, sim_config = load_scenario(scenario_file)
 
 ### Load simulator and config
 
-If you instead want to load a simulator, use `malsim.scenarios.load_scenario_simulation_config`.
+If you instead want to load a simulator, use `malsim.scenarios.create_simulator_from_scenario`.
 
 ```python
-from malsim.scenarios import load_scenario_simulation_config
+from malsim.scenarios import create_simulator_from_scenario
 
 scenario_file = "scenario.yml"
-mal_simulator, sim_config = load_scenario_simulation_config(scenario_file)
+mal_simulator, sim_config = create_simulator_from_scenario(scenario_file)
 
 ```
 The returned MalSimulator contains the attackgraph created from
