@@ -37,6 +37,7 @@ class AttackerEnv(gym.Env):
     ) -> tuple[Any, dict[str, Any]]:
         super().reset(seed=seed, options=options)
 
+        # TODO: params not used by method, find out if we need to send them
         obs, info = self.sim.reset(seed=seed, options=options)
         return obs[self.attacker_agent_id], info[self.attacker_agent_id]
 
@@ -106,6 +107,7 @@ class DefenderEnv(gym.Env):
             {"seed": seed, "randomize": self.randomize}
         )
 
+        # TODO: params not used by method, find out if we need to send them
         obs, info = self.sim.reset(seed=seed, options=options)
 
         self.attacker_obs = obs[self.attacker_agent_id]

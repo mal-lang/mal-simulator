@@ -33,13 +33,13 @@ required_fields = [
     'lang_file',
     'model_file',
     'attacker_agent_class',
+    'defender_agent_class',
 ]
 
 # All allowed fields in scenario yml fild
 allowed_fields = required_fields + [
     'rewards',
     'attacker_entry_points',
-    'defender_agent_class',
 ]
 
 
@@ -114,7 +114,7 @@ def apply_scenario_attacker_entrypoints(
 
         attacker.entry_points = attacker.reached_attack_steps
 
-def load_scenario_simulation_config(scenario: dict):
+def load_scenario_simulation_config(scenario: dict) -> dict:
     """Load configurations used in MALSimulator
     Load parts of scenario are used for the MALSimulator
 
