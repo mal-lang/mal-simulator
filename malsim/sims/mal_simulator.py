@@ -293,7 +293,6 @@ class MalSimulator(ParallelEnv):
         return MultiDiscrete([num_actions, num_objects], dtype=np.int64)
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
-        # TODO: params not used by method
         logger.info("Resetting simulator.")
         attack_graph = AttackGraph.load_from_file(
             self.attack_graph_backup_filename, self.model
@@ -394,13 +393,13 @@ class MalSimulator(ParallelEnv):
         self.possible_agents.insert(0, agent_name)
         self.agents_dict[agent_name] = {"type": "defender"}
 
-    def get_attacker_agents(self):
-        """Return agents_dict but only with attacker agents"""
+    def get_attacker_agents(self) -> dict:
+        """Return agents dictionaries of attacker agents"""
         return {k: v for k, v in self.agents_dict.items()
                 if v['type'] == "attacker"}
 
-    def get_defender_agents(self):
-        """Return agents_dict but only with defender agents"""
+    def get_defender_agents(self) -> dict:
+        """Return agents dictionaries of defender agents"""
         return {k: v for k, v in self.agents_dict.items()
                 if v['type'] == "defender"}
 
