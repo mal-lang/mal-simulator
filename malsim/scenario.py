@@ -20,6 +20,7 @@ from maltoolbox.wrappers import create_attack_graph
 
 from .agents.searchers import BreadthFirstAttacker, DepthFirstAttacker
 from .agents.keyboard_input import KeyboardAgent
+from .sims.mal_simulator import MalSimulator
 
 agent_class_name_to_class = {
     'BreadthFirstAttacker': BreadthFirstAttacker,
@@ -89,8 +90,15 @@ def apply_scenario_rewards(
 def apply_scenario_attacker_entrypoints(
         attack_graph: AttackGraph, entry_points: dict
 ) -> None:
-    """Go through attacker entry points from scenario file and add
-    them to the referenced attacker in the attack graph"""
+    """Apply attacker entrypoints to attackgraph from scenario
+
+    Go through attacker entry points from scenario file and add
+    them to the referenced attacker in the attack graph
+
+    Args:
+    - attack_graph: the attack graph to apply entry points to
+    - entry_points: the entry points to apply
+    """
 
     for attacker_name, entry_point_names in entry_points.items():
         attacker = Attacker(
@@ -105,6 +113,41 @@ def apply_scenario_attacker_entrypoints(
             attacker.compromise(entry_point)
 
         attacker.entry_points = attacker.reached_attack_steps
+
+def load_scenario_simulation_config(scenario: dict) -> dict:
+    """Load configurations used in MALSimulator
+    Load parts of scenario are used for the MALSimulator
+
+    Args:
+    - scenario: the scenario in question as a dict
+    Return:
+    - config: a dict containing config
+    """
+
+    # Create config object which is later returned
+    config = {}
+    config['agents'] = {}
+
+    # Currently only support one defender and attacker
+    attacker_id = "attacker"
+    defender_id = "defender"
+
+    if a_class := scenario.get('attacker_agent_class'):
+        if a_class not in agent_class_name_to_class:
+            raise LookupError(f"Agent class '{a_class}' not supported")
+        config['agents'][attacker_id] = {}
+        config['agents'][attacker_id]['type'] = 'attacker'
+        config['agents'][attacker_id]['agent_class'] = \
+            agent_class_name_to_class.get(a_class)
+
+    if d_class := scenario.get('defender_agent_class'):
+        if d_class not in agent_class_name_to_class:
+            raise LookupError(f"Agent class '{d_class}' not supported")
+        config['agents'][defender_id] = {}
+        config['agents'][defender_id]['type'] = 'defender'
+        config['agents'][defender_id]['agent_class'] = \
+            agent_class_name_to_class.get(d_class)
+    return config
 
 
 def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:
@@ -140,18 +183,39 @@ def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:
             # Apply attacker entry points from scenario
             apply_scenario_attacker_entrypoints(attack_graph, entry_points)
 
-        # Create config object which is also returned
-        config = {}
-        if a_class := scenario.get('attacker_agent_class'):
-            if a_class not in agent_class_name_to_class:
-                raise LookupError(f"Agent class '{a_class}' not supported")
-            config['attacker_agent_class'] = \
-                agent_class_name_to_class.get(a_class)
-
-        if d_class := scenario.get('defender_agent_class'):
-            if d_class not in agent_class_name_to_class:
-                raise LookupError(f"Agent class '{d_class}' not supported")
-            config['defender_agent_class'] = \
-                agent_class_name_to_class.get(d_class)
-
+        config = load_scenario_simulation_config(scenario)
         return attack_graph, config
+
+
+def create_simulator_from_scenario(
+        scenario_file: str, **kwargs
+    ) -> tuple[MalSimulator, dict]:
+    """Creates and returns a MalSimulator created according to scenario file
+
+    A wrapper that loads the graph and config from the scenario file
+    and returns a MalSimulator object with registered agents according
+    to the configuration.
+
+    Args:
+    - scenario_file: the file name of the scenario
+
+    Returns:
+    - MalSimulator: the resulting simulator
+    """
+
+    attack_graph, conf = load_scenario(scenario_file)
+
+    sim = MalSimulator(
+        attack_graph.lang_graph,
+        attack_graph.model,
+        attack_graph,
+        **kwargs
+    )
+
+    for agent_id, agent_info in conf['agents'].items():
+        if agent_info['type'] == "attacker":
+            sim.register_attacker(agent_id, 0)
+        elif agent_info['type'] == "defender":
+            sim.register_defender(agent_id)
+
+    return sim, conf

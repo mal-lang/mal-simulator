@@ -58,8 +58,8 @@ def test_load_scenario():
     )
     assert attack_step in attacker.entry_points
 
-    assert config.get('attacker_agent_class') == BreadthFirstAttacker
-    assert config.get('defender_agent_class') == KeyboardAgent
+    assert config['agents']['attacker']['agent_class'] == BreadthFirstAttacker
+    assert config['agents']['defender']['agent_class'] == KeyboardAgent
 
 
 def test_load_scenario_no_attacker_in_model():
@@ -115,8 +115,8 @@ def test_load_scenario_no_defender_agent():
             './testdata/scenarios/no_defender_agent_scenario.yml'
         )
     )
-    assert 'defender_agent_class' not in config
-    assert config['attacker_agent_class'].__name__ == 'BreadthFirstAttacker'
+    assert 'defender' not in config['agents']
+    assert config['agents']['attacker']['agent_class'] == BreadthFirstAttacker
 
 
 def test_load_scenario_agent_class_error():
