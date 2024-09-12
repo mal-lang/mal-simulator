@@ -27,6 +27,34 @@ ITERATIONS_LIMIT = int(1e9)
 
 logger = logging.getLogger(__name__)
 
+def format_table(
+        entry_format: str,
+        header_entry: list[str],
+        entries: list[list[str]],
+        reprint_header: int = 0
+    ) -> str:
+    """
+    Format a table according to the parameters specified.
+
+    Arguments:
+    entry_format    - The string format for the table
+    reprint_header  - How many rows apart to reprint the header. If 0 the
+                      header will not be reprinted.
+    header_entry    - The entry representing the header of the table
+    entries         - The list of entries to format
+
+    Return:
+    The formatted table.
+    """
+
+    formatted_str = ''
+    header = entry_format.format(*header_entry)
+    formatted_str += header
+    for entry_nr, entry in zip(range(0, len(entries)), entries):
+        formatted_str += entry_format.format(*entry)
+        if (reprint_header != 0) and ((entry_nr + 1) % reprint_header == 0):
+            formatted_str += header
+    return formatted_str
 
 class MalSimulator(ParallelEnv):
     def __init__(
@@ -131,10 +159,10 @@ class MalSimulator(ParallelEnv):
         sections that will not change over time, these define the structure of
         the attack graph.
         """
-        obs_str = f'Action: {observation.get("action", "")}\n'
+        obs_str = '\n'
 
         str_format = "{:<5} {:<80} {:<6} {:<5} {:<5} {:<5} {:<5} {:<}\n"
-        header = str_format.format(
+        header_entry = [
             "Entry",
             "Name",
             "Is_Obs",
@@ -143,21 +171,28 @@ class MalSimulator(ParallelEnv):
             "Type",
             "Id",
             "Step"
-        )
-        obs_str += header
+        ]
+
+        entries = []
         for entry in range(0, len(observation["observed_state"])):
-            obs_str += str_format.format(
-                entry,
-                self._index_to_full_name[entry],
-                observation["is_observable"][entry],
-                observation["observed_state"][entry],
-                observation["remaining_ttc"][entry],
-                observation["asset_type"][entry],
-                observation["asset_id"][entry],
-                observation["step_name"][entry],
+            entries.append(
+                [
+                    entry,
+                    self._index_to_full_name[entry],
+                    observation["is_observable"][entry],
+                    observation["observed_state"][entry],
+                    observation["remaining_ttc"][entry],
+                    observation["asset_type"][entry],
+                    observation["asset_id"][entry],
+                    observation["step_name"][entry],
+                ]
             )
-            if entry % 30 == 29:
-                obs_str += header
+        obs_str += format_table(
+            str_format,
+            header_entry,
+            entries,
+            reprint_header = 30
+        )
 
         obs_str += "\nEdges:\n"
         for edge in observation["attack_graph_edges"]:
@@ -172,30 +207,35 @@ class MalSimulator(ParallelEnv):
         """
         Return a formatted string of the sections of the observation that can
         vary over time.
+
         Arguments:
         observation     - the observation to format
         included_values - the values to list, any values not present in the list
                           will be filtered out
         """
-        obs_str = ""
 
         str_format = "{:>5} {:>80} {:<5} {:<5} {:<}\n"
-        header = str_format.format("Id", "Name", "State", "RTTC", "Entry")
-        obs_str += header
-        listing_nr = 0
+        header_entry = ["Id", "Name", "State", "RTTC", "Entry"]
+        entries = []
         for entry in range(0, len(observation["observed_state"])):
             if observation["is_observable"][entry] and \
                     observation["observed_state"][entry] in included_values:
-                obs_str += str_format.format(
-                    self._index_to_id[entry],
-                    self._index_to_full_name[entry],
-                    observation["observed_state"][entry],
-                    observation["remaining_ttc"][entry],
-                    entry,
+                entries.append(
+                    [
+                        self._index_to_id[entry],
+                        self._index_to_full_name[entry],
+                        observation["observed_state"][entry],
+                        observation["remaining_ttc"][entry],
+                        entry
+                    ]
                 )
-                listing_nr += 1
-            if listing_nr % 30 == 29:
-                obs_str += header
+
+        obs_str = format_table(
+            str_format,
+            header_entry,
+            entries,
+            reprint_header = 30
+        )
 
         return obs_str
 
@@ -279,17 +319,27 @@ class MalSimulator(ParallelEnv):
         self._index_to_full_name = [n.full_name for n in self.attack_graph.nodes]
         self._id_to_index = {n: i for i, n in enumerate(self._index_to_id)}
         str_format = "{:<5} {:<15} {:<}\n"
-        table = "\n" + str_format.format(
+        table = "\n"
+        header_entry = [
             "Index",
             "Attack Step Id",
             "Attack Step Full Name"
-        )
+        ]
+        entries = []
         for entry in self._index_to_id:
-            table += str_format.format(
-                self._id_to_index[entry],
-                entry,
-                self._index_to_full_name[self._id_to_index[entry]]
+            entries.append(
+                [
+                    self._id_to_index[entry],
+                    entry,
+                    self._index_to_full_name[self._id_to_index[entry]]
+                ]
             )
+        table += format_table(
+            str_format,
+            header_entry,
+            entries,
+            reprint_header = 30
+        )
         logger.debug(table)
 
         self._index_to_asset_type = [n.name for n in self.lang_graph.assets]
@@ -297,20 +347,42 @@ class MalSimulator(ParallelEnv):
             n: i for i, n in enumerate(self._index_to_asset_type)
         }
         str_format = "{:<5} {:<}\n"
-        table = "\n" + str_format.format("Index", "Asset Type")
+        table = "\n"
+        header_entry = ["Index", "Asset Type"]
+        entries = []
         for entry in self._index_to_asset_type:
-            table += str_format.format(self._asset_type_to_index[entry], entry)
+            entries.append(
+                [
+                    self._asset_type_to_index[entry],
+                    entry
+                ]
+            )
+        table += format_table(
+            str_format,
+            header_entry,
+            entries,
+            reprint_header = 30
+        )
         logger.debug(table)
 
-        self._index_to_step_name = [n.asset.name + ":" + n.name for n in self.lang_graph.attack_steps]
+        self._index_to_step_name = [n.asset.name + ":" + n.name \
+            for n in self.lang_graph.attack_steps]
         self._step_name_to_index = {
             n: i for i, n in enumerate(self._index_to_step_name)
         }
 
         str_format = "{:<5} {:<}\n"
-        table = "\n" + str_format.format("Index", "Step Name")
+        table = "\n"
+        header_entry = ["Index", "Attack Step Name"]
+        entries = []
         for entry in self._index_to_step_name:
-            table += str_format.format(self._step_name_to_index[entry], entry)
+            entries.append([self._step_name_to_index[entry], entry])
+        table += format_table(
+            str_format,
+            header_entry,
+            entries,
+            reprint_header = 30
+        )
         logger.debug(table)
 
         self.max_iter = max_iter
@@ -493,7 +565,7 @@ class MalSimulator(ParallelEnv):
         return actions
 
 
-    def _observe_attacker(self, attacker_agent, observation):
+    def _observe_attacker(self, attacker_agent, observation) -> None:
         """
         Fill in the attacker observation based on the currently reached attack
         steps and their children.
@@ -501,9 +573,6 @@ class MalSimulator(ParallelEnv):
         Arguments:
         attacker_agent  - the attacker agent to fill in the observation for
         observation     - the blank observation to fill in
-
-        Uncompromise reached attack steps that are untraversable and
-        update observed state of the attacker to match reached_attack_steps
         """
 
         attacker = self.attack_graph.attackers[
