@@ -3,7 +3,7 @@
 import os
 from unittest.mock import patch
 
-from malsim.scenario import load_scenario
+from malsim.scenario import create_simulator_from_scenario
 from malsim.cli import run_simulation
 
 
@@ -22,12 +22,12 @@ def test_run_simulation(mock_input):
     """Make sure we can run simulation with defender agent
     registered in scenario"""
 
-    graph, config = load_scenario(
+    simulator, config = create_simulator_from_scenario(
         path_relative_to_tests(
             './testdata/scenarios/bfs_vs_bfs_scenario.yml'
         )
     )
-    run_simulation(graph, config)
+    run_simulation(simulator, config)
 
 
 @patch("builtins.input", return_value="\n") # to not freeze on input()
@@ -35,10 +35,10 @@ def test_run_simulation_without_defender_agent(mock_input):
     """Make sure we can run simulation without defender agent
     registered in scenario"""
 
-    graph, config = load_scenario(
+    simulator, config = create_simulator_from_scenario(
         path_relative_to_tests(
             './testdata/scenarios/no_defender_agent_scenario.yml'
         )
     )
-    run_simulation(graph, config)
+    run_simulation(simulator, config)
 

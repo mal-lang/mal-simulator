@@ -3,14 +3,10 @@
 from __future__ import annotations
 import argparse
 import logging
-from typing import TYPE_CHECKING
 
 from .sims.mal_simulator import MalSimulator
 from .agents.keyboard_input import KeyboardAgent
 from .scenario import create_simulator_from_scenario
-
-if TYPE_CHECKING:
-    from maltoolbox.attackgraph import AttackGraph
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
