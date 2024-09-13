@@ -254,7 +254,6 @@ class MalSimulator(ParallelEnv):
         num_steps = len(self.attack_graph.nodes)
         num_lang_asset_types = len(self.lang_graph.assets)
         num_lang_attack_steps = len(self.lang_graph.attack_steps)
-        num_lang_association_types = len(self.lang_graph.associations)
         num_attack_graph_edges = len(
             self._blank_observation["attack_graph_edges"])
         # TODO is_observable is never set. It will be filled in once the
