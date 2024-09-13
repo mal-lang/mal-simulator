@@ -1,18 +1,19 @@
-# Overview
+# MAL Simulator
+
+## Overview
 
 A MAL compliant simulator.
 
-# Installation 
+## Installation
 ```pip install mal-simulator```
-
-# CLI
 
 Use the malsim CLI to run run simulations on scenarios.
 
 ## Scenarios
 
+To make it easier to define simulation environment you can use scenarios defined in yml-files.
 Scenarios consist of MAL language, model, rewards, agent classes and attacker entrypoints,
-they are a setup for running a simulation. They can be written down in a yaml file like this:
+they are a setup for running a simulation. This is how the format looks like:
 
 ```yml
 lang_file: <path to .mar-archive>
@@ -46,9 +47,9 @@ attacker_entry_points:
 
 Note: When defining attackers and entrypoints in a scenario, these override potential attackers in the model.
 
-## Loading a scenario from a python script
+### Loading a scenario from a python script
 
-### Load attack graph and config
+#### Load attack graph and config
 
 If you just want to load a resulting attack graph from a scenario, use `malsim.scenarios.load_scenario`.
 
@@ -60,7 +61,7 @@ attack_graph, sim_config = load_scenario(scenario_file)
 
 ```
 
-### Load simulator and config
+#### Load simulator and config
 
 If you instead want to load a simulator, use `malsim.scenarios.create_simulator_from_scenario`.
 
@@ -77,7 +78,9 @@ the scenario, as well as registered agents. At this point, simulator and sim_con
 (refer to malsim.cli.run_simulation or wrappers.gym_wrappers to see example of this).
 
 
-## Running a scenario simulation with the CLI
+## CLI
+
+### Running a scenario simulation with the CLI
 
 ```
 usage: malsim [-h] [-o OUTPUT_ATTACK_GRAPH] scenario_file
