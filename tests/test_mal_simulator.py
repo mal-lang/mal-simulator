@@ -9,50 +9,6 @@ def test_malsimulator(corelang_lang_graph, model):
     MalSimulator(corelang_lang_graph, model, attack_graph)
 
 
-def test_malsimulator_num_assets(corelang_lang_graph, model):
-    attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
-    assert (
-        sim.num_assets == len(corelang_lang_graph.assets) + sim.offset
-    )
-
-
-def test_malsimulator_num_step_names(corelang_lang_graph, model):
-    attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
-    assert (
-        sim.num_step_names == len(
-            corelang_lang_graph.attack_steps
-        ) + sim.offset
-    )
-
-
-def test_malsimulator_asset_type(corelang_lang_graph, model):
-    attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
-    step = attack_graph.nodes[0]
-    assert (
-        sim.asset_type(step) == \
-            sim._asset_type_to_index[step.asset.type] + sim.offset
-    )
-
-def test_malsimulator_step_name(corelang_lang_graph, model):
-    attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
-    step = attack_graph.nodes[0]
-    assert (
-        sim.step_name(step) == \
-            sim._step_name_to_index[step.asset.type + ":" + step.name] + sim.offset
-    )
-
-
-def test_malsimulator_asset_id(corelang_lang_graph, model):
-    attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
-    step = attack_graph.nodes[0]
-    assert sim.asset_id(step) == int(step.asset.id)
-
-
 def test_malsimulator_create_blank_observation(corelang_lang_graph, model):
     """Make sure blank observation contains correct default values"""
     attack_graph = AttackGraph(corelang_lang_graph, model)
@@ -73,12 +29,12 @@ def test_malsimulator_create_blank_observation(corelang_lang_graph, model):
 
     # asset_type_index points us to an asset type in sim._index_to_asset_type
     # the index where asset_type_index lies on will point to an attack step id in sim._index_to_id
-    # The type we get from sim._index_to_asset_type[asset_type_index - sim.offset]
+    # The type we get from sim._index_to_asset_type[asset_type_index]
     # should be the same as the asset type of attack step with id index in attack graph
     assert len(blank_observation['asset_type']) == num_objects
     for index, asset_type_index in enumerate(blank_observation['asset_type']):
         # Note: offset is decremented from asset_type_index
-        expected_type = sim._index_to_asset_type[asset_type_index - sim.offset]
+        expected_type = sim._index_to_asset_type[asset_type_index]
         node_id = sim._index_to_id[index]
         node = attack_graph.get_node_by_id(node_id)
         assert node.asset.type == expected_type
@@ -100,7 +56,7 @@ def test_malsimulator_create_blank_observation(corelang_lang_graph, model):
                              [1 for step in attack_graph.nodes
                                 for child in step.children
                                 if step.type == "defense"])
-    assert len(blank_observation['edges']) == expected_num_edges
+    assert len(blank_observation['attack_graph_edges']) == expected_num_edges
 
 
 def test_malsimulator_format_info(corelang_lang_graph, model):
@@ -145,7 +101,7 @@ def test_malsimulator_observation_space(corelang_lang_graph, model):
     observation_space = sim.observation_space()
     assert set(observation_space.keys()) == {
         'is_observable', 'observed_state', 'remaining_ttc',
-        'asset_type', 'asset_id', 'step_name', 'edges'
+        'asset_type', 'asset_id', 'step_name', 'attack_graph_edges'
     }
     # All values in the observation space dict are of type Box
     # which comes from gymnasium.spaces (Box is a Space)
