@@ -28,37 +28,29 @@ class AttackerEnv(gym.Env):
             create_simulator_from_scenario(scenario_file, **kwargs)
 
         # Use first attacker as attacker agent in simulation
-        # since only single agent is currently supported
         self.attacker_agent_id = next(iter(self.sim.get_attacker_agents()))
+        self.observation_space = self.sim.observation_space(self.attacker_agent_id)
+        self.action_space = self.sim.action_space(self.attacker_agent_id)
 
         # Having a defender opponent in the AttackerEnv is optional
-        self.defender_agent_id = \
-            next(iter(self.sim.get_defender_agents()), None)
-
-        self.defender_class = (
-            conf["agents"][self.defender_agent_id]["agent_class"]
-            if self.defender_agent_id else None
-        )
-
-        if self.defender_class and self.defender_class not in AGENTS.values():
-            # Make sure that if a defender is set, it is a searcher agent
-            raise ValueError(
-                f"{self.defender_class.__name__} not allowed in"
-                f" AttackerEnv, must be one of {' '.join(AGENTS)}"
-            )
-
-        self.defender = (
-            self.defender_class({})
-            if self.defender_class else None
-        )
-
+        self.defender_agent_id = next(iter(self.sim.get_defender_agents()),
+                                      None)
+        self.defender_class = None
+        self.defender = None
         self.defender_obs = None
         self.defender_mask = None
 
-        self.observation_space = \
-            self.sim.observation_space(self.attacker_agent_id)
-        self.action_space = \
-            self.sim.action_space(self.attacker_agent_id)
+        if self.defender_agent_id:
+            # Create defender opponent if specified in scenario
+            self.defender_class = (
+                conf["agents"][self.defender_agent_id]["agent_class"]
+            )
+            if self.defender_class not in AGENTS.values():
+                raise ValueError(
+                    f"{self.defender_class.__name__} not valid agent class"
+                    f" in AttackerEnv, must be one of {', '.join(AGENTS)}"
+                )
+            self.defender = self.defender_class({})
 
         super().__init__()
 
