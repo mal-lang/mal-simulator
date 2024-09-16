@@ -365,21 +365,14 @@ def test_traversability_not_traversable():
 def test_state_transitions_attack_step():
     """Show the definitions and verify the observation values"""
 
-    lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
-    model_file = "tests/example_model.yml"
+    lang_file = "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar"
+    model_file = "tests/testdata/models/simple_no_attacker_test_model.yml"
     attack_graph = create_attack_graph(lang_file, model_file)
-
-    env = MalSimulator(
-        attack_graph.lang_graph,
-        attack_graph.model,
-        attack_graph
-    )
 
     attack_step_full_name = 'OS App:localConnect'
     attacker_entry_point = attack_graph.get_node_by_full_name(
         attack_step_full_name
     )
-
     assert attacker_entry_point.is_viable
     assert attacker_entry_point.is_necessary
 
@@ -387,12 +380,19 @@ def test_state_transitions_attack_step():
         "attacker1",
         id=0
     )
+    attack_graph.add_attacker(attacker1)
     attacker1.compromise(attacker_entry_point)
 
-    attack_node_index = env._index_to_full_name.index(attack_step_full_name)
+    env = MalSimulator(
+        attack_graph.lang_graph,
+        attack_graph.model,
+        attack_graph
+    )
+
     env.register_attacker(attacker1.name, attacker1.id)
     env.reset()
 
+    attack_node_index = env._index_to_full_name.index(attack_step_full_name)
     action_dict = {attacker1.name: (1, attack_node_index)}
     observations, rewards, terminations, truncations, infos = env.step(action_dict)
 
@@ -409,18 +409,25 @@ def test_state_transitions_attack_step():
     assert attacker_obs['observed_state'][attack_node_index] == 1
 
     for child in attacker_entry_point.children:
+        # All children of reached attack steps are seen as inactive (0)
         child_node_index = env._index_to_full_name.index(child.full_name)
-        if not is_node_traversable_by_attacker(child, attacker1):
-            # If node is not traversable it should be marked as -1
-            assert attacker_obs['observed_state'][child_node_index] == -1
-        else:
-            # If node is traversable but not active it should be marked as 0
-            assert attacker_obs['observed_state'][child_node_index] == 0
+        assert attacker_obs['observed_state'][child_node_index] == 0
+
+    for node in attack_graph.nodes:
+        if not (node.type == 'or' or node.type == "and"):
+            continue
+
+        # All unknown nodes are seen as unknown (-1)
+        if (node != attacker_entry_point\
+            and node not in attacker_entry_point.children):
+
+            node_index = env._index_to_full_name.index(node.full_name)
+            assert attacker_obs['observed_state'][node_index] == -1
 
 
 def create_simulator():
-    lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
-    model_file = "tests/example_model.yml"
+    lang_file = "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar"
+    model_file = "tests/testdata/models/simple_test_model.yml"
     attack_graph = create_attack_graph(lang_file, model_file)
 
     return MalSimulator(
@@ -436,59 +443,57 @@ def test_state_transitions_defense_step():
     env = create_simulator()
     attack_graph = env.attack_graph
 
+    # Remember defenses already activated in model
+    preactivated_defenses = [
+        n for n in attack_graph.nodes
+        if n.is_enabled_defense()
+    ]
+
     # We need an attacker so the simulation doesn't terminate
     attack_step_full_name = 'OS App:localConnect'
     attacker_entry_point = attack_graph.get_node_by_full_name(
         attack_step_full_name
     )
-
-    attacker1 = Attacker(
-        "attacker1",
-        id=0
-    )
+    attacker1 = Attacker("attacker1", id=0)
     attacker1.compromise(attacker_entry_point)
     attack_node_index = env._index_to_full_name.index(attack_step_full_name)
     env.register_attacker(attacker1.name, attacker1.id)
+
+    # The defender will activate a step
     defense_step_full_name = 'OS App:notPresent'
-    defenders_entry_point = attack_graph.get_node_by_full_name(
+    defense_step = attack_graph.get_node_by_full_name(
         defense_step_full_name
     )
-
-    assert defenders_entry_point.is_viable
-
+    assert defense_step.is_viable
     defender1 = "defender1"
     defense_node_index = env._index_to_full_name.index(defense_step_full_name)
     env.register_defender(defender1)
     assert defender1 in env.possible_agents
     env.reset()
+
     assert defender1 in env.agents
 
+    # Each agent performs an action
     action_dict = {
         defender1: (1, defense_node_index),
         attacker1.name: (1, attack_node_index)
     }
-    # Attack step will occur if:
-    # - IsAttackStep(x)
-    # - AttackerSelected(x)
-    # - TTC=0
-    # - Traversable(x)
-    observations, rewards, terminations, truncations, infos = env.step(action_dict)
-    # Currently all TTCs are 0, this will change
+
+    observations, _, _, _, _ = env.step(action_dict)
     defender_obs = observations[defender1]
     for node in attack_graph.nodes:
         if node.type == "defense":
             node_index = env._index_to_full_name.index(node.full_name)
-            default_defense_value = node.asset._properties[node.name].default()
-            if node_index == defense_node_index:
+            if node_index == defense_node_index or node in preactivated_defenses:
                 assert defender_obs['observed_state'][node_index] == 1
             else:
-                assert defender_obs['observed_state'][node_index] == default_defense_value
+                assert defender_obs['observed_state'][node_index] == 0
 
 
 def test_cost_and_reward():
 
-    lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
-    model_file = "tests/example_model.yml"
+    lang_file = "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar"
+    model_file = "tests/testdata/models/simple_test_model.yml"
     attack_graph = create_attack_graph(lang_file, model_file)
 
     # Prepare entrypoint node
@@ -542,8 +547,8 @@ def test_observation():
 def test_termination_max_iters():
     """Show the definitions and verify the observation values"""
 
-    lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
-    model_file = "tests/example_model.yml"
+    lang_file = "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar"
+    model_file = "tests/testdata/models/simple_test_model.yml"
     attack_graph = create_attack_graph(lang_file, model_file)
 
     attack_step_full_name = 'OS App:localConnect'
@@ -594,8 +599,9 @@ def test_termination_max_iters():
 def test_termination_no_traversable():
     """Show the definitions and verify the observation values"""
 
-    lang_file = "tests/org.mal-lang.coreLang-1.0.0.mar"
-    model_file = "tests/example_model.yml"
+    lang_file = "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar"
+    model_file = "tests/testdata/models/simple_test_model.yml"
+
     attack_graph = create_attack_graph(lang_file, model_file)
     attack_step_full_name = 'OS App:softwareCheck'
     attacker_entry_point = attack_graph.get_node_by_full_name(
