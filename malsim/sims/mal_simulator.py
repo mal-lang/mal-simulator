@@ -677,7 +677,12 @@ class MalSimulator(ParallelEnv):
                         attackers_done = False
 
             infos[agent] = {
-                "action_mask": (np.array([can_wait[agent_type], can_act], dtype=np.int8), np.array(available_actions, dtype=np.int8))
+                "action_mask": (
+                    np.array(
+                        [can_wait[agent_type], can_act], dtype=np.int8),
+                    np.array(
+                        available_actions, dtype=np.int8)
+                )
             }
 
         # First calculate the attacker rewards and attackers' total reward
