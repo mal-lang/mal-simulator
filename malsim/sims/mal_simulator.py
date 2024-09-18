@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from maltoolbox.model import Model
 
 ITERATIONS_LIMIT = int(1e9)
+MAXIMUM_RECURSION_LIMIT = 10000
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,30 @@ class MalSimulator(ParallelEnv):
             apriori.prune_unviable_and_unnecessary_nodes(attack_graph)
         self.attack_graph = attack_graph
         self.max_iter = max_iter
+
+        nr_nodes = len(self.attack_graph.nodes)
+        if nr_nodes > MAXIMUM_RECURSION_LIMIT:
+            logger.warning(
+                'There are more nodes in the attack graph(%d) than the '
+                'maximum recursion limit of %d. We will just set the '
+                'recursion limit to the maximum(%d) instead which may '
+                'lead to issues when the entire graph is copied for '
+                'the backup.',
+                nr_nodes,
+                MAXIMUM_RECURSION_LIMIT,
+                MAXIMUM_RECURSION_LIMIT
+            )
+            sys.setrecursionlimit(MAXIMUM_RECURSION_LIMIT)
+        elif nr_nodes > sys.getrecursionlimit():
+            logger.info(
+                'Increase recursion limit from %d to the number of '
+                'nodes in the attack graph(%d) to ensure that the '
+                'deepcopy of the backup does not exceed it.',
+                sys.getrecursionlimit(),
+                nr_nodes
+            )
+            sys.setrecursionlimit(nr_nodes)
+
         self.attack_graph_backup = copy.deepcopy(self.attack_graph)
 
         self.possible_agents = []
