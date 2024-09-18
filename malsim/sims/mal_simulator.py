@@ -6,7 +6,6 @@ import logging
 import functools
 from typing import Optional, TYPE_CHECKING
 import numpy as np
-import threading
 
 from gymnasium.spaces import MultiDiscrete, Box, Dict
 from pettingzoo import ParallelEnv
@@ -83,10 +82,7 @@ class MalSimulator(ParallelEnv):
             apriori.prune_unviable_and_unnecessary_nodes(attack_graph)
         self.attack_graph = attack_graph
         self.max_iter = max_iter
-        self.attack_graph_backup_filename = \
-            f'tmp/{threading.get_ident()}_original_attack_graph.json'
-
-        self.attack_graph.save_to_file(self.attack_graph_backup_filename)
+        self.attack_graph_backup = copy.deepcopy(self.attack_graph)
 
         self.possible_agents = []
         self.agents = []
@@ -305,10 +301,7 @@ class MalSimulator(ParallelEnv):
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         logger.info("Resetting simulator.")
-        attack_graph = AttackGraph.load_from_file(
-            self.attack_graph_backup_filename, self.model
-        )
-        self.attack_graph = attack_graph
+        self.attack_graph = copy.deepcopy(self.attack_graph_backup)
         return self.init(self.max_iter)
 
     def init(self, max_iter=ITERATIONS_LIMIT):
