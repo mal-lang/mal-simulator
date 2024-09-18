@@ -1,6 +1,6 @@
 [project]
 name = "mal-simulator"
-version = "0.0.27"
+version = "0.0.28"
 authors = [
   { name="Andrei Buhaiu", email="buhaiu@kth.se" },
   { name="Joakim Loxdal", email="loxdal@kth.se" },
@@ -14,7 +14,7 @@ requires-python = ">=3.10"
 dependencies = [
   "py2neo>=2021.2.3",
   "python-jsonschema-objects>=0.4.1",
-  "mal-toolbox>=0.1.8",
+  "mal-toolbox>=0.1.9",
   "numpy>=1.21.4",
   "pettingzoo>=1.24.2",
   "gymnasium>=0.29.1, <1",
