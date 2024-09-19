@@ -98,75 +98,23 @@ class MalSimulator(MALEnvBase):
     def init(self, max_iter=ITERATIONS_LIMIT):
         logger.info("Initializing MAL ParralelEnv Simulator.")
         logger.debug("Creating and listing mapping tables.")
+
+        # Create lookup lists mapping list indicies to attributes
         self._index_to_id = [n.id for n in self.attack_graph.nodes]
         self._index_to_full_name = [n.full_name for n in self.attack_graph.nodes]
-        self._id_to_index = {n: i for i, n in enumerate(self._index_to_id)}
-        str_format = "{:<5} {:<15} {:<}\n"
-        table = "\n"
-        header_entry = [
-            "Index",
-            "Attack Step Id",
-            "Attack Step Full Name"
-        ]
-        entries = []
-        for entry in self._index_to_id:
-            entries.append(
-                [
-                    self._id_to_index[entry],
-                    entry,
-                    self._index_to_full_name[self._id_to_index[entry]]
-                ]
-            )
-        table += format_table(
-            str_format,
-            header_entry,
-            entries,
-            reprint_header = 30
-        )
-        logger.debug(table)
-
-        self._index_to_asset_type = [n.name for n in self.lang_graph.assets]
-        self._asset_type_to_index = {
-            n: i for i, n in enumerate(self._index_to_asset_type)
-        }
-        str_format = "{:<5} {:<}\n"
-        table = "\n"
-        header_entry = ["Index", "Asset Type"]
-        entries = []
-        for entry in self._index_to_asset_type:
-            entries.append(
-                [
-                    self._asset_type_to_index[entry],
-                    entry
-                ]
-            )
-        table += format_table(
-            str_format,
-            header_entry,
-            entries,
-            reprint_header = 30
-        )
-        logger.debug(table)
-
         self._index_to_step_name = [n.asset.name + ":" + n.name \
             for n in self.lang_graph.attack_steps]
-        self._step_name_to_index = {
-            n: i for i, n in enumerate(self._index_to_step_name)
-        }
+        self._index_to_asset_type = [n.name for n in self.lang_graph.assets]
 
-        str_format = "{:<5} {:<}\n"
-        table = "\n"
-        header_entry = ["Index", "Attack Step Name"]
-        entries = []
-        for entry in self._index_to_step_name:
-            entries.append([self._step_name_to_index[entry], entry])
-        table += format_table(
-            str_format,
-            header_entry,
-            entries,
-            reprint_header = 30
-        )
-        logger.debug(table)
+        # Create lookup dicts mapping attributes to indicies
+        self._id_to_index = {n: i for i, n in enumerate(self._index_to_id)}
+        self._step_name_to_index = {
+            n: i for i, n in enumerate(self._index_to_step_name)}
+        self._asset_type_to_index = {
+            n: i for i, n in enumerate(self._index_to_asset_type)}
+
+        # Print the lookup tables that were just created
+        self.print_lookup_tables()
 
         self.max_iter = max_iter
         self.cur_iter = 0

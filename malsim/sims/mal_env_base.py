@@ -58,8 +58,12 @@ class MALEnvBase(ParallelEnv):
         self._asset_type_to_index = {}
         self._step_name_to_index = {}
         self._id_to_index = {}
+
         self._index_to_full_name = []
         self._index_to_id = []
+        self._index_to_asset_type = []
+        self._index_to_step_name = []
+
         self._blank_observation = {}
 
     def create_blank_observation(self):
@@ -104,7 +108,6 @@ class MALEnvBase(ParallelEnv):
                         ]
                     )
 
-
         np_obs = {
             "is_observable": np.array(observation["is_observable"],
                 dtype=np.int8),
@@ -120,6 +123,48 @@ class MALEnvBase(ParallelEnv):
         }
 
         return np_obs
+
+    def print_lookup_tables(self):
+        """Print all lookup tables of the MAL env object to logger"""
+
+        # Print Index, Attack Step ID and Full Name table
+        str_format = "{:<5} {:<15} {:<}\n"
+        table = "\n"
+        header_entry = ["Index", "Attack Step Id", "Attack Step Full Name"]
+        entries = []
+        for entry in self._index_to_id:
+            entries.append([
+                    self._id_to_index[entry],
+                    entry,
+                    self._index_to_full_name[self._id_to_index[entry]]
+                ])
+        table += format_table(
+            str_format, header_entry, entries, reprint_header = 30
+        )
+        logger.debug(table)
+
+        # Print index to asset type table
+        str_format = "{:<5} {:<}\n"
+        table = "\n"
+        header_entry = ["Index", "Asset Type"]
+        entries = []
+        for entry in self._index_to_asset_type:
+            entries.append([self._asset_type_to_index[entry], entry])
+        table += format_table(
+            str_format, header_entry, entries, reprint_header = 30)
+        logger.debug(table)
+
+        # Print index to attack step name table
+        str_format = "{:<5} {:<}\n"
+        table = "\n"
+        header_entry = ["Index", "Attack Step Name"]
+        entries = []
+        for entry in self._index_to_step_name:
+            entries.append([self._step_name_to_index[entry], entry])
+        table += format_table(
+            str_format, header_entry, entries, reprint_header = 30)
+        logger.debug(table)
+
 
     def format_full_observation(self, observation):
         """
