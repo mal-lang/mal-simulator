@@ -18,6 +18,8 @@ from maltoolbox.attackgraph.analyzers import apriori
 from maltoolbox.attackgraph import query
 from maltoolbox.ingestors import neo4j
 
+from .mal_simulator_settings import MalSimulatorSettings
+
 if TYPE_CHECKING:
     from maltoolbox.language import LanguageGraph
     from maltoolbox.model import Model
@@ -64,6 +66,7 @@ class MalSimulator(ParallelEnv):
         attack_graph: AttackGraph,
         max_iter=ITERATIONS_LIMIT,
         prune_unviable_unnecessary: bool = True,
+        sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
         **kwargs,
     ):
         """
@@ -82,6 +85,8 @@ class MalSimulator(ParallelEnv):
         if prune_unviable_unnecessary:
             apriori.prune_unviable_and_unnecessary_nodes(attack_graph)
         self.attack_graph = attack_graph
+
+        self.sim_settings = sim_settings
         self.max_iter = max_iter
 
         nr_nodes = len(self.attack_graph.nodes)
@@ -593,8 +598,9 @@ class MalSimulator(ParallelEnv):
                 observation["observed_state"][node_index] = 0
                 untraversable_nodes.append(node)
 
-        # Uncompromise nodes that are not traversable.
-        for node in untraversable_nodes:
+        if self.sim_settings.evict_attacker_from_defended_step:
+            # Uncompromise nodes that are not traversable.
+            for node in untraversable_nodes:
                 logger.debug(
                     'Remove untraversable node from attacker '
                     '"%s": "%s"(%d)',

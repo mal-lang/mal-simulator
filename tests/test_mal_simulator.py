@@ -4,6 +4,8 @@ import copy
 from maltoolbox.attackgraph import AttackGraph, Attacker
 from malsim.sims.mal_simulator import MalSimulator
 from malsim.scenario import load_scenario
+from malsim.scenario import create_simulator_from_scenario
+from malsim.sims import MalSimulatorSettings
 
 def test_malsimulator(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
@@ -333,3 +335,76 @@ def test_malsimulator_step(corelang_lang_graph, model):
         child_step_index = sim._id_to_index[child.id]
         # Make sure 'OS App:attemptUseVulnerability' children are observed and set to 0 (not active)
         assert observations[agent_name]['observed_state'][child_step_index] == 0
+
+def test_default_simulator_settings():
+    """Test using the MalSimulatorSettings default"""
+    sim, _ = create_simulator_from_scenario(
+        'tests/testdata/scenarios/traininglang_scenario.yml',
+    )
+
+    sim.reset()
+
+    attacker = sim.attack_graph.attackers[0]
+    attacker_agent_id = next(iter(sim.get_attacker_agents()))
+    defender_agent_id = next(iter(sim.get_defender_agents()))
+
+    # Get a compromised step with a disabled defense parent
+    host_0_connect = sim.attack_graph.get_node_by_full_name('Host:0:connect')
+    assert attacker in host_0_connect.compromised_by
+    host_0_connect_defense = next(n for n in host_0_connect.parents if n.type=='defense')
+    assert not host_0_connect_defense.is_enabled_defense()
+
+    defender_action = (1, sim._id_to_index[host_0_connect_defense.id])
+    attacker_action = (0, 0)
+    actions = {
+        attacker_agent_id: attacker_action,
+        defender_agent_id: defender_action
+    }
+
+    # We perform the steps, don't care about return value for this test
+    sim.step(actions)
+
+    # Check that the defense happened and that the
+    # attacker was not evicted (default behavior)
+    assert host_0_connect_defense.is_enabled_defense()
+    assert attacker in host_0_connect.compromised_by
+
+
+def test_simulator_settings_evict_attacker():
+    """Test using the MalSimulatorSettings when not evicting attacker"""
+
+    settings_evict_attacker = MalSimulatorSettings(
+        evict_attacker_from_defended_step=True
+    )
+
+    sim, _ = create_simulator_from_scenario(
+        'tests/testdata/scenarios/traininglang_scenario.yml',
+        sim_settings=settings_evict_attacker
+    )
+
+    sim.reset()
+
+    attacker = sim.attack_graph.attackers[0]
+    attacker_agent_id = next(iter(sim.get_attacker_agents()))
+    defender_agent_id = next(iter(sim.get_defender_agents()))
+
+    # Get a compromised step with a disabled defense parent
+    host_0_connect = sim.attack_graph.get_node_by_full_name('Host:0:connect')
+    assert attacker in host_0_connect.compromised_by
+    host_0_connect_defense = next(n for n in host_0_connect.parents if n.type=='defense')
+    assert not host_0_connect_defense.is_enabled_defense()
+
+    defender_action = (1, sim._id_to_index[host_0_connect_defense.id])
+    attacker_action = (0, 0)
+    actions = {
+        attacker_agent_id: attacker_action,
+        defender_agent_id: defender_action
+    }
+
+    # We perform the steps, don't care about return value for this test
+    sim.step(actions)
+
+    # Check that the defense happened and that the
+    # attacker was evicted
+    assert host_0_connect_defense.is_enabled_defense()
+    assert attacker not in host_0_connect.compromised_by
