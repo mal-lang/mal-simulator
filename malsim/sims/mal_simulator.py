@@ -623,7 +623,6 @@ class MalSimulator(ParallelEnv):
                 if child_node in attacker.reached_attack_steps:
                     # Reached attack steps are kept active.
                     continue
-
                 # Children of reached attack steps are inactive.
                 child_node_index = self._id_to_index[child_node.id]
                 observation["observed_state"][child_node_index] = 0
