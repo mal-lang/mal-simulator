@@ -1,3 +1,4 @@
+from abc import ABC
 import functools
 import logging
 import sys
@@ -38,7 +39,7 @@ def format_table(
     return formatted_str
 
 
-class MALEnvBase(ParallelEnv):
+class MALEnvBase(ParallelEnv, ABC):
     """
     A base class with methods that are used in both
     MALSimulator and in evaluation environments
@@ -56,6 +57,7 @@ class MALEnvBase(ParallelEnv):
         self.model = None
 
         self._asset_type_to_index = {}
+        # TODO: is step name same as full_name?
         self._step_name_to_index = {}
         self._id_to_index = {}
 
@@ -75,12 +77,12 @@ class MALEnvBase(ParallelEnv):
             "observed_state": num_steps * [-1],
             "remaining_ttc": num_steps * [0],
             "asset_type": [self._asset_type_to_index[step.asset.type]
-                for step in self.attack_graph.nodes],
+                           for step in self.attack_graph.nodes],
             "asset_id": [step.asset.id
-                for step in self.attack_graph.nodes],
+                         for step in self.attack_graph.nodes],
             "step_name": [self._step_name_to_index[
-                    str(step.asset.type + ":" + step.name)]
-                for step in self.attack_graph.nodes],
+                          str(step.asset.type + ":" + step.name)]
+                          for step in self.attack_graph.nodes],
         }
 
         logger.debug(
@@ -176,14 +178,7 @@ class MALEnvBase(ParallelEnv):
 
         str_format = "{:<5} {:<80} {:<6} {:<5} {:<5} {:<5} {:<5} {:<}\n"
         header_entry = [
-            "Entry",
-            "Name",
-            "Is_Obs",
-            "State",
-            "RTTC",
-            "Type",
-            "Id",
-            "Step"
+            "Entry", "Name", "Is_Obs", "State", "RTTC", "Type", "Id", "Step"
         ]
 
         entries = []

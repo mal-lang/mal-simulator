@@ -15,7 +15,7 @@ from maltoolbox.attackgraph.analyzers import apriori
 from maltoolbox.attackgraph import query
 from maltoolbox.ingestors import neo4j
 
-from malsim.sims.mal_env_base import MALEnvBase, format_table
+from malsim.sims.mal_env_base import MALEnvBase
 
 if TYPE_CHECKING:
     from maltoolbox.language import LanguageGraph
@@ -85,7 +85,6 @@ class MalSimulator(MALEnvBase):
         self.agents_dict = {}
 
         self.init(self.max_iter)
-
 
     def __call__(self):
         return self
