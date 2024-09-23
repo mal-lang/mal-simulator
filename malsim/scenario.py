@@ -112,7 +112,7 @@ def apply_scenario_attacker_entrypoints(
                 raise LookupError(f"Node {entry_point_name} does not exist")
             attacker.compromise(entry_point)
 
-        attacker.entry_points = attacker.reached_attack_steps
+        attacker.entry_points = list(attacker.reached_attack_steps)
 
 def load_scenario_simulation_config(scenario: dict) -> dict:
     """Load configurations used in MALSimulator

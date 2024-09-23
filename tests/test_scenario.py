@@ -58,6 +58,9 @@ def test_load_scenario():
     )
     assert attack_step in attacker.entry_points
 
+    # Entry points list and reached attack steps list are different lists
+    assert id(attacker.entry_points) != id(attacker.reached_attack_steps)
+
     assert config['agents']['attacker']['agent_class'] == BreadthFirstAttacker
     assert config['agents']['defender']['agent_class'] == KeyboardAgent
 
