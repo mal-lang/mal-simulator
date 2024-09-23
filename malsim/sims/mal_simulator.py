@@ -582,7 +582,11 @@ class MalSimulator(ParallelEnv):
             if query.is_node_traversable_by_attacker(node, attacker):
                 # Traversable reached nodes set to 1 in observed state
                 observation["observed_state"][node_index] = 1
-
+            elif node in attacker.entry_points:
+                # Never uncompromise entry points. They supersede
+                # traversability.
+                observation["observed_state"][node_index] = 1
+                continue
             else:
                 # The defender has activated a defense that prevents the
                 # attacker from exploiting this attack step any longer.
@@ -592,8 +596,11 @@ class MalSimulator(ParallelEnv):
         # Uncompromise nodes that are not traversable.
         for node in untraversable_nodes:
                 logger.debug(
-                    "Remove untraversable node from attacker "
-                    f'"{attacker_agent}": {node.id}'
+                    'Remove untraversable node from attacker '
+                    '"%s": "%s"(%d)',
+                        attacker_agent,
+                        node.full_name,
+                        node.id
                 )
                 attacker.undo_compromise(node)
 
