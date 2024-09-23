@@ -348,26 +348,38 @@ def test_default_simulator_settings():
     attacker_agent_id = next(iter(sim.get_attacker_agents()))
     defender_agent_id = next(iter(sim.get_defender_agents()))
 
-    # Get a compromised step with a disabled defense parent
-    host_0_connect = sim.attack_graph.get_node_by_full_name('Host:0:connect')
-    assert attacker in host_0_connect.compromised_by
-    host_0_connect_defense = next(n for n in host_0_connect.parents if n.type=='defense')
-    assert not host_0_connect_defense.is_enabled_defense()
+    # Get a step to compromise and its defense parent
+    user_3_compromise = sim.attack_graph.get_node_by_full_name('User:3:compromise')
+    assert attacker not in user_3_compromise.compromised_by
+    user_3_compromise_defense = next(n for n in user_3_compromise.parents if n.type=='defense')
+    assert not user_3_compromise_defense.is_enabled_defense()
 
-    defender_action = (1, sim._id_to_index[host_0_connect_defense.id])
-    attacker_action = (0, 0)
+    # First let the attacker compromise User:3:compromise
+    defender_action = (0, None)
+    attacker_action = (1, sim._id_to_index[user_3_compromise.id])
     actions = {
         attacker_agent_id: attacker_action,
         defender_agent_id: defender_action
     }
-
-    # We perform the steps, don't care about return value for this test
     sim.step(actions)
 
-    # Check that the defense happened and that the
-    # attacker was not evicted (default behavior)
-    assert host_0_connect_defense.is_enabled_defense()
-    assert attacker in host_0_connect.compromised_by
+    # Check that the compromise happened and that the defense not
+    assert not user_3_compromise_defense.is_enabled_defense()
+    assert attacker in user_3_compromise.compromised_by
+
+    # Now let the defender defend, and the attacker waits
+    defender_action = (1, sim._id_to_index[user_3_compromise_defense.id])
+    attacker_action = (0, None)
+    actions = {
+        attacker_agent_id: attacker_action,
+        defender_agent_id: defender_action
+    }
+    sim.step(actions)
+
+    # Check that the defense was performed,
+    # and that the attacker was NOT kicked out
+    assert user_3_compromise_defense.is_enabled_defense()
+    assert attacker in user_3_compromise.compromised_by
 
 
 def test_simulator_settings_evict_attacker():
@@ -388,23 +400,35 @@ def test_simulator_settings_evict_attacker():
     attacker_agent_id = next(iter(sim.get_attacker_agents()))
     defender_agent_id = next(iter(sim.get_defender_agents()))
 
-    # Get a compromised step with a disabled defense parent
-    host_0_connect = sim.attack_graph.get_node_by_full_name('Host:0:connect')
-    assert attacker in host_0_connect.compromised_by
-    host_0_connect_defense = next(n for n in host_0_connect.parents if n.type=='defense')
-    assert not host_0_connect_defense.is_enabled_defense()
+   # Get a step to compromise and its defense parent
+    user_3_compromise = sim.attack_graph.get_node_by_full_name('User:3:compromise')
+    assert attacker not in user_3_compromise.compromised_by
+    user_3_compromise_defense = next(n for n in user_3_compromise.parents if n.type=='defense')
+    assert not user_3_compromise_defense.is_enabled_defense()
 
-    defender_action = (1, sim._id_to_index[host_0_connect_defense.id])
-    attacker_action = (0, 0)
+    # First let the attacker compromise User:3:compromise
+    defender_action = (0, None)
+    attacker_action = (1, sim._id_to_index[user_3_compromise.id])
     actions = {
         attacker_agent_id: attacker_action,
         defender_agent_id: defender_action
     }
-
-    # We perform the steps, don't care about return value for this test
     sim.step(actions)
 
-    # Check that the defense happened and that the
-    # attacker was evicted
-    assert host_0_connect_defense.is_enabled_defense()
-    assert attacker not in host_0_connect.compromised_by
+    # Check that the compromise happened and that the defense not
+    assert not user_3_compromise_defense.is_enabled_defense()
+    assert attacker in user_3_compromise.compromised_by
+
+    # Now let the defender defend, and the attacker waits
+    defender_action = (1, sim._id_to_index[user_3_compromise_defense.id])
+    attacker_action = (0, None)
+    actions = {
+        attacker_agent_id: attacker_action,
+        defender_agent_id: defender_action
+    }
+    sim.step(actions)
+
+    # Check that the defense was performed,
+    # and that the attacker WAS kicked out
+    assert user_3_compromise_defense.is_enabled_defense()
+    assert attacker not in user_3_compromise.compromised_by
