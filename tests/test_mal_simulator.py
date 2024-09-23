@@ -336,8 +336,8 @@ def test_malsimulator_step(corelang_lang_graph, model):
         # Make sure 'OS App:attemptUseVulnerability' children are observed and set to 0 (not active)
         assert observations[agent_name]['observed_state'][child_step_index] == 0
 
-def test_default_simulator_settings_eviction():
-    """Test using the MalSimulatorSettings default"""
+def test_default_simulator_default_settings_eviction():
+    """Test attacker node eviction using MalSimulatorSettings default"""
     sim, _ = create_simulator_from_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml',
     )
@@ -355,35 +355,31 @@ def test_default_simulator_settings_eviction():
     assert not user_3_compromise_defense.is_enabled_defense()
 
     # First let the attacker compromise User:3:compromise
-    defender_action = (0, None)
-    attacker_action = (1, sim._id_to_index[user_3_compromise.id])
     actions = {
-        attacker_agent_id: attacker_action,
-        defender_agent_id: defender_action
+        attacker_agent_id: (1, sim._id_to_index[user_3_compromise.id]),
+        defender_agent_id: (0, None)
     }
     sim.step(actions)
 
-    # Check that the compromise happened and that the defense not
-    assert not user_3_compromise_defense.is_enabled_defense()
+    # Check that the compromise happened and that the defense did not
     assert attacker in user_3_compromise.compromised_by
+    assert not user_3_compromise_defense.is_enabled_defense()
 
     # Now let the defender defend, and the attacker waits
-    defender_action = (1, sim._id_to_index[user_3_compromise_defense.id])
-    attacker_action = (0, None)
     actions = {
-        attacker_agent_id: attacker_action,
-        defender_agent_id: defender_action
+        attacker_agent_id: (0, None),
+        defender_agent_id: (1, sim._id_to_index[user_3_compromise_defense.id])
     }
     sim.step(actions)
 
-    # Check that the defense was performed,
-    # and that the attacker was NOT kicked out
+    # Verify defense was performed and attacker NOT kicked out
     assert user_3_compromise_defense.is_enabled_defense()
     assert attacker in user_3_compromise.compromised_by
 
 
 def test_simulator_settings_evict_attacker():
-    """Test using the MalSimulatorSettings when evicting attacker"""
+    """Test MalSimulatorSettings when it should evict attacker
+    from untraversable node"""
 
     settings_evict_attacker = MalSimulatorSettings(
         uncompromise_untraversable_steps=True
@@ -407,31 +403,27 @@ def test_simulator_settings_evict_attacker():
     assert not user_3_compromise_defense.is_enabled_defense()
 
     # First let the attacker compromise User:3:compromise
-    defender_action = (0, None)
-    attacker_action = (1, sim._id_to_index[user_3_compromise.id])
     actions = {
-        attacker_agent_id: attacker_action,
-        defender_agent_id: defender_action
+        attacker_agent_id: (1, sim._id_to_index[user_3_compromise.id]),
+        defender_agent_id: (0, None)
     }
     sim.step(actions)
 
-    # Check that the compromise happened and that the defense not
-    assert not user_3_compromise_defense.is_enabled_defense()
+    # Check that the compromise happened and that the defense did not
     assert attacker in user_3_compromise.compromised_by
+    assert not user_3_compromise_defense.is_enabled_defense()
 
     # Now let the defender defend, and the attacker waits
-    defender_action = (1, sim._id_to_index[user_3_compromise_defense.id])
-    attacker_action = (0, None)
     actions = {
-        attacker_agent_id: attacker_action,
-        defender_agent_id: defender_action
+        attacker_agent_id: (0, None),
+        defender_agent_id: (1, sim._id_to_index[user_3_compromise_defense.id])
     }
     sim.step(actions)
 
-    # Check that the defense was performed,
-    # and that the attacker WAS kicked out
+    # Verify defense was performed and attacker WAS kicked out
     assert user_3_compromise_defense.is_enabled_defense()
     assert attacker not in user_3_compromise.compromised_by
+
 
 def test_simulator_default_settings_defender_observation():
     """Test MalSimulatorSettings show previous steps in obs"""
@@ -456,16 +448,15 @@ def test_simulator_default_settings_defender_observation():
     assert not user_3_compromise_defense.is_enabled_defense()
 
     # First let the attacker compromise User:3:compromise
-    defender_action = (0, None)
-    attacker_action = (1, sim._id_to_index[user_3_compromise.id])
     actions = {
-        attacker_agent_id: attacker_action,
-        defender_agent_id: defender_action
+        attacker_agent_id: (1, sim._id_to_index[user_3_compromise.id]),
+        defender_agent_id: (0, None)
     }
 
     obs, _, _, _, _ = sim.step(actions)
     defender_observation = obs[defender_agent_id]['observed_state']
 
+    # Verify that all states in obs match the state of the attack graph
     for index, state in enumerate(defender_observation):
         step_id = sim._index_to_id[index]
         node = sim.attack_graph.get_node_by_id(step_id)
@@ -475,15 +466,14 @@ def test_simulator_default_settings_defender_observation():
             assert not node.is_compromised()
 
     # Now let the defender defend, and the attacker waits
-    defender_action = (1, sim._id_to_index[user_3_compromise_defense.id])
-    attacker_action = (0, None)
     actions = {
-        attacker_agent_id: attacker_action,
-        defender_agent_id: defender_action
+        attacker_agent_id: (0, None),
+        defender_agent_id: (1, sim._id_to_index[user_3_compromise_defense.id])
     }
     obs, _, _, _, _ = sim.step(actions)
     defender_observation = obs[defender_agent_id]['observed_state']
 
+    # Verify that all states in obs match the state of the attack graph
     for index, state in enumerate(defender_observation):
         step_id = sim._index_to_id[index]
         node = sim.attack_graph.get_node_by_id(step_id)
@@ -491,6 +481,7 @@ def test_simulator_default_settings_defender_observation():
             assert node.is_compromised() or node.is_enabled_defense()
         else:
             assert not node.is_compromised() and not node.is_enabled_defense()
+
 
 def test_simulator_settings_defender_observation():
     """Test MalSimulatorSettings only show last steps in obs"""
@@ -521,18 +512,22 @@ def test_simulator_settings_defender_observation():
 
     # First let the attacker compromise User:3:compromise
     actions = {
-        attacker_agent_id: (0, None),
-        defender_agent_id: (1, sim._id_to_index[user_3_compromise.id])
+        attacker_agent_id: (1, sim._id_to_index[user_3_compromise.id]),
+        defender_agent_id: (0, None)
     }
 
     obs, _, _, _, _ = sim.step(actions)
     defender_observation = obs[defender_agent_id]['observed_state']
 
+    # Verify that the only active state node in obs
+    # is the latest performed step (User:3:compromise)
     for index, state in enumerate(defender_observation):
         step_id = sim._index_to_id[index]
         node = sim.attack_graph.get_node_by_id(step_id)
-        if state == 1:
-            assert node == user_3_compromise
+        if node == user_3_compromise:
+            assert state == 1 # Last performed step known active state
+        else:
+            assert state == -1 # All others unknown
 
     # Now let the defender defend, and the attacker waits
     actions = {
@@ -542,8 +537,12 @@ def test_simulator_settings_defender_observation():
     obs, _, _, _, _ = sim.step(actions)
     defender_observation = obs[defender_agent_id]['observed_state']
 
+    # Verify that the only active state node in obs
+    # is the latest performed step (the defense step)
     for index, state in enumerate(defender_observation):
         step_id = sim._index_to_id[index]
         node = sim.attack_graph.get_node_by_id(step_id)
-        if state == 1:
-            assert node == user_3_compromise_defense
+        if node == user_3_compromise_defense:
+            assert state == 1 # Last performed step known active state
+        else:
+            assert state == -1 # All others unknown
