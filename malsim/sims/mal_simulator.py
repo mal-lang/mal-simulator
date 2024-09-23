@@ -115,10 +115,8 @@ class MalSimulator(ParallelEnv):
 
         self.init(self.max_iter)
 
-
     def __call__(self):
         return self
-
 
     def create_blank_observation(self):
         # For now, an `object` is an attack step
@@ -129,16 +127,16 @@ class MalSimulator(ParallelEnv):
             "observed_state": num_steps * [-1],
             "remaining_ttc": num_steps * [0],
             "asset_type": [self._asset_type_to_index[step.asset.type]
-                for step in self.attack_graph.nodes],
+                           for step in self.attack_graph.nodes],
             "asset_id": [step.asset.id
-                for step in self.attack_graph.nodes],
+                         for step in self.attack_graph.nodes],
             "step_name": [self._step_name_to_index[
-                    str(step.asset.type + ":" + step.name)]
-                for step in self.attack_graph.nodes],
+                          str(step.asset.type + ":" + step.name)]
+                          for step in self.attack_graph.nodes],
         }
 
-        logger.debug(f'Create blank observation with {num_steps} attack '
-            'steps.')
+        logger.debug(
+            f'Create blank observation with {num_steps} attack steps.')
 
         # Add attack graph edges to observation
         observation["attack_graph_edges"] = [
@@ -157,19 +155,18 @@ class MalSimulator(ParallelEnv):
                             self._id_to_index[attack_step.id]]
                     )
 
-
         np_obs = {
             "is_observable": np.array(observation["is_observable"],
-                dtype=np.int8),
+                             dtype=np.int8),
             "observed_state": np.array(observation["observed_state"],
-                dtype=np.int8),
+                              dtype=np.int8),
             "remaining_ttc": np.array(observation["remaining_ttc"],
-                dtype=np.int64),
+                             dtype=np.int64),
             "asset_type": np.array(observation["asset_type"], dtype=np.int64),
             "asset_id": np.array(observation["asset_id"], dtype=np.int64),
             "step_name": np.array(observation["step_name"], dtype=np.int64),
             "attack_graph_edges": np.array(observation["attack_graph_edges"],
-                dtype=np.int64),
+                                  dtype=np.int64),
         }
 
         return np_obs
@@ -184,16 +181,7 @@ class MalSimulator(ParallelEnv):
 
         str_format = "{:<5} {:<80} {:<6} {:<5} {:<5} {:<5} {:<5} {:<}\n"
         header_entry = [
-            "Entry",
-            "Name",
-            "Is_Obs",
-            "State",
-            "RTTC",
-            "Type",
-            "Id",
-            "Step"
-        ]
-
+            "Entry", "Name", "Is_Obs", "State", "RTTC", "Type", "Id", "Step"]
         entries = []
         for entry in range(0, len(observation["observed_state"])):
             entries.append(
@@ -209,10 +197,7 @@ class MalSimulator(ParallelEnv):
                 ]
             )
         obs_str += format_table(
-            str_format,
-            header_entry,
-            entries,
-            reprint_header = 30
+            str_format, header_entry, entries, reprint_header = 30
         )
 
         obs_str += "\nEdges:\n"
@@ -220,7 +205,6 @@ class MalSimulator(ParallelEnv):
             obs_str += str(edge) + "\n"
 
         return obs_str
-
 
     def format_obs_var_sec(self,
         observation,
@@ -240,7 +224,7 @@ class MalSimulator(ParallelEnv):
         entries = []
         for entry in range(0, len(observation["observed_state"])):
             if observation["is_observable"][entry] and \
-                    observation["observed_state"][entry] in included_values:
+               observation["observed_state"][entry] in included_values:
                 entries.append(
                     [
                         self._index_to_id[entry],
@@ -252,10 +236,7 @@ class MalSimulator(ParallelEnv):
                 )
 
         obs_str = format_table(
-            str_format,
-            header_entry,
-            entries,
-            reprint_header = 30
+            str_format, header_entry, entries, reprint_header = 30
         )
 
         return obs_str
@@ -338,9 +319,7 @@ class MalSimulator(ParallelEnv):
         str_format = "{:<5} {:<15} {:<}\n"
         table = "\n"
         header_entry = [
-            "Index",
-            "Attack Step Id",
-            "Attack Step Full Name"
+            "Index", "Attack Step Id", "Attack Step Full Name"
         ]
         entries = []
         for entry in self._index_to_id:
