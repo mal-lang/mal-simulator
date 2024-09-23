@@ -598,7 +598,7 @@ class MalSimulator(ParallelEnv):
                 observation["observed_state"][node_index] = 0
                 untraversable_nodes.append(node)
 
-        if self.sim_settings.evict_attacker_from_defended_step:
+        if self.sim_settings.uncompromise_untraversable_steps:
             # Uncompromise nodes that are not traversable.
             for node in untraversable_nodes:
                 logger.debug(
@@ -627,7 +627,7 @@ class MalSimulator(ParallelEnv):
         # we do not have to go through the list of nodes every time. In case
         # we have multiple defenders
 
-        if self.sim_settings.remember_previous_steps_in_defender_obs:
+        if self.sim_settings.cumulative_actions_in_defender_obs:
             # Show all active steps
             for node in self.attack_graph.nodes:
                 index = self._id_to_index[node.id]

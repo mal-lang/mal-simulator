@@ -383,10 +383,10 @@ def test_default_simulator_settings_eviction():
 
 
 def test_simulator_settings_evict_attacker():
-    """Test using the MalSimulatorSettings when not evicting attacker"""
+    """Test using the MalSimulatorSettings when evicting attacker"""
 
     settings_evict_attacker = MalSimulatorSettings(
-        evict_attacker_from_defended_step=True
+        uncompromise_untraversable_steps=True
     )
 
     sim, _ = create_simulator_from_scenario(
@@ -434,7 +434,7 @@ def test_simulator_settings_evict_attacker():
     assert attacker not in user_3_compromise.compromised_by
 
 def test_simulator_default_settings_defender_observation():
-    """Test MalSimulatorSettings remember previous steps"""
+    """Test MalSimulatorSettings show previous steps in obs"""
 
     sim, _ = create_simulator_from_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml'
@@ -493,15 +493,15 @@ def test_simulator_default_settings_defender_observation():
             assert not node.is_compromised() and not node.is_enabled_defense()
 
 def test_simulator_settings_defender_observation():
-    """Test MalSimulatorSettings only remember last step"""
+    """Test MalSimulatorSettings only show last steps in obs"""
 
-    settings_evict_attacker = MalSimulatorSettings(
-        remember_previous_steps_in_defender_obs=False
+    settings_dont_show_previous = MalSimulatorSettings(
+        cumulative_actions_in_defender_obs=False
     )
 
     sim, _ = create_simulator_from_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml',
-        sim_settings=settings_evict_attacker
+        sim_settings=settings_dont_show_previous
     )
     sim.reset()
 
