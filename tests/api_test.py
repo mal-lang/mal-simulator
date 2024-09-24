@@ -22,9 +22,9 @@ AGENT_DEFENDER = "defender"
 ACTION_TERMINATE = "terminate"
 ACTION_WAIT = "wait"
 
-scenario_file='tests/testdata/scenarios/simple_scenario.yml'
-scenario_file_no_defender='tests/testdata/scenarios/no_defender_agent_scenario.yml'
-scenario_file_bfs_vs_bfs='tests/testdata/scenarios/bfs_vs_bfs_scenario.yml'
+SCENARIO_KEYBOARD_DEFENDER='tests/testdata/scenarios/simple_scenario.yml'
+SCENARIO_NO_DEFENDER='tests/testdata/scenarios/no_defender_agent_scenario.yml'
+SCENARIO_BFS_VS_BFS='tests/testdata/scenarios/bfs_vs_bfs_scenario.yml'
 
 def register_gym_agent(agent_id, entry_point):
     if agent_id not in gym.envs.registry.keys():
@@ -40,7 +40,7 @@ def test_gym():
     register_gym_agent("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
-        scenario_file=scenario_file,
+        scenario_file=SCENARIO_KEYBOARD_DEFENDER,
         unholy=False,
     )
     env_checker.check_env(env.unwrapped)
@@ -52,7 +52,7 @@ def test_gym():
     register_gym_agent("MALAttackerEnv-v0", entry_point=AttackerEnv)
     env = gym.make(
         "MALAttackerEnv-v0",
-        scenario_file=scenario_file_no_defender,
+        scenario_file=SCENARIO_NO_DEFENDER,
     )
     assert env.unwrapped.defender_agent_id is None
     assert env.unwrapped.defender_class is None
@@ -62,7 +62,7 @@ def test_gym():
     env_checker.check_env(env.unwrapped)
     env = gym.make(
         "MALAttackerEnv-v0",
-        scenario_file=scenario_file_bfs_vs_bfs,
+        scenario_file=SCENARIO_BFS_VS_BFS,
     )
     env_checker.check_env(env.unwrapped)
     assert env.unwrapped.defender_agent_id == AGENT_DEFENDER
@@ -71,11 +71,11 @@ def test_gym():
     assert env.unwrapped.attacker_agent_id == AGENT_ATTACKER
 
     with pytest.raises(ValueError):
-        # A scenario with KeyboardAgent as defender should
-        # not be allowed in AttackerEnv
+        # A scenario with KeyboardAgent as defender
+        # is not allowed in AttackerEnv
         env = gym.make(
             "MALAttackerEnv-v0",
-            scenario_file=scenario_file,
+            scenario_file=SCENARIO_KEYBOARD_DEFENDER,
         )
 
 
@@ -83,7 +83,7 @@ def test_random_defender_actions():
     register_gym_agent("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
-        scenario_file=scenario_file,
+        scenario_file=SCENARIO_KEYBOARD_DEFENDER,
     )
     def available_steps(x):
         np.flatnonzero(x["action_mask"][1])
@@ -108,7 +108,7 @@ def test_episode():
     register_gym_agent("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
-        scenario_file=scenario_file,
+        scenario_file=SCENARIO_KEYBOARD_DEFENDER,
         unholy=False,
     )
 
@@ -131,7 +131,7 @@ def test_defender_penalty():
     register_gym_agent("MALDefenderEnv-v0", entry_point=DefenderEnv)
     env = gym.make(
         "MALDefenderEnv-v0",
-        scenario_file=scenario_file,
+        scenario_file=SCENARIO_KEYBOARD_DEFENDER,
         unholy=False,
     )
 
