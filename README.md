@@ -19,7 +19,7 @@ through the parameter 'sim_settings'. Giving sim_settings is optional, otherwise
 
 settings = MalSimulatorSettings(
   uncompromise_untraversable_steps=True, # default is False
-  cumulative_actions_in_defender_obs=False # default is True
+  cumulative_defender_obs=False # default is True
 )
 sim = MalSimulator(lang_graph, model, attack_graph, sim_settings=settings)
 

@@ -627,7 +627,7 @@ class MalSimulator(ParallelEnv):
         # we do not have to go through the list of nodes every time. In case
         # we have multiple defenders
 
-        if self.sim_settings.cumulative_actions_in_defender_obs:
+        if self.sim_settings.cumulative_defender_obs:
             # Show all active steps
             for node in self.attack_graph.nodes:
                 index = self._id_to_index[node.id]

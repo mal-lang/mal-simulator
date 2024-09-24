@@ -11,8 +11,8 @@ class MalSimulatorSettings():
     # - Leave the node/step compromised even after it becomes untraversable
     uncompromise_untraversable_steps: bool = False
 
-    # cumulative_actions_in_defender_obs
+    # cumulative_defender_obs
     # - Defender sees the status of the whole attack graph if set to True
     # otherwise:
     # - Defender only sees the status of nodes changed in the current step
-    cumulative_actions_in_defender_obs: bool = True
+    cumulative_defender_obs: bool = True

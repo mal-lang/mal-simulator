@@ -487,7 +487,7 @@ def test_simulator_settings_defender_observation():
     """Test MalSimulatorSettings only show last steps in obs"""
 
     settings_dont_show_previous = MalSimulatorSettings(
-        cumulative_actions_in_defender_obs=False
+        cumulative_defender_obs=False
     )
 
     sim, _ = create_simulator_from_scenario(
