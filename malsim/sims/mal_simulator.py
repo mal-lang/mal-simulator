@@ -310,17 +310,12 @@ class MalSimulator(ParallelEnv):
         self.attack_graph = copy.deepcopy(self.attack_graph_backup)
         return self.init(self.max_iter)
 
-    def init(self, max_iter=ITERATIONS_LIMIT):
-        logger.info("Initializing MAL ParralelEnv Simulator.")
-        logger.debug("Creating and listing mapping tables.")
-        self._index_to_id = [n.id for n in self.attack_graph.nodes]
-        self._index_to_full_name = [n.full_name for n in self.attack_graph.nodes]
-        self._id_to_index = {n: i for i, n in enumerate(self._index_to_id)}
+    def log_mapping_tables(self):
+        """Log all mapping tables in MalSimulator"""
+
         str_format = "{:<5} {:<15} {:<}\n"
         table = "\n"
-        header_entry = [
-            "Index", "Attack Step Id", "Attack Step Full Name"
-        ]
+        header_entry = ["Index", "Attack Step Id", "Attack Step Full Name"]
         entries = []
         for entry in self._index_to_id:
             entries.append(
@@ -338,10 +333,6 @@ class MalSimulator(ParallelEnv):
         )
         logger.debug(table)
 
-        self._index_to_asset_type = [n.name for n in self.lang_graph.assets]
-        self._asset_type_to_index = {
-            n: i for i, n in enumerate(self._index_to_asset_type)
-        }
         str_format = "{:<5} {:<}\n"
         table = "\n"
         header_entry = ["Index", "Asset Type"]
@@ -361,12 +352,6 @@ class MalSimulator(ParallelEnv):
         )
         logger.debug(table)
 
-        self._index_to_step_name = [n.asset.name + ":" + n.name \
-            for n in self.lang_graph.attack_steps]
-        self._step_name_to_index = {
-            n: i for i, n in enumerate(self._index_to_step_name)
-        }
-
         str_format = "{:<5} {:<}\n"
         table = "\n"
         header_entry = ["Index", "Attack Step Name"]
@@ -381,16 +366,48 @@ class MalSimulator(ParallelEnv):
         )
         logger.debug(table)
 
+
+    def init(self, max_iter=ITERATIONS_LIMIT):
+        """Create mapping tables, register agents, return initial obs/info"""
+
+        logger.info("Initializing MAL ParralelEnv Simulator.")
+        logger.debug("Creating and listing mapping tables.")
+
+        # Lookup lists index to attribute
+        self._index_to_id = [n.id for n in self.attack_graph.nodes]
+        self._index_to_full_name = [n.full_name
+                                    for n in self.attack_graph.nodes]
+        self._index_to_asset_type = [n.name for n in self.lang_graph.assets]
+        self._index_to_step_name = [n.asset.name + ":" + n.name
+                                    for n in self.lang_graph.attack_steps]
+
+        # Lookup dicts attribute to index
+        self._id_to_index = {
+            n: i for i, n in enumerate(self._index_to_id)}
+        self._asset_type_to_index = {
+            n: i for i, n in enumerate(self._index_to_asset_type)}
+        self._step_name_to_index = {
+            n: i for i, n in enumerate(self._index_to_step_name)
+        }
+
+        if logger.isEnabledFor(logging.DEBUG):
+            self.log_mapping_tables()
+
         self.max_iter = max_iter
         self.cur_iter = 0
 
         logger.debug("Creating and listing blank observation space.")
         self._blank_observation = self.create_blank_observation()
-        logger.debug(self.format_full_observation(self._blank_observation))
+
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                self.format_full_observation(self._blank_observation)
+            )
 
         logger.info("Populate agents list with all possible agents.")
         self.agents = copy.deepcopy(self.possible_agents)
         self.action_surfaces = {}
+
         for agent in self.agents:
             if self.agents_dict[agent]["type"] == "attacker":
                 attacker = self.attack_graph.attackers[
