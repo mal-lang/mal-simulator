@@ -163,7 +163,7 @@ def apply_scenario_observability_rules(
         # If no observability rules are given,
         # make all nodes in attagraph as observable
         for step in attack_graph.nodes:
-            step.extras['observable'] = True
+            step.extras['observable'] = 1
     else:
         # If observability rules are given
         # make the matching attack steps observable,
@@ -177,9 +177,9 @@ def apply_scenario_observability_rules(
             )
 
             if step.name in observable_attack_steps:
-                step.extras['observable'] = True
+                step.extras['observable'] = 1
             else:
-                step.extras['observable'] = False
+                step.extras['observable'] = 0
 
 
 def apply_scenario_attacker_entrypoints(
