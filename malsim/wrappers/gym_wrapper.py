@@ -149,11 +149,11 @@ class DefenderEnv(gym.Env):
 
     @property
     def num_assets(self):
-        return self.sim.num_assets
+        return len(self.sim.unwrapped._index_to_asset_type)
 
     @property
     def num_step_names(self):
-        return self.sim.num_step_names
+        return len(self.sim.unwrapped._index_to_step_name)
 
 
 def _to_binary(val, max_val):
@@ -167,27 +167,29 @@ def vec_to_binary(vec, max_val):
 
 
 class LabeledGraphWrapper(Wrapper):
-    def __init__(self, env: gym.Env) -> None:
+    def __init__(self, env: gym.Env[spaces.Dict, spaces.MultiDiscrete]) -> None:
         super().__init__(env)
 
-        self.num_assets = self.env.unwrapped.num_assets
-        self.num_steps = self.env.unwrapped.num_step_names
-        num_nodes = self.env.observation_space["observed_state"].shape[0]
+        self.num_assets: int = self.env.unwrapped.num_assets
+        self.num_steps: int = self.env.unwrapped.num_step_names
+        num_nodes: int = self.env.observation_space["observed_state"].shape[0]
         num_commands = 2
+        node_shape: tuple[int, int] = (
+            num_nodes,
+            (3).bit_length()
+            + self.num_assets.bit_length()
+            + self.num_steps.bit_length(),
+        )
+        edge_space: spaces.Box = self.env.observation_space["attack_graph_edges"]
         self.observation_space = spaces.Dict(
             {
                 "nodes": spaces.Box(
                     0,
                     1,
-                    shape=(
-                        num_nodes,
-                        (3).bit_length()
-                        + self.num_assets.bit_length()
-                        + self.num_steps.bit_length(),
-                    ),
+                    shape=node_shape,
                     dtype=np.int8,
                 ),
-                "edges": self.env.observation_space["edges"],
+                "edges": edge_space,
                 "mask_0": spaces.Box(0, 1, shape=(num_commands,), dtype=np.int8),
                 "mask_1": spaces.Box(0, 1, shape=(num_nodes,), dtype=np.int8),
             }
@@ -207,7 +209,7 @@ class LabeledGraphWrapper(Wrapper):
         obs, reward, terminated, truncated, info = self.env.step(action)
         return self._to_graph(obs, info), reward, terminated, truncated, info
 
-    def _to_graph(self, obs: dict[str, Any], info) -> Dict[str, Any]:
+    def _to_graph(self, obs: dict[str, Any], info: dict[str, Any]) -> dict[str, Any]:
         nodes = np.concatenate(
             [
                 vec_to_binary(obs["observed_state"] + 1, 3),
@@ -218,7 +220,7 @@ class LabeledGraphWrapper(Wrapper):
         )
         return {
             "nodes": nodes,
-            "edges": obs["edges"],
+            "edges": obs["attack_graph_edges"],
             "mask_0": info["action_mask"][0],
             "mask_1": info["action_mask"][1],
         }
