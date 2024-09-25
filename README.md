@@ -24,16 +24,18 @@ attacker_agent_class: 'BreadthFirstAttacker' | 'DepthFirstAttacker' | 'KeyboardA
 # For defender_agent_class, null and False are treated the same - no defender will be used in the simulation
 defender_agent_class: 'BreadthFirstAttacker' | 'DepthFirstAttacker' | 'KeyboardAgent' | null | False
 
-# Rewards for each attack step
+
+# Optionally add rewards for each attack step
 rewards:
-  <full name of attack step>: <reward>
   <full name of attack step>: <reward>
 
   # example:
   # Program 1:notPresent: 3
+  # Data A:read: 100
   ...
 
-# Add entry points to AttackGraph with attacker name and attack step full_names.
+
+# Optionally add entry points to AttackGraph with attacker name and attack step full_names.
 # NOTE: If attacker entry points defined in both model and scenario,
 #       the scenario overrides the ones in the model.
 attacker_entry_points:
@@ -43,6 +45,37 @@ attacker_entry_points:
   # example:
   # 'Attacker1':
   #   - 'Credentials:6:attemptCredentialsReuse'
+
+# Optionally add observability rules that are applied to AttackGrapNodes
+# to make only certain attack steps observable
+#
+# If 'observable_attack_steps' are set:
+# - Nodes that match any rule will be marked as observable
+# - Nodes that don't match any rules will be marked as non-observable
+# If 'observable_attack_steps' are not set:
+# - All nodes will be marked as observable
+#
+observable_attack_steps:
+  by_asset_type:
+    <asset_type>:
+      - <attack step name>
+  by_asset_name:
+    <asset_name>:
+      - <attack step name>
+
+  # Example:
+  #   by_asset_type:
+  #     Host:
+  #       - access
+  #       - authenticate
+  #     Data:
+  #       - read
+
+  #   by_asset_name:
+  #     User:3:
+  #       - phishing
+  #     ...
+
 ```
 
 Note: When defining attackers and entrypoints in a scenario, these override potential attackers in the model.
