@@ -12,6 +12,7 @@ A scenario is a combination of:
 """
 
 import os
+from typing import Optional
 
 import yaml
 
@@ -40,6 +41,7 @@ required_fields = [
 allowed_fields = required_fields + [
     'rewards',
     'attacker_entry_points',
+    'observable_attack_step_names'
 ]
 
 
@@ -87,6 +89,40 @@ def apply_scenario_rewards(
         node.extras['reward'] = reward
 
 
+def apply_scenario_observability(
+        attack_graph: AttackGraph, observable_attack_step_names: Optional[dict]
+    ):
+    """Apply the observability settings from a scenario configuration
+    
+    If no observability settings are given in the scenarios file,
+    make all steps observable
+    
+    If settings are given, make all specified steps observable,
+    and all other steps non-observable
+    
+    Arguments:
+    - attack_graph: The attack graph to apply the settings to
+    - observable_attack_steps: settings from scenario file
+    """
+
+    if not observable_attack_step_names:
+        # If no observability settings are given,
+        # make all nodes in attagraph observable
+        for step in attack_graph.nodes:
+            step.extras['observable'] = True
+    else:
+        # If observability settings are given
+        # make the specified attack steps observable,
+        # and all other steps unobservable
+        for step in attack_graph.nodes:
+            observable_asset_steps = observable_attack_step_names.get(
+                step.asset.type, [])
+            if step.name in observable_asset_steps:
+                step.extras['observable'] = True
+            else:
+                step.extras['observable'] = False
+
+
 def apply_scenario_attacker_entrypoints(
         attack_graph: AttackGraph, entry_points: dict
 ) -> None:
@@ -113,6 +149,7 @@ def apply_scenario_attacker_entrypoints(
             attacker.compromise(entry_point)
 
         attacker.entry_points = list(attacker.reached_attack_steps)
+
 
 def load_scenario_simulation_config(scenario: dict) -> dict:
     """Load configurations used in MALSimulator
@@ -154,17 +191,12 @@ def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:
     """Load a scenario from a scenario file to an AttackGraph"""
 
     with open(scenario_file, 'r', encoding='utf-8') as s_file:
+
         scenario = yaml.safe_load(s_file)
         verify_scenario(scenario)
 
-        lang_file = path_relative_to_file_dir(
-            scenario['lang_file'],
-            s_file
-        )
-        model_file = path_relative_to_file_dir(
-            scenario['model_file'],
-            s_file
-        )
+        lang_file = path_relative_to_file_dir(scenario['lang_file'], s_file)
+        model_file = path_relative_to_file_dir(scenario['model_file'], s_file)
 
         # Create the attack graph from the model + lang
         attack_graph = create_attack_graph(lang_file, model_file)
@@ -182,6 +214,9 @@ def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:
 
             # Apply attacker entry points from scenario
             apply_scenario_attacker_entrypoints(attack_graph, entry_points)
+
+        observable_attack_step_names = scenario.get('observable_attack_step_names')
+        apply_scenario_observability(attack_graph, observable_attack_step_names)
 
         config = load_scenario_simulation_config(scenario)
         return attack_graph, config

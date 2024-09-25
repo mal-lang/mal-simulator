@@ -132,3 +132,37 @@ def test_load_scenario_agent_class_error():
                 './testdata/scenarios/wrong_agent_classes_scenario.yml'
             )
         )
+
+
+def test_load_scenario_observability_given():
+    """Load a scenario with observability settings given and
+    make sure observability is applied correctly"""
+
+    # Load scenario with observability specifed
+    attack_graph, _ = load_scenario(
+        path_relative_to_tests(
+            './testdata/scenarios/simple_filtered_observability_scenario.yml')
+    )
+
+    # Make sure only attack steps of name fullAccess
+    # part of asset type Application are observable.
+    for node in attack_graph.nodes:
+        if node.asset.type == "Application" and node.name == "fullAccess":
+            assert node.extras['observable']
+        else:
+            assert not node.extras['observable']
+
+
+def test_load_scenario_observability_not_given():
+    """Load a scenario where no observability settings are given"""
+    # Load scenario with no observability specifed
+    attack_graph, _ = load_scenario(
+        path_relative_to_tests(
+            './testdata/scenarios/simple_scenario.yml'
+        )
+    )
+
+    # Make sure all attack steps are observable
+    # if no observability settings are given
+    for node in attack_graph.nodes:
+        assert node.extras['observable']
