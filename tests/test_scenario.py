@@ -3,7 +3,10 @@
 import os
 import pytest
 
-from malsim.scenario import load_scenario
+from malsim.scenario import (
+    apply_scenario_observability_rules,
+    load_scenario
+)
 from malsim.agents.keyboard_input import KeyboardAgent
 from malsim.agents.searchers import BreadthFirstAttacker
 
@@ -161,8 +164,96 @@ def test_load_scenario_observability_not_given():
             './testdata/scenarios/simple_scenario.yml'
         )
     )
-
     # Make sure all attack steps are observable
     # if no observability settings are given
     for node in attack_graph.nodes:
         assert node.extras['observable']
+
+
+def test_apply_scenario_observability():
+    """Try different cases for observability settings"""
+
+    # Load scenario with no observability specified
+    attack_graph, _ = load_scenario(
+        path_relative_to_tests(
+            'testdata/scenarios/simple_scenario.yml')
+    )
+
+    # Make Data: read, write, delete observable
+    # Make Application: fullAccess, notPresent observable
+    observability_rules = {
+        'by_asset_type': {
+            'Data': ['read', 'write', 'delete'],
+            'Application': ['fullAccess', 'notPresent']
+        },
+        'by_asset_name': {
+            'OS App': ['read']
+        }
+    }
+
+    # Apply observability rules
+    apply_scenario_observability_rules(attack_graph, observability_rules)
+
+    # Make sure all attack steps are observable
+    # if no observability settings are given
+    for node in attack_graph.nodes:
+        if node.asset.type == 'Data' and node.name in ('read', 'write', 'delete'):
+            assert node.extras['observable']
+        elif node.asset.type == 'Application' and node.name in ('fullAccess', 'notPresent'):
+            assert node.extras['observable']
+        elif node.asset.name == 'OS App' and node.name in ('read'):
+            assert node.extras['observable']
+        else:
+            assert not node.extras['observable']
+
+def test_apply_scenario_observability_faulty():
+    """Try different failing cases for observability settings"""
+
+    # Load scenario with no observability specified
+    attack_graph, _ = load_scenario(
+        path_relative_to_tests(
+            'testdata/scenarios/simple_scenario.yml')
+    )
+
+    # Wrong key in rule dict
+    with pytest.raises(AssertionError):
+        apply_scenario_observability_rules(
+            attack_graph,
+            {'NotAllowedKey': {'Data': ['read', 'write', 'delete']}}
+        )
+
+    # Correct asset type and attack step
+    apply_scenario_observability_rules(
+        attack_graph, {'by_asset_type': { 'Application': ['read']},
+    })
+
+    # Wrong asset type in rule asset type to step dict
+    with pytest.raises(AssertionError):
+        apply_scenario_observability_rules(
+            attack_graph, {'by_asset_type': {'NonExistingType': ['read']}}
+        )
+
+    # Wrong attack step name in rule asset type to step dict
+    with pytest.raises(AssertionError):
+        apply_scenario_observability_rules(
+            attack_graph,
+            {'by_asset_type': {'Data': ['nonExistingAttackStep']},
+        })
+
+    # Correct asset name and attack step
+    apply_scenario_observability_rules(
+        attack_graph, {'by_asset_name': { 'OS App': ['read']},
+    })
+
+    # Wrong asset name in rule asset name to step dict
+    with pytest.raises(AssertionError):
+        apply_scenario_observability_rules(
+            attack_graph, {'by_asset_name': { 'NonExistingName': ['read']},
+        })
+
+    # Wrong attack step name in rule asset name to step dict
+    with pytest.raises(AssertionError):
+        apply_scenario_observability_rules(
+            attack_graph,
+            {'by_asset_name': {'OS App': ['nonExistingAttackStep']}}
+        )

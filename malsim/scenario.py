@@ -41,7 +41,7 @@ required_fields = [
 allowed_fields = required_fields + [
     'rewards',
     'attacker_entry_points',
-    'observable_attack_step_names'
+    'observable_attack_steps'
 ]
 
 
@@ -89,35 +89,94 @@ def apply_scenario_rewards(
         node.extras['reward'] = reward
 
 
-def apply_scenario_observability(
-        attack_graph: AttackGraph, observable_attack_step_names: Optional[dict]
+def _validate_scenario_observability_rules(graph: AttackGraph, rules: dict):
+    """Verify that observability rules in a scenario contains only valid
+    assets, asset types and attack steps"""
+
+    # a way to lookup attack steps for asset types
+    asset_type_step_names = {
+        asset_type.name: [a.name for a in asset_type.attack_steps]
+        for asset_type in graph.lang_graph.assets
+    }
+
+    if rules is None:
+        # Rules are allowed to be empty
+        return
+
+    assert 'by_asset_type' in rules or 'by_asset_name' in rules, (
+        "Observability rules in scenario file must contain either"
+        "'by_asset_type' or 'by_asset_name' as keys"
+    )
+
+    for asset_type in rules.get('by_asset_type', []):
+        # Make sure each specified asset type exists
+        assert asset_type in asset_type_step_names.keys(), (
+            f"Failed to find asset type '{asset_type}' in language "
+            "when applying scenario observability rules")
+
+        for step_name in rules['by_asset_type'][asset_type]:
+            # Make sure each specified attack step name
+            # exists for the specified asset type
+            assert step_name in asset_type_step_names[asset_type], (
+                f"Attack step '{step_name}' not found for asset type "
+                f"'{asset_type}' in language when applying scenario "
+                "observability rules"
+            )
+
+    for asset_name in rules.get('by_asset_name', []):
+        # Make sure each specified asset exist
+        assert asset_name in graph.model.asset_names, (
+            f"Failed to find asset name '{asset_name}' in model "
+            f"'{graph.model.name}' when applying scenario" 
+            "observability rules")
+
+        for step_name in rules['by_asset_name'][asset_name]:
+            # Make sure each specified attack step name exists
+            # for the specified asset
+            expected_full_name = f"{asset_name}:{step_name}"
+            assert graph.get_node_by_full_name(expected_full_name), (
+                f"Attack step '{step_name}' not found for asset "
+                f"'{asset_name}' when applying scenario observability rules"
+            )
+
+
+def apply_scenario_observability_rules(
+        attack_graph: AttackGraph,
+        observability_rules: Optional[dict]
     ):
-    """Apply the observability settings from a scenario configuration
+    """Apply the observability rules from a scenario configuration
     
-    If no observability settings are given in the scenarios file,
+    If no observability rules are given in the scenarios file,
     make all steps observable
     
-    If settings are given, make all specified steps observable,
+    If rules are given, make all specified steps observable,
     and all other steps non-observable
     
     Arguments:
     - attack_graph: The attack graph to apply the settings to
-    - observable_attack_steps: settings from scenario file
+    - observability_rules: settings from scenario file
     """
 
-    if not observable_attack_step_names:
-        # If no observability settings are given,
-        # make all nodes in attagraph observable
+    _validate_scenario_observability_rules(attack_graph, observability_rules)
+
+    if not observability_rules:
+        # If no observability rules are given,
+        # make all nodes in attagraph as observable
         for step in attack_graph.nodes:
             step.extras['observable'] = True
     else:
-        # If observability settings are given
-        # make the specified attack steps observable,
-        # and all other steps unobservable
+        # If observability rules are given
+        # make the matching attack steps observable,
+        # and all other unobservable
         for step in attack_graph.nodes:
-            observable_asset_steps = observable_attack_step_names.get(
-                step.asset.type, [])
-            if step.name in observable_asset_steps:
+            observable_attack_steps = (
+                observability_rules.get(
+                    'by_asset_type', {}).get(step.asset.type, []) +
+                observability_rules.get(
+                    'by_asset_name', {}).get(step.asset.name, [])
+            )
+
+            if step.name in observable_attack_steps:
                 step.extras['observable'] = True
             else:
                 step.extras['observable'] = False
@@ -215,8 +274,9 @@ def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:
             # Apply attacker entry points from scenario
             apply_scenario_attacker_entrypoints(attack_graph, entry_points)
 
-        observable_attack_step_names = scenario.get('observable_attack_step_names')
-        apply_scenario_observability(attack_graph, observable_attack_step_names)
+        observability_settings = scenario.get('observable_attack_steps')
+        apply_scenario_observability_rules(attack_graph,
+                                            observability_settings)
 
         config = load_scenario_simulation_config(scenario)
         return attack_graph, config

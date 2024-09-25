@@ -23,6 +23,13 @@ attacker_entry_points:
     - 'Credentials:6:attemptCredentialsReuse'
 
 # Optional way to make only certain attack steps observable
-observable_attack_step_names:
-  Application:
-    - fullAccess
+# If observable_attack_steps are set, all attack steps not
+# matching these rules will have observability set to False.
+observable_attack_steps:
+  by_asset_type:
+    Application:
+      - fullAccess
+
+  by_asset_name:
+    OS App:
+      - fullAccess
