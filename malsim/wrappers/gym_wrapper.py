@@ -74,9 +74,7 @@ class AttackerEnv(gym.Env):
 class DefenderEnv(gym.Env):
     metadata = {"render_modes": []}
 
-    def __init__(
-            self, scenario_file, **kwargs
-        ) -> None:
+    def __init__(self, scenario_file, **kwargs) -> None:
         self.randomize = kwargs.pop("randomize_attacker_behavior", False)
         self.render_mode = kwargs.pop("render_mode", None)
 
@@ -87,7 +85,7 @@ class DefenderEnv(gym.Env):
         self.attacker_agent_id = list(self.sim.get_attacker_agents().keys())[0]
         self.defender_agent_id = list(self.sim.get_defender_agents().keys())[0]
 
-        self.attacker_class = conf['agents'][self.attacker_agent_id]['agent_class']
+        self.attacker_class = conf["agents"][self.attacker_agent_id]["agent_class"]
         self.attacker = self.attacker_class({})
 
         self.observation_space = self.sim.observation_space(self.defender_agent_id)
@@ -96,16 +94,12 @@ class DefenderEnv(gym.Env):
         self.attacker_obs = None
         self.attacker_mask = None
 
-
     def reset(
         self, *, seed: int | None = None, options: dict[str, Any] | None = None
     ) -> tuple[Any, dict[str, Any]]:
-
         super().reset(seed=seed, options=options)
 
-        self.attacker = self.attacker_class(
-            {"seed": seed, "randomize": self.randomize}
-        )
+        self.attacker = self.attacker_class({"seed": seed, "randomize": self.randomize})
 
         # TODO: params not used by method, find out if we need to send them
         obs, info = self.sim.reset(seed=seed, options=options)
@@ -118,14 +112,13 @@ class DefenderEnv(gym.Env):
     def step(
         self, action: Any
     ) -> tuple[Any, SupportsFloat, bool, bool, dict[str, Any]]:
-
         attacker_action = self.attacker.compute_action_from_dict(
             self.attacker_obs, self.attacker_mask
         )
 
         actions = {
             self.defender_agent_id: action,
-            self.attacker_agent_id: attacker_action
+            self.attacker_agent_id: attacker_action,
         }
         obs, rewards, terminated, truncated, infos = self.sim.step(actions)
 
