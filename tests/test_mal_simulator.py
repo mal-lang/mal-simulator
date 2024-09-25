@@ -1,9 +1,9 @@
 """Test MalSimulator class"""
 import copy
 
-from maltoolbox.attackgraph import AttackGraph, Attacker
+from maltoolbox.attackgraph import AttackGraph, Attacker, AttackGraphNode
 from malsim.sims.mal_simulator import MalSimulator
-from malsim.scenario import load_scenario
+from malsim.scenario import load_scenario, create_simulator_from_scenario
 
 def test_malsimulator(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
@@ -19,6 +19,10 @@ def test_malsimulator_create_blank_observation(corelang_lang_graph, model):
     blank_observation = sim.create_blank_observation()
 
     assert len(blank_observation['is_observable']) == num_objects
+    for state in blank_observation['is_observable']:
+        # Default is that all nodes are observable,
+        # unless anything else is given through its extras field
+        assert state == 1
 
     assert len(blank_observation['observed_state']) == num_objects
     for state in blank_observation['observed_state']:
@@ -58,6 +62,36 @@ def test_malsimulator_create_blank_observation(corelang_lang_graph, model):
                                 if step.type == "defense"])
     assert len(blank_observation['attack_graph_edges']) == expected_num_edges
 
+
+def test_malsimulator_create_blank_observation_observability_given(
+        corelang_lang_graph, model
+    ):
+    """Make sure observability propagates correctly from extras field/scenario
+    to observation in mal simulator"""
+
+    # Load Scenario with observability rules set
+    scenario_file = 'tests/testdata/scenarios/traininglang_observability_scenario.yml'
+    sim, _ = create_simulator_from_scenario(scenario_file)
+
+    num_objects = len(sim.attack_graph.nodes)
+    blank_observation = sim.create_blank_observation()
+
+    assert len(blank_observation['is_observable']) == num_objects
+
+    for index, observable in enumerate(blank_observation['is_observable']):
+        node_id = sim._index_to_id[index]
+        node = sim.attack_graph.get_node_by_id(node_id)
+
+        # Below are the rules from the traininglang observability scenario
+        # made into if statements
+        if node.asset.type == 'Host' and node.name in ('access'):
+            assert observable
+        elif node.asset.type == 'Data' and node.name in ('read'):
+            assert observable
+        elif node.asset.name == 'User:3' and node.name in ('phishing'):
+            assert observable
+        else:
+            assert not observable
 
 def test_malsimulator_format_info(corelang_lang_graph, model):
     """Make sure format info works as expected"""

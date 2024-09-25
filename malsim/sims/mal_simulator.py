@@ -123,7 +123,9 @@ class MalSimulator(ParallelEnv):
         num_steps = len(self.attack_graph.nodes)
 
         observation = {
-            "is_observable": num_steps * [1],
+            # If no observability set for node, assume observable.
+            "is_observable": [step.extras.get('observable', 1)
+                           for step in self.attack_graph.nodes],
             "observed_state": num_steps * [-1],
             "remaining_ttc": num_steps * [0],
             "asset_type": [self._asset_type_to_index[step.asset.type]
