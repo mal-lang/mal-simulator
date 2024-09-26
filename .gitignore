@@ -171,4 +171,4 @@ cython_debug/
 #.idea/
 
 # Allow .json/.yml files in testdata
-!tests/testdata/*
+!tests/testdata/**
