@@ -27,6 +27,7 @@ observable_attack_steps:
   by_asset_type:
     Host:
       - access
+      - authenticate
     Data:
       - read
 

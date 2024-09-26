@@ -152,6 +152,10 @@ def test_load_scenario_observability_given():
     for node in attack_graph.nodes:
         if node.asset.type == "Application" and node.name == "fullAccess":
             assert node.extras['observable']
+        elif node.asset.type == "Application" and node.name == "supplyChainAuditing":
+            assert node.extras['observable']
+        elif node.asset.name == "Identity:8" and node.name == "assume":
+            assert node.extras['observable']
         else:
             assert not node.extras['observable']
 

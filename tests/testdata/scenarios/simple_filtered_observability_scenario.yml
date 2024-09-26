@@ -24,12 +24,13 @@ attacker_entry_points:
 
 # Optional way to make only certain attack steps observable
 # If observable_attack_steps are set, all attack steps not
-# matching these rules will have observability set to False.
+# matching these rules will have observability set to 0.
 observable_attack_steps:
   by_asset_type:
     Application:
       - fullAccess
+      - supplyChainAuditing
 
   by_asset_name:
-    OS App:
-      - fullAccess
+    Identity:8:
+      - assume

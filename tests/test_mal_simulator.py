@@ -86,6 +86,8 @@ def test_malsimulator_create_blank_observation_observability_given(
         # made into if statements
         if node.asset.type == 'Host' and node.name in ('access'):
             assert observable
+        elif node.asset.type == 'Host' and node.name in ('authenticate'):
+            assert observable
         elif node.asset.type == 'Data' and node.name in ('read'):
             assert observable
         elif node.asset.name == 'User:3' and node.name in ('phishing'):
