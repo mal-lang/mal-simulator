@@ -18,6 +18,8 @@ from maltoolbox.attackgraph.analyzers import apriori
 from maltoolbox.attackgraph import query
 from maltoolbox.ingestors import neo4j
 
+from .mal_simulator_settings import MalSimulatorSettings
+
 if TYPE_CHECKING:
     from maltoolbox.language import LanguageGraph
     from maltoolbox.model import Model
@@ -64,6 +66,7 @@ class MalSimulator(ParallelEnv):
         attack_graph: AttackGraph,
         max_iter=ITERATIONS_LIMIT,
         prune_unviable_unnecessary: bool = True,
+        sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
         **kwargs,
     ):
         """
@@ -82,6 +85,8 @@ class MalSimulator(ParallelEnv):
         if prune_unviable_unnecessary:
             apriori.prune_unviable_and_unnecessary_nodes(attack_graph)
         self.attack_graph = attack_graph
+
+        self.sim_settings = sim_settings
         self.max_iter = max_iter
 
         nr_nodes = len(self.attack_graph.nodes)
@@ -423,7 +428,7 @@ class MalSimulator(ParallelEnv):
                 self.action_surfaces[agent] = []
 
         observations, rewards, terminations, truncations, infos = (
-            self._observe_and_reward()
+            self._observe_and_reward([])
         )
 
         return observations, infos
@@ -612,8 +617,9 @@ class MalSimulator(ParallelEnv):
                 observation["observed_state"][node_index] = 0
                 untraversable_nodes.append(node)
 
-        # Uncompromise nodes that are not traversable.
-        for node in untraversable_nodes:
+        if self.sim_settings.uncompromise_untraversable_steps:
+            # Uncompromise nodes that are not traversable.
+            for node in untraversable_nodes:
                 logger.debug(
                     'Remove untraversable node from attacker '
                     '"%s": "%s"(%d)',
@@ -633,22 +639,31 @@ class MalSimulator(ParallelEnv):
                 observation["observed_state"][child_node_index] = 0
 
 
-    def _observe_defender(self, defender_agent, observation):
+    def _observe_defender(
+            self, defender_agent, performed_actions, observation):
         # TODO We should probably create a separate blank observation for the
         # defenders and just update that with the defense action taken so that
         # we do not have to go through the list of nodes every time. In case
         # we have multiple defenders
-        for node in self.attack_graph.nodes:
-            index = self._id_to_index[node.id]
-            if node.is_enabled_defense():
-                observation["observed_state"][index] = 1
-            else:
-                if node.is_compromised():
+
+        if self.sim_settings.cumulative_defender_obs:
+            # Show all active steps
+            for node in self.attack_graph.nodes:
+                index = self._id_to_index[node.id]
+                if node.is_enabled_defense():
                     observation["observed_state"][index] = 1
                 else:
-                    observation["observed_state"][index] = 0
+                    if node.is_compromised():
+                        observation["observed_state"][index] = 1
+                    else:
+                        observation["observed_state"][index] = 0
+        else:
+            # Only show the latest steps taken
+            for action in performed_actions:
+                observation["observed_state"][action] = 1
 
-    def _observe_and_reward(self):
+
+    def _observe_and_reward(self, performed_actions: list):
         observations = {}
         rewards = {}
         terminations = {}
@@ -670,7 +685,8 @@ class MalSimulator(ParallelEnv):
             # Collect agent observations
             agent_observation = copy.deepcopy(self._blank_observation)
             if self.agents_dict[agent]["type"] == "defender":
-                self._observe_defender(agent, agent_observation)
+                self._observe_defender(
+                    agent, performed_actions, agent_observation)
             elif self.agents_dict[agent]["type"] == "attacker":
                 self._observe_attacker(agent, agent_observation)
             else:
@@ -789,6 +805,7 @@ class MalSimulator(ParallelEnv):
         logger.debug("Stepping through iteration " f"{self.cur_iter}/{self.max_iter}.")
         logger.debug(f"Performing actions: {actions}.")
 
+        performed_actions = []
         # Peform agent actions
         for agent in self.agents:
             action = actions[agent]
@@ -797,9 +814,9 @@ class MalSimulator(ParallelEnv):
 
             action_step = action[1]
             if self.agents_dict[agent]["type"] == "attacker":
-                self._attacker_step(agent, action_step)
+                performed_actions.extend(self._attacker_step(agent, action_step))
             elif self.agents_dict[agent]["type"] == "defender":
-                self._defender_step(agent, action_step)
+                performed_actions.extend(self._defender_step(agent, action_step))
             else:
                 logger.error(
                     f'Agent {agent} has unknown type: '
@@ -807,7 +824,7 @@ class MalSimulator(ParallelEnv):
                 )
 
         observations, rewards, terminations, truncations, infos = (
-            self._observe_and_reward()
+            self._observe_and_reward(performed_actions)
         )
 
         self.cur_iter += 1

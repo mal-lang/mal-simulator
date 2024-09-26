@@ -7,7 +7,23 @@ A MAL compliant simulator.
 ## Installation
 ```pip install mal-simulator```
 
-Use the malsim CLI to run run simulations on scenarios.
+## MalSimulator
+
+A `sims.mal_simulator.MalSimulator` can be created to be able to run simulations.
+
+### MalSimulatorSettings
+The constructor of MalSimulator can be given a settings object (`sims.mal_simulator.MalSimulatorSettings`)
+through the parameter 'sim_settings'. Giving sim_settings is optional, otherwise default settings are used.
+
+```python
+
+settings = MalSimulatorSettings(
+  uncompromise_untraversable_steps=True, # default is False
+  cumulative_defender_obs=False # default is True
+)
+sim = MalSimulator(lang_graph, model, attack_graph, sim_settings=settings)
+
+```
 
 ## Scenarios
 
