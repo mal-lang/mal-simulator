@@ -45,7 +45,7 @@ allowed_fields = required_fields + [
 ]
 
 
-def verify_scenario(scenario_dict):
+def validate_scenario(scenario_dict):
     """Verify scenario file keys"""
 
     # Verify that all keys in dict are supported
@@ -246,40 +246,57 @@ def load_scenario_simulation_config(scenario: dict) -> dict:
     return config
 
 
+def apply_scenario_to_attack_graph(
+        attack_graph: AttackGraph, scenario: dict) -> AttackGraph:
+    """Update attack graph according to scenario
+
+    Apply scenario configurations from loaded scenario file to an attack graph
+
+    Arguments:
+    - attack_graph: The attack graph to apply scenario to
+    - scenario: The scenario file loaded into a dict
+    """
+
+    # Validate that all necessary keys are in there
+    validate_scenario(scenario)
+
+    # Apply rewards to attack graph
+    rewards = scenario.get('rewards', {})
+    apply_scenario_rewards(attack_graph, rewards)
+
+    # Apply attacker entrypoints to attack graph
+    entry_points = scenario.get('attacker_entry_points', {})
+    if entry_points:
+        # Override attackers in attack graph if
+        # entry points defined in scenario
+        for attacker in attack_graph.attackers:
+            attack_graph.remove_attacker(attacker)
+
+        # Apply attacker entry points from scenario
+        apply_scenario_attacker_entrypoints(attack_graph, entry_points)
+
+    # Apply observability settings to attack graph
+    observability_settings = scenario.get('observable_attack_steps')
+    apply_scenario_observability_rules(attack_graph, observability_settings)
+
+
 def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:
     """Load a scenario from a scenario file to an AttackGraph"""
 
     with open(scenario_file, 'r', encoding='utf-8') as s_file:
-
         scenario = yaml.safe_load(s_file)
-        verify_scenario(scenario)
 
         lang_file = path_relative_to_file_dir(scenario['lang_file'], s_file)
         model_file = path_relative_to_file_dir(scenario['model_file'], s_file)
 
-        # Create the attack graph from the model + lang
+        # Create the attack graph from model + lang and apply scenario
         attack_graph = create_attack_graph(lang_file, model_file)
+        apply_scenario_to_attack_graph(attack_graph, scenario)
 
-        # Apply rewards and entrypoints to attack graph
-        rewards = scenario.get('rewards', {})
-        apply_scenario_rewards(attack_graph, rewards)
+        # Load the scenario configuration
+        scenario_config = load_scenario_simulation_config(scenario)
 
-        entry_points = scenario.get('attacker_entry_points', {})
-        if entry_points:
-            # Override attackers in attack graph if
-            # entry points defined in scenario
-            for attacker in attack_graph.attackers:
-                attack_graph.remove_attacker(attacker)
-
-            # Apply attacker entry points from scenario
-            apply_scenario_attacker_entrypoints(attack_graph, entry_points)
-
-        observability_settings = scenario.get('observable_attack_steps')
-        apply_scenario_observability_rules(attack_graph,
-                                            observability_settings)
-
-        config = load_scenario_simulation_config(scenario)
-        return attack_graph, config
+        return attack_graph, scenario_config
 
 
 def create_simulator_from_scenario(
