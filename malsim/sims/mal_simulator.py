@@ -118,7 +118,7 @@ class MalSimulator(ParallelEnv):
         self.agents = []
         self.agents_dict = {}
 
-        self.init(self.max_iter)
+        self.initialize(self.max_iter)
 
     def __call__(self):
         return self
@@ -315,7 +315,7 @@ class MalSimulator(ParallelEnv):
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         logger.info("Resetting simulator.")
         self.attack_graph = copy.deepcopy(self.attack_graph_backup)
-        return self.init(self.max_iter)
+        return self.initialize(self.max_iter)
 
     def log_mapping_tables(self):
         """Log all mapping tables in MalSimulator"""
@@ -374,11 +374,9 @@ class MalSimulator(ParallelEnv):
         logger.debug(table)
 
 
-    def init(self, max_iter=ITERATIONS_LIMIT):
-        """Create mapping tables, register agents, return initial obs/info"""
-
-        logger.info("Initializing MAL ParralelEnv Simulator.")
-        logger.debug("Creating and listing mapping tables.")
+    def _create_mapping_tables(self):
+        """Create mapping tables"""
+        logger.debug("NEW Creating and listing mapping tables.")
 
         # Lookup lists index to attribute
         self._index_to_id = [n.id for n in self.attack_graph.nodes]
@@ -396,6 +394,15 @@ class MalSimulator(ParallelEnv):
         self._step_name_to_index = {
             n: i for i, n in enumerate(self._index_to_step_name)
         }
+
+
+
+    def initialize(self, max_iter=ITERATIONS_LIMIT):
+        """Create mapping tables, register agents, return initial obs/info"""
+
+        logger.info("Initializing MAL ParralelEnv Simulator.")
+
+        self._create_mapping_tables()
 
         if logger.isEnabledFor(logging.DEBUG):
             self.log_mapping_tables()
