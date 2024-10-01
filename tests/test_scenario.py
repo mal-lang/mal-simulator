@@ -261,3 +261,31 @@ def test_apply_scenario_observability_faulty():
             attack_graph,
             {'by_asset_name': {'OS App': ['nonExistingAttackStep']}}
         )
+
+
+def test_load_scenario_false_positive_negative_rate():
+    """Load a scenario with observability settings given and
+    make sure observability is applied correctly"""
+
+    # Load scenario with observability specifed
+    attack_graph, _ = load_scenario(
+        path_relative_to_tests(
+            './testdata/scenarios/traininglang_fp_fn_scenario.yml')
+    )
+
+    # Defined in scenario file
+    fp_base_rate = 0.1
+    fn_base_rate = 0.1
+    host_0_access_fp_rate = 0.2
+    host_1_access_fn_rate = 0.3
+
+    for node in attack_graph.nodes:
+        if node.full_name == "Host:0:access":
+            assert node.extras['false_positive_rate'] == host_0_access_fp_rate
+            assert node.extras['false_negative_rate'] == fn_base_rate
+        elif node.full_name == "Host:1:access":
+            assert node.extras['false_positive_rate'] == fp_base_rate
+            assert node.extras['false_negative_rate'] == host_1_access_fn_rate
+        else:
+            assert node.extras['false_positive_rate'] == fp_base_rate
+            assert node.extras['false_negative_rate'] == fn_base_rate
