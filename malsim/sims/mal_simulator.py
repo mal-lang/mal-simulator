@@ -774,18 +774,25 @@ class MalSimulator(ParallelEnv):
             if terminations[agent] or truncations[agent]:
                 finished_agents.append(agent)
 
-            logger.debug(
-                f'Observation for agent "{agent}":\n'
-                + self.format_obs_var_sec(observations[agent],
-                    included_values = [0, 1])
-            )
-            logger.debug(f'Rewards for agent "{agent}": ' + str(rewards[agent]))
-            logger.debug(
-                f'Termination for agent "{agent}": ' + str(terminations[agent])
-            )
-            logger.debug(f'Truncation for agent "{agent}": ' + str(truncations[agent]))
-            agent_info_str = self._format_info(infos[agent])
-            logger.debug(f'Info for agent "{agent}":\n' + agent_info_str)
+            if logger.isEnabledFor(logging.DEBUG):
+                # Debug print agent states
+                agent_obs_str = self.format_obs_var_sec(
+                    observations[agent], included_values = [0, 1])
+
+                logger.debug(
+                    'Observation for agent "%s":\n%s', agent, agent_obs_str)
+                logger.debug(
+                    'Rewards for agent "%s": %d', agent, rewards[agent])
+                logger.debug(
+                    'Termination for agent "%s": %s',
+                    agent, terminations[agent])
+                logger.debug(
+                    'Truncation for agent "%s": %s',
+                    agent, str(truncations[agent]))
+
+                agent_info_str = self._format_info(infos[agent])
+                logger.debug(
+                    'Info for agent "%s":\n%s', agent, agent_info_str)
 
         for agent in finished_agents:
             self.agents.remove(agent)
