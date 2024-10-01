@@ -41,7 +41,11 @@ required_fields = [
 allowed_fields = required_fields + [
     'rewards',
     'attacker_entry_points',
-    'observable_attack_steps'
+    'observable_attack_steps',
+    'false_positive_base_rate',
+    'false_positive_rates',
+    'false_negative_base_rate',
+    'false_negative_rates',
 ]
 
 
@@ -182,6 +186,35 @@ def apply_scenario_observability_rules(
                 step.extras['observable'] = 0
 
 
+def apply_scenario_false_positive_and_negative_rates(
+        attack_graph: AttackGraph, scenario_conf: dict
+):
+    """Apply false positive/negative rates to all nodes in the
+    AttackGraph either to the default value, from the base rate
+    or from the specifically set rates per attack step"""
+
+    # Apply false positive/negative base rates for all nodes (default 0)
+    fp_baseline = scenario_conf.get('false_positive_base_rate', 0)
+    fn_baseline = scenario_conf.get('false_negative_base_rate', 0)
+    for node in attack_graph.nodes:
+        node.extras['false_positive_rate'] = fp_baseline
+        node.extras['false_negative_rate'] = fn_baseline
+
+    # Apply false positive rates to specified attack nodes
+    fp_rates_per_attackstep = scenario_conf.get('false_positive_rates')
+    if fp_rates_per_attackstep:
+        for step_full_name, rate in fp_rates_per_attackstep.items():
+            step = attack_graph.get_node_by_full_name(step_full_name)
+            step.extras['false_positive_rate'] = rate
+
+    # Apply false negative rates to specified attack nodes
+    fn_rates_per_attackstep = scenario_conf.get('false_negative_rates')
+    if fn_rates_per_attackstep:
+        for step_full_name, rate in fn_rates_per_attackstep.items():
+            step = attack_graph.get_node_by_full_name(step_full_name)
+            step.extras['false_negative_rate'] = rate
+
+
 def apply_scenario_attacker_entrypoints(
         attack_graph: AttackGraph, entry_points: dict
 ) -> None:
@@ -279,6 +312,9 @@ def apply_scenario_to_attack_graph(
     # Apply observability settings to attack graph
     observability_settings = scenario.get('observable_attack_steps')
     apply_scenario_observability_rules(attack_graph, observability_settings)
+
+    # Apply false positive and negative rates to attack graph
+    apply_scenario_false_positive_and_negative_rates(attack_graph, scenario)
 
 
 def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:

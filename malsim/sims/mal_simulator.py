@@ -5,8 +5,9 @@ import copy
 import logging
 import functools
 from typing import Optional, TYPE_CHECKING
-import numpy as np
+from random import random
 
+import numpy as np
 from gymnasium.spaces import MultiDiscrete, Box, Dict
 from pettingzoo import ParallelEnv
 
@@ -974,7 +975,6 @@ class MalSimulator(ParallelEnv):
                 else:
                     # If a defender performed step, it will be penalized
                     self.agents_dict[agent]["rewards"] -= node_reward
-
 
     def _collect_agents_infos(self):
         """Collect agent info, this is used to determine the possible
