@@ -277,14 +277,16 @@ def test_load_scenario_false_positive_negative_rate():
     fp_base_rate = 0.1
     fn_base_rate = 0.1
     host_0_access_fp_rate = 0.2
-    host_1_access_fn_rate = 0.3
+    host_1_access_fp_rate = 0.3
+    host_0_access_fn_rate = 0.4
+    host_1_access_fn_rate = 0.5
 
     for node in attack_graph.nodes:
         if node.full_name == "Host:0:access":
             assert node.extras['false_positive_rate'] == host_0_access_fp_rate
-            assert node.extras['false_negative_rate'] == fn_base_rate
+            assert node.extras['false_negative_rate'] == host_0_access_fn_rate
         elif node.full_name == "Host:1:access":
-            assert node.extras['false_positive_rate'] == fp_base_rate
+            assert node.extras['false_positive_rate'] == host_1_access_fp_rate
             assert node.extras['false_negative_rate'] == host_1_access_fn_rate
         else:
             assert node.extras['false_positive_rate'] == fp_base_rate
