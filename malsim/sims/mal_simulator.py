@@ -387,11 +387,16 @@ class MalSimulator(ParallelEnv):
 
         logger.debug("Creating and listing blank observation space.")
         self._blank_observation = self.create_blank_observation()
-
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(
                 self.format_full_observation(self._blank_observation)
             )
+
+        # True state stores the real vectorized state of the attack graph
+        self._true_state = np.array(
+            len(self.attack_graph.nodes) * [0],
+            dtype=np.int8
+        )
 
         logger.info("Populate agents list with all possible agents.")
         self.agents = copy.deepcopy(self.possible_agents)
@@ -630,23 +635,15 @@ class MalSimulator(ParallelEnv):
         # we have multiple defenders
 
         if self.sim_settings.cumulative_defender_obs:
-            # Show all active steps
-            for node in self.attack_graph.nodes:
-                index = self._id_to_index[node.id]
-                if node.is_enabled_defense():
-                    observation["observed_state"][index] = 1
-                else:
-                    if node.is_compromised():
-                        observation["observed_state"][index] = 1
-                    else:
-                        observation["observed_state"][index] = 0
+            # Show all active steps as they really are
+            observation["observed_state"] = self._true_state
         else:
             # Only show the latest steps taken
             for action in performed_actions:
                 observation["observed_state"][action] = 1
 
 
-    def _observe_and_reward(self, performed_actions: list):
+    def _observe_and_reward(self, performed_actions: list[int]):
         observations = {}
         rewards = {}
         terminations = {}
@@ -658,15 +655,21 @@ class MalSimulator(ParallelEnv):
             "defender": 1,
         }
 
+        for step_index in performed_actions:
+            # Set state of performed steps to 'active'
+            self._true_state[step_index] = 1
+
         finished_agents = []
         # If no attackers have any actions left that they could take the
         # simulation will terminate.
         attackers_done = True
         # Fill in the agent observations, rewards, terminations, truncations,
         # and infos.
+
         for agent in self.agents:
             # Collect agent observations
             agent_observation = copy.deepcopy(self._blank_observation)
+
             if self.agents_dict[agent]["type"] == "defender":
                 self._observe_defender(
                     agent, performed_actions, agent_observation)
@@ -795,7 +798,9 @@ class MalSimulator(ParallelEnv):
             "Stepping through iteration %d/%d", self.cur_iter, self.max_iter)
         logger.debug("Performing actions: %s", actions)
 
+        # Will store indexes of defense/attack steps performed in this step
         performed_actions = []
+
         # Peform agent actions
         for agent in self.agents:
             action = actions[agent]
