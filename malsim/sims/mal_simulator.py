@@ -11,8 +11,6 @@ from gymnasium.spaces import MultiDiscrete, Box, Dict
 from pettingzoo import ParallelEnv
 
 from maltoolbox import neo4j_configs
-from maltoolbox.model import Model
-from maltoolbox.language import LanguageGraph
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.attackgraph.analyzers import apriori
 from maltoolbox.attackgraph import query
@@ -76,6 +74,7 @@ class MalSimulator(ParallelEnv):
             attack_graph                -   The attack graph to use
             max_iter                    -   Max iterations in simulation
             prune_unviable_unnecessary  -   Prunes graph if set to true
+            sim_settings                -   Settings for simulator
         """
         super().__init__()
         logger.info("Create Mal Simulator.")
@@ -143,7 +142,7 @@ class MalSimulator(ParallelEnv):
         }
 
         logger.debug(
-            f'Create blank observation with {num_steps} attack steps.')
+            'Create blank observation with %d attack steps.', num_steps)
 
         # Add attack graph edges to observation
         observation["attack_graph_edges"] = [
@@ -222,8 +221,8 @@ class MalSimulator(ParallelEnv):
 
         Arguments:
         observation     - the observation to format
-        included_values - the values to list, any values not present in the list
-                          will be filtered out
+        included_values - the values to list, any values not present in the
+                          list will be filtered out
         """
 
         str_format = "{:>5} {:>80} {:<5} {:<5} {:<}\n"
@@ -312,7 +311,11 @@ class MalSimulator(ParallelEnv):
         num_steps = len(self.attack_graph.nodes)
         return MultiDiscrete([num_actions, num_steps], dtype=np.int64)
 
-    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
+    def reset(
+            self,
+            seed: Optional[int] = None,
+            options: Optional[dict] = None
+        ):
         logger.info("Resetting simulator.")
         self.attack_graph = copy.deepcopy(self.attack_graph_backup)
         return self.initialize(self.max_iter)
@@ -373,7 +376,6 @@ class MalSimulator(ParallelEnv):
         )
         logger.debug(table)
 
-
     def _create_mapping_tables(self):
         """Create mapping tables"""
         logger.debug("NEW Creating and listing mapping tables.")
@@ -395,13 +397,10 @@ class MalSimulator(ParallelEnv):
             n: i for i, n in enumerate(self._index_to_step_name)
         }
 
-
-
     def initialize(self, max_iter=ITERATIONS_LIMIT):
         """Create mapping tables, register agents, return initial obs/info"""
 
         logger.info("Initializing MAL ParralelEnv Simulator.")
-
         self._create_mapping_tables()
 
         if logger.isEnabledFor(logging.DEBUG):
@@ -434,7 +433,7 @@ class MalSimulator(ParallelEnv):
             else:
                 self.action_surfaces[agent] = []
 
-        observations, rewards, terminations, truncations, infos = (
+        observations, _, _, _, infos = (
             self._observe_and_reward([])
         )
 
@@ -442,8 +441,8 @@ class MalSimulator(ParallelEnv):
 
     def register_attacker(self, agent_name, attacker: int):
         logger.info(
-            f'Register attacker "{agent_name}" agent with '
-            f"attacker index {attacker}."
+            'Register attacker "%s" agent with '
+            "attacker index %d.", agent_name, attacker
         )
         self.possible_agents.append(agent_name)
         self.agents_dict[agent_name] = {"type": "attacker",
@@ -453,7 +452,7 @@ class MalSimulator(ParallelEnv):
         # Defenders are run first so that the defenses prevent the attacker
         # appropriately in case the attacker selects an attack step that the
         # defender safeguards against in the same step.
-        logger.info(f'Register defender "{agent_name}" agent.')
+        logger.info('Register defender "%s" agent.', agent_name)
         self.possible_agents.insert(0, agent_name)
         self.agents_dict[agent_name] = {"type": "defender"}
 
@@ -698,16 +697,17 @@ class MalSimulator(ParallelEnv):
                 self._observe_attacker(agent, agent_observation)
             else:
                 logger.error(
-                    f"Agent {agent} has unknown type: "
-                    f'{self.agents_dict[agent]["type"]}'
+                    "Agent %s has unknown type: %s",
+                    agent, self.agents_dict[agent]["type"]
                 )
 
             observations[agent] = agent_observation
 
-            # Collect agent info, this is used to determine the possible actions
-            # in the next iteration step. Then fill in all of the
+            # Collect agent info, this is used to determine the possible
+            # actions in the next iteration step. Then fill in all of the
             available_actions = [0] * len(self.attack_graph.nodes)
             can_act = 0
+
             agent_type = self.agents_dict[agent]["type"]
             if agent_type == "defender":
                 for node in self.action_surfaces[agent]:
@@ -761,21 +761,19 @@ class MalSimulator(ParallelEnv):
                 rewards[agent] = reward
 
         for agent in self.agents:
-            # Terminate simulation if no attackers have actions that they
-            # could take.
+            # Terminate simulation if no attackers have actions to take
             terminations[agent] = attackers_done
             if attackers_done:
                 logger.debug(
-                    "No attacker has any actions left to perform "
-                    f'terminate agent "{agent}".'
-                )
+                    "No attacker has actions left to perform,"
+                    "terminate agent \"%s\".", agent)
+
             truncations[agent] = False
             if self.cur_iter >= self.max_iter:
                 logger.debug(
                     "Simulation has reached the maximum number of "
-                    f"iterations, {self.max_iter}, terminate agent "
-                    f'"{agent}".'
-                )
+                    "iterations, %d, terminate agent \"%s\".",
+                    self.max_iter, agent)
                 truncations[agent] = True
 
             if terminations[agent] or truncations[agent]:
@@ -816,8 +814,9 @@ class MalSimulator(ParallelEnv):
         - infos
         dicts where each dict looks like {agent_1: item_1, agent_2: item_2}
         """
-        logger.debug("Stepping through iteration " f"{self.cur_iter}/{self.max_iter}.")
-        logger.debug(f"Performing actions: {actions}.")
+        logger.debug(
+            "Stepping through iteration %d/%d", self.cur_iter, self.max_iter)
+        logger.debug("Performing actions: %s", actions)
 
         performed_actions = []
         # Peform agent actions
@@ -833,9 +832,8 @@ class MalSimulator(ParallelEnv):
                 performed_actions.extend(self._defender_step(agent, action_step))
             else:
                 logger.error(
-                    f'Agent {agent} has unknown type: '
-                    f'{self.agents_dict[agent]["type"]}.'
-                )
+                    'Agent %s has unknown type: %s',
+                    agent, self.agents_dict[agent]["type"])
 
         observations, rewards, terminations, truncations, infos = (
             self._observe_and_reward(performed_actions)
