@@ -79,11 +79,12 @@ class MalSimulator(ParallelEnv):
         logger.info("Create Mal Simulator.")
         self.lang_graph = lang_graph
         self.model = model
+
         apriori.calculate_viability_and_necessity(attack_graph)
         if prune_unviable_unnecessary:
             apriori.prune_unviable_and_unnecessary_nodes(attack_graph)
-        self.attack_graph = attack_graph
 
+        self.attack_graph = attack_graph
         self.sim_settings = sim_settings
         self.max_iter = max_iter
 
@@ -98,7 +99,7 @@ class MalSimulator(ParallelEnv):
     def __call__(self):
         return self
 
-    def create_blank_observation(self):
+    def create_blank_observation(self, default_obs_state=-1):
         # For now, an `object` is an attack step
         num_steps = len(self.attack_graph.nodes)
 
@@ -106,7 +107,7 @@ class MalSimulator(ParallelEnv):
             # If no observability set for node, assume observable.
             "is_observable": [step.extras.get('observable', 1)
                            for step in self.attack_graph.nodes],
-            "observed_state": num_steps * [-1],
+            "observed_state": num_steps * [default_obs_state],
             "remaining_ttc": num_steps * [0],
             "asset_type": [self._asset_type_to_index[step.asset.type]
                            for step in self.attack_graph.nodes],
