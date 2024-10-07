@@ -469,15 +469,21 @@ class MalSimulator(ParallelEnv):
             'Register attacker "%s" agent with '
             "attacker index %d.", agent_name, attacker
         )
+        assert agent_name not in self.agents_dict, \
+                f"Duplicate attacker agent named {agent_name} not allowed"
+
         self.possible_agents.append(agent_name)
-        self.agents_dict[agent_name] = {"type": "attacker",
-            "attacker": attacker}
+        self.agents_dict[agent_name] = {
+            "type": "attacker",
+            "attacker": attacker
+        }
 
     def register_defender(self, agent_name):
-        # Defenders are run first so that the defenses prevent the attacker
-        # appropriately in case the attacker selects an attack step that the
-        # defender safeguards against in the same step.
+        """Add defender agent to the simulator"""
         logger.info('Register defender "%s" agent.', agent_name)
+        assert agent_name not in self.agents_dict, \
+                f"Duplicate defender agent named {agent_name} not allowed"
+
         self.possible_agents.insert(0, agent_name)
         self.agents_dict[agent_name] = {"type": "defender"}
 
