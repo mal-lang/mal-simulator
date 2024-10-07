@@ -503,11 +503,12 @@ class MalSimulator(ParallelEnv):
 
     def _attacker_step(self, agent, attack_step):
         actions = []
-        attacker = self.attack_graph.attackers[self.agents_dict[agent]["attacker"]]
+        attacker_index = self.agents_dict[agent]["attacker"]
+        attacker = self.attack_graph.attackers[attacker_index]
         attack_step_node = self.attack_graph.get_node_by_id(
-            self._index_to_id[attack_step]
-        )
-        logger.info(
+            self._index_to_id[attack_step])
+
+        logger.debug(
             'Attacker agent "%s" stepping through "%s"(%d).',
             agent,
             attack_step_node.full_name,
@@ -528,6 +529,7 @@ class MalSimulator(ParallelEnv):
                         self.action_surfaces[agent],
                         [attack_step_node]
                     )
+            # TODO: should below line be part of the inner if-stmt?
             actions.append(attack_step)
         else:
             logger.warning(
