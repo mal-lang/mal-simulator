@@ -374,8 +374,66 @@ class MalSimulator(ParallelEnv):
             n: i for i, n in enumerate(self._index_to_step_name)
         }
 
+    def _initialize_agents(self) -> dict[str, list[int]]:
+        """Initialize agent rewards, observations and action_surfaces
+
+        Updates self._agent_rewards, self._agent_observations
+        and self.action_surfaces
+
+        Return:
+        - An action dictionary mapping agent to initial actions
+          (attacker entry points and pre-activated defenses)
+        """
+        # Initialize list of agent dicts
+        self.agents = copy.deepcopy(self.possible_agents)
+
+        # Will contain initally enabled steps
+        initial_actions = {}
+
+        for agent in self.agents:
+            # Initialize rewards
+            self._agent_rewards[agent] = 0
+            agent_type = self.agents_dict[agent]["type"]
+
+            if agent_type == "attacker":
+                attacker_id = self.agents_dict[agent]["attacker"]
+                attacker = self.attack_graph.attackers[attacker_id]
+                assert attacker, f"No attacker at index {attacker_id}"
+
+                # Initialize observations and action surfaces
+                self._agent_observations[agent] = \
+                    self.create_blank_observation()
+                self.action_surfaces[agent] = \
+                    query.get_attack_surface(attacker)
+
+                # Initial actions for attacker are its entrypoints
+                initial_actions[agent] = [self._id_to_index[entry_point.id]
+                                          for entry_point
+                                          in attacker.entry_points]
+
+            elif agent_type == "defender":
+                # Initialize observations and action surfaces
+                self._agent_observations[agent] = \
+                    self.create_blank_observation(default_obs_state=0)
+                self.action_surfaces[agent] = \
+                    query.get_defense_surface(self.attack_graph)
+
+                # Initial actions for defender are all pre-enabled defenses
+                initial_actions[agent] = [self._id_to_index[node.id]
+                                          for node in self.attack_graph.nodes
+                                          if node.is_enabled_defense()]
+
+            else:
+                self.action_surfaces[agent] = []
+
+        return initial_actions
+
     def initialize(self, max_iter=ITERATIONS_LIMIT):
-        """Create mapping tables, register agents, return initial obs/info"""
+        """Create mapping tables, register agents and
+        initalize their observations + action surfaces + rewards.
+
+        Return initial observations and infos.
+        """
 
         logger.info("Initializing MAL ParralelEnv Simulator.")
         self._create_mapping_tables()
@@ -393,31 +451,16 @@ class MalSimulator(ParallelEnv):
                 self.format_full_observation(self._blank_observation)
             )
 
-        # True state stores the real vectorized state of the attack graph
-        self._true_state = np.array(
-            len(self.attack_graph.nodes) * [0],
-            dtype=np.int8
-        )
-
-        logger.info("Populate agents list with all possible agents.")
-        self.agents = copy.deepcopy(self.possible_agents)
+        # Map agents to observations and rewards
+        self._agent_observations = {}
         self.action_surfaces = {}
+        self._agent_rewards = {}
 
-        for agent in self.agents:
-            if self.agents_dict[agent]["type"] == "attacker":
-                attacker = self.attack_graph.attackers[
-                    self.agents_dict[agent]["attacker"]
-                ]
-                self.action_surfaces[agent] = query.get_attack_surface(attacker)
-            elif self.agents_dict[agent]["type"] == "defender":
-                self.action_surfaces[agent] = query.get_defense_surface(
-                    self.attack_graph)
-            else:
-                self.action_surfaces[agent] = []
+        # Initialize agents and record the entry point actions
+        initial_actions = self._initialize_agents()
 
         observations, _, _, _, infos = (
-            self._observe_and_reward([])
-        )
+            self._observe_and_reward(initial_actions))
 
         return observations, infos
 
