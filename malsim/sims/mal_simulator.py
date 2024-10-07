@@ -636,12 +636,13 @@ class MalSimulator(ParallelEnv):
                 attacker.undo_compromise(node)
 
         for node in attacker.reached_attack_steps:
+            # Children of reached attack steps are inactive unless they are
+            # also reached attack steps.
             for child_node in node.children:
-                if child_node in attacker.reached_attack_steps:
+                child_node_index = self._id_to_index[child_node.id]
+                if observation["observed_state"][child_node_index] == 1:
                     # Reached attack steps are kept active.
                     continue
-                # Children of reached attack steps are inactive.
-                child_node_index = self._id_to_index[child_node.id]
                 observation["observed_state"][child_node_index] = 0
 
 
