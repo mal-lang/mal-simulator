@@ -717,102 +717,113 @@ class MalSimulator(ParallelEnv):
             for action in actions:
                 obs_state[action] = 1
 
-    def _observe_and_reward(self, performed_actions: list[int]):
-        observations = {}
-        rewards = {}
-        terminations = {}
-        truncations = {}
-        infos = {}
+    def _observe_agent(self, agent, performed_actions):
+        """Collect agent observations"""
+        agent_type = self.agents_dict[agent]["type"]
+        if  agent_type == "defender":
+            self._observe_defender(agent, performed_actions)
+
+        elif agent_type == "attacker":
+            self._observe_attacker(agent, performed_actions)
+
+        else:
+            logger.error(
+                "Agent %s has unknown type: %s",
+                agent, self.agents_dict[agent]["type"]
+            )
+
+    def _reward_agents(self, performed_actions):
+        """Update rewards from latest performed actions"""
+        # TODO: should initial actions give rewards?
+        for agent, actions in performed_actions.items():
+            agent_type = self.agents_dict[agent]["type"]
+
+            for action in actions:
+                if action is None:
+                    continue
+
+                node_id = self._index_to_id[action]
+                node = self.attack_graph.get_node_by_id(node_id)
+                node_reward = node.extras.get('reward', 0)
+
+                if agent_type == "attacker":
+                    # If attacker performed step, it will receive
+                    # a reward and penalize all defender
+                    self._agent_rewards[agent] += node_reward
+
+                    for d_agent in self.get_defender_agents():
+                        self._agent_rewards[d_agent] -= node_reward
+                else:
+                    # TODO: defending against an attack step
+                    # can it increase reward for defender?
+
+                    # If a defender performed step, it will be penalized
+                    self._agent_rewards[agent] -= node_reward
+
+
+    def _collect_agent_infos(self, agent):
+        """Collect agent info, this is used to determine the possible
+        actions in the next iteration step. Then fill in all of the"""
+
+        attackers_done = True
 
         can_wait = {
             "attacker": 0,
             "defender": 1,
         }
 
-        for step_index in performed_actions:
-            # Set state of performed steps to 'active'
-            self._true_state[step_index] = 1
+        agent_type = self.agents_dict[agent]["type"]
+        available_actions = [0] * len(self.attack_graph.nodes)
+        can_act = 0
 
-        finished_agents = []
-        # If no attackers have any actions left that they could take the
-        # simulation will terminate.
-        attackers_done = True
-        # Fill in the agent observations, rewards, terminations, truncations,
-        # and infos.
+        if agent_type == "defender":
+            for node in self.action_surfaces[agent]:
+                index = self._id_to_index[node.id]
+                available_actions[index] = 1
+                can_act = 1
 
-        for agent in self.agents:
-            # Collect agent observations
-            agent_observation = copy.deepcopy(self._blank_observation)
-
-            if self.agents_dict[agent]["type"] == "defender":
-                self._observe_defender(
-                    agent, performed_actions, agent_observation)
-            elif self.agents_dict[agent]["type"] == "attacker":
-                self._observe_attacker(agent, agent_observation)
-            else:
-                logger.error(
-                    "Agent %s has unknown type: %s",
-                    agent, self.agents_dict[agent]["type"]
-                )
-
-            observations[agent] = agent_observation
-
-            # Collect agent info, this is used to determine the possible
-            # actions in the next iteration step. Then fill in all of the
-            available_actions = [0] * len(self.attack_graph.nodes)
-            can_act = 0
-
-            agent_type = self.agents_dict[agent]["type"]
-            if agent_type == "defender":
-                for node in self.action_surfaces[agent]:
+        if agent_type == "attacker":
+            attacker = self.attack_graph.attackers[
+                self.agents_dict[agent]["attacker"]
+            ]
+            for node in self.action_surfaces[agent]:
+                if not node.is_compromised_by(attacker):
                     index = self._id_to_index[node.id]
                     available_actions[index] = 1
                     can_act = 1
+                    attackers_done = False
 
-            if agent_type == "attacker":
-                attacker = self.attack_graph.attackers[
-                    self.agents_dict[agent]["attacker"]
-                ]
-                for node in self.action_surfaces[agent]:
-                    if not node.is_compromised_by(attacker):
-                        index = self._id_to_index[node.id]
-                        available_actions[index] = 1
-                        can_act = 1
-                        attackers_done = False
+        return attackers_done, {
+            "action_mask": (
+                np.array(
+                    [can_wait[agent_type], can_act], dtype=np.int8),
+                np.array(
+                    available_actions, dtype=np.int8)
+            )
+        }
 
-            infos[agent] = {
-                "action_mask": (
-                    np.array(
-                        [can_wait[agent_type], can_act], dtype=np.int8),
-                    np.array(
-                        available_actions, dtype=np.int8)
-                )
-            }
+    def _observe_and_reward(self, performed_actions: dict[str, list[int]]):
+        """Update observations and reward agents based on latest actions
 
-        # First calculate the attacker rewards and attackers' total reward
-        attackers_total_rewards = 0
+        Returns 5 dicts, each mapping from agent to:
+            observations, rewards, terminations, truncations, infos
+        """
+        terminations = {}
+        truncations = {}
+        infos = {}
+        finished_agents = []
+
+        # Fill in the agent observations, rewards,
+        # terminations, truncations, and infos.
+        # If no attackers have any actions left
+        # to take the simulation will terminate.
+        attackers_done = True
         for agent in self.agents:
-            if self.agents_dict[agent]["type"] == "attacker":
-                reward = 0
-                attacker = self.attack_graph.attackers[
-                    self.agents_dict[agent]["attacker"]
-                ]
-                for node in attacker.reached_attack_steps:
-                    if hasattr(node, "extras"):
-                        reward += node.extras.get('reward', 0)
+            self._observe_agent(agent, performed_actions)
+            attackers_done, infos[agent] = \
+                self._collect_agent_infos(agent)
 
-                attackers_total_rewards += reward
-                rewards[agent] = reward
-
-        # Then we can calculate the defender rewards which also include all of
-        # the attacker rewards negated.
-        for agent in self.agents:
-            if self.agents_dict[agent]["type"] == "defender":
-                reward = -attackers_total_rewards
-                for node in query.get_enabled_defenses(self.attack_graph):
-                    if hasattr(node, "extras"):
-                        reward -= node.extras.get('reward', 0)
-                rewards[agent] = reward
+        self._reward_agents(performed_actions)
 
         for agent in self.agents:
             # Terminate simulation if no attackers have actions to take
