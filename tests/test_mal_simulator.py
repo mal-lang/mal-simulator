@@ -1,7 +1,6 @@
 """Test MalSimulator class"""
-import copy
 
-from maltoolbox.attackgraph import AttackGraph, Attacker, AttackGraphNode
+from maltoolbox.attackgraph import AttackGraph, Attacker
 from malsim.sims.mal_simulator import MalSimulator
 from malsim.scenario import load_scenario, create_simulator_from_scenario
 from malsim.sims import MalSimulatorSettings
