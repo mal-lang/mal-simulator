@@ -847,12 +847,13 @@ class MalSimulator(ParallelEnv):
             if logger.isEnabledFor(logging.DEBUG):
                 # Debug print agent states
                 agent_obs_str = self.format_obs_var_sec(
-                    observations[agent], included_values = [0, 1])
+                    self._agent_observations[agent],
+                    included_values = [0, 1])
 
                 logger.debug(
                     'Observation for agent "%s":\n%s', agent, agent_obs_str)
                 logger.debug(
-                    'Rewards for agent "%s": %d', agent, rewards[agent])
+                    'Rewards for agent "%s": %d', agent, self._agent_rewards[agent])
                 logger.debug(
                     'Termination for agent "%s": %s',
                     agent, terminations[agent])
@@ -867,7 +868,13 @@ class MalSimulator(ParallelEnv):
         for agent in finished_agents:
             self.agents.remove(agent)
 
-        return observations, rewards, terminations, truncations, infos
+        return (
+            self._agent_observations,
+            self._agent_rewards,
+            terminations,
+            truncations,
+            infos
+        )
 
     def step(self, actions):
         """
@@ -883,8 +890,10 @@ class MalSimulator(ParallelEnv):
             "Stepping through iteration %d/%d", self.cur_iter, self.max_iter)
         logger.debug("Performing actions: %s", actions)
 
-        # Will store indexes of defense/attack steps performed in this step
-        performed_actions = []
+        # Map agent to defense/attack steps performed in this step
+        performed_actions = {}
+
+        # TODO: make sure defender is run before attacker
 
         # Peform agent actions
         for agent in self.agents:
@@ -894,9 +903,11 @@ class MalSimulator(ParallelEnv):
 
             action_step = action[1]
             if self.agents_dict[agent]["type"] == "attacker":
-                performed_actions.extend(self._attacker_step(agent, action_step))
+                performed_actions[agent] = \
+                    self._attacker_step(agent, action_step)
             elif self.agents_dict[agent]["type"] == "defender":
-                performed_actions.extend(self._defender_step(agent, action_step))
+                performed_actions[agent] = \
+                    self._defender_step(agent, action_step)
             else:
                 logger.error(
                     'Agent %s has unknown type: %s',
