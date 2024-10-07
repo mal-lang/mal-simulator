@@ -412,6 +412,129 @@ def test_default_simulator_default_settings_eviction():
     assert attacker in user_3_compromise.compromised_by
 
 
+def test_malsimulator_observe_and_reward_attacker_defender():
+    """Run attacker and defender actions and make sure
+    rewards and observation states are updated correctly"""
+
+    def verify_attacker_obs_state(
+            obs_state,
+            expected_reached,
+            expected_children_of_reached
+        ):
+        """Make sure obs state looks as expected"""
+        for index, state in enumerate(obs_state):
+            node_id = sim._index_to_id[index]
+            if state == 1:
+                assert node_id in expected_reached
+            elif state == 0:
+                assert node_id in expected_children_of_reached
+            else:
+                assert state == -1
+
+    sim, _ = create_simulator_from_scenario(
+        'tests/testdata/scenarios/traininglang_scenario.yml')
+    sim.reset()
+
+    attacker = sim.attack_graph.attackers[0]
+    attacker_name = "attacker"
+    defender_name = "defender"
+    attacker_reached_steps = [n.id for n in attacker.entry_points]
+    attacker_reached_step_children = []
+    for reached in attacker.entry_points:
+        attacker_reached_step_children.extend(
+            [n.id for n in reached.children])
+
+    # Prepare nodes that will be stepped through in order
+    user_3_compromise = sim.attack_graph\
+        .get_node_by_full_name("User:3:compromise")
+    host_0_authenticate = sim.attack_graph\
+        .get_node_by_full_name("Host:0:authenticate")
+    host_0_access = sim.attack_graph\
+        .get_node_by_full_name("Host:0:access")
+    host_0_notPresent = sim.attack_graph\
+        .get_node_by_full_name("Host:0:notPresent")
+    data_2_read = sim.attack_graph\
+        .get_node_by_full_name("Data:2:read")
+
+    # Step with attacker action
+    obs, rew, _, _, _ = sim.step({
+            defender_name: (0, None),
+            attacker_name: (1, sim._id_to_index[user_3_compromise.id])
+        }
+    )
+
+    # Verify obs state
+    attacker_reached_steps.append(user_3_compromise.id)
+    attacker_reached_step_children.extend(
+        [n.id for n in user_3_compromise.children])
+    verify_attacker_obs_state(
+        obs[attacker_name]['observed_state'],
+        attacker_reached_steps,
+        attacker_reached_step_children)
+
+    # Verify rewards
+    assert rew[defender_name] == 0
+    assert rew[attacker_name] == 0
+
+    # Step with attacker again
+    obs, rew, _, _, _ = sim.step({
+        defender_name: (0, None),
+        attacker_name: (1, sim._id_to_index[host_0_authenticate.id])
+    })
+
+    # Verify obs state
+    attacker_reached_steps.append(host_0_authenticate.id)
+    attacker_reached_step_children.extend(
+        [n.id for n in host_0_authenticate.children])
+    verify_attacker_obs_state(
+        obs[attacker_name]['observed_state'],
+        attacker_reached_steps,
+        attacker_reached_step_children)
+
+    # Verify rewards
+    assert rew[defender_name] == 0
+    assert rew[attacker_name] == 0
+
+    # Step attacker again
+    obs, rew, _, _, _ = sim.step({
+        defender_name: (0, None),
+        attacker_name: (1, sim._id_to_index[host_0_access.id])
+    })
+
+    # Verify obs state
+    attacker_reached_steps.append(host_0_access.id)
+    attacker_reached_step_children.extend(
+        [n.id for n in host_0_access.children])
+    verify_attacker_obs_state(
+        obs[attacker_name]['observed_state'],
+        attacker_reached_steps,
+        attacker_reached_step_children)
+
+    reward_host_0_access = 4
+    # Verify rewards
+    assert rew[attacker_name] == reward_host_0_access
+    assert rew[defender_name] == -rew[attacker_name]
+
+    # Step defender and attacker
+    # Attacker wont be able to traverse Data:2:read since
+    # Host:0:notPresent is activated before
+    obs, rew, _, _, _ = sim.step({
+        defender_name: (1, sim._id_to_index[host_0_notPresent.id]),
+        attacker_name: (1, sim._id_to_index[data_2_read.id])
+    })
+
+    # Attacker obs state should look the same as before
+    verify_attacker_obs_state(
+        obs[attacker_name]['observed_state'],
+        attacker_reached_steps,
+        attacker_reached_step_children)
+
+    # Verify rewards
+    reward_host_0_not_present = 2
+    assert rew[attacker_name] == reward_host_0_access  # no additional reward
+    assert rew[defender_name] == -rew[attacker_name] - reward_host_0_not_present
+
+
 def test_simulator_settings_evict_attacker():
     """Test MalSimulatorSettings when it should evict attacker
     from untraversable node"""
