@@ -696,20 +696,26 @@ class MalSimulator(ParallelEnv):
                         attacker.undo_compromise(defended_child)
 
     def _observe_defender(
-            self, defender_agent, performed_actions, observation):
-        # TODO We should probably create a separate blank observation for the
-        # defenders and just update that with the defense action taken so that
-        # we do not have to go through the list of nodes every time. In case
-        # we have multiple defenders
+            self,
+            defender_agent,
+            performed_actions: dict[str, list[int]]
+        ):
+
+        obs_state = self._agent_observations[defender_agent]["observed_state"]
 
         if self.sim_settings.cumulative_defender_obs:
-            # Show all active steps as they really are
-            observation["observed_state"] = self._true_state
+            # Add the latest performed actions to the observed state
+            # TODO: need to handle defense steps disabling attack steps
+            pass
         else:
-            # Only show the latest steps taken
-            for action in performed_actions:
-                observation["observed_state"][action] = 1
+            # View all states as unknown
+            # TODO: Should they be disabled (0) instead?
+            obs_state.fill(-1)
 
+        # Only show the latest steps taken
+        for _, actions in performed_actions.items():
+            for action in actions:
+                obs_state[action] = 1
 
     def _observe_and_reward(self, performed_actions: list[int]):
         observations = {}
