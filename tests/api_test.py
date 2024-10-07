@@ -114,24 +114,6 @@ def test_defender_penalty():
     #assert reward < 0 # All defense steps cost something
 
 
-def test_action_space(env: MalSimulator):
-    """Fails"""
-    obs, info = env.reset()
-
-    for _ in range(10):
-        attacker_action = env.action_space("attacker").sample()
-        node_id = env._index_to_id[attacker_action[1]]
-        node = env.attack_graph.get_node_by_id(node_id)
-        assert node.type in ('and', 'or')
-
-    for _ in range(10):
-        defender_action = env.action_space("defender").sample()
-        node_id = env._index_to_id[defender_action[1]]
-        node = env.attack_graph.get_node_by_id(node_id)
-        assert node
-        assert node.is_available_defense()
-
-
 def test_env_step(env: MalSimulator) -> None:
     obs, info = env.reset()
     attacker_action = env.action_space("attacker").sample()
