@@ -62,6 +62,26 @@ def corelang_lang_graph():
 
 
 @pytest.fixture
+def traininglang_lang_graph():
+    """Fixture that returns the trainingLang language specification as dict"""
+    mar_file_path = path_testdata("langs/org.mal-lang.trainingLang-1.0.0.mar")
+    return LanguageGraph.from_mar_archive(mar_file_path)
+
+
+@pytest.fixture
+def traininglang_model(traininglang_lang_graph):
+    """Fixture that generates a model for tests
+
+    Uses coreLang specification (fixture) to create and return a
+    Model object with no assets or associations
+    """
+    # Init LanguageClassesFactory
+    traininglang_model_file = 'tests/testdata/models/traininglang_model.yml'
+    lang_classes_factory = LanguageClassesFactory(traininglang_lang_graph)
+    return Model.load_from_file(traininglang_model_file, lang_classes_factory)
+
+
+@pytest.fixture
 def model(corelang_lang_graph):
     """Fixture that generates a model for tests
 

@@ -1,10 +1,11 @@
 """Test MalSimulator class"""
 import copy
 
-from maltoolbox.attackgraph import AttackGraph, Attacker
+from maltoolbox.attackgraph import AttackGraph, Attacker, AttackGraphNode
 from malsim.sims.mal_simulator import MalSimulator
 from malsim.scenario import load_scenario, create_simulator_from_scenario
 from malsim.sims import MalSimulatorSettings
+
 
 def test_malsimulator(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
@@ -95,6 +96,7 @@ def test_malsimulator_create_blank_observation_observability_given(
             assert observable
         else:
             assert not observable
+
 
 def test_malsimulator_format_info(corelang_lang_graph, model):
     """Make sure format info works as expected"""
@@ -251,53 +253,81 @@ def test_malsimulator_defender_step(corelang_lang_graph, model):
 
 
 def test_malsimulator_observe_attacker():
-    attack_graph, conf = load_scenario(
+    attack_graph, _ = load_scenario(
         'tests/testdata/scenarios/simple_scenario.yml'
     )
 
-    # Make alteration to the attack graph attacker
-    assert len(attack_graph.attackers) == 1
-    attacker = attack_graph.attackers[0]
-    assert len(attacker.reached_attack_steps) == 1
-    reached_step = attacker.reached_attack_steps[0]
-    for child_node in reached_step.children:
-        if child_node.type in ('and', 'or'):
-            # compromise children of reached step so in the end the
-            # attacker will have three reached attack steps where
-            # two are children of the first one
-            attacker.compromise(child_node)
-    assert len(attacker.reached_attack_steps) == 3
-
-    #Create the simulator
+    # Create the simulator
     sim = MalSimulator(
         attack_graph.lang_graph, attack_graph.model, attack_graph)
 
     # Register the agents
     attacker_agent_id = "attacker"
-    defender_agent_if = "defender"
+    defender_agent_id = "defender"
     sim.register_attacker(attacker_agent_id, 0)
-    sim.register_defender(defender_agent_if)
+    sim.register_defender(defender_agent_id)
 
     obs, _ = sim.reset()
 
-    attacker_agent_id = next(iter(sim.get_attacker_agents()))
-    attacker_observation = obs[attacker_agent_id]["observed_state"]
+    # Make alteration to the attack graph attacker
+    assert len(sim.attack_graph.attackers) == 1
     attacker = sim.attack_graph.attackers[0]
+    assert len(attacker.reached_attack_steps) == 1
+    reached_step = attacker.reached_attack_steps[0]
+
+    # Select actions for the attacker
+    actions_to_take = []
+    for child_node in reached_step.children:
+        if child_node.type in ('and', 'or'):
+            # In the end the attacker will have three reached steps
+            # where two are children of the first one
+            actions_to_take.append(child_node)
+
+    attacker_agent_id = next(iter(sim.get_attacker_agents()))
+    attacker = sim.attack_graph.attackers[0]
+    num_reached_steps_before = len(attacker.reached_attack_steps)
+
+    for attacker_action in actions_to_take:
+        action_index = sim._id_to_index[attacker_action.id]
+
+        obs, _, _, _, _ = sim.step({
+            defender_agent_id: (0, None),
+            attacker_agent_id: (1, action_index)
+        })
+
+        num_reached_steps_now = len(attacker.reached_attack_steps)
+        assert num_reached_steps_now == num_reached_steps_before + 1
+        num_reached_steps_before = num_reached_steps_now
+
+    attacker_observation = obs[attacker_agent_id]["observed_state"]
 
     for node in attacker.reached_attack_steps:
         node_index = sim._id_to_index[node.id]
         node_obs_state = attacker_observation[node_index]
         assert node_obs_state == 1
 
-def test_malsimulator_observe_defender(corelang_lang_graph, model):
+    for index, state in enumerate(attacker_observation):
+        node = sim.attack_graph.get_node_by_id(sim._index_to_id[index])
+
+        if node.is_compromised():
+            assert state == 1
+        else:
+            if state == -1:
+                for parent in node.parents:
+                    assert parent not in attacker.reached_attack_steps
+            else:
+                assert state == 0
+
+def test_malsimulator_initial_observation_defender(corelang_lang_graph, model):
     """Make sure ._observe_defender observes nodes and set observed state"""
+
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
+
     defender_name = "defender"
     sim.register_defender(defender_name)
-    sim.reset()
-
-    observation = copy.deepcopy(sim._blank_observation)
+    observations, _ = sim.initialize()
+    defender_obs_state = observations[defender_name]["observed_state"]
 
     # Assert that observed state is not 1 before observe_defender
     nodes_to_observe = [
@@ -305,27 +335,105 @@ def test_malsimulator_observe_defender(corelang_lang_graph, model):
         if node.is_enabled_defense() or node.is_compromised()
     ]
 
-    # Assert that observed state is not set before observe_defender
-    # assert len(nodes_to_observe) == 3 # TODO: why did behavior change here?
-    for node in nodes_to_observe:
-        index = sim._id_to_index[node.id]
-        # Make sure not observed before
-        assert observation["observed_state"][index] == -1
-
-    sim._observe_defender(defender_name, [], observation)
-
     # Assert that observed state is 1 after observe_defender
     for node in nodes_to_observe:
         index = sim._id_to_index[node.id]
         # Make sure observed after
-        assert observation["observed_state"][index] == 1
+        if defender_obs_state[index] == 0:
+            breakpoint()
+        assert defender_obs_state[index] == 1
 
 
-def test_malsimulator_observe_and_reward(corelang_lang_graph, model):
+def test_malsimulator_observe_and_reward_attacker_no_entrypoints(
+        corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
+
+    attacker = Attacker("TestAttacker", [], [])
+    attack_graph.add_attacker(attacker)
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
-    sim._observe_and_reward([])
-    # TODO: test that things happen as they should
+
+    # No agents
+    # No actions given - no one observes/rewards anything
+    obs, rew, term, trunc, infos = sim._observe_and_reward({})
+    assert not obs and not rew and not term and not trunc and not infos
+
+    # Register an attacker
+    attacker_name = "attacker"
+    sim.register_attacker(attacker_name, 0)
+    obs, rew, term, trunc, infos = sim._observe_and_reward({})
+
+    # We need to reinitialize (or reset if we want to reset the attackgraph)
+    # to also initialize the registered agents
+    obs, infos = sim.initialize()
+    assert list(obs.keys()) == [attacker_name]
+    assert list(infos.keys()) == [attacker_name]
+
+    # Observe and reward with no new actions
+    obs, rew, term, trunc, infos = sim._observe_and_reward({})
+    # Since attacker has no entry points and no steps have been performed
+    # the observed state should be empty
+    for state in obs['attacker']['observed_state']:
+        assert state == -1
+    assert rew[attacker_name] == 0
+
+
+def test_malsimulator_observe_and_reward_attacker_entrypoints(
+        traininglang_lang_graph, traininglang_model
+    ):
+
+    attack_graph = AttackGraph(
+        traininglang_lang_graph, traininglang_model)
+    attack_graph.attach_attackers()
+    sim = MalSimulator(
+        traininglang_lang_graph, traininglang_model, attack_graph)
+
+    # Register an attacker
+    attacker_name = "attacker"
+    attacker = sim.attack_graph.attackers[0]
+    sim.register_attacker(attacker_name, attacker.id)
+
+    # We need to reinitialize to initialize agent
+    obs, infos = sim.initialize()
+
+    # Observe and reward with no new actions
+    obs, rew, term, trunc, infos = sim._observe_and_reward({})
+
+    for index, state in enumerate(obs['attacker']['observed_state']):
+        node = sim.attack_graph.get_node_by_id(
+            sim._index_to_id[index]
+        )
+        if state == -1:
+            assert node not in attacker.entry_points
+            assert node not in attacker.reached_attack_steps
+            assert not node.is_compromised()
+            assert not any([p.is_compromised() for p in node.parents])
+        elif state == 0:
+            assert node not in attacker.entry_points
+            assert node not in attacker.reached_attack_steps
+            assert not node.is_compromised()
+            assert any([p.is_compromised() for p in node.parents])
+        elif state == 1:
+            assert node in attacker.entry_points
+            assert node in attacker.reached_attack_steps
+            assert node.is_compromised()
+
+    assert rew[attacker_name] == 0
+
+
+def test_malsimulator_agents_registered(
+        traininglang_lang_graph, traininglang_model
+    ):
+
+    sim, _ = create_simulator_from_scenario(
+        'tests/testdata/scenarios/traininglang_scenario.yml')
+
+    attacker_name = "attacker"
+    defender_name = "defender"
+
+    # We need to reinitialize to initialize agents
+    obs, infos = sim.initialize()
+    assert set(obs.keys()) == {attacker_name, defender_name}
+    assert set(infos.keys()) == {attacker_name, defender_name}
 
 
 def test_malsimulator_update_viability_with_eviction(corelang_lang_graph, model):
