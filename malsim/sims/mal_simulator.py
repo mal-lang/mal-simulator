@@ -194,11 +194,14 @@ class MalSimulator(ParallelEnv):
         """
         obs_str = '\nAttack Graph Steps\n'
 
-        str_format = "{:<5} {:<80} {:<6} {:<5} {:<5} {:<5} {:<5} {:<}\n"
+        str_format = "{:<5} {:<80} {:<6} {:<5} {:<5} {:<30} {:<8} {:<}\n"
         header_entry = [
-            "Entry", "Name", "Is_Obs", "State", "RTTC", "Type", "Id", "Step"]
+            "Entry", "Name", "Is_Obs", "State", "RTTC", "Asset Type(Index)", "Asset Id", "Step"]
         entries = []
         for entry in range(0, len(observation["observed_state"])):
+            asset_type_index = observation["asset_type"][entry]
+            asset_type_str = self._index_to_asset_type[asset_type_index ] + \
+                '(' + str(asset_type_index) + ')'
             entries.append(
                 [
                     entry,
@@ -206,7 +209,7 @@ class MalSimulator(ParallelEnv):
                     observation["is_observable"][entry],
                     observation["observed_state"][entry],
                     observation["remaining_ttc"][entry],
-                    observation["asset_type"][entry],
+                    asset_type_str,
                     observation["asset_id"][entry],
                     observation["step_name"][entry],
                 ]
