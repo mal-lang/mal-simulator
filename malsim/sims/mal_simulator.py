@@ -568,6 +568,7 @@ class MalSimulator(ParallelEnv):
                         # may have not been present to save one extra
                         # lookup.
                         pass
+
             for child in node.children:
                 original_value = child.is_viable
                 if child.type == 'or':
@@ -671,36 +672,19 @@ class MalSimulator(ParallelEnv):
                 if child_obs_state == -1:
                     obs_state[child_index] = 0
 
-        def disable_untraversable_attack_children_in_obs(node):
-            """Recursively disable unviable children attack steps"""
+        # Disabled attack steps (by defense) should be set to 0
+        # TODO: This should be done with performed_defense_nodes instead
+        #       but i could NOT get it to work :( this is slow.
+        for node in self.attack_graph.nodes:
+            index = self._id_to_index[node.id]
+            if obs_state[index] == 1\
+               and not query.is_node_traversable_by_attacker(node, attacker)\
+               and not node in attacker.entry_points:
+                obs_state[index] = 0
+                if self.sim_settings.uncompromise_untraversable_steps:
+                    # Uncompromise step that has become untraversable
+                    attacker.undo_compromise(node)
 
-            for child in node.children:
-                if child.type not in ('or', 'and'):
-                    # Not relevant for attacker obs state
-                    continue
-
-                child_index = self._id_to_index[child.id]
-                child_obs_state = obs_state[child_index]
-
-                if child_obs_state != 1:
-                    # No need to change obs state
-                    continue
-
-                if not query.is_node_traversable_by_attacker(child, attacker)\
-                    and not child in attacker.entry_points:
-                    # Child step has been defended against (disabled)
-                    # TODO: everything inside the below if statement instead?
-                    obs_state[child_index] = 0
-
-                    if self.sim_settings.uncompromise_untraversable_steps:
-                        # Uncompromise step that has become untraversable
-                        attacker.undo_compromise(child)
-
-                    disable_untraversable_attack_children_in_obs(child)
-
-        # Remove nodes that are defended against by latest defense
-        for node in performed_defense_nodes:
-            disable_untraversable_attack_children_in_obs(node)
 
     def _observe_defender(
             self,
