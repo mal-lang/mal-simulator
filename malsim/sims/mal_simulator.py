@@ -545,6 +545,8 @@ class MalSimulator(ParallelEnv):
         """
         Update the viability of the node in the graph and evict any nodes
         that are no longer viable from any attackers' action surface.
+        Also make sure unviable previously activated attack steps
+        are set to 0 (disabled) in the attackers observation.
         Propagate this recursively via children as long as changes occur.
 
         Arguments:
@@ -560,6 +562,28 @@ class MalSimulator(ParallelEnv):
             # viable nodes.
             for agent in self.agents:
                 if self.agents_dict[agent]["type"] == "attacker":
+
+                    attacker_index = self.agents_dict[agent]["attacker"]
+                    attacker = self.attack_graph.attackers[attacker_index]
+                    node_index = self._id_to_index[node.id]
+
+                    logger.info(
+                        'Remove untraversable node from attacker '
+                        '"%s": "%s"(%d)',
+                            agent,
+                            node.full_name,
+                            node.id
+                    )
+
+                    agent_observation = self._agent_observations[agent]
+                    node_obs = agent_observation['observed_state'][node_index]
+
+                    if node.type in ('and', 'or') and \
+                       node_obs == 1 and \
+                       node not in attacker.entry_points:
+
+                        attacker.undo_compromise(node)
+                        agent_observation['observed_state'][node_index] = 0
                     try:
                         self.action_surfaces[agent].remove(node)
                     except ValueError:
@@ -638,52 +662,27 @@ class MalSimulator(ParallelEnv):
         observation     - the blank observation to fill in
         """
 
-        attacker_index = self.agents_dict[attacker_agent]["attacker"]
-        attacker = self.attack_graph.attackers[attacker_index]
         obs_state = self._agent_observations[attacker_agent]["observed_state"]
-
-        performed_defense_nodes = []
-        performed_attack_nodes = []
 
         # Set obs state of reached attack steps to 1 (enabled)
         for _, actions in performed_actions.items():
-
             for step_index in actions:
+
                 if step_index is None:
+                    # Waiting does not affect obs
                     continue
 
-                node = self.attack_graph.get_node_by_id(
-                    self._index_to_id[step_index])
-
+                node_id = self._index_to_id[step_index]
+                node = self.attack_graph.get_node_by_id(node_id)
                 if node.type in ('or', 'and'):
-                    # attack step
+                    # Attack step activated, set to 1 (enabled)
                     obs_state[step_index] = 1
-                    performed_attack_nodes.append(node)
 
-                elif node.type == 'defense':
-                    # defense step
-                    performed_defense_nodes.append(node)
-
-        # Set obs state of reached attack steps children to 0 (disabled)
-        for node in performed_attack_nodes:
-            for child in node.children:
-                child_index = self._id_to_index[child.id]
-                child_obs_state = obs_state[child_index]
-                if child_obs_state == -1:
-                    obs_state[child_index] = 0
-
-        # Disabled attack steps (by defense) should be set to 0
-        # TODO: This should be done with performed_defense_nodes instead
-        #       but i could NOT get it to work :( this is slow.
-        for node in self.attack_graph.nodes:
-            index = self._id_to_index[node.id]
-            if obs_state[index] == 1\
-               and not query.is_node_traversable_by_attacker(node, attacker)\
-               and not node in attacker.entry_points:
-                obs_state[index] = 0
-                if self.sim_settings.uncompromise_untraversable_steps:
-                    # Uncompromise step that has become untraversable
-                    attacker.undo_compromise(node)
+                    for child in node.children:
+                        # Set its children to 0 (disabled)
+                        child_index = self._id_to_index[child.id]
+                        if obs_state[child_index] == -1:
+                            obs_state[child_index] = 0
 
 
     def _observe_defender(
