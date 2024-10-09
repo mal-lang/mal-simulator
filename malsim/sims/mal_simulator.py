@@ -693,11 +693,8 @@ class MalSimulator(ParallelEnv):
 
         obs_state = self._agent_observations[defender_agent]["observed_state"]
 
-        if self.sim_settings.cumulative_defender_obs:
-            # Add the latest performed actions to the observed state
-            # TODO: need to handle defense steps disabling attack steps
-            pass
-        else:
+        # TODO: need to handle defense steps disabling attack steps
+        if not self.sim_settings.cumulative_defender_obs:
             # View all states as unknown
             # TODO: Should they be disabled (0) instead?
             obs_state.fill(-1)
@@ -707,24 +704,26 @@ class MalSimulator(ParallelEnv):
             for action in actions:
                 obs_state[action] = 1
 
-    def _observe_agent(self, agent, performed_actions):
-        """Collect agent observations"""
-        agent_type = self.agents_dict[agent]["type"]
-        if  agent_type == "defender":
-            self._observe_defender(agent, performed_actions)
+    def _observe_agents(self, performed_actions):
+        """Collect agents observations"""
 
-        elif agent_type == "attacker":
-            self._observe_attacker(agent, performed_actions)
+        for agent in self.agents:
+            agent_type = self.agents_dict[agent]["type"]
+            if  agent_type == "defender":
+                self._observe_defender(agent, performed_actions)
 
-        else:
-            logger.error(
-                "Agent %s has unknown type: %s",
-                agent, self.agents_dict[agent]["type"]
-            )
+            elif agent_type == "attacker":
+                self._observe_attacker(agent, performed_actions)
+
+            else:
+                logger.error(
+                    "Agent %s has unknown type: %s",
+                    agent, self.agents_dict[agent]["type"]
+                )
 
     def _reward_agents(self, performed_actions):
         """Update rewards from latest performed actions"""
-        # TODO: should initial actions give rewards?
+        # TODO: should initial actions give rewards? Currently do.
         for agent, actions in performed_actions.items():
             agent_type = self.agents_dict[agent]["type"]
 
@@ -751,46 +750,48 @@ class MalSimulator(ParallelEnv):
                     self._agent_rewards[agent] -= node_reward
 
 
-    def _collect_agent_infos(self, agent):
+    def _collect_agents_infos(self):
         """Collect agent info, this is used to determine the possible
         actions in the next iteration step. Then fill in all of the"""
 
         attackers_done = True
-
+        infos = {}
         can_wait = {
             "attacker": 0,
             "defender": 1,
         }
 
-        agent_type = self.agents_dict[agent]["type"]
-        available_actions = [0] * len(self.attack_graph.nodes)
-        can_act = 0
+        for agent in self.agents:
+            agent_type = self.agents_dict[agent]["type"]
+            available_actions = [0] * len(self.attack_graph.nodes)
+            can_act = 0
 
-        if agent_type == "defender":
-            for node in self.action_surfaces[agent]:
-                index = self._id_to_index[node.id]
-                available_actions[index] = 1
-                can_act = 1
-
-        if agent_type == "attacker":
-            attacker = self.attack_graph.attackers[
-                self.agents_dict[agent]["attacker"]
-            ]
-            for node in self.action_surfaces[agent]:
-                if not node.is_compromised_by(attacker):
+            if agent_type == "defender":
+                for node in self.action_surfaces[agent]:
                     index = self._id_to_index[node.id]
                     available_actions[index] = 1
                     can_act = 1
-                    attackers_done = False
 
-        return attackers_done, {
-            "action_mask": (
-                np.array(
-                    [can_wait[agent_type], can_act], dtype=np.int8),
-                np.array(
-                    available_actions, dtype=np.int8)
-            )
-        }
+            if agent_type == "attacker":
+                attacker = self.attack_graph.attackers[
+                    self.agents_dict[agent]["attacker"]
+                ]
+                for node in self.action_surfaces[agent]:
+                    if not node.is_compromised_by(attacker):
+                        index = self._id_to_index[node.id]
+                        available_actions[index] = 1
+                        can_act = 1
+                        attackers_done = False
+
+            infos[agent] = {
+                "action_mask": (
+                    np.array(
+                        [can_wait[agent_type], can_act], dtype=np.int8),
+                    np.array(
+                        available_actions, dtype=np.int8)
+                )}
+
+        return attackers_done, infos
 
     def _observe_and_reward(self, performed_actions: dict[str, list[int]]):
         """Update observations and reward agents based on latest actions
@@ -807,13 +808,9 @@ class MalSimulator(ParallelEnv):
         # terminations, truncations, and infos.
         # If no attackers have any actions left
         # to take the simulation will terminate.
-        attackers_done = True
-        for agent in self.agents:
-            self._observe_agent(agent, performed_actions)
-            attackers_done, infos[agent] = \
-                self._collect_agent_infos(agent)
-
+        self._observe_agents(performed_actions)
         self._reward_agents(performed_actions)
+        attackers_done, infos = self._collect_agents_infos()
 
         for agent in self.agents:
             # Terminate simulation if no attackers have actions to take
@@ -883,7 +880,7 @@ class MalSimulator(ParallelEnv):
         # Map agent to defense/attack steps performed in this step
         performed_actions = {}
 
-        # TODO: make sure defender is run before attacker
+        # TODO: where do we make sure defender is run before attacker?
 
         # Peform agent actions
         for agent in self.agents:
