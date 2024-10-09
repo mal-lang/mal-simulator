@@ -14,7 +14,7 @@ requires-python = ">=3.10"
 dependencies = [
   "py2neo>=2021.2.3",
   "python-jsonschema-objects>=0.4.1",
-  "mal-toolbox>=0.1.9",
+  "mal-toolbox>=0.1.10",
   "numpy>=1.21.4",
   "pettingzoo>=1.24.2",
   "gymnasium>=0.29.1, <1",
