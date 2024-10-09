@@ -563,27 +563,28 @@ class MalSimulator(ParallelEnv):
             for agent in self.agents:
                 if self.agents_dict[agent]["type"] == "attacker":
 
-                    attacker_index = self.agents_dict[agent]["attacker"]
-                    attacker = self.attack_graph.attackers[attacker_index]
-                    node_index = self._id_to_index[node.id]
+                    if self.sim_settings.uncompromise_untraversable_steps:
+                        attacker_index = self.agents_dict[agent]["attacker"]
+                        attacker = self.attack_graph.attackers[attacker_index]
+                        node_index = self._id_to_index[node.id]
 
-                    logger.info(
-                        'Remove untraversable node from attacker '
-                        '"%s": "%s"(%d)',
-                            agent,
-                            node.full_name,
-                            node.id
-                    )
+                        logger.info(
+                            'Remove untraversable node from attacker '
+                            '"%s": "%s"(%d)',
+                                agent,
+                                node.full_name,
+                                node.id
+                        )
 
-                    agent_observation = self._agent_observations[agent]
-                    node_obs = agent_observation['observed_state'][node_index]
+                        agent_observation = self._agent_observations[agent]
+                        node_obs = agent_observation['observed_state'][node_index]
 
-                    if node.type in ('and', 'or') and \
-                       node_obs == 1 and \
-                       node not in attacker.entry_points:
+                        if node.type in ('and', 'or') and \
+                        node_obs == 1 and \
+                        node not in attacker.entry_points:
 
-                        attacker.undo_compromise(node)
-                        agent_observation['observed_state'][node_index] = 0
+                            attacker.undo_compromise(node)
+                            agent_observation['observed_state'][node_index] = 0
                     try:
                         self.action_surfaces[agent].remove(node)
                     except ValueError:
