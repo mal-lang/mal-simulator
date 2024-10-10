@@ -211,6 +211,38 @@ def test_malsimulator_register_defender(corelang_lang_graph, model):
     assert agent_name in sim.agents_dict
 
 
+def test_simulator_initialize_agents():
+    """Test _initialize_agents"""
+
+    sim, _ = create_simulator_from_scenario(
+        'tests/testdata/scenarios/simple_scenario.yml',
+    )
+    sim.reset()
+    agents = sim._initialize_agents()
+    assert set(agents.keys()) == {'defender', 'attacker'}
+
+    for node in sim.attack_graph.nodes:
+        node_index = sim._id_to_index[node.id]
+        if node.is_enabled_defense():
+            assert node_index in agents['defender']
+        elif node.is_compromised():
+            assert node_index in agents['attacker']
+        else:
+            assert node_index not in agents['defender']
+            assert node_index not in agents['attacker']
+
+
+def test_get_agents():
+    """Test get_attacker_agents and get_defender_agents"""
+
+    sim, _ = create_simulator_from_scenario(
+        'tests/testdata/scenarios/simple_scenario.yml',
+    )
+    sim.reset()
+    sim.get_attacker_agents() == ['attacker']
+    sim.get_defender_agents() == ['defender']
+
+
 def test_malsimulator_attacker_step(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
 
