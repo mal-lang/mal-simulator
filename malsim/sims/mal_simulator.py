@@ -572,9 +572,24 @@ class MalSimulator(ParallelEnv):
             self.model.get_association_field_names(association)
         left_field = getattr(association, left_field_name)
         right_field = getattr(association, right_field_name)
-        assoc_full_name = assoc_name + '_' + \
-            left_field[0].type + '_' + \
+        lang_assoc = self.lang_graph.get_association_by_fields_and_assets(
+            left_field_name,
+            right_field_name,
+            left_field[0].type,
             right_field[0].type
+        )
+        if lang_assoc is None:
+            raise LookupError('Failed to find association for fields '
+                '"%s" "%s" and asset types "%s" "%s"!' % (
+                    left_field_name,
+                    right_field_name,
+                    left_field[0].type,
+                    right_field[0].type
+                )
+            )
+        assoc_full_name = lang_assoc.name + '_' + \
+            lang_assoc.left_field.asset.name + '_' + \
+            lang_assoc.right_field.asset.name
         return assoc_full_name
 
 
