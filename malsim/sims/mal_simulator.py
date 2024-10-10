@@ -156,7 +156,11 @@ class MalSimulator(ParallelEnv):
             for left_asset in left_field:
                 for right_asset in right_field:
                     observation["model_edges_ids"].append(
-                        [left_asset.id, right_asset.id])
+                        [
+                            self._model_asset_id_to_index[left_asset.id],
+                            self._model_asset_id_to_index[right_asset.id]
+                        ]
+                    )
                     observation["model_edges_type"].append(
                         self._model_assoc_type_to_index[
                             self._get_association_full_name(assoc)])
@@ -245,20 +249,26 @@ class MalSimulator(ParallelEnv):
         obs_str += "\nInstance Model Edges:\n"
         str_format = "{:<5} {:<40} {:<40} {:<}\n"
         header_entry = [
-            "Entry", "Left Asset(Id)", "Right Asset(Id)", "Type(Index)"]
+            "Entry",
+            "Left Asset(Id/Index)",
+            "Right Asset(Id/Index)",
+            "Type(Index)"
+        ]
         entries = []
         for entry in range(0, len(observation["model_edges_ids"])):
             assoc_type_str = self._index_to_model_assoc_type[
                 observation["model_edges_type"][entry]] + \
                     '(' + str(observation["model_edges_type"][entry]) + ')'
-            left_asset_id = int(observation["model_edges_ids"][entry][0])
-            right_asset_id = int(observation["model_edges_ids"][entry][1])
+            left_asset_index = int(observation["model_edges_ids"][entry][0])
+            right_asset_index = int(observation["model_edges_ids"][entry][1])
+            left_asset_id = self._index_to_model_asset_id[left_asset_index]
+            right_asset_id = self._index_to_model_asset_id[right_asset_index]
             left_asset_str = \
                 self.model.get_asset_by_id(left_asset_id).name + \
-                '(' + str(left_asset_id) + ')'
+                '(' + str(left_asset_id) + '/' + str(left_asset_index) + ')'
             right_asset_str = \
                 self.model.get_asset_by_id(right_asset_id).name + \
-                '(' + str(right_asset_id) + ')'
+                '(' + str(right_asset_id) + '/' + str(right_asset_index) + ')'
             entries.append(
                 [
                     entry,
