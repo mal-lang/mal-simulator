@@ -241,8 +241,6 @@ class MalSimulator(ParallelEnv):
         num_lang_attack_steps = len(self.lang_graph.attack_steps)
         num_attack_graph_edges = len(
             self._blank_observation["attack_graph_edges"])
-        # TODO is_observable is never set. It will be filled in once the
-        # observability of the attack graph is determined.
         return Dict(
             {
                 "is_observable": Box(
@@ -377,9 +375,6 @@ class MalSimulator(ParallelEnv):
     def _initialize_agents(self) -> dict[str, list[int]]:
         """Initialize agent rewards, observations and action_surfaces
 
-        Updates self._agent_rewards, self._agent_observations
-        and self.action_surfaces
-
         Return:
         - An action dictionary mapping agent to initial actions
           (attacker entry points and pre-activated defenses)
@@ -429,8 +424,8 @@ class MalSimulator(ParallelEnv):
         return initial_actions
 
     def initialize(self, max_iter=ITERATIONS_LIMIT):
-        """Create mapping tables, register agents and
-        initalize their observations + action surfaces + rewards.
+        """Create mapping tables, register agents, and initialize their
+        observations, action surfaces, and rewards.
 
         Return initial observations and infos.
         """
@@ -479,11 +474,18 @@ class MalSimulator(ParallelEnv):
         }
 
     def register_defender(self, agent_name):
-        """Add defender agent to the simulator"""
+        """Add defender agent to the simulator
+
+        Defenders are run first so that the defenses prevent attackers
+        appropriately in case any attackers select attack steps that the
+        defenders safeguards against during the same step.
+        """
         logger.info('Register defender "%s" agent.', agent_name)
         assert agent_name not in self.agents_dict, \
                 f"Duplicate defender agent named {agent_name} not allowed"
 
+        # Add defenders at the front of the list to make sure they have
+        # priority.
         self.possible_agents.insert(0, agent_name)
         self.agents_dict[agent_name] = {"type": "defender"}
 
@@ -529,7 +531,6 @@ class MalSimulator(ParallelEnv):
                         self.action_surfaces[agent],
                         [attack_step_node]
                     )
-            # TODO: should below line be part of the inner if-stmt?
             actions.append(attack_step)
         else:
             logger.warning(
@@ -724,7 +725,6 @@ class MalSimulator(ParallelEnv):
 
     def _reward_agents(self, performed_actions):
         """Update rewards from latest performed actions"""
-        # TODO: should initial actions give rewards? Currently do.
         for agent, actions in performed_actions.items():
             agent_type = self.agents_dict[agent]["type"]
 
@@ -744,9 +744,6 @@ class MalSimulator(ParallelEnv):
                     for d_agent in self.get_defender_agents():
                         self._agent_rewards[d_agent] -= node_reward
                 else:
-                    # TODO: defending against an attack step
-                    # can it increase reward for defender?
-
                     # If a defender performed step, it will be penalized
                     self._agent_rewards[agent] -= node_reward
 
@@ -880,8 +877,6 @@ class MalSimulator(ParallelEnv):
 
         # Map agent to defense/attack steps performed in this step
         performed_actions = {}
-
-        # TODO: where do we make sure defender is run before attacker?
 
         # Peform agent actions
         for agent in self.agents:
