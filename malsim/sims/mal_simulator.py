@@ -387,7 +387,7 @@ class MalSimulator(ParallelEnv):
 
         for agent in self.agents:
             # Initialize rewards
-            self._agent_rewards[agent] = 0
+            self.agents_dict[agent]["rewards"] = 0
             agent_type = self.agents_dict[agent]["type"]
 
             if agent_type == "attacker":
@@ -396,9 +396,9 @@ class MalSimulator(ParallelEnv):
                 assert attacker, f"No attacker at index {attacker_id}"
 
                 # Initialize observations and action surfaces
-                self._agent_observations[agent] = \
+                self.agents_dict[agent]["observation"] = \
                     self.create_blank_observation()
-                self.action_surfaces[agent] = \
+                self.agents_dict[agent]["action_surface"] = \
                     query.get_attack_surface(attacker)
 
                 # Initial actions for attacker are its entrypoints
@@ -408,9 +408,9 @@ class MalSimulator(ParallelEnv):
 
             elif agent_type == "defender":
                 # Initialize observations and action surfaces
-                self._agent_observations[agent] = \
+                self.agents_dict[agent]["observation"] = \
                     self.create_blank_observation(default_obs_state=0)
-                self.action_surfaces[agent] = \
+                self.agents_dict[agent]["action_surface"] = \
                     query.get_defense_surface(self.attack_graph)
 
                 # Initial actions for defender are all pre-enabled defenses
@@ -419,7 +419,7 @@ class MalSimulator(ParallelEnv):
                                           if node.is_enabled_defense()]
 
             else:
-                self.action_surfaces[agent] = []
+                self.agents_dict[agent]["action_surface"] = []
 
         return initial_actions
 
@@ -446,11 +446,6 @@ class MalSimulator(ParallelEnv):
                 self.format_full_observation(self._blank_observation)
             )
 
-        # Map agents to observations and rewards
-        self._agent_observations = {}
-        self.action_surfaces = {}
-        self._agent_rewards = {}
-
         # Initialize agents and record the entry point actions
         initial_actions = self._initialize_agents()
 
@@ -470,7 +465,10 @@ class MalSimulator(ParallelEnv):
         self.possible_agents.append(agent_name)
         self.agents_dict[agent_name] = {
             "type": "attacker",
-            "attacker": attacker
+            "attacker": attacker,
+            "observation": {},
+            "action_surface": [],
+            "rewards": 0
         }
 
     def register_defender(self, agent_name):
@@ -487,7 +485,12 @@ class MalSimulator(ParallelEnv):
         # Add defenders at the front of the list to make sure they have
         # priority.
         self.possible_agents.insert(0, agent_name)
-        self.agents_dict[agent_name] = {"type": "defender"}
+        self.agents_dict[agent_name] = {
+            "type": "defender",
+            "observation": {},
+            "action_surface": [],
+            "rewards": 0
+        }
 
     def get_attacker_agents(self) -> dict:
         """Return agents dictionaries of attacker agents"""
@@ -525,10 +528,10 @@ class MalSimulator(ParallelEnv):
                     attack_step_node.id
                 )
                 attacker.compromise(attack_step_node)
-                self.action_surfaces[agent] = \
+                self.agents_dict[agent]["action_surface"] = \
                     query.update_attack_surface_add_nodes(
                         attacker,
-                        self.action_surfaces[agent],
+                        self.agents_dict[agent]["action_surface"],
                         [attack_step_node]
                     )
             actions.append(attack_step)
@@ -577,8 +580,10 @@ class MalSimulator(ParallelEnv):
                                 node.id
                         )
 
-                        agent_observation = self._agent_observations[agent]
-                        node_obs = agent_observation['observed_state'][node_index]
+                        agent_observation = \
+                            self.agents_dict[agent]['observation']
+                        node_obs = \
+                            agent_observation['observed_state'][node_index]
 
                         if node.type in ('and', 'or') and \
                         node_obs == 1 and \
@@ -587,7 +592,7 @@ class MalSimulator(ParallelEnv):
                             attacker.undo_compromise(node)
                             agent_observation['observed_state'][node_index] = 0
                     try:
-                        self.action_surfaces[agent].remove(node)
+                        self.agents_dict[agent]["action_surface"].remove(node)
                     except ValueError:
                         # Optimization: the attacker is told to remove
                         # the node from its attack surface even if it
@@ -619,7 +624,7 @@ class MalSimulator(ParallelEnv):
             defense_step_node.full_name,
             defense_step_node.id
         )
-        if defense_step_node not in self.action_surfaces[agent]:
+        if defense_step_node not in self.agents_dict[agent]["action_surface"]:
             logger.warning(
                 'Defender agent "%s" tried to step through "%s"(%d).'
                 'which is not part of its defense surface. Defender '
@@ -640,7 +645,8 @@ class MalSimulator(ParallelEnv):
         for agent_el in self.agents:
             if self.agents_dict[agent_el]["type"] == "defender":
                 try:
-                    self.action_surfaces[agent_el].remove(defense_step_node)
+                    self.agents_dict[agent_el]["action_surface"].\
+                        remove(defense_step_node)
                 except ValueError:
                     # Optimization: the defender is told to remove
                     # the node from its defense surface even if it
@@ -664,7 +670,8 @@ class MalSimulator(ParallelEnv):
         observation     - the blank observation to fill in
         """
 
-        obs_state = self._agent_observations[attacker_agent]["observed_state"]
+        obs_state = self.agents_dict[attacker_agent]["observation"]\
+            ["observed_state"]
 
         # Set obs state of reached attack steps to 1 (enabled)
         for _, actions in performed_actions.items():
@@ -693,7 +700,8 @@ class MalSimulator(ParallelEnv):
             performed_actions: dict[str, list[int]]
         ):
 
-        obs_state = self._agent_observations[defender_agent]["observed_state"]
+        obs_state = self.agents_dict[defender_agent]["observation"]\
+            ["observed_state"]
 
         # TODO: need to handle defense steps disabling attack steps
         if not self.sim_settings.cumulative_defender_obs:
@@ -738,14 +746,14 @@ class MalSimulator(ParallelEnv):
 
                 if agent_type == "attacker":
                     # If attacker performed step, it will receive
-                    # a reward and penalize all defender
-                    self._agent_rewards[agent] += node_reward
+                    # a reward and penalize all defenders
+                    self.agents_dict[agent]["rewards"] += node_reward
 
                     for d_agent in self.get_defender_agents():
-                        self._agent_rewards[d_agent] -= node_reward
+                        self.agents_dict[d_agent]["rewards"] -= node_reward
                 else:
                     # If a defender performed step, it will be penalized
-                    self._agent_rewards[agent] -= node_reward
+                    self.agents_dict[agent]["rewards"] -= node_reward
 
 
     def _collect_agents_infos(self):
@@ -765,7 +773,7 @@ class MalSimulator(ParallelEnv):
             can_act = 0
 
             if agent_type == "defender":
-                for node in self.action_surfaces[agent]:
+                for node in self.agents_dict[agent]["action_surface"]:
                     index = self._id_to_index[node.id]
                     available_actions[index] = 1
                     can_act = 1
@@ -774,7 +782,7 @@ class MalSimulator(ParallelEnv):
                 attacker = self.attack_graph.attackers[
                     self.agents_dict[agent]["attacker"]
                 ]
-                for node in self.action_surfaces[agent]:
+                for node in self.agents_dict[agent]["action_surface"]:
                     if not node.is_compromised_by(attacker):
                         index = self._id_to_index[node.id]
                         available_actions[index] = 1
@@ -832,13 +840,14 @@ class MalSimulator(ParallelEnv):
             if logger.isEnabledFor(logging.DEBUG):
                 # Debug print agent states
                 agent_obs_str = self.format_obs_var_sec(
-                    self._agent_observations[agent],
+                    self.agents_dict[agent]["observation"],
                     included_values = [0, 1])
 
                 logger.debug(
                     'Observation for agent "%s":\n%s', agent, agent_obs_str)
                 logger.debug(
-                    'Rewards for agent "%s": %d', agent, self._agent_rewards[agent])
+                    'Rewards for agent "%s": %d', agent,
+                    self.agents_dict[agent]["rewards"])
                 logger.debug(
                     'Termination for agent "%s": %s',
                     agent, terminations[agent])
@@ -853,9 +862,13 @@ class MalSimulator(ParallelEnv):
         for agent in finished_agents:
             self.agents.remove(agent)
 
+        observations = {agent: self.agents_dict[agent]["observation"] \
+            for agent in self.agents_dict}
+        rewards = {agent: self.agents_dict[agent]["rewards"] \
+            for agent in self.agents_dict}
         return (
-            self._agent_observations,
-            self._agent_rewards,
+            observations,
+            rewards,
             terminations,
             truncations,
             infos

@@ -458,7 +458,8 @@ def test_malsimulator_step(corelang_lang_graph, model):
     agent_name = "attacker1"
     attacker_id = attack_graph.attackers[0].id
     sim.register_attacker(agent_name, attacker_id)
-    assert not sim.action_surfaces
+    assert agent_name in sim.agents_dict
+    assert not sim.agents_dict[agent_name]['action_surface']
 
     obs, infos = sim.reset()
 
@@ -469,7 +470,8 @@ def test_malsimulator_step(corelang_lang_graph, model):
     actions = {agent_name: (action, step_index)}
     observations, rewards, terminations, truncations, infos = sim.step(actions)
     assert len(observations[agent_name]['observed_state']) == len(attack_graph.nodes)
-    assert agent_name in sim.action_surfaces
+    assert agent_name in sim.agents_dict
+    assert sim.agents_dict[agent_name]['action_surface']
 
     # Make sure 'OS App:attemptUseVulnerability' is observed and set to 1 (active)
     assert observations[agent_name]['observed_state'][step_index] == 1
