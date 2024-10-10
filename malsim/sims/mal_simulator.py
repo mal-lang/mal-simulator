@@ -389,6 +389,7 @@ class MalSimulator(ParallelEnv):
             # Initialize rewards
             self.agents_dict[agent]["rewards"] = 0
             agent_type = self.agents_dict[agent]["type"]
+            initial_actions[agent] = []
 
             if agent_type == "attacker":
                 attacker_id = self.agents_dict[agent]["attacker"]
@@ -402,9 +403,9 @@ class MalSimulator(ParallelEnv):
                     query.get_attack_surface(attacker)
 
                 # Initial actions for attacker are its entrypoints
-                initial_actions[agent] = [self._id_to_index[entry_point.id]
-                                          for entry_point
-                                          in attacker.entry_points]
+                for entry_point in attacker.entry_points:
+                    initial_actions[agent].append(self._id_to_index[entry_point.id])
+                    entry_point.extras['entrypoint'] = True
 
             elif agent_type == "defender":
                 # Initialize observations and action surfaces
@@ -548,7 +549,7 @@ class MalSimulator(ParallelEnv):
     def update_viability(
             self,
             node: AttackGraphNode,
-            evicted_attack_steps: Optional[list[AttackGraphNode]] = None
+            evicted_attack_steps: list[AttackGraphNode] = None
         ) -> list[AttackGraphNode]:
         """
         Update the viability of the node in the graph and return any
@@ -561,17 +562,20 @@ class MalSimulator(ParallelEnv):
                                   that are evicted by a defense in current step
         """
 
-        # The list to be returned - maps attacker agents to list of evicted steps
-        evicted_attack_steps = evicted_attack_steps or []
-
+        evicted_attack_steps = [] if evicted_attack_steps is None else evicted_attack_steps
         logger.debug(
-            'Update viability with eviction for node "%s"(%d)',
+            'Update viability for node "%s"(%d)',
             node.full_name,
             node.id
         )
-
         assert not node.is_viable, ("update_viability should not be called"
                                    f" on viable node {node.full_name}")
+
+        if node.extras.get('entrypoint'):
+            # Never make entrypoint unviable, and do not
+            # propagate its viability further
+            node.is_viable = True
+            return evicted_attack_steps
 
         if node.type in ('and', 'or'):
             evicted_attack_steps.append(node)
@@ -586,7 +590,7 @@ class MalSimulator(ParallelEnv):
                 child.is_viable = False
 
             if child.is_viable != original_value:
-                return self.update_viability(child, evicted_attack_steps)
+                self.update_viability(child, evicted_attack_steps)
 
         return evicted_attack_steps
 
@@ -813,6 +817,7 @@ class MalSimulator(ParallelEnv):
 
                         # Uncompromise node if requested
                         attacker.undo_compromise(evicted_node)
+
                         # Uncompromised nodes observed state is 0 (disabled)
                         step_index = self._id_to_index[evicted_node.id]
                         agent_obs = self.agents_dict\
