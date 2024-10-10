@@ -11,7 +11,7 @@ from gymnasium.spaces import MultiDiscrete, Box, Dict
 from pettingzoo import ParallelEnv
 
 from maltoolbox import neo4j_configs
-from maltoolbox.attackgraph import AttackGraph
+from maltoolbox.attackgraph import AttackGraph, AttackGraphNode, Attacker
 from maltoolbox.attackgraph.analyzers import apriori
 from maltoolbox.attackgraph import query
 from maltoolbox.ingestors import neo4j
@@ -373,7 +373,7 @@ class MalSimulator(ParallelEnv):
         }
 
     def _initialize_agents(self) -> dict[str, list[int]]:
-        """Initialize agent rewards, observations and action_surfaces
+        """Initialize agent rewards, observations and action surfaces
 
         Return:
         - An action dictionary mapping agent to initial actions
@@ -450,7 +450,7 @@ class MalSimulator(ParallelEnv):
         initial_actions = self._initialize_agents()
 
         observations, _, _, _, infos = (
-            self._observe_and_reward(initial_actions))
+            self._observe_and_reward(initial_actions, []))
 
         return observations, infos
 
@@ -545,78 +545,58 @@ class MalSimulator(ParallelEnv):
             )
         return actions
 
-    def update_viability_with_eviction(self, node):
+    def update_viability(
+            self,
+            node: AttackGraphNode,
+            evicted_attack_steps: Optional[list[AttackGraphNode]] = None
+        ) -> list[AttackGraphNode]:
         """
-        Update the viability of the node in the graph and evict any nodes
-        that are no longer viable from any attackers' action surface.
-        Also make sure unviable previously activated attack steps
-        are set to 0 (disabled) in the attackers observation.
+        Update the viability of the node in the graph and return any
+        attack steps that are no longer viable.
         Propagate this recursively via children as long as changes occur.
 
         Arguments:
-        node       - the node to propagate updates from
+        node                    - the node to propagate updates from
+        evicted_attack_steps    - a list being built up containing attack steps
+                                  that are evicted by a defense in current step
         """
+
+        # The list to be returned - maps attacker agents to list of evicted steps
+        evicted_attack_steps = evicted_attack_steps or []
+
         logger.debug(
             'Update viability with eviction for node "%s"(%d)',
             node.full_name,
             node.id
         )
-        if not node.is_viable:
-            # This is more of a sanity check, it should never be called on
-            # viable nodes.
-            for agent in self.agents:
-                if self.agents_dict[agent]["type"] == "attacker":
 
-                    if self.sim_settings.uncompromise_untraversable_steps:
-                        attacker_index = self.agents_dict[agent]["attacker"]
-                        attacker = self.attack_graph.attackers[attacker_index]
-                        node_index = self._id_to_index[node.id]
+        assert not node.is_viable, ("update_viability should not be called"
+                                   f" on viable node {node.full_name}")
 
-                        logger.info(
-                            'Remove untraversable node from attacker '
-                            '"%s": "%s"(%d)',
-                                agent,
-                                node.full_name,
-                                node.id
-                        )
+        if node.type in ('and', 'or'):
+            evicted_attack_steps.append(node)
 
-                        agent_observation = \
-                            self.agents_dict[agent]['observation']
-                        node_obs = \
-                            agent_observation['observed_state'][node_index]
+        for child in node.children:
+            original_value = child.is_viable
+            if child.type == 'or':
+                child.is_viable = False
+                for parent in child.parents:
+                    child.is_viable = child.is_viable or parent.is_viable
+            if child.type == 'and':
+                child.is_viable = False
 
-                        if node.type in ('and', 'or') and \
-                        node_obs == 1 and \
-                        node not in attacker.entry_points:
+            if child.is_viable != original_value:
+                return self.update_viability(child, evicted_attack_steps)
 
-                            attacker.undo_compromise(node)
-                            agent_observation['observed_state'][node_index] = 0
-                    try:
-                        self.agents_dict[agent]["action_surface"].remove(node)
-                    except ValueError:
-                        # Optimization: the attacker is told to remove
-                        # the node from its attack surface even if it
-                        # may have not been present to save one extra
-                        # lookup.
-                        pass
+        return evicted_attack_steps
 
-            for child in node.children:
-                original_value = child.is_viable
-                if child.type == 'or':
-                    child.is_viable = False
-                    for parent in child.parents:
-                        child.is_viable = child.is_viable or parent.is_viable
-                if child.type == 'and':
-                    child.is_viable = False
+    def _defender_step(
+            self, agent, defense_step_index
+        ) -> tuple[list[int], list[AttackGraphNode]]:
 
-                if child.is_viable != original_value:
-                    self.update_viability_with_eviction(child)
-
-
-    def _defender_step(self, agent, defense_step):
         actions = []
         defense_step_node = self.attack_graph.get_node_by_id(
-            self._index_to_id[defense_step]
+            self._index_to_id[defense_step_index]
         )
         logger.info(
             'Defender agent "%s" stepping through "%s"(%d).',
@@ -633,12 +613,14 @@ class MalSimulator(ParallelEnv):
                 defense_step_node.full_name,
                 defense_step_node.id
             )
-            return actions
+            return actions, []
 
         defense_step_node.defense_status = 1.0
         defense_step_node.is_viable = False
-        self.update_viability_with_eviction(defense_step_node)
-        actions.append(defense_step)
+        prevented_attack_steps = self.update_viability(
+            defense_step_node
+        )
+        actions.append(defense_step_index)
 
         # Remove defense from all defender agents' action surfaces since it is
         # already enabled.
@@ -654,7 +636,7 @@ class MalSimulator(ParallelEnv):
                     # lookup.
                     pass
 
-        return actions
+        return actions, prevented_attack_steps
 
     def _observe_attacker(
             self,
@@ -692,7 +674,6 @@ class MalSimulator(ParallelEnv):
                         child_index = self._id_to_index[child.id]
                         if obs_state[child_index] == -1:
                             obs_state[child_index] = 0
-
 
     def _observe_defender(
             self,
@@ -799,19 +780,78 @@ class MalSimulator(ParallelEnv):
 
         return attackers_done, infos
 
-    def _observe_and_reward(self, performed_actions: dict[str, list[int]]):
+    def _disable_attack_steps(
+            self, attack_steps_to_disable: list[AttackGraphNode]
+        ):
+        """Disable nodes for each attacker agent
+
+        - Remove attack steps from each attackers action_surface.
+        - For each compromised attack step:
+            - Uncompromise the node, disable its observed_state
+              and remove the rewards if sim_settings has the
+              uncompromise_untraversable_steps parameter enabled.
+        """
+
+        for attacker_agent in self.get_attacker_agents():
+            attacker_index = self.agents_dict[attacker_agent]["attacker"]
+            attacker: Attacker = self.attack_graph.attackers[attacker_index]
+
+            for evicted_node in attack_steps_to_disable:
+
+                if evicted_node.is_compromised_by(attacker):
+
+                    if self.sim_settings.uncompromise_untraversable_steps:
+                        # Reward is no longer present for attacker
+                        node_reward = evicted_node.extras.get('reward', 0)
+                        self.agents_dict[attacker_agent]["rewards"]\
+                            -= node_reward
+
+                        # Reward is no longer present for defenders
+                        for defender_agent in self.get_defender_agents():
+                            self.agents_dict[defender_agent]["rewards"]\
+                                += node_reward
+
+                        # Uncompromise node if requested
+                        attacker.undo_compromise(evicted_node)
+                        # Uncompromised nodes observed state is 0 (disabled)
+                        step_index = self._id_to_index[evicted_node.id]
+                        agent_obs = self.agents_dict\
+                            [attacker_agent]["observation"]
+                        agent_obs['observed_state'][step_index] = 0
+
+                try:
+                    # Node is no longer part of attacker action surface
+                    self.agents_dict[attacker_agent]\
+                        ["action_surface"].remove(evicted_node)
+                except ValueError:
+                    # Optimization: the attacker is told to remove
+                    # the node from its attack surface even if it may
+                    # have not been present to save one extra lookup.
+                    pass
+
+
+    def _observe_and_reward(
+            self,
+            performed_actions: dict[str, list[int]],
+            prevented_attack_steps: list[AttackGraphNode]
+        ):
         """Update observations and reward agents based on latest actions
 
         Returns 5 dicts, each mapping from agent to:
             observations, rewards, terminations, truncations, infos
         """
+
         terminations = {}
         truncations = {}
         infos = {}
         finished_agents = []
 
+        # Disable attack steps for attackers to update the
+        # observations, rewards and action surface
+        self._disable_attack_steps(prevented_attack_steps)
+
         # Fill in the agent observations, rewards,
-        # terminations, truncations, and infos.
+        # infos, terminations, truncations.
         # If no attackers have any actions left
         # to take the simulation will terminate.
         self._observe_agents(performed_actions)
@@ -890,27 +930,36 @@ class MalSimulator(ParallelEnv):
 
         # Map agent to defense/attack steps performed in this step
         performed_actions = {}
+        prevented_attack_steps = []
 
         # Peform agent actions
         for agent in self.agents:
             action = actions[agent]
             if action[0] == 0:
+                # Agent wants to wait - do nothing
                 continue
 
             action_step = action[1]
+
             if self.agents_dict[agent]["type"] == "attacker":
                 performed_actions[agent] = \
                     self._attacker_step(agent, action_step)
+
             elif self.agents_dict[agent]["type"] == "defender":
-                performed_actions[agent] = \
+                defender_actions, prevented_attack_steps = \
                     self._defender_step(agent, action_step)
+                performed_actions[agent] = defender_actions
+
             else:
                 logger.error(
                     'Agent %s has unknown type: %s',
                     agent, self.agents_dict[agent]["type"])
 
         observations, rewards, terminations, truncations, infos = (
-            self._observe_and_reward(performed_actions)
+            self._observe_and_reward(
+                performed_actions,
+                prevented_attack_steps
+            )
         )
 
         self.cur_iter += 1

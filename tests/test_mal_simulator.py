@@ -242,12 +242,13 @@ def test_malsimulator_defender_step(corelang_lang_graph, model):
 
     defense_step = attack_graph.get_node_by_full_name(
         'OS App:notPresent')
-    actions = sim._defender_step(defender_name, defense_step.id)
+    actions, _ = sim._defender_step(defender_name, defense_step.id)
     assert actions == [defense_step.id]
 
     # Can not defend attack_step
-    attack_step = attack_graph.get_node_by_full_name('OS App:attemptUseVulnerability')
-    actions = sim._defender_step(defender_name, attack_step.id)
+    attack_step = attack_graph.get_node_by_full_name(
+        'OS App:attemptUseVulnerability')
+    actions, _ = sim._defender_step(defender_name, attack_step.id)
     assert not actions
 
 
@@ -338,8 +339,6 @@ def test_malsimulator_initial_observation_defender(corelang_lang_graph, model):
     for node in nodes_to_observe:
         index = sim._id_to_index[node.id]
         # Make sure observed after
-        if defender_obs_state[index] == 0:
-            breakpoint()
         assert defender_obs_state[index] == 1
 
 
@@ -353,13 +352,13 @@ def test_malsimulator_observe_and_reward_attacker_no_entrypoints(
 
     # No agents
     # No actions given - no one observes/rewards anything
-    obs, rew, term, trunc, infos = sim._observe_and_reward({})
+    obs, rew, term, trunc, infos = sim._observe_and_reward({}, [])
     assert not obs and not rew and not term and not trunc and not infos
 
     # Register an attacker
     attacker_name = "attacker"
     sim.register_attacker(attacker_name, 0)
-    obs, rew, term, trunc, infos = sim._observe_and_reward({})
+    obs, rew, term, trunc, infos = sim._observe_and_reward({}, [])
 
     # We need to reinitialize (or reset if we want to reset the attackgraph)
     # to also initialize the registered agents
@@ -368,7 +367,7 @@ def test_malsimulator_observe_and_reward_attacker_no_entrypoints(
     assert list(infos.keys()) == [attacker_name]
 
     # Observe and reward with no new actions
-    obs, rew, term, trunc, infos = sim._observe_and_reward({})
+    obs, rew, term, trunc, infos = sim._observe_and_reward({}, [])
     # Since attacker has no entry points and no steps have been performed
     # the observed state should be empty
     for state in obs['attacker']['observed_state']:
@@ -395,7 +394,7 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
     obs, infos = sim.initialize()
 
     # Observe and reward with no new actions
-    obs, rew, term, trunc, infos = sim._observe_and_reward({})
+    obs, rew, term, trunc, infos = sim._observe_and_reward({}, [])
 
     for index, state in enumerate(obs['attacker']['observed_state']):
         node = sim.attack_graph.get_node_by_id(
@@ -435,7 +434,7 @@ def test_malsimulator_agents_registered(
     assert set(infos.keys()) == {attacker_name, defender_name}
 
 
-def test_malsimulator_update_viability_with_eviction(corelang_lang_graph, model):
+def test_malsimulator_update_viability(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
     attempt_vuln_node = attack_graph.get_node_by_full_name('OS App:attemptUseVulnerability')
@@ -445,7 +444,7 @@ def test_malsimulator_update_viability_with_eviction(corelang_lang_graph, model)
 
     # Make attempt unviable
     attempt_vuln_node.is_viable = False
-    sim.update_viability_with_eviction(attempt_vuln_node)
+    sim.update_viability(attempt_vuln_node)
     # Should make success unviable
     assert not success_vuln_node.is_viable
 
