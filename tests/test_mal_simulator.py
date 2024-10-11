@@ -961,7 +961,7 @@ def test_simulator_settings_defender_observation():
         if node == user_3_compromise:
             assert state == 1 # Last performed step known active state
         else:
-            assert state == -1 # All others unknown
+            assert state == 0 # All others inactive
 
     # Now let the defender defend, and the attacker waits
     actions = {
@@ -979,4 +979,4 @@ def test_simulator_settings_defender_observation():
         if node == user_3_compromise_defense:
             assert state == 1 # Last performed step known active state
         else:
-            assert state == -1 # All others unknown
+            assert state == 0 # All others inactive

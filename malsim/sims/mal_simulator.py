@@ -704,11 +704,10 @@ class MalSimulator(ParallelEnv):
         obs_state = self.agents_dict[defender_agent]["observation"]\
             ["observed_state"]
 
-        # TODO: need to handle defense steps disabling attack steps
         if not self.sim_settings.cumulative_defender_obs:
-            # View all states as unknown
-            # TODO: Should they be disabled (0) instead?
-            obs_state.fill(-1)
+            # Clear the state if we do not it to accumulate observations over
+            # time.
+            obs_state.fill(0)
 
         # Only show the latest steps taken
         for _, actions in performed_actions.items():

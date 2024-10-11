@@ -72,7 +72,7 @@ def traininglang_lang_graph():
 def traininglang_model(traininglang_lang_graph):
     """Fixture that generates a model for tests
 
-    Uses coreLang specification (fixture) to create and return a
+    Uses trainingLang specification (fixture) to create and return a
     Model object with no assets or associations
     """
     # Init LanguageClassesFactory
