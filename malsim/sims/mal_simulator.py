@@ -445,11 +445,11 @@ class MalSimulator(ParallelEnv):
         table = "\n"
         header_entry = ["Index", "Asset Id"]
         entries = []
-        for entry in self._index_to_model_asset_id:
+        for entry in self._model_asset_id_to_index:
             entries.append(
                 [
-                    entry,
-                    self._index_to_model_asset_id[entry]
+                    self._model_asset_id_to_index[entry],
+                    entry
                 ]
             )
         table += format_table(
@@ -1086,7 +1086,7 @@ class MalSimulator(ParallelEnv):
             terminations[agent] = attackers_done
             if attackers_done:
                 logger.debug(
-                    "No attacker has actions left to perform,"
+                    "No attacker has actions left to perform, "
                     "terminate agent \"%s\".", agent)
 
             truncations[agent] = False
