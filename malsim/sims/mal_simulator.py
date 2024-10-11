@@ -630,7 +630,8 @@ class MalSimulator(ParallelEnv):
         actions.append(defense_step_index)
 
         # Remove defense from all defender agents' action surfaces since it is
-        # already enabled.
+        # already enabled. And remove all of the prevented attack steps from
+        # the attackers' action surfaces.
         for agent_el in self.agents:
             if self.agents_dict[agent_el]["type"] == "defender":
                 try:
@@ -642,6 +643,18 @@ class MalSimulator(ParallelEnv):
                     # may have not been present to save one extra
                     # lookup.
                     pass
+            elif self.agents_dict[agent_el]["type"] == "attacker":
+                for attack_step in prevented_attack_steps:
+                    try:
+                        # Node is no longer part of attacker action surface
+                        self.agents_dict[agent_el]\
+                            ["action_surface"].remove(attack_step)
+                    except ValueError:
+                        # Optimization: the attacker is told to remove
+                        # the node from its attack surface even if it may
+                        # have not been present to save one extra lookup.
+                        pass
+
 
         return actions, prevented_attack_steps
 
@@ -821,16 +834,6 @@ class MalSimulator(ParallelEnv):
                     step_index = self._id_to_index[unviable_node.id]
                     agent_obs = self.agents_dict[attacker_agent]["observation"]
                     agent_obs['observed_state'][step_index] = 0
-
-                try:
-                    # Node is no longer part of attacker action surface
-                    self.agents_dict[attacker_agent]\
-                        ["action_surface"].remove(unviable_node)
-                except ValueError:
-                    # Optimization: the attacker is told to remove
-                    # the node from its attack surface even if it may
-                    # have not been present to save one extra lookup.
-                    pass
 
 
     def _observe_and_reward(
