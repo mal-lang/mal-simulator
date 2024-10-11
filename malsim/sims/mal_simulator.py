@@ -663,6 +663,10 @@ class MalSimulator(ParallelEnv):
 
         logger.debug("Creating and listing blank observation space.")
         self._blank_observation = self.create_blank_observation()
+        self._true_observed_state = np.array(
+            len(self.attack_graph.nodes) * [0], dtype=np.int8
+        )
+
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(
                 self.format_full_observation(self._blank_observation)
@@ -924,12 +928,20 @@ class MalSimulator(ParallelEnv):
         obs_state = self.agents_dict[defender_agent]["observation"]\
             ["observed_state"]
 
+
+        if self.sim_settings.cumulative_defender_obs and \
+           self.sim_settings.uncompromise_untraversable_steps:
+            # Cumulative obs + uncompromise untraversable steps
+            # means that defender gets true obs state of graph
+            obs_state = self._true_observed_state
+            return
+
         if not self.sim_settings.cumulative_defender_obs:
-            # Clear the state if we do not it to accumulate observations over
-            # time.
+            # Clear the obs state if we do not want it to
+            # accumulate over time.
             obs_state.fill(0)
 
-        # Only show the latest steps taken
+        # Enable the latest steps taken (cumulative or not does not matter)
         for _, actions in performed_actions.items():
             for action in actions:
                 obs_state[action] = 1
@@ -974,7 +986,6 @@ class MalSimulator(ParallelEnv):
                 else:
                     # If a defender performed step, it will be penalized
                     self.agents_dict[agent]["rewards"] -= node_reward
-
 
     def _collect_agents_infos(self):
         """Collect agent info, this is used to determine the possible
@@ -1051,6 +1062,23 @@ class MalSimulator(ParallelEnv):
                     agent_obs = self.agents_dict[attacker_agent]["observation"]
                     agent_obs['observed_state'][step_index] = 0
 
+    def _update_true_observed_state(
+            self,
+            performed_actions,
+            prevented_attack_steps
+        ):
+        """Update  self._true_observed_state to match
+        state of the attack graph"""
+
+        # Set performed steps to enabled in true observed state
+        for _, actions in performed_actions.items():
+            for action in actions:
+                self._true_observed_state[action] = 1
+
+        # Set prevented attack steps to disabled in true observed state
+        for prevented_attack_step in prevented_attack_steps:
+            step_index = self._id_to_index[prevented_attack_step.id]
+            self._true_observed_state[step_index] = 0
 
     def _observe_and_reward(
             self,
@@ -1072,6 +1100,11 @@ class MalSimulator(ParallelEnv):
             # Disable attack steps for attackers to update the
             # observations, rewards and action surface
             self._disable_attack_steps(prevented_attack_steps)
+
+        self._update_true_observed_state(
+            performed_actions,
+            prevented_attack_steps
+        )
 
         # Fill in the agent observations, rewards,
         # infos, terminations, truncations.
