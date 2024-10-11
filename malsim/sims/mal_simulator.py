@@ -805,11 +805,8 @@ class MalSimulator(ParallelEnv):
         ):
         """Disable nodes for each attacker agent
 
-        - For each compromised attack step:
-            - Uncompromise the node, disable its observed_state
-              and remove the rewards if sim_settings has the
-              uncompromise_untraversable_steps parameter enabled.
-            - Remove from each attackers action_surface.
+        For each compromised attack step uncompromise the node, disable its
+        observed_state, and remove the rewards.
         """
 
         for attacker_agent in self.get_attacker_agents():
