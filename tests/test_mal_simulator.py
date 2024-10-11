@@ -188,7 +188,14 @@ def test_malsimulator_reset(corelang_lang_graph, model):
     # Make sure agent was added (and not removed)
     assert agent_name in sim.agents
     # Make sure the attack graph is not the same object but identical
-    assert attack_graph_before != attack_graph_after
+    assert id(attack_graph_before) != id(attack_graph_after)
+
+    for node in attack_graph_after.nodes:
+        # Entry points are added to the nodes after backup is created
+        # So they have to be removed for the graphs to be compared as identical
+        if 'entrypoint' in node.extras:
+            del node.extras['entrypoint']
+
     assert attack_graph_before._to_dict() == attack_graph_after._to_dict()
 
 
