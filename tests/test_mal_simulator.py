@@ -488,7 +488,7 @@ def test_malsimulator_update_viability(corelang_lang_graph, model):
     assert not success_vuln_node.is_viable
 
 
-def test_malsimulator_step(corelang_lang_graph, model):
+def test_malsimulator_step_attacker(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
     attack_graph.attach_attackers()
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
@@ -503,7 +503,9 @@ def test_malsimulator_step(corelang_lang_graph, model):
 
     # Run step() with action crafted in test
     action = 1
-    step = attack_graph.get_node_by_full_name('OS App:attemptUseVulnerability')
+    step = sim.attack_graph.get_node_by_full_name('OS App:attemptRead')
+    assert step in sim.agents_dict[agent_name]['action_surface']
+
     step_index = sim._id_to_index[step.id]
     actions = {agent_name: (action, step_index)}
     observations, rewards, terminations, truncations, infos = sim.step(actions)
@@ -517,6 +519,34 @@ def test_malsimulator_step(corelang_lang_graph, model):
         child_step_index = sim._id_to_index[child.id]
         # Make sure 'OS App:attemptUseVulnerability' children are observed and set to 0 (not active)
         assert observations[agent_name]['observed_state'][child_step_index] == 0
+
+
+def test_step_attacker_defender_action_surface_updates(
+        corelang_lang_graph, model):
+    sim, _ = create_simulator_from_scenario(
+        'tests/testdata/scenarios/traininglang_scenario.yml')
+
+    attacker_agent = next(iter(sim.get_attacker_agents()))
+    defender_agent = next(iter(sim.get_defender_agents()))
+
+    sim.reset()
+
+    # Run step() with action crafted in test
+    attacker_step = sim.attack_graph.get_node_by_full_name('User:3:compromise')
+    assert attacker_step in sim.agents_dict[attacker_agent]['action_surface']
+
+    defender_step = sim.attack_graph.get_node_by_full_name('User:3:notPresent')
+    assert defender_step in sim.agents_dict[defender_agent]['action_surface']
+
+    actions = {
+        attacker_agent: (1, sim._id_to_index[attacker_step.id]),
+        defender_agent: (1, sim._id_to_index[defender_step.id])
+    }
+
+    sim.step(actions)
+    assert attacker_step not in sim.agents_dict[attacker_agent]['action_surface']
+    assert defender_step not in sim.agents_dict[defender_agent]['action_surface']
+
 
 def test_default_simulator_default_settings_eviction():
     """Test attacker node eviction using MalSimulatorSettings default"""
