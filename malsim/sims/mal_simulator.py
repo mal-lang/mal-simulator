@@ -789,11 +789,11 @@ class MalSimulator(ParallelEnv):
         ):
         """Disable nodes for each attacker agent
 
-        - Remove attack steps from each attackers action_surface.
         - For each compromised attack step:
             - Uncompromise the node, disable its observed_state
               and remove the rewards if sim_settings has the
               uncompromise_untraversable_steps parameter enabled.
+            - Remove from each attackers action_surface.
         """
 
         for attacker_agent in self.get_attacker_agents():
@@ -802,27 +802,24 @@ class MalSimulator(ParallelEnv):
 
             for evicted_node in attack_steps_to_disable:
 
-                if evicted_node.is_compromised_by(attacker):
+                if self.sim_settings.uncompromise_untraversable_steps and\
+                    evicted_node.is_compromised_by(attacker):
 
-                    if self.sim_settings.uncompromise_untraversable_steps:
-                        # Reward is no longer present for attacker
-                        node_reward = evicted_node.extras.get('reward', 0)
-                        self.agents_dict[attacker_agent]["rewards"]\
-                            -= node_reward
+                    # Reward is no longer present for attacker
+                    node_reward = evicted_node.extras.get('reward', 0)
+                    self.agents_dict[attacker_agent]["rewards"] -= node_reward
 
-                        # Reward is no longer present for defenders
-                        for defender_agent in self.get_defender_agents():
-                            self.agents_dict[defender_agent]["rewards"]\
-                                += node_reward
+                    # Reward is no longer present for defenders
+                    for defender_agent in self.get_defender_agents():
+                        self.agents_dict[defender_agent]["rewards"] += node_reward
 
-                        # Uncompromise node if requested
-                        attacker.undo_compromise(evicted_node)
+                    # Uncompromise node if requested
+                    attacker.undo_compromise(evicted_node)
 
-                        # Uncompromised nodes observed state is 0 (disabled)
-                        step_index = self._id_to_index[evicted_node.id]
-                        agent_obs = self.agents_dict\
-                            [attacker_agent]["observation"]
-                        agent_obs['observed_state'][step_index] = 0
+                    # Uncompromised nodes observed state is 0 (disabled)
+                    step_index = self._id_to_index[evicted_node.id]
+                    agent_obs = self.agents_dict[attacker_agent]["observation"]
+                    agent_obs['observed_state'][step_index] = 0
 
                 try:
                     # Node is no longer part of attacker action surface
