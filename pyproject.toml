@@ -1,6 +1,6 @@
 [project]
 name = "mal-simulator"
-version = "0.0.32"
+version = "0.0.33"
 authors = [
   { name="Andrei Buhaiu", email="buhaiu@kth.se" },
   { name="Joakim Loxdal", email="loxdal@kth.se" },
