@@ -373,13 +373,13 @@ class MalSimulator(ParallelEnv):
         }
 
     def _initialize_agents(self) -> dict[str, list[int]]:
-        """Initialize agent rewards, observations and action surfaces
+        """Initialize agent rewards, observations, and action surfaces
 
         Return:
         - An action dictionary mapping agent to initial actions
           (attacker entry points and pre-activated defenses)
         """
-        # Initialize list of agent dicts
+        # Initialize list of agent
         self.agents = copy.deepcopy(self.possible_agents)
 
         # Will contain initally enabled steps
@@ -404,13 +404,14 @@ class MalSimulator(ParallelEnv):
 
                 # Initial actions for attacker are its entrypoints
                 for entry_point in attacker.entry_points:
-                    initial_actions[agent].append(self._id_to_index[entry_point.id])
+                    initial_actions[agent].append(
+                        self._id_to_index[entry_point.id])
                     entry_point.extras['entrypoint'] = True
 
             elif agent_type == "defender":
                 # Initialize observations and action surfaces
                 self.agents_dict[agent]["observation"] = \
-                    self.create_blank_observation(default_obs_state=0)
+                    self.create_blank_observation(default_obs_state = 0)
                 self.agents_dict[agent]["action_surface"] = \
                     query.get_defense_surface(self.attack_graph)
 
@@ -549,7 +550,7 @@ class MalSimulator(ParallelEnv):
     def update_viability(
             self,
             node: AttackGraphNode,
-            evicted_attack_steps: list[AttackGraphNode] = None
+            unviable_attack_steps: list[AttackGraphNode] = None
         ) -> list[AttackGraphNode]:
         """
         Update the viability of the node in the graph and return any
@@ -558,11 +559,13 @@ class MalSimulator(ParallelEnv):
 
         Arguments:
         node                    - the node to propagate updates from
-        evicted_attack_steps    - a list being built up containing attack steps
-                                  that are evicted by a defense in current step
+        unviable_attack_steps   - a list of the attack steps that have been
+                                  made unviable by a defense enabled in the
+                                  current step
         """
 
-        evicted_attack_steps = [] if evicted_attack_steps is None else evicted_attack_steps
+        unviable_attack_steps = [] if unviable_attack_steps is None \
+            else unviable_attack_steps
         logger.debug(
             'Update viability for node "%s"(%d)',
             node.full_name,
@@ -575,10 +578,10 @@ class MalSimulator(ParallelEnv):
             # Never make entrypoint unviable, and do not
             # propagate its viability further
             node.is_viable = True
-            return evicted_attack_steps
+            return unviable_attack_steps
 
         if node.type in ('and', 'or'):
-            evicted_attack_steps.append(node)
+            unviable_attack_steps.append(node)
 
         for child in node.children:
             original_value = child.is_viable
@@ -590,9 +593,9 @@ class MalSimulator(ParallelEnv):
                 child.is_viable = False
 
             if child.is_viable != original_value:
-                self.update_viability(child, evicted_attack_steps)
+                self.update_viability(child, unviable_attack_steps)
 
-        return evicted_attack_steps
+        return unviable_attack_steps
 
     def _defender_step(
             self, agent, defense_step_index
@@ -800,13 +803,11 @@ class MalSimulator(ParallelEnv):
             attacker_index = self.agents_dict[attacker_agent]["attacker"]
             attacker: Attacker = self.attack_graph.attackers[attacker_index]
 
-            for evicted_node in attack_steps_to_disable:
-
-                if self.sim_settings.uncompromise_untraversable_steps and\
-                    evicted_node.is_compromised_by(attacker):
+            for unviable_node in attack_steps_to_disable:
+                if unviable_node.is_compromised_by(attacker):
 
                     # Reward is no longer present for attacker
-                    node_reward = evicted_node.extras.get('reward', 0)
+                    node_reward = unviable_node.extras.get('reward', 0)
                     self.agents_dict[attacker_agent]["rewards"] -= node_reward
 
                     # Reward is no longer present for defenders
@@ -814,17 +815,17 @@ class MalSimulator(ParallelEnv):
                         self.agents_dict[defender_agent]["rewards"] += node_reward
 
                     # Uncompromise node if requested
-                    attacker.undo_compromise(evicted_node)
+                    attacker.undo_compromise(unviable_node)
 
                     # Uncompromised nodes observed state is 0 (disabled)
-                    step_index = self._id_to_index[evicted_node.id]
+                    step_index = self._id_to_index[unviable_node.id]
                     agent_obs = self.agents_dict[attacker_agent]["observation"]
                     agent_obs['observed_state'][step_index] = 0
 
                 try:
                     # Node is no longer part of attacker action surface
                     self.agents_dict[attacker_agent]\
-                        ["action_surface"].remove(evicted_node)
+                        ["action_surface"].remove(unviable_node)
                 except ValueError:
                     # Optimization: the attacker is told to remove
                     # the node from its attack surface even if it may
@@ -848,9 +849,10 @@ class MalSimulator(ParallelEnv):
         infos = {}
         finished_agents = []
 
-        # Disable attack steps for attackers to update the
-        # observations, rewards and action surface
-        self._disable_attack_steps(prevented_attack_steps)
+        if self.sim_settings.uncompromise_untraversable_steps:
+            # Disable attack steps for attackers to update the
+            # observations, rewards and action surface
+            self._disable_attack_steps(prevented_attack_steps)
 
         # Fill in the agent observations, rewards,
         # infos, terminations, truncations.
