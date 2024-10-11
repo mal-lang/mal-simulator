@@ -138,8 +138,17 @@ def test_malsimulator_observation_space(corelang_lang_graph, model):
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
     observation_space = sim.observation_space()
     assert set(observation_space.keys()) == {
-        'is_observable', 'observed_state', 'remaining_ttc',
-        'asset_type', 'asset_id', 'step_name', 'attack_graph_edges'
+        'is_observable',
+        'observed_state',
+        'remaining_ttc',
+        'asset_type',
+        'asset_id',
+        'step_name',
+        'attack_graph_edges',
+        'model_asset_id',
+        'model_asset_type',
+        'model_edges_ids',
+        'model_edges_type',
     }
     # All values in the observation space dict are of type Box
     # which comes from gymnasium.spaces (Box is a Space)

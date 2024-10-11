@@ -138,6 +138,35 @@ class MalSimulator(ParallelEnv):
                             self._id_to_index[attack_step.id]]
                     )
 
+        # Add instance model assets
+        observation["model_asset_id"] = []
+        observation["model_asset_type"] = []
+        observation["model_edges_ids"] = []
+        observation["model_edges_type"] = []
+
+        for asset in self.model.assets:
+            observation["model_asset_id"].append(asset.id)
+            observation["model_asset_type"].append(
+                self._asset_type_to_index[asset.type])
+
+        for assoc in self.model.associations:
+            left_field_name, right_field_name = \
+                self.model.get_association_field_names(assoc)
+            left_field = getattr(assoc, left_field_name)
+            right_field = getattr(assoc, right_field_name)
+            for left_asset in left_field:
+                for right_asset in right_field:
+                    observation["model_edges_ids"].append(
+                        [
+                            self._model_asset_id_to_index[left_asset.id],
+                            self._model_asset_id_to_index[right_asset.id]
+                        ]
+                    )
+                    observation["model_edges_type"].append(
+                        self._model_assoc_type_to_index[
+                            self._get_association_full_name(assoc)])
+
+
         np_obs = {
             "is_observable": np.array(observation["is_observable"],
                              dtype=np.int8),
@@ -150,6 +179,14 @@ class MalSimulator(ParallelEnv):
             "step_name": np.array(observation["step_name"], dtype=np.int64),
             "attack_graph_edges": np.array(observation["attack_graph_edges"],
                                   dtype=np.int64),
+            "model_asset_id": np.array(observation["model_asset_id"],
+                                dtype=np.int64),
+            "model_asset_type": np.array(observation["model_asset_type"],
+                                dtype=np.int64),
+            "model_edges_ids": np.array(observation["model_edges_ids"],
+                                dtype=np.int64),
+            "model_edges_type": np.array(observation["model_edges_type"],
+                                dtype=np.int64)
         }
 
         return np_obs
@@ -160,13 +197,16 @@ class MalSimulator(ParallelEnv):
         sections that will not change over time, these define the structure of
         the attack graph.
         """
-        obs_str = '\n'
+        obs_str = '\nAttack Graph Steps\n'
 
-        str_format = "{:<5} {:<80} {:<6} {:<5} {:<5} {:<5} {:<5} {:<}\n"
+        str_format = "{:<5} {:<80} {:<6} {:<5} {:<5} {:<30} {:<8} {:<}\n"
         header_entry = [
-            "Entry", "Name", "Is_Obs", "State", "RTTC", "Type", "Id", "Step"]
+            "Entry", "Name", "Is_Obs", "State", "RTTC", "Asset Type(Index)", "Asset Id", "Step"]
         entries = []
         for entry in range(0, len(observation["observed_state"])):
+            asset_type_index = observation["asset_type"][entry]
+            asset_type_str = self._index_to_asset_type[asset_type_index ] + \
+                '(' + str(asset_type_index) + ')'
             entries.append(
                 [
                     entry,
@@ -174,7 +214,7 @@ class MalSimulator(ParallelEnv):
                     observation["is_observable"][entry],
                     observation["observed_state"][entry],
                     observation["remaining_ttc"][entry],
-                    observation["asset_type"][entry],
+                    asset_type_str,
                     observation["asset_id"][entry],
                     observation["step_name"][entry],
                 ]
@@ -183,9 +223,64 @@ class MalSimulator(ParallelEnv):
             str_format, header_entry, entries, reprint_header = 30
         )
 
-        obs_str += "\nEdges:\n"
+        obs_str += "\nAttack Graph Edges:\n"
         for edge in observation["attack_graph_edges"]:
             obs_str += str(edge) + "\n"
+
+        obs_str += "\nInstance Model Assets:\n"
+        str_format = "{:<5} {:<5} {:<}\n"
+        header_entry = [
+            "Entry", "Id", "Type(Index)"]
+        entries = []
+        for entry in range(0, len(observation["model_asset_id"])):
+            asset_type_str = self._index_to_asset_type[
+                observation["model_asset_type"][entry]] + \
+                    '(' + str(observation["model_asset_type"][entry]) + ')'
+            entries.append(
+                [
+                    entry,
+                    observation["model_asset_id"][entry],
+                    asset_type_str
+                ]
+            )
+        obs_str += format_table(
+            str_format, header_entry, entries, reprint_header = 30
+        )
+
+        obs_str += "\nInstance Model Edges:\n"
+        str_format = "{:<5} {:<40} {:<40} {:<}\n"
+        header_entry = [
+            "Entry",
+            "Left Asset(Id/Index)",
+            "Right Asset(Id/Index)",
+            "Type(Index)"
+        ]
+        entries = []
+        for entry in range(0, len(observation["model_edges_ids"])):
+            assoc_type_str = self._index_to_model_assoc_type[
+                observation["model_edges_type"][entry]] + \
+                    '(' + str(observation["model_edges_type"][entry]) + ')'
+            left_asset_index = int(observation["model_edges_ids"][entry][0])
+            right_asset_index = int(observation["model_edges_ids"][entry][1])
+            left_asset_id = self._index_to_model_asset_id[left_asset_index]
+            right_asset_id = self._index_to_model_asset_id[right_asset_index]
+            left_asset_str = \
+                self.model.get_asset_by_id(left_asset_id).name + \
+                '(' + str(left_asset_id) + '/' + str(left_asset_index) + ')'
+            right_asset_str = \
+                self.model.get_asset_by_id(right_asset_id).name + \
+                '(' + str(right_asset_id) + '/' + str(right_asset_index) + ')'
+            entries.append(
+                [
+                    entry,
+                    left_asset_str,
+                    right_asset_str,
+                    assoc_type_str
+                ]
+            )
+        obs_str += format_table(
+            str_format, header_entry, entries, reprint_header = 30
+        )
 
         return obs_str
 
@@ -236,11 +331,15 @@ class MalSimulator(ParallelEnv):
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent=None):
         # For now, an `object` is an attack step
+        num_assets = len(self.model.assets)
         num_steps = len(self.attack_graph.nodes)
         num_lang_asset_types = len(self.lang_graph.assets)
         num_lang_attack_steps = len(self.lang_graph.attack_steps)
+        num_lang_association_types = len(self.lang_graph.associations)
         num_attack_graph_edges = len(
             self._blank_observation["attack_graph_edges"])
+        num_model_edges = len(
+            self._blank_observation["model_edges_ids"])
         return Dict(
             {
                 "is_observable": Box(
@@ -276,6 +375,30 @@ class MalSimulator(ParallelEnv):
                     shape=(num_attack_graph_edges, 2),
                     dtype=np.int64,
                 ),  # edges between attack graph steps
+                "model_asset_id": Box(
+                    0,
+                    num_assets,
+                    shape=(num_assets,),
+                    dtype=np.int64,
+                ),  # instance model asset ids
+                "model_asset_type": Box(
+                    0,
+                    num_lang_asset_types,
+                    shape=(num_assets,),
+                    dtype=np.int64,
+                ),  # instance model asset types
+                "model_edges_ids": Box(
+                    0,
+                    num_assets,
+                    shape=(num_model_edges, 2),
+                    dtype=np.int64,
+                ),  # instance model edge ids
+                "model_edges_type": Box(
+                    0,
+                    num_lang_association_types,
+                    shape=(num_model_edges, ),
+                    dtype=np.int64,
+                ),  # instance model edge types
             }
         )
 
@@ -320,9 +443,28 @@ class MalSimulator(ParallelEnv):
 
         str_format = "{:<5} {:<}\n"
         table = "\n"
+        header_entry = ["Index", "Asset Id"]
+        entries = []
+        for entry in self._index_to_model_asset_id:
+            entries.append(
+                [
+                    entry,
+                    self._index_to_model_asset_id[entry]
+                ]
+            )
+        table += format_table(
+            str_format,
+            header_entry,
+            entries,
+            reprint_header = 30
+        )
+        logger.debug(table)
+
+        str_format = "{:<5} {:<}\n"
+        table = "\n"
         header_entry = ["Index", "Asset Type"]
         entries = []
-        for entry in self._index_to_asset_type:
+        for entry in self._asset_type_to_index:
             entries.append(
                 [
                     self._asset_type_to_index[entry],
@@ -351,9 +493,24 @@ class MalSimulator(ParallelEnv):
         )
         logger.debug(table)
 
+        str_format = "{:<5} {:<}\n"
+        table = "\n"
+        header_entry = ["Index", "Association Type"]
+        entries = []
+        for entry in self._index_to_model_assoc_type:
+            entries.append([self._model_assoc_type_to_index[entry], entry])
+        table += format_table(
+            str_format,
+            header_entry,
+            entries,
+            reprint_header = 30
+        )
+        logger.debug(table)
+
+
     def _create_mapping_tables(self):
         """Create mapping tables"""
-        logger.debug("NEW Creating and listing mapping tables.")
+        logger.debug("Creating and listing mapping tables.")
 
         # Lookup lists index to attribute
         self._index_to_id = [n.id for n in self.attack_graph.nodes]
@@ -362,6 +519,12 @@ class MalSimulator(ParallelEnv):
         self._index_to_asset_type = [n.name for n in self.lang_graph.assets]
         self._index_to_step_name = [n.asset.name + ":" + n.name
                                     for n in self.lang_graph.attack_steps]
+        self._index_to_model_asset_id = [int(asset.id) for asset in \
+            self.attack_graph.model.assets]
+        self._index_to_model_assoc_type = [assoc.name + '_' + \
+            assoc.left_field.asset.name + '_' + \
+            assoc.right_field.asset.name \
+                for assoc in self.lang_graph.associations]
 
         # Lookup dicts attribute to index
         self._id_to_index = {
@@ -371,6 +534,63 @@ class MalSimulator(ParallelEnv):
         self._step_name_to_index = {
             n: i for i, n in enumerate(self._index_to_step_name)
         }
+        self._model_asset_id_to_index = {
+            asset: i for i, asset in enumerate(self._index_to_model_asset_id)
+        }
+        self._model_assoc_type_to_index = {
+            assoc_type: i for i, assoc_type in \
+                enumerate(self._index_to_model_assoc_type)
+        }
+
+    def _get_association_full_name(self, association) -> str:
+        """Get association full name
+
+        TODO: Remove this method once the language graph integration is
+        complete in the mal-toolbox because the language graph associations
+        will use their full names for the name property
+
+        Arguments:
+        association     - the association whose full name will be returned
+
+        Return:
+        A string containing the association name and the name of each of the
+        two asset types for the left and right fields separated by
+        underscores.
+        """
+
+        assoc_name = association.__class__.__name__
+        if '_' in assoc_name:
+            # TODO: Not actually a to-do, but just an extra clarification that
+            # this is an ugly hack that will work for now until we get the
+            # unique association names. Right now some associations already
+            # use the asset types as part of their name if there are multiple
+            # associations with the same name.
+            return assoc_name
+
+        left_field_name, right_field_name = \
+            self.model.get_association_field_names(association)
+        left_field = getattr(association, left_field_name)
+        right_field = getattr(association, right_field_name)
+        lang_assoc = self.lang_graph.get_association_by_fields_and_assets(
+            left_field_name,
+            right_field_name,
+            left_field[0].type,
+            right_field[0].type
+        )
+        if lang_assoc is None:
+            raise LookupError('Failed to find association for fields '
+                '"%s" "%s" and asset types "%s" "%s"!' % (
+                    left_field_name,
+                    right_field_name,
+                    left_field[0].type,
+                    right_field[0].type
+                )
+            )
+        assoc_full_name = lang_assoc.name + '_' + \
+            lang_assoc.left_field.asset.name + '_' + \
+            lang_assoc.right_field.asset.name
+        return assoc_full_name
+
 
     def _initialize_agents(self) -> dict[str, list[int]]:
         """Initialize agent rewards, observations, and action surfaces
