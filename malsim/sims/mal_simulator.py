@@ -674,7 +674,6 @@ class MalSimulator(ParallelEnv):
 
         # Initialize agents and record the entry point actions
         initial_actions = self._initialize_agents()
-
         observations, _, _, _, infos = (
             self._observe_and_reward(initial_actions, []))
 
@@ -925,26 +924,23 @@ class MalSimulator(ParallelEnv):
             performed_actions: dict[str, list[int]]
         ):
 
-        obs_state = self.agents_dict[defender_agent]["observation"]\
-            ["observed_state"]
+        defender_obs = self.agents_dict[defender_agent]["observation"]
 
+        if self.sim_settings.cumulative_defender_obs:
+            # Cumulative obs means that defender sees true obs state of graph
+            defender_obs['observed_state'] = self._true_observed_state
 
-        if self.sim_settings.cumulative_defender_obs and \
-           self.sim_settings.uncompromise_untraversable_steps:
-            # Cumulative obs + uncompromise untraversable steps
-            # means that defender gets true obs state of graph
-            obs_state = self._true_observed_state
-            return
+        else:
+            # Clear the obs state if we do not want it to accumulate
+            # between steps
+            defender_obs['observed_state'].fill(0)
 
-        if not self.sim_settings.cumulative_defender_obs:
-            # Clear the obs state if we do not want it to
-            # accumulate over time.
-            obs_state.fill(0)
+            # Enable the latest steps taken
+            for _, actions in performed_actions.items():
+                for action in actions:
+                    defender_obs['observed_state'][action] = 1
 
-        # Enable the latest steps taken (cumulative or not does not matter)
-        for _, actions in performed_actions.items():
-            for action in actions:
-                obs_state[action] = 1
+            # TODO: enable latest disabled attack steps or redesign solution
 
     def _observe_agents(self, performed_actions):
         """Collect agents observations"""
@@ -1075,10 +1071,11 @@ class MalSimulator(ParallelEnv):
             for action in actions:
                 self._true_observed_state[action] = 1
 
-        # Set prevented attack steps to disabled in true observed state
-        for prevented_attack_step in prevented_attack_steps:
-            step_index = self._id_to_index[prevented_attack_step.id]
-            self._true_observed_state[step_index] = 0
+        if self.sim_settings.uncompromise_untraversable_steps:
+            # Set prevented attack steps to disabled in true observed state
+            for prevented_attack_step in prevented_attack_steps:
+                step_index = self._id_to_index[prevented_attack_step.id]
+                self._true_observed_state[step_index] = 0
 
     def _observe_and_reward(
             self,
