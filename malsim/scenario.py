@@ -42,9 +42,7 @@ allowed_fields = required_fields + [
     'rewards',
     'attacker_entry_points',
     'observable_attack_steps',
-    'false_positive_base_rate',
     'false_positive_rates',
-    'false_negative_base_rate',
     'false_negative_rates',
 ]
 
@@ -192,13 +190,6 @@ def apply_scenario_false_positive_and_negative_rates(
     """Apply false positive/negative rates to all nodes in the
     AttackGraph either to the default value, from the base rate
     or from the specifically set rates per attack step"""
-
-    # Apply false positive/negative base rates for all nodes (default 0)
-    fp_baseline = scenario_conf.get('false_positive_base_rate', 0)
-    fn_baseline = scenario_conf.get('false_negative_base_rate', 0)
-    for node in attack_graph.nodes:
-        node.extras['false_positive_rate'] = fp_baseline
-        node.extras['false_negative_rate'] = fn_baseline
 
     # Apply false positive rates to specified attack nodes
     fp_rates_per_attackstep = scenario_conf.get('false_positive_rates')
