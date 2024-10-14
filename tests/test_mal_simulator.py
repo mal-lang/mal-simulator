@@ -971,6 +971,7 @@ def test_default_settings_defender_observation_false_negatives():
    # Get an uncompromised step
     user_3_compromise = sim.attack_graph.get_node_by_full_name(
         'User:3:compromise')
+    assert user_3_compromise.extras.get('false_negative_rate') == 1.0
     assert attacker not in user_3_compromise.compromised_by
 
     # Let the attacker compromise User:3:compromise
@@ -988,6 +989,45 @@ def test_default_settings_defender_observation_false_negatives():
     # since it is false negative 100% of times
     assert not defender_obs_state[node_index]
 
+
+def test_defender_observation_false_positives_negatives():
+    """Test default MalSimulator with false negative and positive rates"""
+
+    sim, _ = create_simulator_from_scenario(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
+    )
+    sim.reset()
+
+    attacker = sim.attack_graph.attackers[0]
+    attacker_agent_id = next(iter(sim.get_attacker_agents()))
+    defender_agent_id = next(iter(sim.get_defender_agents()))
+
+   # Get an uncompromised step
+    user_3_compromise = sim.attack_graph.get_node_by_full_name(
+        'User:3:compromise')
+    assert attacker not in user_3_compromise.compromised_by
+
+    # Let the attacker compromise User:3:compromise
+    actions = {
+        attacker_agent_id: (1, sim._id_to_index[user_3_compromise.id]),
+        defender_agent_id: (0, None)
+    }
+    obs, _, _, _, _ = sim.step(actions)
+    defender_obs_state = obs[defender_agent_id]['observed_state']
+
+    host_1_access = sim.attack_graph.get_node_by_full_name('Host:1:access')
+    assert host_1_access.extras['false_positive_rate'] == 0.3
+
+    for i in range(100):
+        obs, _, _, _, _ = sim.step(actions)
+        host_1_access_index = sim._id_to_index[host_1_access.id]
+        if defender_obs_state[host_1_access_index]:
+            break
+
+        if i == 99:
+            assert False,  "False positive never happened"
+
+    assert True, "False positive happened"
 
 def test_simulator_settings_defender_observation():
     """Test MalSimulatorSettings only show last steps in obs"""
