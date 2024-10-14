@@ -20,10 +20,6 @@ attacker_entry_points:
 attacker_agent_class: 'BreadthFirstAttacker'
 defender_agent_class: 'KeyboardAgent'
 
-# Baseline applies to all attack steps
-false_positive_base_rate: 0.1
-false_negative_base_rate: 0.1
-
 # Specific fpr/fnr for some specific steps
 false_positive_rates:
   'Host:0:access': 0.2

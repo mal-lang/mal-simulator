@@ -102,10 +102,6 @@ observable_attack_steps:
 #    will be observed as inactive at a rate of x in each observation
 # Default false positive/negative rate is 0, which is assumed if none are given.
 
-# A baseline that applies to all attack steps (default 0)
-false_positive_base_rate: <rate>
-false_negative_base_rate: <rate>
-
 # Applies false positive rates per attack step (default 0)
 false_positive_rates:
   <attack step full name>: <rate>
