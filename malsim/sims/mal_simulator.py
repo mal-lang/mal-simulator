@@ -672,6 +672,11 @@ class MalSimulator(ParallelEnv):
         # Initialize agents and record the entry point actions
         initial_actions = self._initialize_agents()
 
+        self._possible_false_positive_nodes = [
+            n for n in self.attack_graph.nodes
+            if n.extras.get('false_positive_rate')
+        ]
+
         observations, _, _, _, infos = (
             self._observe_and_reward(initial_actions, []))
 
@@ -929,24 +934,33 @@ class MalSimulator(ParallelEnv):
             ["observed_state"]
 
         if not self.sim_settings.cumulative_defender_obs:
-            # Clear the state if we do not it to accumulate observations over
-            # time.
+            # Clear the state if we do not want to accumulate
+            # observations between steps.
             obs_state.fill(0)
 
-        # Only show the latest steps taken
+        # Enable latest activated steps in obs state
         for _, actions in performed_actions.items():
             for action in actions:
-                node_id = self._index_to_id[action]
-                node = self.attack_graph.get_node_by_id(node_id)
+                obs_state[action] = 1
 
-                if node.is_enabled_defense():
-                    # Defenses are never false negatives
-                    obs_state[action] = 1
-                else:
-                    # Attacks can become false negatives
+        # Possibly add false negatives to observation
+        for _, actions in performed_actions.items():
+            for action in actions:
+                node = self.attack_graph.get_node_by_id(
+                    self._index_to_id[action])
+                if node.type in ('or', 'and'):
+                    # Enabled attack steps can become false negatives
                     fn_rate = node.extras.get('false_negative_rate', 0)
                     make_fn = fn_rate and self.rng.random() < fn_rate
-                    obs_state[action ] = 0 if make_fn else 1
+                    obs_state[action] = 0 if make_fn else 1
+
+        # Possibly add false positives to observation
+        for node in self._possible_false_positive_nodes:
+            if node.type in ('or', 'and') and not node.is_compromised():
+                step_index = self._id_to_index[node.id]
+                fp_rate = node.extras.get('false_positive_rate', 0)
+                make_fp = fp_rate and self.rng.random() < fp_rate
+                obs_state[step_index] = 1 if make_fp else 0
 
     def _observe_agents(self, performed_actions):
         """Collect agents observations"""
