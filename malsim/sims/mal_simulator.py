@@ -5,7 +5,6 @@ import copy
 import logging
 import functools
 from typing import Optional, TYPE_CHECKING
-from random import random
 
 import numpy as np
 from gymnasium.spaces import MultiDiscrete, Box, Dict
@@ -88,6 +87,7 @@ class MalSimulator(ParallelEnv):
         self.attack_graph = attack_graph
         self.sim_settings = sim_settings
         self.max_iter = max_iter
+        self.rng = np.random.default_rng(kwargs.get('seed'))
 
         self.attack_graph_backup = copy.deepcopy(self.attack_graph)
 
@@ -921,6 +921,9 @@ class MalSimulator(ParallelEnv):
             defender_agent,
             performed_actions: dict[str, list[int]]
         ):
+        """Update the observed_state of defender agent
+        based on performed_actions
+        """
 
         obs_state = self.agents_dict[defender_agent]["observation"]\
             ["observed_state"]
@@ -933,7 +936,17 @@ class MalSimulator(ParallelEnv):
         # Only show the latest steps taken
         for _, actions in performed_actions.items():
             for action in actions:
-                obs_state[action] = 1
+                node_id = self._index_to_id[action]
+                node = self.attack_graph.get_node_by_id(node_id)
+
+                if node.is_enabled_defense():
+                    # Defenses are never false negatives
+                    obs_state[action] = 1
+                else:
+                    # Attacks can become false negatives
+                    fn_rate = node.extras.get('false_negative_rate', 0)
+                    make_fn = fn_rate and self.rng.random() < fn_rate
+                    obs_state[action ] = 0 if make_fn else 1
 
     def _observe_agents(self, performed_actions):
         """Collect agents observations"""
