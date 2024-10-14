@@ -956,6 +956,39 @@ def test_simulator_default_settings_defender_observation():
             assert not node.is_compromised() and not node.is_enabled_defense()
 
 
+def test_default_settings_defender_observation_false_negatives():
+    """Test default MalSimulator with false negative rates"""
+
+    sim, _ = create_simulator_from_scenario(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
+    )
+    sim.reset()
+
+    attacker = sim.attack_graph.attackers[0]
+    attacker_agent_id = next(iter(sim.get_attacker_agents()))
+    defender_agent_id = next(iter(sim.get_defender_agents()))
+
+   # Get an uncompromised step
+    user_3_compromise = sim.attack_graph.get_node_by_full_name(
+        'User:3:compromise')
+    assert attacker not in user_3_compromise.compromised_by
+
+    # Let the attacker compromise User:3:compromise
+    actions = {
+        attacker_agent_id: (1, sim._id_to_index[user_3_compromise.id]),
+        defender_agent_id: (0, None)
+    }
+
+    obs, _, _, _, _ = sim.step(actions)
+    defender_obs_state = obs[defender_agent_id]['observed_state']
+
+    # Verify that all states in obs match the state of the attack graph
+    node_index = sim._id_to_index[user_3_compromise.id]
+    # user_3_compromise is set to disabled even though compromised
+    # since it is false negative 100% of times
+    assert not defender_obs_state[node_index]
+
+
 def test_simulator_settings_defender_observation():
     """Test MalSimulatorSettings only show last steps in obs"""
 
