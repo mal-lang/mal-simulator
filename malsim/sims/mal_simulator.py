@@ -884,45 +884,63 @@ class MalSimulator(ParallelEnv):
     def _observe_attacker(
             self,
             attacker_agent,
-            performed_actions: dict[str, list[int]]
+            performed_actions_per_agent: dict[str, list[int]],
+            disabled_steps_per_attacker: dict
         ) -> None:
         """
         Update the attacker observation based on the actions performed
         in current step.
 
         Arguments:
-        attacker_agent  - the attacker agent to fill in the observation for
-        observation     - the blank observation to fill in
+        attacker_agent              - the attacker agent to update the
+                                      observation for
+        performed_actions_per_agent - mapping from agents to lists of
+                                      step indexes of steps performed
+                                      in this simulation step by the agent
+        disabled_steps_per_attacker - attack steps that were disabled by
+                                      a defense in this step
         """
 
-        obs_state = self.agents_dict[attacker_agent]["observation"]\
-            ["observed_state"]
+        attacker_obs = self.agents_dict[attacker_agent]["observation"]
 
-        # Set obs state of reached attack steps to 1 (enabled)
-        for _, actions in performed_actions.items():
-            for step_index in actions:
+        # Enable enabled attack steps in attacker obs state
+        for step_index in performed_actions_per_agent.get(attacker_agent, []):
 
-                if step_index is None:
-                    # Waiting does not affect obs
-                    continue
+            node_id = self._index_to_id[step_index]
+            node = self.attack_graph.get_node_by_id(node_id)
+            if node.type in ('or', 'and'):
+                # Attack step activated, set to 1 (enabled)
+                attacker_obs["observed_state"][step_index] = 1
 
-                node_id = self._index_to_id[step_index]
-                node = self.attack_graph.get_node_by_id(node_id)
-                if node.type in ('or', 'and'):
-                    # Attack step activated, set to 1 (enabled)
-                    obs_state[step_index] = 1
+                for child in node.children:
+                    # Set its children to 0 (disabled)
+                    child_index = self._id_to_index[child.id]
+                    if attacker_obs["observed_state"][child_index] == -1:
+                        attacker_obs["observed_state"][child_index] = 0
 
-                    for child in node.children:
-                        # Set its children to 0 (disabled)
-                        child_index = self._id_to_index[child.id]
-                        if obs_state[child_index] == -1:
-                            obs_state[child_index] = 0
+        # Disable disabled attack steps in attacker obs state
+        for node in disabled_steps_per_attacker.get(attacker_agent, []):
+            index = self._id_to_index[node.id]
+            if attacker_obs['observed_state'][index] == 1:
+                attacker_obs['observed_state'][index] = 0
 
     def _observe_defender(
             self,
             defender_agent,
-            performed_actions: dict[str, list[int]]
+            performed_actions_per_agent: dict[str, list[int]],
+            disabled_steps_per_attacker: dict
         ):
+        """Update a defender agents observation
+
+        Args:
+        defender_agent              - name of defender agent to update obs for
+        performed_actions_per_agent - mapping from agents to lists of
+                                      step indexes of steps performed
+                                      in this simulation step by the agent
+        disabled_steps_per_attacker - attack steps that were disabled by
+                                      a defense in this step
+
+        """
 
         defender_obs = self.agents_dict[defender_agent]["observation"]
 
@@ -935,23 +953,42 @@ class MalSimulator(ParallelEnv):
             # between steps
             defender_obs['observed_state'].fill(0)
 
-            # Enable the latest steps taken
-            for _, actions in performed_actions.items():
+            # Enable latest steps in observation
+            for _, actions in performed_actions_per_agent.items():
                 for action in actions:
                     defender_obs['observed_state'][action] = 1
 
-            # TODO: enable latest disabled attack steps or redesign solution
+            # Disable disabled attacks steps in observation
+            for _, nodes in disabled_steps_per_attacker.items():
+                for node in nodes:
+                    index = self._id_to_index[node.id]
+                    defender_obs['observed_state'][index] = 0
 
-    def _observe_agents(self, performed_actions):
-        """Collect agents observations"""
+    def _observe_agents(
+            self,
+            performed_actions_per_agent: dict,
+            disabled_steps_per_attacker: dict
+        ):
+        """Update observations for all agents
+
+        Args:
+        performed_actions_per_agent - mapping from agents to lists of
+                                      step indexes of steps performed
+                                      in this simulation step by the agent
+        disabled_steps_per_attacker - attack steps that were disabled by
+                                      a defense in this step
+
+        """
 
         for agent in self.agents:
             agent_type = self.agents_dict[agent]["type"]
             if  agent_type == "defender":
-                self._observe_defender(agent, performed_actions)
+                self._observe_defender(
+                    agent, performed_actions_per_agent, disabled_steps_per_attacker)
 
             elif agent_type == "attacker":
-                self._observe_attacker(agent, performed_actions)
+                self._observe_attacker(
+                    agent, performed_actions_per_agent, disabled_steps_per_attacker)
 
             else:
                 logger.error(
@@ -959,15 +996,25 @@ class MalSimulator(ParallelEnv):
                     agent, self.agents_dict[agent]["type"]
                 )
 
-    def _reward_agents(self, performed_actions):
-        """Update rewards from latest performed actions"""
-        for agent, actions in performed_actions.items():
+    def _reward_agents(
+            self,
+            performed_actions_per_agent: dict,
+            disabled_steps_per_attacker: dict
+        ):
+        """Update rewards from latest performed actions
+
+        Args:
+        performed_actions_per_agent - mapping from agents to lists of
+                                      step indexes of steps performed
+                                      in this simulation step by the agent
+        disabled_steps_per_attacker - attack steps that were disabled by
+                                      a defense in this step
+        """
+
+        for agent, actions in performed_actions_per_agent.items():
             agent_type = self.agents_dict[agent]["type"]
 
             for action in actions:
-                if action is None:
-                    continue
-
                 node_id = self._index_to_id[action]
                 node = self.attack_graph.get_node_by_id(node_id)
                 node_reward = node.extras.get('reward', 0)
@@ -979,9 +1026,22 @@ class MalSimulator(ParallelEnv):
 
                     for d_agent in self.get_defender_agents():
                         self.agents_dict[d_agent]["rewards"] -= node_reward
-                else:
+
+                elif agent_type == "defender":
                     # If a defender performed step, it will be penalized
                     self.agents_dict[agent]["rewards"] -= node_reward
+
+        # Remove / add rewards for disabled attack steps
+        for attacker_agent, nodes in disabled_steps_per_attacker.items():
+
+            for node in nodes:
+                # If attack step was disabled, remove reward from attacker
+                node_reward = node.extras.get('reward', 0)
+                self.agents_dict[attacker_agent]["rewards"] -= node_reward
+
+                # Give back reward to all defenders for uncompromised step
+                for defender_agent in self.get_defender_agents():
+                    self.agents_dict[defender_agent]["rewards"] += node_reward
 
     def _collect_agents_infos(self):
         """Collect agent info, this is used to determine the possible
@@ -1028,61 +1088,71 @@ class MalSimulator(ParallelEnv):
 
     def _disable_attack_steps(
             self, attack_steps_to_disable: list[AttackGraphNode]
-        ):
-        """Disable nodes for each attacker agent
+        ) -> list[AttackGraphNode]:
+        """Disable nodes for each attacker agent if they are compromised
 
-        For each compromised attack step uncompromise the node, disable its
-        observed_state, and remove the rewards.
+        For each compromised attack step, uncompromise the node.
+        Return attack steps that were disabled per agent.
         """
+        disabled_steps_per_attacker = {}
 
         for attacker_agent in self.get_attacker_agents():
             attacker_index = self.agents_dict[attacker_agent]["attacker"]
             attacker: Attacker = self.attack_graph.attackers[attacker_index]
 
+            disabled_steps_per_attacker[attacker_agent] = []
+
             for unviable_node in attack_steps_to_disable:
                 if unviable_node.is_compromised_by(attacker):
 
-                    # Reward is no longer present for attacker
-                    node_reward = unviable_node.extras.get('reward', 0)
-                    self.agents_dict[attacker_agent]["rewards"] -= node_reward
-
-                    # Reward is no longer present for defenders
-                    for defender_agent in self.get_defender_agents():
-                        self.agents_dict[defender_agent]["rewards"] += node_reward
-
                     # Uncompromise node if requested
                     attacker.undo_compromise(unviable_node)
+                    disabled_steps_per_attacker[attacker_agent].append(
+                        unviable_node
+                    )
 
-                    # Uncompromised nodes observed state is 0 (disabled)
-                    step_index = self._id_to_index[unviable_node.id]
-                    agent_obs = self.agents_dict[attacker_agent]["observation"]
-                    agent_obs['observed_state'][step_index] = 0
+        return disabled_steps_per_attacker
 
     def _update_true_observed_state(
             self,
-            performed_actions,
-            prevented_attack_steps
+            performed_actions_per_agent: dict,
+            disabled_steps_per_attacker: dict
         ):
         """Update  self._true_observed_state to match
-        state of the attack graph"""
+        state of the attack graph
+
+        Args:
+        performed_actions_per_agent - mapping from agents to lists of
+                                      step indexes of steps performed
+                                      in this simulation step by the agent
+        disabled_steps_per_attacker - attack steps that were disabled by
+                                      a defense in this step
+        """
 
         # Set performed steps to enabled in true observed state
-        for _, actions in performed_actions.items():
+        for _, actions in performed_actions_per_agent.items():
             for action in actions:
                 self._true_observed_state[action] = 1
 
-        if self.sim_settings.uncompromise_untraversable_steps:
-            # Set prevented attack steps to disabled in true observed state
-            for prevented_attack_step in prevented_attack_steps:
-                step_index = self._id_to_index[prevented_attack_step.id]
+        for _, nodes in disabled_steps_per_attacker.items():
+            # Set disabled attack steps to disabled in true observed state
+            for node in nodes:
+                step_index = self._id_to_index[node.id]
                 self._true_observed_state[step_index] = 0
 
     def _observe_and_reward(
             self,
-            performed_actions: dict[str, list[int]],
+            performed_actions_per_agent: dict[str, list[int]],
             prevented_attack_steps: list[AttackGraphNode]
         ):
         """Update observations and reward agents based on latest actions
+
+        Args:
+        performed_actions_per_agent - mapping from agents to lists of
+                                      step indexes of steps performed
+                                      in this simulation step by the agent
+        disabled_steps_per_attacker - attack steps that were disabled by
+                                      a defense in this step
 
         Returns 5 dicts, each mapping from agent to:
             observations, rewards, terminations, truncations, infos
@@ -1093,22 +1163,31 @@ class MalSimulator(ParallelEnv):
         infos = {}
         finished_agents = []
 
+        disabled_steps_per_attacker = {}
         if self.sim_settings.uncompromise_untraversable_steps:
             # Disable attack steps for attackers to update the
             # observations, rewards and action surface
-            self._disable_attack_steps(prevented_attack_steps)
+            disabled_steps_per_attacker = self._disable_attack_steps(
+                prevented_attack_steps)
 
+        # Update the true observed state with enabled/disabled steps
         self._update_true_observed_state(
-            performed_actions,
-            prevented_attack_steps
-        )
+            performed_actions_per_agent,
+            disabled_steps_per_attacker)
 
         # Fill in the agent observations, rewards,
         # infos, terminations, truncations.
         # If no attackers have any actions left
         # to take the simulation will terminate.
-        self._observe_agents(performed_actions)
-        self._reward_agents(performed_actions)
+
+        self._observe_agents(
+            performed_actions_per_agent,
+            disabled_steps_per_attacker)
+
+        self._reward_agents(
+            performed_actions_per_agent,
+            disabled_steps_per_attacker)
+
         attackers_done, infos = self._collect_agents_infos()
 
         for agent in self.agents:
@@ -1182,7 +1261,7 @@ class MalSimulator(ParallelEnv):
         logger.debug("Performing actions: %s", actions)
 
         # Map agent to defense/attack steps performed in this step
-        performed_actions = {}
+        performed_actions_per_agent = {}
         prevented_attack_steps = []
 
         # Peform agent actions
@@ -1195,13 +1274,13 @@ class MalSimulator(ParallelEnv):
             action_step = action[1]
 
             if self.agents_dict[agent]["type"] == "attacker":
-                performed_actions[agent] = \
+                performed_actions_per_agent[agent] = \
                     self._attacker_step(agent, action_step)
 
             elif self.agents_dict[agent]["type"] == "defender":
                 defender_actions, prevented_attack_steps = \
                     self._defender_step(agent, action_step)
-                performed_actions[agent] = defender_actions
+                performed_actions_per_agent[agent] = defender_actions
 
             else:
                 logger.error(
@@ -1210,7 +1289,7 @@ class MalSimulator(ParallelEnv):
 
         observations, rewards, terminations, truncations, infos = (
             self._observe_and_reward(
-                performed_actions,
+                performed_actions_per_agent,
                 prevented_attack_steps
             )
         )
