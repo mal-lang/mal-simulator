@@ -927,8 +927,7 @@ class MalSimulator(ParallelEnv):
     def _observe_defender(
             self,
             defender_agent,
-            performed_actions_per_agent: dict[str, list[int]],
-            disabled_steps_per_attacker: dict
+            performed_actions_per_agent: dict[str, list[int]]
         ):
         """Update a defender agents observation
 
@@ -958,12 +957,6 @@ class MalSimulator(ParallelEnv):
                 for action in actions:
                     defender_obs['observed_state'][action] = 1
 
-            # Disable disabled attacks steps in observation
-            for _, nodes in disabled_steps_per_attacker.items():
-                for node in nodes:
-                    index = self._id_to_index[node.id]
-                    defender_obs['observed_state'][index] = 0
-
     def _observe_agents(
             self,
             performed_actions_per_agent: dict,
@@ -984,11 +977,16 @@ class MalSimulator(ParallelEnv):
             agent_type = self.agents_dict[agent]["type"]
             if  agent_type == "defender":
                 self._observe_defender(
-                    agent, performed_actions_per_agent, disabled_steps_per_attacker)
+                    agent,
+                    performed_actions_per_agent
+                )
 
             elif agent_type == "attacker":
                 self._observe_attacker(
-                    agent, performed_actions_per_agent, disabled_steps_per_attacker)
+                    agent,
+                    performed_actions_per_agent,
+                    disabled_steps_per_attacker
+                )
 
             else:
                 logger.error(
