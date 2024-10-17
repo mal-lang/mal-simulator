@@ -908,15 +908,15 @@ class MalSimulator(ParallelEnv):
 
             node_id = self._index_to_id[step_index]
             node = self.attack_graph.get_node_by_id(node_id)
-            if node.type in ('or', 'and'):
-                # Attack step activated, set to 1 (enabled)
-                attacker_obs["observed_state"][step_index] = 1
 
-                for child in node.children:
-                    # Set its children to 0 (disabled)
-                    child_index = self._id_to_index[child.id]
-                    if attacker_obs["observed_state"][child_index] == -1:
-                        attacker_obs["observed_state"][child_index] = 0
+            # Attack step activated, set to 1 (enabled)
+            attacker_obs["observed_state"][step_index] = 1
+
+            for child in node.children:
+                # Set its children to 0 (disabled)
+                child_index = self._id_to_index[child.id]
+                if attacker_obs["observed_state"][child_index] == -1:
+                    attacker_obs["observed_state"][child_index] = 0
 
         # Disable disabled attack steps in attacker obs state
         for node in disabled_steps_per_attacker.get(attacker_agent, []):
