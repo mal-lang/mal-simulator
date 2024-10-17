@@ -417,6 +417,7 @@ class MalSimulator(ParallelEnv):
         ):
         logger.info("Resetting simulator.")
         self.attack_graph = copy.deepcopy(self.attack_graph_backup)
+        self.rng = np.random.default_rng(seed)
         return self.initialize(self.max_iter)
 
     def log_mapping_tables(self):
