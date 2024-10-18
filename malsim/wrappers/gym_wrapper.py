@@ -167,6 +167,10 @@ def vec_to_binary(vec: NDArray[np.uint32], max_val: int) -> NDArray[np.bool_]:
     return np.array([_to_binary(val, max_val) for val in vec], dtype=np.bool_)
 
 
+def vec_to_one_hot(vec, num_vals):
+    return np.eye(num_vals, dtype=np.int8)[vec]
+
+
 class LabeledGraphWrapper(Wrapper):
     def __init__(self, env: gym.Env[spaces.Dict, spaces.MultiDiscrete]) -> None:
         super().__init__(env)
@@ -177,9 +181,7 @@ class LabeledGraphWrapper(Wrapper):
         num_commands = 2
         node_shape: tuple[int, int] = (
             num_nodes,
-            (3).bit_length()
-            + self.num_assets.bit_length()
-            + self.num_steps.bit_length(),
+            3 + self.num_steps,
         )
         edge_space: spaces.Box = self.env.observation_space["attack_graph_edges"]
         self.observation_space = spaces.Dict(
@@ -191,8 +193,8 @@ class LabeledGraphWrapper(Wrapper):
                     dtype=np.int8,
                 ),
                 "edges": edge_space,
-                "mask_0": spaces.Box(0, 1, shape=(num_commands,), dtype=np.int8),
-                "mask_1": spaces.Box(0, 1, shape=(num_nodes,), dtype=np.int8),
+                "mask_0": spaces.Box(0, 1, shape=(num_commands,), dtype=np.bool_),
+                "mask_1": spaces.Box(0, 1, shape=(num_nodes,), dtype=np.bool_),
             }
         )
         pass
@@ -219,9 +221,8 @@ def to_graph(
 ) -> dict[str, Any]:
     nodes = np.concatenate(
         [
-            vec_to_binary(obs["observed_state"] + 1, 3),
-            vec_to_binary(obs["asset_type"], num_assets),
-            vec_to_binary(obs["step_name"], num_steps),
+            vec_to_one_hot(obs["observed_state"] + 1, 3),
+            vec_to_one_hot(obs["step_name"], num_steps),
         ],
         axis=1,
     )
