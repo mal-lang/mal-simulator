@@ -22,7 +22,7 @@ class PassiveAttacker:
         return (0, None)
 
 class BreadthFirstAttacker:
-    def __init__(self, agent_config: dict) -> None:
+    def __init__(self, agent_config: dict, **kwargs) -> None:
         self.targets: Deque[int] = deque([])
         self.current_target: int = None
         seed = (

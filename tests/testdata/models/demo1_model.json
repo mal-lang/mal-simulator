@@ -1,0 +1,1587 @@
+{
+    "metadata": {
+        "name": "Test Model",
+        "langVersion": "1.0.0",
+        "langID": "org.mal-lang.coreLang",
+        "malVersion": "0.1.0-SNAPSHOT",
+        "MAL-Toolbox Version": "0.1.2",
+        "info": "Created by the mal-toolbox model python module."
+    },
+    "assets": {
+        "0": {
+            "name": "boosrv",
+            "type": "Application"
+        },
+        "1": {
+            "name": "ca",
+            "type": "Application"
+        },
+        "2": {
+            "name": "db",
+            "type": "Application"
+        },
+        "3": {
+            "name": "dc",
+            "type": "Application"
+        },
+        "4": {
+            "name": "dc2",
+            "type": "Application"
+        },
+        "5": {
+            "name": "ftp",
+            "type": "Application"
+        },
+        "6": {
+            "name": "fw1",
+            "type": "Application"
+        },
+        "7": {
+            "name": "historian",
+            "type": "Application"
+        },
+        "8": {
+            "name": "hq02",
+            "type": "Application"
+        },
+        "9": {
+            "name": "hq03",
+            "type": "Application"
+        },
+        "10": {
+            "name": "hq04",
+            "type": "Application"
+        },
+        "11": {
+            "name": "hq05",
+            "type": "Application"
+        },
+        "12": {
+            "name": "hq06",
+            "type": "Application"
+        },
+        "13": {
+            "name": "hqfile",
+            "type": "Application"
+        },
+        "14": {
+            "name": "mailrelay",
+            "type": "Application"
+        },
+        "15": {
+            "name": "order",
+            "type": "Application"
+        },
+        "16": {
+            "name": "proddb",
+            "type": "Application"
+        },
+        "17": {
+            "name": "rootca",
+            "type": "Application"
+        },
+        "18": {
+            "name": "servicedesk",
+            "type": "Application"
+        },
+        "19": {
+            "name": "snort-dmz",
+            "type": "Application"
+        },
+        "20": {
+            "name": "snort-ext",
+            "type": "Application"
+        },
+        "21": {
+            "name": "snort-hqclient",
+            "type": "Application"
+        },
+        "22": {
+            "name": "snort-srv",
+            "type": "Application"
+        },
+        "23": {
+            "name": "weborder",
+            "type": "Application"
+        },
+        "24": {
+            "name": "www",
+            "type": "Application"
+        },
+        "25": {
+            "name": "134.23.4.0/24",
+            "type": "Network"
+        },
+        "26": {
+            "name": "CR boosrv-134.23.4.0/24",
+            "type": "ConnectionRule"
+        },
+        "27": {
+            "name": "CR ca-134.23.4.0/24",
+            "type": "ConnectionRule"
+        },
+        "28": {
+            "name": "CR db-134.23.4.0/24",
+            "type": "ConnectionRule"
+        },
+        "29": {
+            "name": "CR dc-134.23.4.0/24",
+            "type": "ConnectionRule"
+        },
+        "30": {
+            "name": "CR dc2-134.23.4.0/24",
+            "type": "ConnectionRule"
+        },
+        "31": {
+            "name": "134.23.2.0/24",
+            "type": "Network"
+        },
+        "32": {
+            "name": "CR ftp-134.23.2.0/24",
+            "type": "ConnectionRule"
+        },
+        "33": {
+            "name": "52.33.204.0/24",
+            "type": "Network"
+        },
+        "34": {
+            "name": "CR fw1-52.33.204.0/24",
+            "type": "ConnectionRule"
+        },
+        "35": {
+            "name": "CR fw1-134.23.2.0/24",
+            "type": "ConnectionRule"
+        },
+        "36": {
+            "name": "134.23.3.0/24",
+            "type": "Network"
+        },
+        "37": {
+            "name": "CR fw1-134.23.3.0/24",
+            "type": "ConnectionRule"
+        },
+        "38": {
+            "name": "CR fw1-134.23.4.0/24",
+            "type": "ConnectionRule"
+        },
+        "39": {
+            "name": "134.23.17.0/24",
+            "type": "Network"
+        },
+        "40": {
+            "name": "CR fw1-134.23.17.0/24",
+            "type": "ConnectionRule"
+        },
+        "41": {
+            "name": "CR historian-134.23.2.0/24",
+            "type": "ConnectionRule"
+        },
+        "42": {
+            "name": "CR hq02-134.23.3.0/24",
+            "type": "ConnectionRule"
+        },
+        "43": {
+            "name": "CR hq03-134.23.3.0/24",
+            "type": "ConnectionRule"
+        },
+        "44": {
+            "name": "CR hq04-134.23.3.0/24",
+            "type": "ConnectionRule"
+        },
+        "45": {
+            "name": "CR hq05-134.23.3.0/24",
+            "type": "ConnectionRule"
+        },
+        "46": {
+            "name": "CR hq06-134.23.3.0/24",
+            "type": "ConnectionRule"
+        },
+        "47": {
+            "name": "CR hqfile-134.23.4.0/24",
+            "type": "ConnectionRule"
+        },
+        "48": {
+            "name": "CR mailrelay-134.23.2.0/24",
+            "type": "ConnectionRule"
+        },
+        "49": {
+            "name": "CR order-134.23.2.0/24",
+            "type": "ConnectionRule"
+        },
+        "50": {
+            "name": "CR proddb-134.23.4.0/24",
+            "type": "ConnectionRule"
+        },
+        "51": {
+            "name": "CR rootca-134.23.4.0/24",
+            "type": "ConnectionRule"
+        },
+        "52": {
+            "name": "CR servicedesk-134.23.4.0/24",
+            "type": "ConnectionRule"
+        },
+        "53": {
+            "name": "CR snort-dmz-134.23.17.0/24",
+            "type": "ConnectionRule"
+        },
+        "54": {
+            "name": "CR snort-ext-134.23.17.0/24",
+            "type": "ConnectionRule"
+        },
+        "55": {
+            "name": "CR snort-hqclient-134.23.17.0/24",
+            "type": "ConnectionRule"
+        },
+        "56": {
+            "name": "CR snort-srv-134.23.17.0/24",
+            "type": "ConnectionRule"
+        },
+        "57": {
+            "name": "CR weborder-134.23.2.0/24",
+            "type": "ConnectionRule"
+        },
+        "58": {
+            "name": "CR www-134.23.2.0/24",
+            "type": "ConnectionRule"
+        },
+        "59": {
+            "name": "CR order - proddb",
+            "type": "ConnectionRule"
+        },
+        "60": {
+            "name": "CR order - dc",
+            "type": "ConnectionRule"
+        },
+        "61": {
+            "name": "CR mailrelay - proddb",
+            "type": "ConnectionRule"
+        },
+        "62": {
+            "name": "Admin User - boosrv",
+            "type": "Identity"
+        },
+        "63": {
+            "name": "Admin User - ca",
+            "type": "Identity"
+        },
+        "64": {
+            "name": "Admin User - db",
+            "type": "Identity"
+        },
+        "65": {
+            "name": "Admin User - dc",
+            "type": "Identity"
+        },
+        "66": {
+            "name": "Admin User - dc2",
+            "type": "Identity"
+        },
+        "67": {
+            "name": "Admin User - ftp",
+            "type": "Identity"
+        },
+        "68": {
+            "name": "Admin User - fw1",
+            "type": "Identity"
+        },
+        "69": {
+            "name": "Admin User - historian",
+            "type": "Identity"
+        },
+        "70": {
+            "name": "Admin User - hq02",
+            "type": "Identity"
+        },
+        "71": {
+            "name": "Admin User - hq03",
+            "type": "Identity"
+        },
+        "72": {
+            "name": "Admin User - hq04",
+            "type": "Identity"
+        },
+        "73": {
+            "name": "Admin User - hq05",
+            "type": "Identity"
+        },
+        "74": {
+            "name": "Admin User - hq06",
+            "type": "Identity"
+        },
+        "75": {
+            "name": "Admin User - hqfile",
+            "type": "Identity"
+        },
+        "76": {
+            "name": "Admin User - mailrelay",
+            "type": "Identity"
+        },
+        "77": {
+            "name": "Admin User - order",
+            "type": "Identity"
+        },
+        "78": {
+            "name": "Admin User - proddb",
+            "type": "Identity"
+        },
+        "79": {
+            "name": "Admin User - rootca",
+            "type": "Identity"
+        },
+        "80": {
+            "name": "Admin User - servicedesk",
+            "type": "Identity"
+        },
+        "81": {
+            "name": "Admin User - snort-dmz",
+            "type": "Identity"
+        },
+        "82": {
+            "name": "Admin User - snort-ext",
+            "type": "Identity"
+        },
+        "83": {
+            "name": "Admin User - snort-hqclient",
+            "type": "Identity"
+        },
+        "84": {
+            "name": "Admin User - snort-srv",
+            "type": "Identity"
+        },
+        "85": {
+            "name": "Admin User - weborder",
+            "type": "Identity"
+        },
+        "86": {
+            "name": "Admin User - www",
+            "type": "Identity"
+        },
+        "87": {
+            "name": "SW Vuln - boosrv",
+            "type": "SoftwareVulnerability"
+        },
+        "88": {
+            "name": "SW Vuln - ca",
+            "type": "SoftwareVulnerability"
+        },
+        "89": {
+            "name": "SW Vuln - db",
+            "type": "SoftwareVulnerability"
+        },
+        "90": {
+            "name": "SW Vuln - dc",
+            "type": "SoftwareVulnerability"
+        },
+        "91": {
+            "name": "SW Vuln - dc2",
+            "type": "SoftwareVulnerability"
+        },
+        "92": {
+            "name": "SW Vuln - ftp",
+            "type": "SoftwareVulnerability"
+        },
+        "93": {
+            "name": "SW Vuln - fw1",
+            "type": "SoftwareVulnerability"
+        },
+        "94": {
+            "name": "SW Vuln - historian",
+            "type": "SoftwareVulnerability"
+        },
+        "95": {
+            "name": "SW Vuln - hq02",
+            "type": "SoftwareVulnerability"
+        },
+        "96": {
+            "name": "SW Vuln - hq03",
+            "type": "SoftwareVulnerability"
+        },
+        "97": {
+            "name": "SW Vuln - hq04",
+            "type": "SoftwareVulnerability"
+        },
+        "98": {
+            "name": "SW Vuln - hq05",
+            "type": "SoftwareVulnerability"
+        },
+        "99": {
+            "name": "SW Vuln - hq06",
+            "type": "SoftwareVulnerability"
+        },
+        "100": {
+            "name": "SW Vuln - hqfile",
+            "type": "SoftwareVulnerability"
+        },
+        "101": {
+            "name": "SW Vuln - mailrelay",
+            "type": "SoftwareVulnerability"
+        },
+        "102": {
+            "name": "SW Vuln - order",
+            "type": "SoftwareVulnerability"
+        },
+        "103": {
+            "name": "SW Vuln - proddb",
+            "type": "SoftwareVulnerability"
+        },
+        "104": {
+            "name": "SW Vuln - rootca",
+            "type": "SoftwareVulnerability"
+        },
+        "105": {
+            "name": "SW Vuln - servicedesk",
+            "type": "SoftwareVulnerability"
+        },
+        "106": {
+            "name": "SW Vuln - snort-dmz",
+            "type": "SoftwareVulnerability"
+        },
+        "107": {
+            "name": "SW Vuln - snort-ext",
+            "type": "SoftwareVulnerability"
+        },
+        "108": {
+            "name": "SW Vuln - snort-hqclient",
+            "type": "SoftwareVulnerability"
+        },
+        "109": {
+            "name": "SW Vuln - snort-srv",
+            "type": "SoftwareVulnerability"
+        },
+        "110": {
+            "name": "SW Vuln - weborder",
+            "type": "SoftwareVulnerability"
+        },
+        "111": {
+            "name": "SW Vuln - www",
+            "type": "SoftwareVulnerability"
+        }
+    },
+    "associations": [
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    0
+                ],
+                "appConnections": [
+                    26
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    25
+                ],
+                "netConnections": [
+                    26
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    1
+                ],
+                "appConnections": [
+                    27
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    25
+                ],
+                "netConnections": [
+                    27
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    2
+                ],
+                "appConnections": [
+                    28
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    25
+                ],
+                "netConnections": [
+                    28
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    3
+                ],
+                "appConnections": [
+                    29
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    25
+                ],
+                "netConnections": [
+                    29
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    4
+                ],
+                "appConnections": [
+                    30
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    25
+                ],
+                "netConnections": [
+                    30
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    5
+                ],
+                "appConnections": [
+                    32
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    31
+                ],
+                "netConnections": [
+                    32
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    6
+                ],
+                "appConnections": [
+                    34
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    33
+                ],
+                "netConnections": [
+                    34
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    6
+                ],
+                "appConnections": [
+                    37
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    36
+                ],
+                "netConnections": [
+                    37
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    6
+                ],
+                "appConnections": [
+                    38
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    25
+                ],
+                "netConnections": [
+                    38
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    6
+                ],
+                "appConnections": [
+                    40
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    39
+                ],
+                "netConnections": [
+                    40
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    7
+                ],
+                "appConnections": [
+                    41
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    31
+                ],
+                "netConnections": [
+                    41
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    8
+                ],
+                "appConnections": [
+                    42
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    36
+                ],
+                "netConnections": [
+                    42
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    9
+                ],
+                "appConnections": [
+                    43
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    36
+                ],
+                "netConnections": [
+                    43
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    10
+                ],
+                "appConnections": [
+                    44
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    36
+                ],
+                "netConnections": [
+                    44
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    11
+                ],
+                "appConnections": [
+                    45
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    36
+                ],
+                "netConnections": [
+                    45
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    12
+                ],
+                "appConnections": [
+                    46
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    36
+                ],
+                "netConnections": [
+                    46
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    13
+                ],
+                "appConnections": [
+                    47
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    25
+                ],
+                "netConnections": [
+                    47
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    14
+                ],
+                "appConnections": [
+                    48
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    31
+                ],
+                "netConnections": [
+                    48
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    15
+                ],
+                "appConnections": [
+                    49
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    31
+                ],
+                "netConnections": [
+                    49
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    16
+                ],
+                "appConnections": [
+                    50
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    25
+                ],
+                "netConnections": [
+                    50
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    17
+                ],
+                "appConnections": [
+                    51
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    25
+                ],
+                "netConnections": [
+                    51
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    18
+                ],
+                "appConnections": [
+                    52
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    25
+                ],
+                "netConnections": [
+                    52
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    19
+                ],
+                "appConnections": [
+                    53
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    39
+                ],
+                "netConnections": [
+                    53
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    20
+                ],
+                "appConnections": [
+                    54
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    39
+                ],
+                "netConnections": [
+                    54
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    21
+                ],
+                "appConnections": [
+                    55
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    39
+                ],
+                "netConnections": [
+                    55
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    22
+                ],
+                "appConnections": [
+                    56
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    39
+                ],
+                "netConnections": [
+                    56
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    23
+                ],
+                "appConnections": [
+                    57
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    31
+                ],
+                "netConnections": [
+                    57
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    24
+                ],
+                "appConnections": [
+                    58
+                ]
+            }
+        },
+        {
+            "NetworkConnection": {
+                "networks": [
+                    31
+                ],
+                "netConnections": [
+                    58
+                ]
+            }
+        },
+        {
+            "OutApplicationConnection": {
+                "outApplications": [
+                    6
+                ],
+                "outgoingAppConnections": [
+                    35
+                ]
+            }
+        },
+        {
+            "InNetworkConnection": {
+                "inNetworks": [
+                    31
+                ],
+                "ingoingNetConnections": [
+                    35
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    14,
+                    16
+                ],
+                "appConnections": [
+                    61
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    15,
+                    16
+                ],
+                "appConnections": [
+                    59
+                ]
+            }
+        },
+        {
+            "ApplicationConnection": {
+                "applications": [
+                    15,
+                    3
+                ],
+                "appConnections": [
+                    60
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    62
+                ],
+                "execPrivApps": [
+                    0
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    63
+                ],
+                "execPrivApps": [
+                    1
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    64
+                ],
+                "execPrivApps": [
+                    2
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    65
+                ],
+                "execPrivApps": [
+                    3
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    66
+                ],
+                "execPrivApps": [
+                    4
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    67
+                ],
+                "execPrivApps": [
+                    5
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    68
+                ],
+                "execPrivApps": [
+                    6
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    69
+                ],
+                "execPrivApps": [
+                    7
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    70
+                ],
+                "execPrivApps": [
+                    8
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    71
+                ],
+                "execPrivApps": [
+                    9
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    72
+                ],
+                "execPrivApps": [
+                    10
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    73
+                ],
+                "execPrivApps": [
+                    11
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    74
+                ],
+                "execPrivApps": [
+                    12
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    75
+                ],
+                "execPrivApps": [
+                    13
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    76
+                ],
+                "execPrivApps": [
+                    14
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    77
+                ],
+                "execPrivApps": [
+                    15
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    78
+                ],
+                "execPrivApps": [
+                    16
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    79
+                ],
+                "execPrivApps": [
+                    17
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    80
+                ],
+                "execPrivApps": [
+                    18
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    81
+                ],
+                "execPrivApps": [
+                    19
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    82
+                ],
+                "execPrivApps": [
+                    20
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    83
+                ],
+                "execPrivApps": [
+                    21
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    84
+                ],
+                "execPrivApps": [
+                    22
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    85
+                ],
+                "execPrivApps": [
+                    23
+                ]
+            }
+        },
+        {
+            "ExecutionPrivilegeAccess": {
+                "executionPrivIAMs": [
+                    86
+                ],
+                "execPrivApps": [
+                    24
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    87
+                ],
+                "application": [
+                    0
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    88
+                ],
+                "application": [
+                    1
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    89
+                ],
+                "application": [
+                    2
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    90
+                ],
+                "application": [
+                    3
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    91
+                ],
+                "application": [
+                    4
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    92
+                ],
+                "application": [
+                    5
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    93
+                ],
+                "application": [
+                    6
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    94
+                ],
+                "application": [
+                    7
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    95
+                ],
+                "application": [
+                    8
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    96
+                ],
+                "application": [
+                    9
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    97
+                ],
+                "application": [
+                    10
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    98
+                ],
+                "application": [
+                    11
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    99
+                ],
+                "application": [
+                    12
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    100
+                ],
+                "application": [
+                    13
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    101
+                ],
+                "application": [
+                    14
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    102
+                ],
+                "application": [
+                    15
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    103
+                ],
+                "application": [
+                    16
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    104
+                ],
+                "application": [
+                    17
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    105
+                ],
+                "application": [
+                    18
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    106
+                ],
+                "application": [
+                    19
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    107
+                ],
+                "application": [
+                    20
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    108
+                ],
+                "application": [
+                    21
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    109
+                ],
+                "application": [
+                    22
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    110
+                ],
+                "application": [
+                    23
+                ]
+            }
+        },
+        {
+            "ApplicationVulnerability_SoftwareVulnerability_Application": {
+                "vulnerabilities": [
+                    111
+                ],
+                "application": [
+                    24
+                ]
+            }
+        }
+    ],
+    "attackers": {
+        "112": {
+            "name": "Tyr Demo 1 Attacker",
+            "entry_points": {
+                "24": {
+                    "attack_steps": [
+                        "fullAccess"
+                    ]
+                }
+            }
+        }
+    }
+}
