@@ -41,4 +41,3 @@ def test_run_simulation_without_defender_agent(mock_input):
         )
     )
     run_simulation(simulator, config)
-
