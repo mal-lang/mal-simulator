@@ -24,9 +24,8 @@ from .agents import (
     BreadthFirstAttacker,
     DepthFirstAttacker,
     KeyboardAgent,
-    TripWireDefender
+    HeuristicsDefender
 )
-
 from .sims.mal_simulator import MalSimulator
 
 agent_class_name_to_class = {
@@ -34,7 +33,7 @@ agent_class_name_to_class = {
     'BreadthFirstAttacker': BreadthFirstAttacker,
     'DepthFirstAttacker': DepthFirstAttacker,
     'KeyboardAgent': KeyboardAgent,
-    'TripWireDefender': TripWireDefender,
+    'HeuristicsDefender': HeuristicsDefender,
 }
 
 # All required fields in scenario yml file

@@ -2,7 +2,7 @@ lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
 model_file: ../models/demo1_model.json
 
 attacker_agent_class: 'BreadthFirstAttacker'
-defender_agent_class: 'TripWireDefender'
+defender_agent_class: 'HeuristicsDefender'
 
 # Rewards for each attack step
 rewards:
