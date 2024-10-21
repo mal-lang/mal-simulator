@@ -21,12 +21,15 @@ from maltoolbox.wrappers import create_attack_graph
 
 from .agents.searchers import BreadthFirstAttacker, DepthFirstAttacker
 from .agents.keyboard_input import KeyboardAgent
+from .agents.heuristics import TripWireDefender
+
 from .sims.mal_simulator import MalSimulator
 
 agent_class_name_to_class = {
     'BreadthFirstAttacker': BreadthFirstAttacker,
     'DepthFirstAttacker': DepthFirstAttacker,
-    'KeyboardAgent': KeyboardAgent
+    'KeyboardAgent': KeyboardAgent,
+    'TripWireDefender': TripWireDefender,
 }
 
 # All required fields in scenario yml file

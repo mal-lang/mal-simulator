@@ -1,0 +1,60 @@
+lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
+model_file: ../models/demo1_model.json
+
+attacker_agent_class: 'BreadthFirstAttacker'
+defender_agent_class: 'TripWireDefender'
+
+# Rewards for each attack step
+rewards:
+  ca:read: 1
+  ca:modify: 5
+  ca:deny: 4
+  ca:notPresent: 4
+  rootca:read: 1
+  rootca:modify: 5
+  rootca:deny: 4
+  rootca:notPresent: 4
+  dc:read: 1
+  dc:modify: 3
+  dc:deny: 4
+  dc:notPresent: 4
+  dc2:read: 1
+  dc2:modify: 3
+  dc2:deny: 4
+  dc2:notPresent: 4
+  historian:read: 2
+  historian:modify: 5
+  historian:deny: 5
+  historian:notPresent: 5
+  ftp:read: 2
+  ftp:modify: 2
+  ftp:deny: 4
+  ftp:notPresent: 4
+  hqfile:read: 2
+  hqfile:modify: 2
+  hqfile:deny: 4
+  hqfile:notPresent: 4
+  www:read: 1
+  www:modify: 4
+  www:deny: 2
+  www:notPresent: 2
+  hq02:read: 2
+  hq02:modify: 4
+  hq02:deny: 3
+  hq02:notPresent: 3
+  hq03:read: 2
+  hq03:modify: 4
+  hq03:deny: 3
+  hq03:notPresent: 3
+  hq04:read: 2
+  hq04:modify: 4
+  hq04:deny: 3
+  hq04:notPresent: 3
+  hq05:read: 2
+  hq05:modify: 4
+  hq05:deny: 3
+  hq05:notPresent: 3
+  hq06:read: 2
+  hq06:modify: 4
+  hq06:deny: 3
+  hq06:notPresent: 3
