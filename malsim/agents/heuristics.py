@@ -5,7 +5,7 @@ from .agent_base import MalSimulatorAgent
 
 logger = logging.getLogger(__name__)
 
-class TripWireDefender(MalSimulatorAgent):
+class HeuristicsDefender(MalSimulatorAgent):
     """A defender that defends compromised assets using notPresent"""
 
     def __init__(self, agent_config: dict, **kwargs):

@@ -60,9 +60,9 @@ def test_bfs_vs_bfs_state_and_reward():
     assert total_reward_defender == -307
 
 
-def test_bfs_vs_tripwire_state_and_reward():
+def test_bfs_vs_heuristics_state_and_reward():
     sim, sim_config = create_simulator_from_scenario(
-        'tests/testdata/scenarios/demo1_bfs_attacker_vs_tripwire_defender.yml'
+        'tests/testdata/scenarios/demo1_bfs_attacker_vs_heuristics_defender.yml'
     )
     obs, infos = sim.reset()
 
@@ -114,7 +114,7 @@ def test_bfs_vs_tripwire_state_and_reward():
 
     enabled_defense_nodes = []
     for step in defender_actions:
-        # Make sure all defenses chosen by TripWireAgent are notPresent
+        # Make sure all defenses chosen by HeuristicsDefender are notPresent
         defense_node = sim.attack_graph.get_node_by_id(
             sim._index_to_id[step])
 
