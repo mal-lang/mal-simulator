@@ -19,13 +19,18 @@ import yaml
 from maltoolbox.attackgraph import AttackGraph, Attacker
 from maltoolbox.wrappers import create_attack_graph
 
-from .agents.searchers import BreadthFirstAttacker, DepthFirstAttacker
-from .agents.keyboard_input import KeyboardAgent
-from .agents.heuristics import TripWireDefender
+from .agents import (
+    PassiveAttacker,
+    BreadthFirstAttacker,
+    DepthFirstAttacker,
+    KeyboardAgent,
+    TripWireDefender
+)
 
 from .sims.mal_simulator import MalSimulator
 
 agent_class_name_to_class = {
+    'PassiveAttacker': PassiveAttacker,
     'BreadthFirstAttacker': BreadthFirstAttacker,
     'DepthFirstAttacker': DepthFirstAttacker,
     'KeyboardAgent': KeyboardAgent,
