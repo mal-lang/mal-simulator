@@ -1,18 +1,13 @@
 import numpy as np
 import logging
-
-AGENT_ATTACKER = "attacker"
-AGENT_DEFENDER = "defender"
+from .agent_base import MalSimulatorAgent
 
 logger = logging.getLogger(__name__)
 
-null_action = (0, None)
-
-
-class KeyboardAgent:
-    def __init__(self, vocab):
+class KeyboardAgent(MalSimulatorAgent):
+    def __init__(self, agent_config, **kwargs):
         logger.debug("Create Keyboard agent.")
-        self.vocab = vocab
+        self.vocab = kwargs.get('vocab')
 
     def compute_action_from_dict(self, obs: dict, mask: tuple) -> tuple:
         def valid_action(user_input: str) -> bool:

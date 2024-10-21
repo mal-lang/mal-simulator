@@ -19,14 +19,21 @@ import yaml
 from maltoolbox.attackgraph import AttackGraph, Attacker
 from maltoolbox.wrappers import create_attack_graph
 
-from .agents.searchers import BreadthFirstAttacker, DepthFirstAttacker
-from .agents.keyboard_input import KeyboardAgent
+from .agents import (
+    PassiveAttacker,
+    BreadthFirstAttacker,
+    DepthFirstAttacker,
+    KeyboardAgent,
+    HeuristicsDefender
+)
 from .sims.mal_simulator import MalSimulator
 
 agent_class_name_to_class = {
+    'PassiveAttacker': PassiveAttacker,
     'BreadthFirstAttacker': BreadthFirstAttacker,
     'DepthFirstAttacker': DepthFirstAttacker,
-    'KeyboardAgent': KeyboardAgent
+    'KeyboardAgent': KeyboardAgent,
+    'HeuristicsDefender': HeuristicsDefender,
 }
 
 # All required fields in scenario yml file

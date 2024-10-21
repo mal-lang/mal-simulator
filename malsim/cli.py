@@ -27,11 +27,10 @@ def run_simulation(sim: MalSimulator, sim_config: dict):
     # Initialize defender and attacker according to classes
     defender_class = sim_config['agents'][defender_agent_id]['agent_class']\
                      if defender_agent_id else None
-    defender_agent = (defender_class(reverse_vocab)
-                          if defender_class == KeyboardAgent
-                          else defender_class({})
-                      if defender_class
-                      else None)
+    defender_agent = defender_class({},
+                        simulator=sim,
+                        vocab=reverse_vocab
+                    ) if defender_class else None
 
     attacker_class = sim_config['agents'][attacker_agent_id]['agent_class']
     attacker_agent = (attacker_class(reverse_vocab)
