@@ -6,6 +6,7 @@ from maltoolbox.attackgraph import AttackGraph, Attacker
 from malsim.sims.mal_simulator import MalSimulator
 from malsim.scenario import load_scenario, create_simulator_from_scenario
 from malsim.sims import MalSimulatorSettings
+from malsim.agents.searchers import BreadthFirstAttacker, DepthFirstAttacker
 
 def test_malsimulator(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
@@ -994,7 +995,7 @@ def test_default_settings_defender_observation_false_negatives():
 def test_default_settings_defender_observation_false_negatives_seed():
     """Test default MalSimulator with false negative rates"""
 
-    def run_simulation_with_seed(
+    def run_simulation_with_seed_assert_obs(
             seed,
             expected_attacker_obs,
             expected_defender_obs
@@ -1037,7 +1038,7 @@ def test_default_settings_defender_observation_false_negatives_seed():
     for _ in range(100):
         # running it many times with same seed
         # yields same observations
-        run_simulation_with_seed(
+        run_simulation_with_seed_assert_obs(
             seed,
             expected_attacker_obs_100,
             expected_defender_obs_100
@@ -1046,11 +1047,126 @@ def test_default_settings_defender_observation_false_negatives_seed():
     with pytest.raises(AssertionError):
         # running it once with different seed
         # yields assertion error (different observations)
-        run_simulation_with_seed(
+        run_simulation_with_seed_assert_obs(
             1337,
             expected_attacker_obs_100,
             expected_defender_obs_100
         )
+
+
+def run_simulation_n_steps_with_seed_assert_obs(
+        sim,
+        seed,
+        attacker_agent_class,
+        expected_attacker_obs,
+        expected_defender_obs,
+        n_steps = 5
+    ):
+    """Helper function"""
+
+    obs, infos = sim.reset(seed=seed)
+
+    attacker_agent_id = next(iter(sim.get_attacker_agents()))
+    defender_agent_id = next(iter(sim.get_defender_agents()))
+
+    attacker_agent = attacker_agent_class(
+        {'randomize': True, 'seed': seed}
+    )
+
+    for _ in range(n_steps):
+        # Get an uncompromised step
+        attacker_action = attacker_agent.compute_action_from_dict(
+            obs[attacker_agent_id],
+            infos[attacker_agent_id]['action_mask']
+        )
+
+        # Let the attacker compromise whatever they want
+        actions = {
+            attacker_agent_id: attacker_action,
+            defender_agent_id: (0, None)}
+
+        obs, _, _, _, infos = sim.step(actions)
+
+    actual_attacker_obs_state = obs[attacker_agent_id]['observed_state']
+    for index, state in enumerate(actual_attacker_obs_state):
+        assert state == expected_attacker_obs[index]
+
+    actual_defender_obs_state = obs[defender_agent_id]['observed_state']
+    for index, state in enumerate(actual_defender_obs_state):
+        assert state == expected_defender_obs[index]
+
+
+def test_sim_dfs_agent_seed_deterministic():
+    """Make sure observations are deterministic when giving seed
+    to both dfs agent and simulator and false positives are set"""
+
+    sim, _ = create_simulator_from_scenario(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml')
+
+    expected_dfs_attacker_obs_100 = \
+        [-1,  1,  1,  1, -1, -1, -1, -1, -1,  1,  1, -1,  1,  1,  0]
+    expected_defender_obs_100 = \
+        [0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0]
+    seed = 100
+
+    # Make sure the seed makes the obs state deterministic
+    for _ in range(10):
+        run_simulation_n_steps_with_seed_assert_obs(
+            sim,
+            seed,
+            DepthFirstAttacker,
+            expected_dfs_attacker_obs_100,
+            expected_defender_obs_100
+        )
+
+    seed = 1337
+    with pytest.raises(AssertionError):
+        # running it once with different seed
+        # yields assertion error (different observations)
+        run_simulation_n_steps_with_seed_assert_obs(
+            sim,
+            seed,
+            DepthFirstAttacker,
+            expected_dfs_attacker_obs_100,
+            expected_defender_obs_100
+        )
+
+
+def test_sim_bfs_agent_seed_deterministic():
+    """Make sure observations are deterministic when giving seed
+    to both bfs agent and simulator and false positives are set"""
+
+    sim, _ = create_simulator_from_scenario(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml')
+
+    expected_bfs_attacker_obs_100 = \
+        [-1,  1,  1,  1, -1, -1,  0, -1, -1,  0,  1, -1,  1,  1,  1]
+    expected_defender_obs_100 = \
+        [0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1]
+    seed = 100
+
+    # Make sure the seed makes the obs state deterministic
+    for _ in range(10):
+        run_simulation_n_steps_with_seed_assert_obs(
+            sim,
+            seed,
+            BreadthFirstAttacker,
+            expected_bfs_attacker_obs_100,
+            expected_defender_obs_100
+        )
+
+    seed = 1337
+    with pytest.raises(AssertionError):
+        # running it once with different seed
+        # yields assertion error (different observations)
+        run_simulation_n_steps_with_seed_assert_obs(
+            sim,
+            seed,
+            BreadthFirstAttacker,
+            expected_bfs_attacker_obs_100,
+            expected_defender_obs_100
+        )
+
 
 def test_defender_observation_false_positives_negatives():
     """Test default MalSimulator with false negative and positive rates"""
