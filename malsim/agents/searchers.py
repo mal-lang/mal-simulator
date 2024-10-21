@@ -25,11 +25,7 @@ class BreadthFirstAttacker:
     def __init__(self, agent_config: dict) -> None:
         self.targets: Deque[int] = deque([])
         self.current_target: int = None
-        seed = (
-            agent_config["seed"]
-            if agent_config.get("seed", None)
-            else np.random.SeedSequence().entropy
-        )
+        seed = agent_config.get("seed", np.random.SeedSequence().entropy)
         self.rng = (
             np.random.default_rng(seed)
             if agent_config.get("randomize", False)
@@ -85,11 +81,7 @@ class DepthFirstAttacker:
     def __init__(self, agent_config: dict) -> None:
         self.current_target = -1
         self.targets: List[int] = []
-        seed = (
-            agent_config["seed"]
-            if agent_config.get("seed", None)
-            else np.random.SeedSequence().entropy
-        )
+        seed = agent_config.get("seed", np.random.SeedSequence().entropy)
         self.rng = (
             np.random.default_rng(seed)
             if agent_config.get("randomize", False)
