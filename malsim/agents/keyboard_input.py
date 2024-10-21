@@ -1,15 +1,10 @@
 import numpy as np
 import logging
-
-AGENT_ATTACKER = "attacker"
-AGENT_DEFENDER = "defender"
+from .agent_base import MalSimulatorAgent
 
 logger = logging.getLogger(__name__)
 
-null_action = (0, None)
-
-
-class KeyboardAgent:
+class KeyboardAgent(MalSimulatorAgent):
     def __init__(self, agent_config, **kwargs):
         logger.debug("Create Keyboard agent.")
         self.vocab = kwargs.get('vocab')

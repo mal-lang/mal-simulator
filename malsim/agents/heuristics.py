@@ -1,9 +1,11 @@
 import logging
 from typing import Optional
 
+from .agent_base import MalSimulatorAgent
+
 logger = logging.getLogger(__name__)
 
-class TripWireDefender:
+class TripWireDefender(MalSimulatorAgent):
     """A defender that defends compromised assets using notPresent"""
 
     def __init__(self, agent_config: dict, **kwargs):
@@ -28,7 +30,3 @@ class TripWireDefender:
                 return (1, self.sim._id_to_index[defense_step_node.id])
 
         return (0, None)
-
-AGENTS = {
-    TripWireDefender.__name__: TripWireDefender,
-}
