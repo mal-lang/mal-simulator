@@ -5,6 +5,8 @@ from typing import Any, Deque, Dict, List, Set, Union
 
 import numpy as np
 
+from .agent_base import MalSimulatorAgent
+
 logger = logging.getLogger(__name__)
 
 
@@ -13,15 +15,21 @@ def get_new_targets(
 ) -> List[int]:
     attack_surface = mask[1]
     surface_indexes = list(np.flatnonzero(attack_surface))
-    new_targets = [idx for idx in surface_indexes if idx not in discovered_targets]
+    new_targets = [idx for idx
+                   in surface_indexes if idx not in discovered_targets]
     return new_targets, surface_indexes
 
 
-class PassiveAttacker:
+class PassiveAttacker(MalSimulatorAgent):
+    """An agent that does nothing"""
+
     def compute_action_from_dict(self, observation, mask):
         return (0, None)
 
-class BreadthFirstAttacker:
+
+class BreadthFirstAttacker(MalSimulatorAgent):
+    """An agent that selects steps by using BFS"""
+
     def __init__(self, agent_config: dict, **kwargs) -> None:
         self.targets: Deque[int] = deque([])
         self.current_target: int = None
@@ -32,11 +40,15 @@ class BreadthFirstAttacker:
             else None
         )
 
-    def compute_action_from_dict(self, observation: Dict[str, Any], mask: tuple):
-        new_targets, surface_indexes = get_new_targets(observation, self.targets, mask)
+    def compute_action_from_dict(
+            self, observation: Dict[str, Any], mask: tuple):
+
+        new_targets, surface_indexes = \
+            get_new_targets(observation, self.targets, mask)
 
         # Add new targets to the back of the queue
-        # if desired, shuffle the new targets to make the attacker more unpredictable
+        # if desired, shuffle the new targets to make
+        # the attacker more unpredictable
         if self.rng:
             self.rng.shuffle(new_targets)
         for c in new_targets:
@@ -77,7 +89,9 @@ class BreadthFirstAttacker:
         return current_target, False
 
 
-class DepthFirstAttacker:
+class DepthFirstAttacker(MalSimulatorAgent):
+    """An agent that selects steps by using DFS"""
+
     def __init__(self, agent_config: dict) -> None:
         self.current_target = -1
         self.targets: List[int] = []
@@ -88,8 +102,11 @@ class DepthFirstAttacker:
             else None
         )
 
-    def compute_action_from_dict(self, observation: Dict[str, Any], mask: tuple):
-        new_targets, surface_indexes = get_new_targets(observation, self.targets, mask)
+    def compute_action_from_dict(
+            self, observation: Dict[str, Any], mask: tuple):
+
+        new_targets, surface_indexes = \
+            get_new_targets(observation, self.targets, mask)
 
         # Add new targets to the top of the stack
         if self.rng:
@@ -121,9 +138,3 @@ class DepthFirstAttacker:
             current_target = targets.pop()
 
         return current_target, False
-
-
-AGENTS = {
-    BreadthFirstAttacker.__name__: BreadthFirstAttacker,
-    DepthFirstAttacker.__name__: DepthFirstAttacker,
-}
