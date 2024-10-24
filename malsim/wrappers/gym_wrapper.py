@@ -1,4 +1,4 @@
-from typing import Any, SupportsFloat
+from typing import Any, Dict, SupportsFloat
 
 import gymnasium as gym
 import gymnasium.utils.env_checker as env_checker
@@ -8,13 +8,12 @@ from gymnasium.core import RenderFrame
 import numpy as np
 
 from ..scenario import create_simulator_from_scenario
-from numpy.typing import NDArray
 
 
 class AttackerEnv(gym.Env):
     metadata = {"render_modes": []}
 
-    def __init__(self, scenario_file: str, **kwargs: dict[str, Any]) -> None:
+    def __init__(self, scenario_file: str, **kwargs) -> None:
         """
         Params:
         - scenario_file: the scenario that should be loaded
@@ -45,7 +44,7 @@ class AttackerEnv(gym.Env):
     def step(
         self, action: Any
     ) -> tuple[Any, SupportsFloat, bool, bool, dict[str, Any]]:
-        obs: dict[str, Any]
+        obs: Dict[str, Any]
 
         # TODO: Add potential defender and give defender action if it exists
         actions = {
@@ -64,11 +63,11 @@ class AttackerEnv(gym.Env):
         return self.sim.render()
 
     @property
-    def num_assets(self) -> int:
+    def num_assets(self):
         return self.sim.num_assets
 
     @property
-    def num_step_names(self) -> int:
+    def num_step_names(self):
         return self.sim.num_step_names
 
 
@@ -83,8 +82,8 @@ class DefenderEnv(gym.Env):
 
         # Select first attacker and first defender for the simulation
         # currently only one of each agent is supported
-        self.attacker_agent_id: str = list(self.sim.get_attacker_agents().keys())[0]
-        self.defender_agent_id: str = list(self.sim.get_defender_agents().keys())[0]
+        self.attacker_agent_id = list(self.sim.get_attacker_agents().keys())[0]
+        self.defender_agent_id = list(self.sim.get_defender_agents().keys())[0]
 
         self.attacker_class = conf["agents"][self.attacker_agent_id]["agent_class"]
         self.attacker = self.attacker_class({})
@@ -157,14 +156,14 @@ class DefenderEnv(gym.Env):
         return len(self.sim.unwrapped._index_to_step_name)
 
 
-def _to_binary(val: np.uint32, max_val: int):
+def _to_binary(val, max_val):
     return np.array(
         list(np.binary_repr(val, width=max_val.bit_length())), dtype=np.int64
     )
 
 
-def vec_to_binary(vec: NDArray[np.uint32], max_val: int) -> NDArray[np.bool_]:
-    return np.array([_to_binary(val, max_val) for val in vec], dtype=np.bool_)
+def vec_to_binary(vec, max_val):
+    return np.array([_to_binary(val, max_val) for val in vec])
 
 
 def vec_to_one_hot(vec, num_vals):
@@ -175,7 +174,6 @@ class LabeledGraphWrapper(Wrapper):
     def __init__(self, env: gym.Env[spaces.Dict, spaces.MultiDiscrete]) -> None:
         super().__init__(env)
 
-        self.num_assets: int = self.env.unwrapped.num_assets
         self.num_steps: int = self.env.unwrapped.num_step_names
         num_nodes: int = self.env.observation_space["observed_state"].shape[0]
         num_commands = 2
@@ -213,12 +211,10 @@ class LabeledGraphWrapper(Wrapper):
         return self._to_graph(obs, info), reward, terminated, truncated, info
 
     def _to_graph(self, obs: dict[str, Any], info: dict[str, Any]) -> dict[str, Any]:
-        return to_graph(obs, info, self.num_assets, self.num_steps)
+        return to_graph(obs, info, self.num_steps)
 
 
-def to_graph(
-    obs: dict[str, Any], info: dict[str, Any], num_assets: int, num_steps: int
-) -> dict[str, Any]:
+def to_graph(obs: dict[str, Any], info: dict[str, Any], num_steps) -> dict[str, Any]:
     nodes = np.concatenate(
         [
             vec_to_one_hot(obs["observed_state"] + 1, 3),
