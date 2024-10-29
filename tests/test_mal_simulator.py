@@ -118,11 +118,11 @@ def test_malsimulator_create_blank_observation_actionability_given(
 
         # Below are the rules from the traininglang observability scenario
         # made into if statements
-        if node.asset.type == 'Host' and node.name in ('access', 'authenticate'):
+        if node.asset.type == 'Host' and node.name in ('notPresent'):
             assert actionable
-        elif node.asset.type == 'Data' and node.name in ('read'):
+        elif node.asset.type == 'Data' and node.name in ('notPresent'):
             assert actionable
-        elif node.asset.name == 'User:3' and node.name in ('phishing'):
+        elif node.asset.name == 'User:3' and node.name in ('notPresent'):
             assert actionable
         else:
             assert not actionable

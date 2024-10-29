@@ -26,10 +26,9 @@ defender_agent_class: 'KeyboardAgent'
 actionable_steps:
   by_asset_type:
     Host:
-      - access
-      - authenticate
+      - notPresent
     Data:
-      - read
+      - notPresent
   by_asset_name:
     User:3:
-      - phishing
+      - notPresent
