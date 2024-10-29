@@ -97,6 +97,37 @@ def test_malsimulator_create_blank_observation_observability_given(
             assert not observable
 
 
+def test_malsimulator_create_blank_observation_actionability_given(
+        corelang_lang_graph, model
+    ):
+    """Make sure actionability propagates correctly from extras field/scenario
+    to observation in mal simulator"""
+
+    # Load Scenario with observability rules set
+    scenario_file = 'tests/testdata/scenarios/traininglang_actionability_scenario.yml'
+    sim, _ = create_simulator_from_scenario(scenario_file)
+
+    num_objects = len(sim.attack_graph.nodes)
+    blank_observation = sim.create_blank_observation()
+
+    assert len(blank_observation['is_actionable']) == num_objects
+
+    for index, actionable in enumerate(blank_observation['is_actionable']):
+        node_id = sim._index_to_id[index]
+        node = sim.attack_graph.get_node_by_id(node_id)
+
+        # Below are the rules from the traininglang observability scenario
+        # made into if statements
+        if node.asset.type == 'Host' and node.name in ('access', 'authenticate'):
+            assert actionable
+        elif node.asset.type == 'Data' and node.name in ('read'):
+            assert actionable
+        elif node.asset.name == 'User:3' and node.name in ('phishing'):
+            assert actionable
+        else:
+            assert not actionable
+
+
 def test_malsimulator_format_info(corelang_lang_graph, model):
     """Make sure format info works as expected"""
     attack_graph = AttackGraph(corelang_lang_graph, model)
@@ -139,6 +170,7 @@ def test_malsimulator_observation_space(corelang_lang_graph, model):
     observation_space = sim.observation_space()
     assert set(observation_space.keys()) == {
         'is_observable',
+        'is_actionable',
         'observed_state',
         'remaining_ttc',
         'asset_type',

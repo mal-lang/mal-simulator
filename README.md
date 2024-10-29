@@ -63,21 +63,33 @@ attacker_entry_points:
   #   - 'Credentials:6:attemptCredentialsReuse'
 
 # Optionally add observability rules that are applied to AttackGrapNodes
-# to make only certain attack steps observable
+# to make only certain steps observable
 #
-# If 'observable_attack_steps' are set:
+# If 'observable_steps' are set:
 # - Nodes that match any rule will be marked as observable
 # - Nodes that don't match any rules will be marked as non-observable
-# If 'observable_attack_steps' are not set:
+# If 'observable_steps' are not set:
 # - All nodes will be marked as observable
 #
-observable_attack_steps:
+observable_steps:
   by_asset_type:
     <asset_type>:
-      - <attack step name>
+      - <step name>
   by_asset_name:
     <asset_name>:
-      - <attack step name>
+      - <step name>
+
+# Optionally add actionability rules that are applied to AttackGrapNodes
+# to make only certain steps actionable
+# Works exactly as observability
+#
+actionable_steps:
+  by_asset_type:
+    <asset_type>:
+      - <step name>
+  by_asset_name:
+    <asset_name>:
+      - <step name>
 
   # Example:
   #   by_asset_type:

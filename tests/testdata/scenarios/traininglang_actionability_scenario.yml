@@ -20,17 +20,16 @@ attacker_entry_points:
 attacker_agent_class: 'BreadthFirstAttacker'
 defender_agent_class: 'KeyboardAgent'
 
-# Optional way to make only certain steps observable
-# If observable_steps are set, all steps not
-# matching these rules will have observability set to False.
-observable_steps:
+# Optional way to make only certain steps actionable
+# If actionable_steps are set, all steps not
+# matching these rules will have actionability set to False.
+actionable_steps:
   by_asset_type:
     Host:
       - access
       - authenticate
     Data:
       - read
-
   by_asset_name:
     User:3:
       - phishing

@@ -107,6 +107,9 @@ class MalSimulator(ParallelEnv):
             # If no observability set for node, assume observable.
             "is_observable": [step.extras.get('observable', 1)
                            for step in self.attack_graph.nodes],
+            # Same goes for actionable.
+            "is_actionable": [step.extras.get('actionable', 1)
+                           for step in self.attack_graph.nodes],
             "observed_state": num_steps * [default_obs_state],
             "remaining_ttc": num_steps * [0],
             "asset_type": [self._asset_type_to_index[step.asset.type]
@@ -169,6 +172,8 @@ class MalSimulator(ParallelEnv):
 
         np_obs = {
             "is_observable": np.array(observation["is_observable"],
+                             dtype=np.int8),
+            "is_actionable": np.array(observation["is_actionable"],
                              dtype=np.int8),
             "observed_state": np.array(observation["observed_state"],
                               dtype=np.int8),
@@ -344,8 +349,10 @@ class MalSimulator(ParallelEnv):
             {
                 "is_observable": Box(
                     0, 1, shape=(num_steps,), dtype=np.int8
-                ),  #  0 for unobservable,
-                #  1 for observable
+                ),  #  0 for unobservable, 1 for observable
+                "is_actionable": Box(
+                    0, 1, shape=(num_steps,), dtype=np.int8
+                ),  #  0 for non-actionable, 1 for actionable
                 "observed_state": Box(
                     -1, 1, shape=(num_steps,), dtype=np.int8
                 ),  # -1 for unknown,
