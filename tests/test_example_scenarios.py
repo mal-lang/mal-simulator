@@ -53,6 +53,14 @@ def test_bfs_vs_bfs_state_and_reward():
     assert attacker_actions == [328, 329, 353, 330, 354, 355, 356, 331, 357, 283, 332, 375, 358, 376, 377]
     assert defender_actions == [68, 249, 324, 325, 349, 350, 396, 397, 421, 422, 423, 457, 0, 31, 88, 113, 144, 181, 212, 252, 276, 326, 327, 351, 352, 374]
 
+    for step_index in attacker_actions:
+        node = sim.attack_graph.get_node_by_id(sim._index_to_id[step_index])
+        if node.is_compromised():
+            assert obs[defender_agent_id]['observed_state'][step_index]
+
+    for step_index in defender_actions:
+        assert obs[defender_agent_id]['observed_state'][step_index]
+
     assert rewards[attacker_agent_id] == 0
     assert rewards[defender_agent_id] == -31
 
