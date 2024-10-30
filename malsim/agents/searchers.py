@@ -1,7 +1,7 @@
 import logging
 
 from collections import deque
-from typing import Any, Deque, Dict, List, Set, Union
+from typing import Any, Deque, Dict, List, Set, Union, Optional
 
 import numpy as np
 
@@ -18,6 +18,9 @@ def get_new_targets(
 
 
 class PassiveAttacker:
+    def __init__(self, agent_config: dict) -> None:
+        pass
+
     def compute_action_from_dict(self, observation, mask):
         return (0, None)
 
@@ -25,11 +28,10 @@ class BreadthFirstAttacker:
     def __init__(self, agent_config: dict) -> None:
         self.targets: Deque[int] = deque([])
         self.current_target: int = None
-        seed = (
-            agent_config["seed"]
-            if agent_config.get("seed", None)
-            else np.random.SeedSequence().entropy
-        )
+        self.attack_graph = agent_config.get("attack_graph")
+
+        seed = agent_config.get("seed", np.random.SeedSequence().entropy)
+
         self.rng = (
             np.random.default_rng(seed)
             if agent_config.get("randomize", False)
@@ -50,35 +52,45 @@ class BreadthFirstAttacker:
             self.current_target, self.targets, surface_indexes
         )
 
-        self.current_target = None if done else self.current_target
-        action = 0 if done else 1
-        if action == 0:
+        if done:
             logger.debug(
                 "Attacker Breadth First agent does not have "
                 "any valid targets it will terminate"
             )
 
-        return (action, self.current_target)
+        # TODO: this does not have Context objects etc
+        else:
+            for _, detector in self.attack_graph.nodes[self.current_target].detectors.items():
+                log = {}
+                log['_detector'] = detector['name']
+
+                for label, lgasset in detector['context'].items():
+                    assets = [asset for asset in self.attack_graph.model.assets if asset.type == lgasset]
+                    self.rng.shuffle(assets)
+                    log[label] = str(assets.pop().name)
+
+                if log:
+                    print(log)
+
+        return (int(not done), self.current_target)
 
     @staticmethod
     def select_next_target(
         current_target: int,
         targets: Union[List[int], Deque[int]],
         attack_surface: Set[int],
-    ) -> int:
+    ) -> tuple[Optional[int], bool]:
         # If the current target was not compromised, put it
         # back, but on the bottom of the stack.
         if current_target in attack_surface:
             targets.appendleft(current_target)
             current_target = targets.pop()
 
-        while current_target not in attack_surface:
-            if len(targets) == 0:
-                return None, True
+        try:
+            return targets.pop(), False
+        except IndexError:
+            return None, True
 
-            current_target = targets.pop()
-
-        return current_target, False
 
 
 class DepthFirstAttacker:
