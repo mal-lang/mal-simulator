@@ -750,8 +750,7 @@ class MalSimulator(ParallelEnv):
         actions = []
         attacker_index = self.agents_dict[agent]["attacker"]
         attacker = self.attack_graph.attackers[attacker_index]
-        attack_step_node = self.attack_graph.get_node_by_id(
-            self._index_to_id[attack_step])
+        attack_step_node = self.get_attack_graph_node_by_index(attack_step)
 
         logger.info(
             'Attacker agent "%s" stepping through "%s"(%d).',
