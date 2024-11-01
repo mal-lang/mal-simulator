@@ -170,6 +170,36 @@ def vec_to_one_hot(vec, num_vals):
     return np.eye(num_vals, dtype=np.int8)[vec]
 
 
+class MaskingWrapper(Wrapper):
+    def _apply_mask(
+        self, obs: dict[str, Any], info: dict[str, Any]
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        obs["observed_state"] = obs["observed_state"] * obs["is_observable"]
+        info["action_mask"] = (
+            info["action_mask"][0],
+            info["action_mask"][1] * obs["is_actionable"],
+        )
+        return obs, info
+
+    def reset(
+        self, *, seed: int | None = None, options: dict[str, Any] | None = None
+    ) -> tuple[Any, dict[str, Any]]:
+        obs, info = super().reset(seed=seed, options=options)
+
+        obs, info = self._apply_mask(obs, info)
+
+        return obs, info
+
+    def step(
+        self, action: Any
+    ) -> tuple[Any, SupportsFloat, bool, bool, dict[str, Any]]:
+        obs, reward, terminated, truncated, info = super().step(action)
+
+        obs, info = self._apply_mask(obs, info)
+
+        return obs, reward, terminated, truncated, info
+
+
 class LabeledGraphWrapper(Wrapper):
     def __init__(self, env: gym.Env[spaces.Dict, spaces.MultiDiscrete]) -> None:
         super().__init__(env)
