@@ -41,16 +41,14 @@ def test_malsimulator_create_blank_observation(corelang_lang_graph, model):
     for index, asset_type_index in enumerate(blank_observation['asset_type']):
         # Note: offset is decremented from asset_type_index
         expected_type = sim._index_to_asset_type[asset_type_index]
-        node_id = sim._index_to_id[index]
-        node = attack_graph.get_node_by_id(node_id)
+        node = sim.get_attack_graph_node_by_index(index)
         assert node.asset.type == expected_type
 
     # asset_id on index X in blank_observation['asset_id']
     # should be the same as the id of the asset of attack step X
     assert len(blank_observation['asset_id']) == num_objects
     for index, expected_asset_id in enumerate(blank_observation['asset_id']):
-        node_id = sim._index_to_id[index]
-        node = attack_graph.get_node_by_id(node_id)
+        node = sim.get_attack_graph_node_by_index(index)
         assert node.asset.id == expected_asset_id
 
     assert len(blank_observation['step_name']) == num_objects
@@ -80,8 +78,7 @@ def test_malsimulator_create_blank_observation_observability_given(
     assert len(blank_observation['is_observable']) == num_objects
 
     for index, observable in enumerate(blank_observation['is_observable']):
-        node_id = sim._index_to_id[index]
-        node = sim.attack_graph.get_node_by_id(node_id)
+        node = sim.get_attack_graph_node_by_index(index)
 
         # Below are the rules from the traininglang observability scenario
         # made into if statements
@@ -387,7 +384,7 @@ def test_malsimulator_observe_attacker():
         assert node_obs_state == 1
 
     for index, state in enumerate(attacker_observation):
-        node = sim.attack_graph.get_node_by_id(sim._index_to_id[index])
+        node = sim.get_attack_graph_node_by_index(index)
 
         if node.is_compromised():
             assert state == 1
@@ -477,9 +474,7 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
     obs, rew, term, trunc, infos = sim._observe_and_reward({}, [])
 
     for index, state in enumerate(obs['attacker']['observed_state']):
-        node = sim.attack_graph.get_node_by_id(
-            sim._index_to_id[index]
-        )
+        node = sim.get_attack_graph_node_by_index(index)
         if state == -1:
             assert node not in attacker.entry_points
             assert node not in attacker.reached_attack_steps
@@ -1045,8 +1040,7 @@ def test_simulator_settings_defender_observation():
     # Verify that the only active state node in obs
     # is the latest performed step (the defense step)
     for index, state in enumerate(defender_observation):
-        step_id = sim._index_to_id[index]
-        node = sim.attack_graph.get_node_by_id(step_id)
+        node = sim.get_attack_graph_node_by_index(index)
         if node == user_3_compromise_defense:
             assert state == 1 # Last performed step known active state
         else:
