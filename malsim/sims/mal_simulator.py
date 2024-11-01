@@ -545,19 +545,29 @@ class MalSimulator(ParallelEnv):
     def get_attack_graph_node_by_index(self, index: int):
         """Get a node from the attack graph by index
 
-        Index is the position of the node in the lookup lists.
+        Index is the position of the node in the lookup list.
+
         First convert index to id and then fetch the node from the
-        AttackGraph. Raise LookupError if node with
-        given index does not map to a node in the attack graph.
+        AttackGraph.
+
+        Raise LookupError if node with given index does not map to a node in
+        the attack graph and IndexError if the index is out of range for the
+        lookup list.
+
+        Returns:
+        Attack graph node matching the id of the index in the lookup list
         """
 
         if index >= len(self._index_to_id):
-            raise LookupError("Index given does not map to a node")
+            raise IndexError('Index given, %d, is out of range of the '
+                'lookup list which is of length %d' % (index,
+                    len(self._index_to_id)))
 
         node_id = self._index_to_id[index]
         node = self.attack_graph.get_node_by_id(node_id)
         if not node:
-            raise LookupError("Index given does not map to a node")
+            raise LookupError('Index given, %d(id: %d), does not map to a '
+                'node' % (index, node_id))
         return node
 
     def _get_association_full_name(self, association) -> str:
