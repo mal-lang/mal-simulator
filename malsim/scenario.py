@@ -143,9 +143,9 @@ def _validate_scenario_property_rules(
             )
 
 
-def apply_scenario_property_rules(
+def apply_scenario_node_property_rules(
         attack_graph: AttackGraph,
-        prop: str,
+        node_prop: str,
         rules: Optional[dict]
     ):
     """Apply the observability/actionability rules from a scenario
@@ -159,8 +159,9 @@ def apply_scenario_property_rules(
 
     Arguments:
     - attack_graph: The attack graph to apply the settings to
-    - prop: property name in string format('actionable' or 'observable')
-    - rules: settings from scenario file
+    - node_prop: property name in string format('actionable' or 'observable')
+    - rules: settings from scenario file with keys `by_asset_name`
+             and/or `by_asset_type`
     """
 
     _validate_scenario_property_rules(attack_graph, rules)
@@ -168,21 +169,21 @@ def apply_scenario_property_rules(
     if not rules:
         # If no rules are given, make all steps as observable/actionable
         for step in attack_graph.nodes:
-            step.extras[prop] = 1
+            step.extras[node_prop] = 1
     else:
         # If observability/actionability rules are given
         # make the matching steps observable/actionable,
         # and all other unobservable/unactionable
         for step in attack_graph.nodes:
-            prop_rule_step_names = (
+            node_prop_rule_step_names = (
                 rules.get('by_asset_type', {}).get(step.asset.type, []) +
                 rules.get('by_asset_name', {}).get(step.asset.name, [])
             )
 
-            if step.name in prop_rule_step_names:
-                step.extras[prop] = 1
+            if step.name in node_prop_rule_step_names:
+                step.extras[node_prop] = 1
             else:
-                step.extras[prop] = 0
+                step.extras[node_prop] = 0
 
 
 def apply_scenario_attacker_entrypoints(
@@ -280,9 +281,10 @@ def apply_scenario_to_attack_graph(
         apply_scenario_attacker_entrypoints(attack_graph, entry_points)
 
     # Apply observability and actionability settings to attack graph
-    for prop in ['observable', 'actionable']:
-        prop_settings = scenario.get(prop + '_steps')
-        apply_scenario_property_rules(attack_graph, prop, prop_settings)
+    for node_prop in ['observable', 'actionable']:
+        node_prop_settings = scenario.get(node_prop + '_steps')
+        apply_scenario_node_property_rules(
+            attack_graph, node_prop, node_prop_settings)
 
 
 def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:
