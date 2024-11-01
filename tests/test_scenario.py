@@ -4,7 +4,7 @@ import os
 import pytest
 
 from malsim.scenario import (
-    apply_scenario_observability_rules,
+    apply_scenario_property_rules,
     load_scenario
 )
 from malsim.agents.keyboard_input import KeyboardAgent
@@ -196,7 +196,7 @@ def test_apply_scenario_observability():
     }
 
     # Apply observability rules
-    apply_scenario_observability_rules(attack_graph, observability_rules)
+    apply_scenario_property_rules(attack_graph, 'observable', observability_rules)
 
     # Make sure all attack steps are observable
     # if no observability settings are given
@@ -221,43 +221,54 @@ def test_apply_scenario_observability_faulty():
 
     # Wrong key in rule dict
     with pytest.raises(AssertionError):
-        apply_scenario_observability_rules(
+        apply_scenario_property_rules(
             attack_graph,
+            'observable',
             {'NotAllowedKey': {'Data': ['read', 'write', 'delete']}}
         )
 
     # Correct asset type and attack step
-    apply_scenario_observability_rules(
-        attack_graph, {'by_asset_type': { 'Application': ['read']},
+    apply_scenario_property_rules(
+        attack_graph,
+        'observable',
+        {'by_asset_type': { 'Application': ['read']},
     })
 
     # Wrong asset type in rule asset type to step dict
     with pytest.raises(AssertionError):
-        apply_scenario_observability_rules(
-            attack_graph, {'by_asset_type': {'NonExistingType': ['read']}}
+        apply_scenario_property_rules(
+            attack_graph,
+            'observable',
+            {'by_asset_type': {'NonExistingType': ['read']}}
         )
 
     # Wrong attack step name in rule asset type to step dict
     with pytest.raises(AssertionError):
-        apply_scenario_observability_rules(
+        apply_scenario_property_rules(
             attack_graph,
+            'observable',
             {'by_asset_type': {'Data': ['nonExistingAttackStep']},
         })
 
     # Correct asset name and attack step
-    apply_scenario_observability_rules(
-        attack_graph, {'by_asset_name': { 'OS App': ['read']},
+    apply_scenario_property_rules(
+        attack_graph,
+        'observable',
+        {'by_asset_name': { 'OS App': ['read']},
     })
 
     # Wrong asset name in rule asset name to step dict
     with pytest.raises(AssertionError):
-        apply_scenario_observability_rules(
-            attack_graph, {'by_asset_name': { 'NonExistingName': ['read']},
+        apply_scenario_property_rules(
+             attack_graph,
+            'observable',
+            {'by_asset_name': { 'NonExistingName': ['read']},
         })
 
     # Wrong attack step name in rule asset name to step dict
     with pytest.raises(AssertionError):
-        apply_scenario_observability_rules(
+        apply_scenario_property_rules(
             attack_graph,
+            'observable',
             {'by_asset_name': {'OS App': ['nonExistingAttackStep']}}
         )
