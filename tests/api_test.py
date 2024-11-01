@@ -147,10 +147,11 @@ def test_action_mask():
 
     num_defenses = len(np.flatnonzero(info['action_mask'][1]))
 
-    while num_defenses > 1:
+    terminated = False
+    while num_defenses > 1 and not terminated:
         action = env.action_space.sample(info['action_mask'])
         p, o = action
-        _, _, _, _, info = env.step((1, o))
+        _, _, terminated, _, info = env.step((1, o))
         new_num_defenses = len(np.flatnonzero(info['action_mask'][1]))
         assert new_num_defenses == num_defenses - 1
         num_defenses = new_num_defenses
