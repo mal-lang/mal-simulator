@@ -1,3 +1,4 @@
+import json
 import logging
 
 from collections import deque
@@ -24,11 +25,13 @@ class PassiveAttacker:
     def compute_action_from_dict(self, observation, mask):
         return (0, None)
 
+
 class BreadthFirstAttacker:
     def __init__(self, agent_config: dict) -> None:
         self.targets: Deque[int] = deque([])
         self.current_target: int = None
         self.attack_graph = agent_config.get("attack_graph")
+        self.logs = []
 
         seed = agent_config.get("seed", np.random.SeedSequence().entropy)
 
@@ -57,19 +60,31 @@ class BreadthFirstAttacker:
                 "Attacker Breadth First agent does not have "
                 "any valid targets it will terminate"
             )
+            with open(f"{self.__class__.__name__}-logs.json", "w") as f:
+                json.dump(self.logs, f)
+                self.logs = []
 
         # TODO: this does not have Context objects etc
         else:
-            for _, detector in self.attack_graph.nodes[self.current_target].detectors.items():
+            for _, detector in self.attack_graph.nodes[
+                self.current_target
+            ].detectors.items():
                 log = {}
-                log['_detector'] = detector['name']
+                log["timestamp"] = observation["timestamp"]
+                log["agent"] = self.__class__.__name__
+                log["_detector"] = detector["name"]
 
-                for label, lgasset in detector['context'].items():
-                    assets = [asset for asset in self.attack_graph.model.assets if asset.type == lgasset]
+                for label, lgasset in detector["context"].items():
+                    assets = [
+                        asset
+                        for asset in self.attack_graph.model.assets
+                        if asset.type == lgasset
+                    ]
                     self.rng.shuffle(assets)
                     log[label] = str(assets.pop().name)
 
                 if log:
+                    self.logs.append(log)
                     print(log)
 
         return (int(not done), self.current_target)
@@ -92,11 +107,13 @@ class BreadthFirstAttacker:
             return None, True
 
 
-
 class DepthFirstAttacker:
     def __init__(self, agent_config: dict) -> None:
         self.current_target = -1
         self.targets: List[int] = []
+        self.attack_graph = agent_config.get("attack_graph")
+        self.logs = []
+
         seed = (
             agent_config["seed"]
             if agent_config.get("seed", None)
@@ -121,9 +138,42 @@ class DepthFirstAttacker:
             self.current_target, self.targets, surface_indexes
         )
 
-        self.current_target = None if done else self.current_target
-        action = 0 if done else 1
-        return (action, self.current_target)
+        if done:
+            logger.debug(
+                "Attacker Depth First agent does not have "
+                "any valid targets it will terminate"
+            )
+            with open(f"{self.__class__.__name__}-logs.json", "w") as f:
+                json.dump(self.logs, f)
+                self.logs = []
+
+        # TODO: this does not have Context objects etc
+        else:
+            for _, detector in self.attack_graph.nodes[
+                self.current_target
+            ].detectors.items():
+                log = {}
+                log["timestamp"] = observation["timestamp"]
+                log["agent"] = self.__class__.__name__
+                log["_detector"] = detector["name"]
+
+                for label, lgasset in detector["context"].items():
+                    assets = [
+                        asset
+                        for asset in self.attack_graph.model.assets
+                        if asset.type == lgasset
+                    ]
+                    self.rng.shuffle(assets)
+                    log[label] = str(assets.pop().name)
+
+                if log:
+                    self.logs.append(log)
+                    print(log)
+
+        return (int(not done), self.current_target)
+        # self.current_target = None if done else self.current_target
+        # action = 0 if done else 1
+        # return (action, self.current_target)
 
     @staticmethod
     def select_next_target(
