@@ -179,6 +179,10 @@ class MaskingWrapper(Wrapper):
             info['action_mask'][0],
             info['action_mask'][1] * obs['is_actionable'],
         )
+
+        if np.nonzero(info["action_mask"][1])[0].size == 0:
+            info["action_mask"][0][1] = 0
+
         return obs, info
 
     def reset(
