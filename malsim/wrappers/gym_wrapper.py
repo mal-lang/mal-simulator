@@ -11,7 +11,7 @@ from ..scenario import create_simulator_from_scenario
 
 
 class AttackerEnv(gym.Env):
-    metadata = {"render_modes": []}
+    metadata = {'render_modes': []}
 
     def __init__(self, scenario_file: str, **kwargs) -> None:
         """
@@ -20,7 +20,7 @@ class AttackerEnv(gym.Env):
                          and made into a MalSimulator
         """
 
-        self.render_mode = kwargs.pop("render_mode", None)
+        self.render_mode = kwargs.pop('render_mode', None)
 
         # Create a simulator from the scenario given
         self.sim, _ = create_simulator_from_scenario(scenario_file, **kwargs)
@@ -72,11 +72,11 @@ class AttackerEnv(gym.Env):
 
 
 class DefenderEnv(gym.Env):
-    metadata = {"render_modes": []}
+    metadata = {'render_modes': []}
 
     def __init__(self, scenario_file, **kwargs) -> None:
-        self.randomize = kwargs.pop("randomize_attacker_behavior", False)
-        self.render_mode = kwargs.pop("render_mode", None)
+        self.randomize = kwargs.pop('randomize_attacker_behavior', False)
+        self.render_mode = kwargs.pop('render_mode', None)
 
         self.sim, conf = create_simulator_from_scenario(scenario_file, **kwargs)
 
@@ -85,7 +85,7 @@ class DefenderEnv(gym.Env):
         self.attacker_agent_id = list(self.sim.get_attacker_agents().keys())[0]
         self.defender_agent_id = list(self.sim.get_defender_agents().keys())[0]
 
-        self.attacker_class = conf["agents"][self.attacker_agent_id]["agent_class"]
+        self.attacker_class = conf['agents'][self.attacker_agent_id]['agent_class']
         self.attacker = self.attacker_class({})
 
         self.observation_space = self.sim.observation_space(self.defender_agent_id)
@@ -99,13 +99,13 @@ class DefenderEnv(gym.Env):
     ) -> tuple[Any, dict[str, Any]]:
         super().reset(seed=seed, options=options)
 
-        self.attacker = self.attacker_class({"seed": seed, "randomize": self.randomize})
+        self.attacker = self.attacker_class({'seed': seed, 'randomize': self.randomize})
 
         # TODO: params not used by method, find out if we need to send them
         obs, info = self.sim.reset(seed=seed, options=options)
 
         self.attacker_obs = obs[self.attacker_agent_id]
-        self.attacker_mask = info[self.attacker_agent_id]["action_mask"]
+        self.attacker_mask = info[self.attacker_agent_id]['action_mask']
 
         return obs[self.defender_agent_id], info[self.defender_agent_id]
 
@@ -123,7 +123,7 @@ class DefenderEnv(gym.Env):
         obs, rewards, terminated, truncated, infos = self.sim.step(actions)
 
         self.attacker_obs = obs[self.attacker_agent_id]
-        self.attacker_mask = infos[self.attacker_agent_id]["action_mask"]
+        self.attacker_mask = infos[self.attacker_agent_id]['action_mask']
 
         return (
             obs[self.defender_agent_id],
@@ -174,10 +174,10 @@ class MaskingWrapper(Wrapper):
     def _apply_mask(
         self, obs: dict[str, Any], info: dict[str, Any]
     ) -> tuple[dict[str, Any], dict[str, Any]]:
-        obs["observed_state"] = obs["observed_state"] * obs["is_observable"]
-        info["action_mask"] = (
-            info["action_mask"][0],
-            info["action_mask"][1] * obs["is_actionable"],
+        obs['observed_state'] = obs['observed_state'] * obs['is_observable']
+        info['action_mask'] = (
+            info['action_mask'][0],
+            info['action_mask'][1] * obs['is_actionable'],
         )
         return obs, info
 
@@ -205,24 +205,24 @@ class LabeledGraphWrapper(Wrapper):
         super().__init__(env)
 
         self.num_steps: int = self.env.unwrapped.num_step_names
-        num_nodes: int = self.env.observation_space["observed_state"].shape[0]
+        num_nodes: int = self.env.observation_space['observed_state'].shape[0]
         num_commands = 2
         node_shape: tuple[int, int] = (
             num_nodes,
             3 + self.num_steps,
         )
-        edge_space: spaces.Box = self.env.observation_space["attack_graph_edges"]
+        edge_space: spaces.Box = self.env.observation_space['attack_graph_edges']
         self.observation_space = spaces.Dict(
             {
-                "nodes": spaces.Box(
+                'nodes': spaces.Box(
                     0,
                     1,
                     shape=node_shape,
                     dtype=np.int8,
                 ),
-                "edges": edge_space,
-                "mask_0": spaces.Box(0, 1, shape=(num_commands,), dtype=np.bool_),
-                "mask_1": spaces.Box(0, 1, shape=(num_nodes,), dtype=np.bool_),
+                'edges': edge_space,
+                'mask_0': spaces.Box(0, 1, shape=(num_commands,), dtype=np.int8),
+                'mask_1': spaces.Box(0, 1, shape=(num_nodes,), dtype=np.int8),
             }
         )
         pass
@@ -247,35 +247,35 @@ class LabeledGraphWrapper(Wrapper):
 def to_graph(obs: dict[str, Any], info: dict[str, Any], num_steps) -> dict[str, Any]:
     nodes = np.concatenate(
         [
-            vec_to_one_hot(obs["observed_state"] + 1, 3),
-            vec_to_one_hot(obs["step_name"], num_steps),
+            vec_to_one_hot(obs['observed_state'] + 1, 3),
+            vec_to_one_hot(obs['step_name'], num_steps),
         ],
         axis=1,
     )
     return {
-        "nodes": nodes,
-        "edges": obs["attack_graph_edges"],
-        "mask_0": info["action_mask"][0],
-        "mask_1": info["action_mask"][1],
+        'nodes': nodes,
+        'edges': obs['attack_graph_edges'],
+        'mask_0': info['action_mask'][0],
+        'mask_1': info['action_mask'][1],
     }
 
 
 def register_envs():
-    gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
-    gym.register("MALAttackerEnv-v0", entry_point=AttackerEnv)
+    gym.register('MALDefenderEnv-v0', entry_point=DefenderEnv)
+    gym.register('MALAttackerEnv-v0', entry_point=AttackerEnv)
 
 
-if __name__ == "__main__":
-    gym.register("MALDefenderEnv-v0", entry_point=DefenderEnv)
+if __name__ == '__main__':
+    gym.register('MALDefenderEnv-v0', entry_point=DefenderEnv)
     env = gym.make(
-        "MALDefenderEnv-v0",
-        scenario_file="tests/testdata/scenarios/simple_scenario.yml",
+        'MALDefenderEnv-v0',
+        scenario_file='tests/testdata/scenarios/simple_scenario.yml',
     )
     env_checker.check_env(env.unwrapped)
 
-    gym.register("MALAttackerEnv-v0", entry_point=AttackerEnv)
+    gym.register('MALAttackerEnv-v0', entry_point=AttackerEnv)
     env = gym.make(
-        "MALAttackerEnv-v0",
-        scenario_file="tests/testdata/scenarios/no_defender_agent_scenario.yml",
+        'MALAttackerEnv-v0',
+        scenario_file='tests/testdata/scenarios/no_defender_agent_scenario.yml',
     )
     env_checker.check_env(env.unwrapped)
