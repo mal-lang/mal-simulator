@@ -180,8 +180,8 @@ class MaskingWrapper(Wrapper):
             info['action_mask'][1] * obs['is_actionable'],
         )
 
-        if np.nonzero(info["action_mask"][1])[0].size == 0:
-            info["action_mask"][0][1] = 0
+        if np.nonzero(info['action_mask'][1])[0].size == 0:
+            info['action_mask'][0][1] = 0
 
         return obs, info
 
@@ -224,7 +224,7 @@ class LabeledGraphWrapper(Wrapper):
                     shape=node_shape,
                     dtype=np.int8,
                 ),
-                'edges': edge_space,
+                'edge_index': edge_space,
                 'mask_0': spaces.Box(0, 1, shape=(num_commands,), dtype=np.int8),
                 'mask_1': spaces.Box(0, 1, shape=(num_nodes,), dtype=np.int8),
             }
@@ -258,7 +258,7 @@ def to_graph(obs: dict[str, Any], info: dict[str, Any], num_steps) -> dict[str, 
     )
     return {
         'nodes': nodes,
-        'edges': obs['attack_graph_edges'],
+        'edge_index': obs['attack_graph_edges'],
         'mask_0': info['action_mask'][0],
         'mask_1': info['action_mask'][1],
     }
