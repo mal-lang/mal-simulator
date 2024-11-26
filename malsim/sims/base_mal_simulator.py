@@ -45,7 +45,7 @@ class AgentAction:
     - If action_state is ACT, nodes is a list of the
       Attack Graph nodes the agent decided to enable.
     """
-    agent_state: ActionState = ActionState.WAIT
+    state: ActionState = ActionState.WAIT
     nodes: list[AttackGraphNode] = field(default_factory=lambda: [])
 
     @classmethod
@@ -282,7 +282,7 @@ class BaseMalSimulator():
             agent_action = actions.get(agent.name, [])
             self._update_agent_action_surfaces()
 
-            if agent_action.agent_state == ActionState.WAIT:
+            if agent_action.state == ActionState.WAIT:
                 # Agent decided to wait, move on.
                 continue
 
