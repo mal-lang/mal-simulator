@@ -519,7 +519,7 @@ def test_malsimulator_update_viability(corelang_lang_graph, model):
 
     # Make attempt unviable
     attempt_vuln_node.is_viable = False
-    sim.update_viability(attempt_vuln_node)
+    sim._update_viability(attempt_vuln_node)
     # Should make success unviable
     assert not success_vuln_node.is_viable
 

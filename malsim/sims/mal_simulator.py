@@ -76,7 +76,8 @@ class MalSimulator(ParallelEnv):
             sim_settings                -   Settings for simulator
         """
         super().__init__()
-        logger.info("Create Mal Simulator.")
+
+        logger.info("Creating Mal Simulator.")
         self.lang_graph = lang_graph
         self.model = model
 
@@ -425,7 +426,7 @@ class MalSimulator(ParallelEnv):
         self.attack_graph = copy.deepcopy(self.attack_graph_backup)
         return self.initialize(self.max_iter)
 
-    def log_mapping_tables(self):
+    def _log_mapping_tables(self):
         """Log all mapping tables in MalSimulator"""
 
         str_format = "{:<5} {:<15} {:<}\n"
@@ -691,7 +692,7 @@ class MalSimulator(ParallelEnv):
         self._create_mapping_tables()
 
         if logger.isEnabledFor(logging.DEBUG):
-            self.log_mapping_tables()
+            self._log_mapping_tables()
 
         self.max_iter = max_iter
         self.cur_iter = 0
@@ -801,7 +802,7 @@ class MalSimulator(ParallelEnv):
             )
         return actions
 
-    def update_viability(
+    def _update_viability(
             self,
             node: AttackGraphNode,
             unviable_attack_steps: list[AttackGraphNode] = None
@@ -825,7 +826,7 @@ class MalSimulator(ParallelEnv):
             node.full_name,
             node.id
         )
-        assert not node.is_viable, ("update_viability should not be called"
+        assert not node.is_viable, ("_update_viability should not be called"
                                    f" on viable node {node.full_name}")
 
         if node.extras.get('entrypoint'):
@@ -847,7 +848,7 @@ class MalSimulator(ParallelEnv):
                 child.is_viable = False
 
             if child.is_viable != original_value:
-                self.update_viability(child, unviable_attack_steps)
+                self._update_viability(child, unviable_attack_steps)
 
         return unviable_attack_steps
 
@@ -878,7 +879,7 @@ class MalSimulator(ParallelEnv):
 
         defense_step_node.defense_status = 1.0
         defense_step_node.is_viable = False
-        prevented_attack_steps = self.update_viability(
+        prevented_attack_steps = self._update_viability(
             defense_step_node
         )
         actions.append(defense_step_index)
