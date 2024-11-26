@@ -124,26 +124,7 @@ class BaseMalSimulator():
             agent.reward = 0
             agent.observation = {}
 
-            if agent.type == AgentType.ATTACKER:
-                attacker_id = agent.attacker_id
-                try:
-                    attacker = self.attack_graph.attackers[attacker_id]
-                except LookupError as e:
-                    raise LookupError(
-                        f"No attacker at index {attacker_id} in attack graph"
-                    ) from e
-
-                # Reset action surface and observation
-                agent.action_surface = \
-                    query.get_attack_surface(attacker)
-
-            elif agent.type == AgentType.DEFENDER:
-
-                # Reset action surface and observation
-                agent.action_surface = \
-                    query.get_defense_surface(self.attack_graph)
-            else:
-                agent.action_surface = []
+        self._update_agent_action_surfaces()
 
     def _update_agent_action_surfaces(self):
         """Set agent action surfaces according to current state"""
