@@ -243,14 +243,14 @@ class BaseMalSimulator():
         return enabled_nodes
 
     def step(self, actions: dict[str, AgentAction]):
-        """
-        step(action) takes in an action for each agent and should return the
-        - observations
-        - rewards
-        - terminations
-        - truncations
-        - infos
-        dicts where each dict looks like {agent_1: item_1, agent_2: item_2}
+        """Take a step in the simulation
+
+        Args:
+        actions - a dict mapping agent name to agent action which
+                  contains the actions for that user.
+
+        Returns:
+        - state of each agent after step is performed
         """
         logger.debug(
             "Stepping through iteration %d/%d", self.cur_iter, self.max_iter)
