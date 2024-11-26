@@ -1,7 +1,7 @@
 """Test BaseMalSimulator class"""
 
 from maltoolbox.attackgraph import AttackGraph, Attacker
-from malsim.sims.base_mal_simulator import BaseMalSimulator, AgentAction
+from malsim.sims.base_mal_simulator import BaseMalSimulator
 from malsim.scenario import load_scenario
 
 
@@ -200,8 +200,8 @@ def test_step_attacker_defender_action_surface_updates():
     assert defender_step in defender_agent.action_surface
 
     actions = {
-        attacker_agent.name: AgentAction.act([attacker_step]),
-        defender_agent.name: AgentAction.act([defender_step])
+        attacker_agent.name: [attacker_step],
+        defender_agent.name: [defender_step]
     }
 
     sim.step(actions)
@@ -233,8 +233,8 @@ def test_default_simulator_default_settings_eviction():
 
     # First let the attacker compromise User:3:compromise
     actions = {
-        attacker_agent_id: AgentAction.act([user_3_compromise]),
-        defender_agent_id: AgentAction.wait()
+        attacker_agent_id: [user_3_compromise],
+        defender_agent_id: []
     }
     sim.step(actions)
 
@@ -244,8 +244,8 @@ def test_default_simulator_default_settings_eviction():
 
     # Now let the defender defend, and the attacker waits
     actions = {
-        attacker_agent_id: AgentAction.wait(),
-        defender_agent_id: AgentAction.act([user_3_compromise_defense])
+        attacker_agent_id: [],
+        defender_agent_id: [user_3_compromise_defense]
     }
     sim.step(actions)
 

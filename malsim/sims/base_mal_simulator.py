@@ -38,26 +38,6 @@ class ActionState(Enum):
     WAIT = 0  # Agent is waiting, not acting on any node
     ACT = 1   # Agent is acting on a specific node
 
-@dataclass
-class AgentAction:
-    """Represents an agent action
-    - If action_state is WAIT, nodes is empty.
-    - If action_state is ACT, nodes is a list of the
-      Attack Graph nodes the agent decided to enable.
-    """
-    state: ActionState = ActionState.WAIT
-    nodes: list[AttackGraphNode] = field(default_factory=lambda: [])
-
-    @classmethod
-    def wait(cls):
-        """Helper to create a wait action"""
-        return cls(ActionState.WAIT)
-
-    @classmethod
-    def act(cls, nodes):
-        """Helper to create an act action"""
-        return cls(ActionState.ACT, nodes)
-
 class BaseMalSimulator():
     """A simple MAL Simulator that works on the AttackGraph
 
@@ -242,7 +222,7 @@ class BaseMalSimulator():
 
         return enabled_nodes
 
-    def step(self, actions: dict[str, AgentAction]):
+    def step(self, actions: dict[str, list[AttackGraphNode]]):
         """Take a step in the simulation
 
         Args:
@@ -260,18 +240,18 @@ class BaseMalSimulator():
         # Note: by design defenders go first, then attackers
         for agent in self.agents:
 
-            agent_action = actions.get(agent.name, [])
+            agent_actions = actions.get(agent.name, [])
             self._update_agent_action_surfaces()
 
-            if agent_action.state == ActionState.WAIT:
+            if not agent_actions:
                 # Agent decided to wait, move on.
                 continue
 
             if agent.type == AgentType.ATTACKER:
-                self._attacker_step(agent, agent_action.nodes)
+                self._attacker_step(agent, agent_actions)
 
             elif agent.type == AgentType.DEFENDER:
-                self._defender_step(agent, agent_action.nodes)
+                self._defender_step(agent, agent_actions)
 
             else:
                 logger.error('Agent %s has unknown type: %s',
