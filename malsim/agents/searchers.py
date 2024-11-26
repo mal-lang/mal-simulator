@@ -71,8 +71,15 @@ class BreadthFirstAttacker:
             ].detectors.items():
                 log = {}
                 log["timestamp"] = observation["timestamp"]
-                log["agent"] = self.__class__.__name__
                 log["_detector"] = detector["name"]
+                log["asset"] = str(
+                    self.attack_graph._id_to_node[self.current_target].asset.name
+                )
+                log["attack_step"] = self.attack_graph._id_to_node[
+                    self.current_target
+                ].name
+                log["type"] = "attacker"
+                log["agent"] = self.__class__.__name__
 
                 for label, lgasset in detector["context"].items():
                     assets = [
@@ -154,8 +161,15 @@ class DepthFirstAttacker:
             ].detectors.items():
                 log = {}
                 log["timestamp"] = observation["timestamp"]
-                log["agent"] = self.__class__.__name__
                 log["_detector"] = detector["name"]
+                log["asset"] = str(
+                    self.attack_graph._id_to_node[self.current_target].asset.name
+                )
+                log["attack_step"] = self.attack_graph._id_to_node[
+                    self.current_target
+                ].name
+                log["type"] = "benign"
+                log["agent"] = self.__class__.__name__
 
                 for label, lgasset in detector["context"].items():
                     assets = [
