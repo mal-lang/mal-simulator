@@ -4,69 +4,62 @@ from __future__ import annotations
 import argparse
 import logging
 
+from .sims.base_mal_simulator import BaseMalSimulator
 from .sims.mal_simulator import MalSimulator
-from .agents.keyboard_input import KeyboardAgent
-from .scenario import create_simulator_from_scenario
+from .scenario import load_scenario
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
 
 
-def run_simulation(sim: MalSimulator, sim_config: dict):
+def run_simulation(sim: BaseMalSimulator, conf: dict):
     """Run a simulation on an attack graph with given config"""
 
     # Constants
-    NULL_ACTION = (0, None)
+    attacker_agent_id = None
+    defender_agent_id = None
 
-    attacker_agent_id = next(iter(sim.get_attacker_agents()))
-    defender_agent_id = next(iter(sim.get_defender_agents()), None)
-
-    reverse_vocab = sim._index_to_full_name
+    for agent_id, agent_info in conf['agents'].items():
+        if agent_info['type'] == "attacker":
+            sim.register_attacker(agent_id, 0)
+            attacker_agent_id = agent_id
+        elif agent_info['type'] == "defender":
+            sim.register_defender(agent_id)
+            defender_agent_id = agent_id
 
     # Initialize defender and attacker according to classes
-    defender_class = sim_config['agents'][defender_agent_id]['agent_class']\
-                     if defender_agent_id else None
-    defender_agent = (defender_class(reverse_vocab)
-                          if defender_class == KeyboardAgent
-                          else defender_class({})
-                      if defender_class
-                      else None)
+    defender_class = conf['agents'][defender_agent_id]['agent_class']
+    defender_agent = defender_class()
 
-    attacker_class = sim_config['agents'][attacker_agent_id]['agent_class']
-    attacker_agent = (attacker_class(reverse_vocab)
-                      if attacker_class == KeyboardAgent
-                      else attacker_class({}))
+    attacker_class = conf['agents'][attacker_agent_id]['agent_class']
+    attacker_agent = attacker_class()
 
-    obs, infos = sim.reset()
+    agents = sim.reset()
+    total_rewards = {agent.name: 0 for agent in agents.values()}
     done = False
 
-    logger.info("Starting game.")
-
-    total_reward_defender = 0
-    total_reward_attacker = 0
+    logger.info("Starting simulation.")
 
     while not done:
 
-        defender_action = NULL_ACTION
-        if defender_agent:
-            defender_action = defender_agent.compute_action_from_dict(
-                obs[defender_agent_id],
-                infos[defender_agent_id]["action_mask"]
-            )
+        actions = {}
 
-        attacker_action = attacker_agent.compute_action_from_dict(
-            obs[attacker_agent_id],
-            infos[attacker_agent_id]["action_mask"]
+        defender_action = defender_agent.compute_next_action(
+            agents[defender_agent_id].action_surface
         )
 
-        if attacker_action[1] is not None:
-            logger.info(
-                "Attacker Action: %s", reverse_vocab[attacker_action[1]])
-        else:
-            logger.info("Attacker Action: None")
-            # Stop the attacker if it has run out of things to do since
-            # the experiment cannot progress any further.
+        attacker_action = attacker_agent.compute_next_action(
+            agents[attacker_agent_id].action_surface
+        )
+
+        logger.info(
+            "Defender Actions: %s", [n.full_name for n in defender_action])
+
+        logger.info(
+            "Attacker Actions: %s", [n.full_name for n in attacker_action])
+        if not attacker_action:
+            # Stop the simulation if attacker run out of things to do
             done = True
 
         action_dict = {
@@ -75,38 +68,17 @@ def run_simulation(sim: MalSimulator, sim_config: dict):
         }
 
         # Perform next step of simulation
-        obs, rewards, terminated, truncated, infos = sim.step(action_dict)
+        agents = sim.step(action_dict)
 
-        logger.debug(
-            "Attacker has compromised the following attack steps so far:"
-        )
-        attacker_obj = sim.attack_graph.attackers[
-            sim.agents_dict[attacker_agent_id]["attacker"]
-        ]
-        for step in attacker_obj.reached_attack_steps:
-            logger.debug(step.id)
-
-        logger.info("Attacker Reward: %s", rewards.get(attacker_agent_id))
-
-        if defender_agent:
-            logger.info("Defender Reward: %s", rewards.get(defender_agent_id))
-
-        total_reward_defender += rewards.get(defender_agent_id, 0) if defender_agent else 0
-        total_reward_attacker += rewards.get(attacker_agent_id, 0)
-
-        done |= terminated.get(attacker_agent_id, True) or truncated.get(attacker_agent_id, True)
+        for agent in agents.values():
+            total_rewards[agent.name] += agent.reward
 
         print("---\n")
 
     logger.info("Game Over.")
 
-    if defender_agent:
-        logger.info("Total Defender Reward: %s", total_reward_defender)
-    logger.info("Total Attacker Reward: %s", total_reward_attacker)
-
-    print("Press Enter to exit.")
-    input()
-    sim.close()
+    for agent in agents.values():
+        print(f'Total reward "{agent.name}"', total_rewards[agent.name])
 
 
 def main():
@@ -124,10 +96,12 @@ def main():
     args = parser.parse_args()
 
     # Create simulator from scenario
-    simulator, sim_config = create_simulator_from_scenario(args.scenario_file)
+    attack_graph, conf = load_scenario(args.scenario_file)
     if args.output_attack_graph:
-        simulator.attack_graph.save_to_file(args.output_attack_graph)
-    run_simulation(simulator, sim_config)
+        attack_graph.save_to_file(args.output_attack_graph)
+
+    sim = BaseMalSimulator(attack_graph)
+    run_simulation(sim, conf)
 
 
 if __name__ == '__main__':
