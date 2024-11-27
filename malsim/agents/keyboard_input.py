@@ -1,18 +1,19 @@
-import numpy as np
 import logging
 from .agent_base import MalSimulatorAgent
+from maltoolbox.attackgraph import AttackGraphNode
 
 logger = logging.getLogger(__name__)
-
-null_action = (0, None)
-
+null_action = []
 
 class KeyboardAgent(MalSimulatorAgent):
     def __init__(self, vocab):
         logger.debug("Create Keyboard agent.")
-        self.vocab = vocab
 
-    def compute_action_from_dict(self, obs: dict, mask: tuple) -> tuple:
+    def compute_next_action(
+            self, action_surface: list[AttackGraphNode]
+        ) -> tuple:
+        """Compute action from action_surface"""
+
         def valid_action(user_input: str) -> bool:
             if user_input == "":
                 return True
@@ -22,40 +23,31 @@ class KeyboardAgent(MalSimulatorAgent):
             except ValueError:
                 return False
 
-            try:
-                a = associated_action[action_strings[node]]
-            except IndexError:
-                return False
-
-            if a == 0:
-                return True  # wait is always valid
-            return node < len(available_actions) and node >= 0
+            return 0 <= node <= len(action_surface)
 
         def get_action_object(user_input: str) -> tuple:
             node = int(user_input) if user_input != "" else None
-            action = associated_action[action_strings[node]] if user_input != "" else 0
-            return node, action
+            return node
 
-        available_actions = np.flatnonzero(mask[1])
-
-        action_strings = [self.vocab[i] for i in available_actions]
-        associated_action = {i: 1 for i in action_strings}
-        action_strings += ["wait"]
-        associated_action["wait"] = 0
-
+        index_to_node = dict(enumerate(action_surface))
         user_input = "xxx"
         while not valid_action(user_input):
             print("Available actions:")
-            print("\n".join([f"{i}. {a}" for i, a in enumerate(action_strings)]))
+            print(
+                "\n".join(
+                    [f"{i}. {n.full_name}" for i, n in index_to_node.items()]
+                )
+            )
             print("Enter action or leave empty to wait:")
             user_input = input("> ")
 
             if not valid_action(user_input):
                 print("Invalid action.")
 
-        node, a = get_action_object(user_input)
+        index = get_action_object(user_input)
         print(
-            f"Selected action: {action_strings[node] if node is not None else 'wait'}"
+            f"Selected action: {index_to_node[index].full_name}"
+            if index is not None else 'wait'
         )
 
-        return (a, available_actions[node] if a != 0 else -1)
+        return [index_to_node[index]] if index is not None else []
