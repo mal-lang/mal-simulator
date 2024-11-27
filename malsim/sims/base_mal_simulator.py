@@ -85,7 +85,7 @@ class BaseMalSimulator():
             self,
             seed: Optional[int] = None,
             options: Optional[dict] = None
-        ):
+        ) -> dict[str, SimulatorAgent]:
         """Reset attack graph, iteration and reinitialize agents"""
 
         logger.info("Resetting MAL Simulator.")
@@ -96,6 +96,10 @@ class BaseMalSimulator():
         # Reset agents
         self._reset_agents()
 
+        return {
+            agent.name: agent for agent in self.agents
+        }
+
     def _reset_agents(self):
         """Reset agent rewards and action surfaces"""
 
@@ -104,9 +108,9 @@ class BaseMalSimulator():
             agent.reward = 0
             agent.observation = {}
 
-        self._update_agent_action_surfaces()
+        self._init_agent_action_surfaces()
 
-    def _update_agent_action_surfaces(self):
+    def _init_agent_action_surfaces(self):
         """Set agent action surfaces according to current state"""
         for agent in self.agents:
             if agent.type == AgentType.ATTACKER:
@@ -195,6 +199,12 @@ class BaseMalSimulator():
                 agent.reward += node.extras.get("reward", 0)
                 enabled_nodes.append(node)
 
+                query.update_attack_surface_add_nodes(
+                    attacker, agent.action_surface, [node])
+            else:
+                logger.info("Attacker could not compromise %s",
+                            node.full_name)
+
         return enabled_nodes
 
     def _defender_step(
@@ -209,16 +219,37 @@ class BaseMalSimulator():
         Returns: list of defense steps nodes that were enabled
         """
 
+        attack_steps_made_unviable = []
         enabled_nodes = []
 
         for node in nodes:
+
+            if node not in agent.action_surface:
+                logger.warning(
+                    'Defender agent "%s" tried to step through "%s"(%d).'
+                    'which is not part of its defense surface. Defender '
+                    'step will skip', agent, node.full_name, node.id
+                )
+                continue
+
             # Enable defense if possible
             if node.is_available_defense():
                 node.defense_status = 1.0
                 node.is_viable = False
-                apriori.propagate_viability_from_unviable_node(node)
+                attack_steps_made_unviable += \
+                    apriori.propagate_viability_from_unviable_node(node)
                 agent.reward -= node.extras.get("reward", 0)
                 enabled_nodes.append(node)
+                agent.action_surface.remove(node)
+                assert node not in agent.action_surface
+
+        for attack_step in attack_steps_made_unviable:
+            for attacker_agent in self.get_attacker_agents():
+                try:
+                    # Node is no longer part of attacker action surface
+                    attacker_agent.action_surface.remove(attack_step)
+                except ValueError:
+                    pass
 
         return enabled_nodes
 
@@ -239,9 +270,7 @@ class BaseMalSimulator():
         # Peform agent actions
         # Note: by design defenders go first, then attackers
         for agent in self.agents:
-
             agent_actions = actions.get(agent.name, [])
-            self._update_agent_action_surfaces()
 
             if not agent_actions:
                 # Agent decided to wait, move on.
