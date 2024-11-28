@@ -218,7 +218,7 @@ def test_attacker(env: MalSimulator, attacker_class) -> None:
     step_limit = 1000000
     done = False
     while not done and steps < step_limit:
-        action = attacker.compute_action_from_dict(
+        action = attacker.compute_next_action(
             obs[AGENT_ATTACKER], info[AGENT_ATTACKER]['action_mask']
         )
         assert action != ACTION_TERMINATE

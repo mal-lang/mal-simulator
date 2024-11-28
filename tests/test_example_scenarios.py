@@ -25,11 +25,11 @@ def test_bfs_vs_bfs_state_and_reward():
                         if n.is_enabled_defense()]
 
     while True:
-        defender_action = defender_agent.compute_action_from_dict(
+        defender_action = defender_agent.compute_next_action(
                           obs[defender_agent_id],
                           infos[defender_agent_id]["action_mask"])
 
-        attacker_action = attacker_agent.compute_action_from_dict(
+        attacker_action = attacker_agent.compute_next_action(
                           obs[attacker_agent_id],
                           infos[attacker_agent_id]["action_mask"])
 

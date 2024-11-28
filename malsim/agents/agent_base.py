@@ -13,10 +13,10 @@ class MalSimulatorAgent(ABC):
         )
 
     @abstractmethod
-    def compute_action_from_dict(
+    def compute_next_action(
         self, observation: dict, mask: dict) -> tuple[int, Optional[int]]:
         """From observation and mask, find the next action for agent"""
 
         raise NotImplementedError(
-            "compute_action_from_dict must be implemented by inheriting class"
+            "compute_next_action must be implemented by inheriting class"
         )

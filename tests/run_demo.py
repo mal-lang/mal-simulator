@@ -109,13 +109,13 @@ total_reward_attacker = 0
 while not done:
     # env.render()
     defender_action = (
-        defender.compute_action_from_dict(
+        defender.compute_next_action(
             obs[AGENT_DEFENDER], infos[AGENT_DEFENDER]["action_mask"]
         )
         if not attacker_only
         else null_action
     )
-    attacker_action = attacker.compute_action_from_dict(
+    attacker_action = attacker.compute_next_action(
         obs[AGENT_ATTACKER], infos[AGENT_ATTACKER]["action_mask"]
     )
 
