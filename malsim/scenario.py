@@ -26,7 +26,9 @@ from .agents import (
     KeyboardAgent,
 )
 
+from .sims.base_mal_simulator import BaseMalSimulator
 from .sims.mal_simulator import MalSimulator
+from .sims.base_mal_simulator import SimulatorAgent, AgentType
 
 agent_class_name_to_class = {
     'PassiveAttacker': PassiveAttacker,
@@ -37,10 +39,9 @@ agent_class_name_to_class = {
 
 # All required fields in scenario yml file
 required_fields = [
+    'agents',
     'lang_file',
     'model_file',
-    'attacker_agent_class',
-    'defender_agent_class',
 ]
 
 # All allowed fields in scenario yml fild
@@ -192,68 +193,79 @@ def apply_scenario_node_property_rules(
                 step.extras[node_prop] = 0
 
 
-def apply_scenario_attacker_entrypoints(
-        attack_graph: AttackGraph, entry_points: dict
+def apply_attacker_entrypoints(
+        attack_graph: AttackGraph, attacker_name: str, entry_points: dict
 ) -> None:
     """Apply attacker entrypoints to attackgraph from scenario
 
-    Go through attacker entry points from scenario file and add
-    them to the referenced attacker in the attack graph
+    Creater attacker, add entrypoints to it and compromise them.
 
     Args:
     - attack_graph: the attack graph to apply entry points to
-    - entry_points: the entry points to apply
+    - attacker_name: the name to give the attacker
+    - entry_points: the entry points to apply for the attacker
     """
 
-    for attacker_name, entry_point_names in entry_points.items():
-        attacker = Attacker(
-            attacker_name, entry_points=[], reached_attack_steps=[]
-        )
-        attack_graph.add_attacker(attacker)
+    attacker = Attacker(
+        attacker_name, entry_points=[], reached_attack_steps=[])
+    attack_graph.add_attacker(attacker)
 
-        for entry_point_name in entry_point_names:
-            entry_point = attack_graph.get_node_by_full_name(entry_point_name)
-            if not entry_point:
-                raise LookupError(f"Node {entry_point_name} does not exist")
-            attacker.compromise(entry_point)
+    for entry_point_name in entry_points:
+        entry_point = attack_graph.get_node_by_full_name(entry_point_name)
+        if not entry_point:
+            raise LookupError(f"Node {entry_point_name} does not exist")
+        attacker.compromise(entry_point)
 
-        attacker.entry_points = list(attacker.reached_attack_steps)
+    attacker.entry_points = list(attacker.reached_attack_steps)
+
+    return attacker.id
 
 
-def load_scenario_simulation_config(scenario: dict) -> dict:
-    """Load configurations used in MALSimulator
-    Load parts of scenario are used for the MALSimulator
+def load_simulator_agents(
+        attack_graph: AttackGraph, scenario: dict
+    ) -> dict[str, SimulatorAgent]:
+    """Load agents to be registered in MALSimulator
+
+    Create the agents from the specified classes,
+    register entrypoints for attackers.
 
     Args:
     - scenario: the scenario in question as a dict
     Return:
-    - config: a dict containing config
+    - agents: a dict containing agents and their settings
     """
 
     # Create config object which is later returned
-    config = {}
-    config['agents'] = {}
+    agents = {}
+    if agents_config := scenario.get('agents', {}):
 
-    # Currently only support one defender and attacker
-    attacker_id = "attacker"
-    defender_id = "defender"
+        for agent_id, agent_info in agents_config.items():
 
-    if a_class := scenario.get('attacker_agent_class'):
-        if a_class not in agent_class_name_to_class:
-            raise LookupError(f"Agent class '{a_class}' not supported")
-        config['agents'][attacker_id] = {}
-        config['agents'][attacker_id]['type'] = 'attacker'
-        config['agents'][attacker_id]['agent_class'] = \
-            agent_class_name_to_class.get(a_class)
+            agent_class = agent_info.get('agent_class')
+            if agent_class not in agent_class_name_to_class:
+                raise LookupError(
+                    f"Agent class '{agent_class}' not supported"
+                )
 
-    if d_class := scenario.get('defender_agent_class'):
-        if d_class not in agent_class_name_to_class:
-            raise LookupError(f"Agent class '{d_class}' not supported")
-        config['agents'][defender_id] = {}
-        config['agents'][defender_id]['type'] = 'defender'
-        config['agents'][defender_id]['agent_class'] = \
-            agent_class_name_to_class.get(d_class)
-    return config
+            agent_type = AgentType(agent_info.get('type'))
+            agents[agent_id] = {}
+            agents[agent_id]['type'] = agent_type
+
+            if agent_type == AgentType.ATTACKER:
+
+                agents[agent_id]['agent'] = \
+                    agent_class_name_to_class.get(agent_class)()
+
+                agents[agent_id]['attacker_id'] = \
+                    apply_attacker_entrypoints(
+                        attack_graph, agent_id,
+                        agents_config[agent_id].get('entry_points')
+                    )
+            else:
+                agents[agent_id]['agent'] = \
+                    agent_class_name_to_class.get(agent_class)()
+
+    return agents
 
 
 def apply_scenario_to_attack_graph(
@@ -274,17 +286,6 @@ def apply_scenario_to_attack_graph(
     # Apply rewards to attack graph
     rewards = scenario.get('rewards', {})
     apply_scenario_rewards(attack_graph, rewards)
-
-    # Apply attacker entrypoints to attack graph
-    entry_points = scenario.get('attacker_entry_points', {})
-    if entry_points:
-        # Override attackers in attack graph if
-        # entry points defined in scenario
-        for attacker in attack_graph.attackers:
-            attack_graph.remove_attacker(attacker)
-
-        # Apply attacker entry points from scenario
-        apply_scenario_attacker_entrypoints(attack_graph, entry_points)
 
     # Apply observability and actionability settings to attack graph
     for node_prop in ['observable', 'actionable']:
@@ -307,13 +308,13 @@ def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:
         apply_scenario_to_attack_graph(attack_graph, scenario)
 
         # Load the scenario configuration
-        scenario_config = load_scenario_simulation_config(scenario)
+        scenario_agents = load_simulator_agents(attack_graph, scenario)
 
-        return attack_graph, scenario_config
+        return attack_graph, scenario_agents
 
 
 def create_simulator_from_scenario(
-        scenario_file: str, **kwargs
+        scenario_file: str, sim_class=BaseMalSimulator, **kwargs
     ) -> tuple[MalSimulator, dict]:
     """Creates and returns a MalSimulator created according to scenario file
 
@@ -328,19 +329,18 @@ def create_simulator_from_scenario(
     - MalSimulator: the resulting simulator
     """
 
-    attack_graph, conf = load_scenario(scenario_file)
+    attack_graph, scenario_agents = load_scenario(scenario_file)
 
-    sim = MalSimulator(
-        attack_graph.lang_graph,
-        attack_graph.model,
+    sim = sim_class(
         attack_graph,
         **kwargs
     )
 
-    for agent_id, agent_info in conf['agents'].items():
-        if agent_info['type'] == "attacker":
-            sim.register_attacker(agent_id, 0)
-        elif agent_info['type'] == "defender":
+    # Register agents in simulator
+    for agent_id, agent_info in scenario_agents.items():
+        if agent_info['type'] == AgentType.ATTACKER:
+            sim.register_attacker(agent_id, agent_info.get('attacker_id'))
+        elif agent_info['type'] == AgentType.DEFENDER:
             sim.register_defender(agent_id)
 
-    return sim, conf
+    return sim, scenario_agents

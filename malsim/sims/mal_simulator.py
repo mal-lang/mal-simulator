@@ -58,8 +58,6 @@ def format_table(
 class MalSimulator(ParallelEnv):
     def __init__(
         self,
-        lang_graph: LanguageGraph,
-        model: Model,
         attack_graph: AttackGraph,
         max_iter=ITERATIONS_LIMIT,
         prune_unviable_unnecessary: bool = True,
@@ -78,8 +76,8 @@ class MalSimulator(ParallelEnv):
         super().__init__()
 
         logger.info("Creating Mal Simulator.")
-        self.lang_graph = lang_graph
-        self.model = model
+        self.lang_graph = attack_graph.lang_graph
+        self.model = attack_graph.model
 
         apriori.calculate_viability_and_necessity(attack_graph)
         if prune_unviable_unnecessary:
