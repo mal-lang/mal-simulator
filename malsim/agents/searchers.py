@@ -4,28 +4,29 @@ from typing import Any, Deque, Dict, List, Union, Optional
 
 import numpy as np
 
-from .agent_base import MalSimulatorAgent
+from maltoolbox.attackgraph import AttackGraphNode
+from .agent_base import MalSimAgent
 
 logger = logging.getLogger(__name__)
 
 
 def get_new_targets(
-    action_surface: List['AttackGraphNode'], discovered_targets: List['AttackGraphNode']
-) -> List['AttackGraphNode']:
+    action_surface: List[AttackGraphNode], discovered_targets: List[AttackGraphNode]
+) -> List[AttackGraphNode]:
     surface_nodes = [node for node in action_surface]
     new_targets = [node for node in surface_nodes if node not in discovered_targets]
     return new_targets, surface_nodes
 
 
-class PassiveAttacker:
+class PassiveAgent(MalSimAgent):
     def compute_next_action(self, _) -> list:
         return []
 
 
-class BreadthFirstAttacker:
+class BreadthFirstAttacker(MalSimAgent):
     def __init__(self, agent_config: Dict[str, Any]= {}) -> None:
-        self.targets: Deque['AttackGraphNode'] = deque([])
-        self.current_target: Union['AttackGraphNode', None] = None
+        self.targets: Deque[AttackGraphNode] = deque([])
+        self.current_target: Union[AttackGraphNode, None] = None
         seed = agent_config.get("seed", np.random.SeedSequence().entropy)
         self.rng = (
             np.random.default_rng(seed)
@@ -34,8 +35,8 @@ class BreadthFirstAttacker:
         )
 
     def compute_next_action(
-        self, action_surface: List['AttackGraphNode']
-    ) -> list['AttackGraphNode']:
+        self, action_surface: List[AttackGraphNode]
+    ) -> list[AttackGraphNode]:
         new_targets, surface_nodes = get_new_targets(action_surface, list(self.targets))
 
         # Add new targets to the back of the queue
@@ -53,10 +54,10 @@ class BreadthFirstAttacker:
 
     @staticmethod
     def select_next_target(
-        current_target: Optional['AttackGraphNode'],
-        targets: Union[List['AttackGraphNode'], Deque['AttackGraphNode']],
-        attack_surface: List['AttackGraphNode'],
-    ) -> tuple[Optional['AttackGraphNode'], bool]:
+        current_target: Optional[AttackGraphNode],
+        targets: Union[List[AttackGraphNode], Deque[AttackGraphNode]],
+        attack_surface: List[AttackGraphNode],
+    ) -> tuple[Optional[AttackGraphNode], bool]:
 
         # If the current target was not compromised,
         # put it back at the bottom of the stack
@@ -74,11 +75,11 @@ class BreadthFirstAttacker:
         return current_target, False
 
 
-class DepthFirstAttacker(MalSimulatorAgent):
+class DepthFirstAttacker(MalSimAgent):
     """An agent that selects steps by using DFS"""
     def __init__(self, agent_config: Dict[str, Any] = {}) -> None:
-        self.current_target: Optional['AttackGraphNode'] = None
-        self.targets: List['AttackGraphNode'] = []
+        self.current_target: Optional[AttackGraphNode] = None
+        self.targets: List[AttackGraphNode] = []
         seed = agent_config.get("seed", np.random.SeedSequence().entropy)
         self.rng = (
             np.random.default_rng(seed)
@@ -87,8 +88,8 @@ class DepthFirstAttacker(MalSimulatorAgent):
         )
 
     def compute_next_action(
-        self, action_surface: List['AttackGraphNode']
-    ) -> list['AttackGraphNode']:
+        self, action_surface: List[AttackGraphNode]
+    ) -> list[AttackGraphNode]:
 
         new_targets, surface_nodes = \
             get_new_targets(action_surface, self.targets)
@@ -108,10 +109,10 @@ class DepthFirstAttacker(MalSimulatorAgent):
 
     @staticmethod
     def select_next_target(
-        current_target: Optional['AttackGraphNode'],
-        targets: Union[List['AttackGraphNode'], Deque['AttackGraphNode']],
-        attack_surface: List['AttackGraphNode'],
-    ) -> tuple[Optional['AttackGraphNode'], bool]:
+        current_target: Optional[AttackGraphNode],
+        targets: Union[List[AttackGraphNode], Deque[AttackGraphNode]],
+        attack_surface: List[AttackGraphNode],
+    ) -> tuple[Optional[AttackGraphNode], bool]:
 
         if current_target in attack_surface:
             return current_target, False

@@ -1,12 +1,14 @@
 import logging
-from .agent_base import MalSimulatorAgent
+from .agent_base import MalSimAgent
 from maltoolbox.attackgraph import AttackGraphNode
 
 logger = logging.getLogger(__name__)
 null_action = []
 
-class KeyboardAgent(MalSimulatorAgent):
-    def __init__(self, vocab):
+class KeyboardAgent(MalSimAgent):
+    """An agent that makes decisions by asking user for keyboard input"""
+
+    def __init__(self):
         logger.debug("Create Keyboard agent.")
 
     def compute_next_action(
@@ -28,6 +30,10 @@ class KeyboardAgent(MalSimulatorAgent):
         def get_action_object(user_input: str) -> tuple:
             node = int(user_input) if user_input != "" else None
             return node
+
+        if not action_surface:
+            print("No actions to pick for defender")
+            return []
 
         index_to_node = dict(enumerate(action_surface))
         user_input = "xxx"
