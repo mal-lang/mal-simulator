@@ -659,8 +659,7 @@ class MalSimulator(ParallelEnv):
 
                 # Initial actions for attacker are its entrypoints
                 for entry_point in attacker.entry_points:
-                    initial_actions[agent].append(
-                        self._id_to_index[entry_point.id])
+                    initial_actions[agent].append(entry_point.id)
                     entry_point.extras['entrypoint'] = True
 
             elif agent_type == "defender":
