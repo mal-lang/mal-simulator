@@ -5,6 +5,7 @@ from typing import Any, Deque, Dict, List, Union, Optional, Tuple
 import numpy as np
 
 from maltoolbox.attackgraph import AttackGraphNode
+from .agent_base import MalSimAgent
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ def process_current_target(
 
 
 # Base Class for searcher logic
-class BaseSearcherAgent:
+class BaseSearcherAgent(MalSimAgent):
     def __init__(
             self, agent_config: Dict[str, Any],
             queue_type: str = "deque"
@@ -71,22 +72,26 @@ class BaseSearcherAgent:
     def compute_next_action(
         self,
         action_surface: List[AttackGraphNode],
-        is_valid: callable,
-        append_to_front: bool
+        **kwargs
     ) -> List[AttackGraphNode]:
         """Compute the next action for searcher agent"""
 
         new_targets = [node for node in action_surface
                        if node not in self.targets]
 
-        update_targets(new_targets, self.targets, self.rng, append_to_front)
+        update_targets(
+            new_targets,
+            self.targets,
+            self.rng,
+            kwargs['append_to_front']
+        )
 
         self.current_target, done = \
             process_current_target(
                 self.current_target,
                 self.targets,
                 action_surface,
-                is_valid
+                kwargs['is_valid']
         )
 
         self.current_target = None if done else self.current_target
@@ -103,7 +108,7 @@ class BreadthFirstAttacker(BaseSearcherAgent):
         ) -> List[AttackGraphNode]:
         return super().compute_next_action(
             action_surface,
-            lambda x: not x.is_compromised(),
+            is_valid=lambda x: not x.is_compromised(),
             append_to_front=True
         )
 
@@ -118,7 +123,7 @@ class DepthFirstAttacker(BaseSearcherAgent):
         ) -> List[AttackGraphNode]:
         return super().compute_next_action(
             action_surface,
-            lambda x: not x.is_compromised(),
+            is_valid=lambda x: not x.is_compromised(),
             append_to_front=False
         )
 
@@ -133,7 +138,7 @@ class BreadthFirstDefender(BaseSearcherAgent):
         ) -> List[AttackGraphNode]:
         return super().compute_next_action(
             action_surface,
-            lambda x: x.is_available_defense(),
+            is_valid=lambda x: x.is_available_defense(),
             append_to_front=True
         )
 
@@ -148,6 +153,6 @@ class DepthFirstDefender(BaseSearcherAgent):
         ) -> List[AttackGraphNode]:
         return super().compute_next_action(
             action_surface,
-            lambda x: x.is_available_defense(),
+            is_valid=lambda x: x.is_available_defense(),
             append_to_front=False
         )

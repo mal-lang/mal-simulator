@@ -13,7 +13,9 @@ class MalSimAgent(ABC):
         )
 
     @abstractmethod
-    def compute_next_action(self, action_surface) -> tuple[int, Optional[int]]:
+    def compute_next_action(
+        self, action_surface, **kwargs
+    ) -> tuple[int, Optional[int]]:
         """From observation and mask, find the next action for agent"""
 
         raise NotImplementedError(
