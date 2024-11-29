@@ -22,4 +22,8 @@ agents:
 
   'defender1':
     type: 'defender'
-    agent_class: KeyboardAgent
+    agent_class: BreadthFirstDefender
+
+  'defender2':
+    type: 'defender'
+    agent_class: BreadthFirstDefender

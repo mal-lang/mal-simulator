@@ -1,11 +1,25 @@
-from .searchers import PassiveAttacker as PassiveAttacker
-from .searchers import DepthFirstAttacker as DepthFirstAttacker
-from .searchers import BreadthFirstAttacker as BreadthFirstAttacker
+from .agent_base import (
+    MalSimAgent,
+    MalSimAttackerAgent,
+    MalSimDefenderAgent,
+    PassiveAgent
+)
+from .searchers import (
+    DepthFirstAttacker,
+    BreadthFirstAttacker,
+    DepthFirstDefender,
+    BreadthFirstDefender
+)
 from .keyboard_input import KeyboardAgent as KeyboardAgent
 
 __all__ = [
-    'PassiveAttacker',
+    'MalSimAgent',
+    'MalSimAttackerAgent',
+    'MalSimDefenderAgent',
+    'PassiveAgent',
     'DepthFirstAttacker',
     'BreadthFirstAttacker',
+    'DepthFirstDefender',
+    'BreadthFirstDefender',
     'KeyboardAgent',
 ]

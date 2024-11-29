@@ -31,3 +31,9 @@ class MalSimDefenderAgent(MalSimAgent):
 
     def __init__(self, agent_config: dict, **kwargs):
         self.simulator = kwargs.get('simulator')
+
+
+class PassiveAgent(MalSimAgent):
+    """An agent that does nothing"""
+    def compute_next_action(self, _) -> list:
+        return []

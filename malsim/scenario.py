@@ -20,9 +20,11 @@ from maltoolbox.attackgraph import AttackGraph, Attacker
 from maltoolbox.wrappers import create_attack_graph
 
 from .agents import (
-    PassiveAttacker,
+    PassiveAgent,
     BreadthFirstAttacker,
     DepthFirstAttacker,
+    DepthFirstDefender,
+    BreadthFirstDefender,
     KeyboardAgent,
 )
 
@@ -31,9 +33,11 @@ from .sims.mal_simulator import MalSimulator
 from .sims.base_mal_simulator import SimulatorAgent, AgentType
 
 agent_class_name_to_class = {
-    'PassiveAttacker': PassiveAttacker,
+    'PassiveAgent': PassiveAgent,
     'BreadthFirstAttacker': BreadthFirstAttacker,
     'DepthFirstAttacker': DepthFirstAttacker,
+    'DepthFirstDefender': DepthFirstDefender,
+    'BreadthFirstDefender': BreadthFirstDefender,
     'KeyboardAgent': KeyboardAgent
 }
 
