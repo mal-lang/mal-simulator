@@ -30,6 +30,7 @@ class SimulatorAgent():
     observation: dict = field(default_factory=lambda: {})
     action_surface: list = field(default_factory=lambda: [])
     reward: int = 0
+    done: bool = False
     attacker_id: Optional[int] = None # Only for attacker agent
 
 
