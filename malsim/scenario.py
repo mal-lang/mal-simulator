@@ -336,7 +336,8 @@ def create_simulator_from_scenario(
     - scenario_file: the file name of the scenario
 
     Returns:
-    - MalSimulator: the resulting simulator
+    - sim: the resulting simulator
+    - agents: the agents as a dict
     """
 
     attack_graph, scenario_agents = load_scenario(scenario_file)
