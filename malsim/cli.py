@@ -29,7 +29,14 @@ def run_simulation(sim: BaseMalSimulator, agents: dict):
         # Select actions for each agent
         all_agents_done = True
         for agent_id, agent_info in agents.items():
-            agent = agent_info['agent']
+            agent = agent_info.get('agent')
+            if agent is None:
+                logger.warning(
+                    'Agent "%s" has no decision agent class '
+                    'specified in scenario. Waiting.', agent_id,
+                )
+                continue
+
             agent_action = agent.compute_next_action(
                 agents_info[agent_id].action_surface
             )

@@ -252,7 +252,7 @@ def load_simulator_agents(
         for agent_id, agent_info in agents_config.items():
 
             agent_class = agent_info.get('agent_class')
-            if agent_class not in agent_class_name_to_class:
+            if agent_class and agent_class not in agent_class_name_to_class:
                 raise LookupError(
                     f"Agent class '{agent_class}' not supported"
                 )
@@ -262,18 +262,17 @@ def load_simulator_agents(
             agents[agent_id]['type'] = agent_type
 
             if agent_type == AgentType.ATTACKER:
-
-                agents[agent_id]['agent'] = \
-                    agent_class_name_to_class.get(agent_class)()
-
                 agents[agent_id]['attacker_id'] = \
                     apply_attacker_entrypoints(
                         attack_graph, agent_id,
                         agents_config[agent_id].get('entry_points')
                     )
-            else:
-                agents[agent_id]['agent'] = \
-                    agent_class_name_to_class.get(agent_class)()
+
+            if agent_class is None:
+                continue
+
+            agents[agent_id]['agent'] = \
+                agent_class_name_to_class.get(agent_class)()
 
     return agents
 
