@@ -210,6 +210,12 @@ def apply_attacker_entrypoints(
     - entry_points: the entry points to apply for the attacker
     """
 
+    if entry_points:
+        # Override attackers in attack graph / model if
+        # entry points are defined in scenario
+        for attacker in attack_graph.attackers:
+            attack_graph.remove_attacker(attacker)
+
     attacker = Attacker(
         attacker_name, entry_points=[], reached_attack_steps=[])
     attack_graph.add_attacker(attacker)
