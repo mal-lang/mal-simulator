@@ -189,20 +189,25 @@ class BaseMalSimulator():
         """
 
         enabled_nodes = []
-        attacker_id = agent.attacker_id
-        attacker = self.attack_graph.get_attacker_by_id(attacker_id)
+        attacker = self.attack_graph.get_attacker_by_id(agent.attacker_id)
 
         for node in nodes:
+            logger.info(
+                'Attacker agent "%s" stepping through "%s"(%d).',
+                agent.name, node.full_name, node.id
+            )
+
             # Compromise node if possible
             if query.is_node_traversable_by_attacker(node, attacker):
                 attacker.compromise(node)
                 agent.reward += node.extras.get("reward", 0)
                 enabled_nodes.append(node)
 
+                # Update attacker action surface
                 query.update_attack_surface_add_nodes(
                     attacker, agent.action_surface, [node])
             else:
-                logger.info("Attacker could not compromise %s",
+                logger.warning("Attacker could not compromise %s",
                             node.full_name)
 
         return enabled_nodes
@@ -223,6 +228,10 @@ class BaseMalSimulator():
         enabled_nodes = []
 
         for node in nodes:
+            logger.info(
+                'Defender agent "%s" stepping through "%s"(%d).',
+                agent.name, node.full_name, node.id
+            )
 
             if node not in agent.action_surface:
                 logger.warning(
@@ -240,18 +249,24 @@ class BaseMalSimulator():
                     apriori.propagate_viability_from_unviable_node(node)
                 agent.reward -= node.extras.get("reward", 0)
                 enabled_nodes.append(node)
-                agent.action_surface.remove(node)
-                assert node not in agent.action_surface
+
+        for node in enabled_nodes:
+            # Remove enabled defenses from defender action surfaces
+            for defender_agent in self.get_defender_agents():
+                try:
+                    defender_agent.action_surface.remove(node)
+                except ValueError:
+                    pass
 
         for attack_step in attack_steps_made_unviable:
+            # Remove unviable attack steps from attacker action surfaces
             for attacker_agent in self.get_attacker_agents():
                 try:
-                    # Node is no longer part of attacker action surface
                     attacker_agent.action_surface.remove(attack_step)
                 except ValueError:
                     pass
 
-        return enabled_nodes
+        return enabled_nodes, attack_steps_made_unviable
 
     def step(self, actions: dict[str, list[AttackGraphNode]]):
         """Take a step in the simulation

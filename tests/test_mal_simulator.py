@@ -521,19 +521,19 @@ def test_malsimulator_agents_registered():
     assert set(infos.keys()) == {attacker_name, defender_name}
 
 
-def test_malsimulator_update_viability(corelang_lang_graph, model):
-    attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimulator(attack_graph)
-    attempt_vuln_node = attack_graph.get_node_by_full_name('OS App:attemptUseVulnerability')
-    assert attempt_vuln_node.is_viable
-    success_vuln_node = attack_graph.get_node_by_full_name('OS App:successfulUseVulnerability')
-    assert success_vuln_node.is_viable
+# def test_malsimulator_update_viability(corelang_lang_graph, model):
+#     attack_graph = AttackGraph(corelang_lang_graph, model)
+#     sim = MalSimulator(attack_graph)
+#     attempt_vuln_node = attack_graph.get_node_by_full_name('OS App:attemptUseVulnerability')
+#     assert attempt_vuln_node.is_viable
+#     success_vuln_node = attack_graph.get_node_by_full_name('OS App:successfulUseVulnerability')
+#     assert success_vuln_node.is_viable
 
-    # Make attempt unviable
-    attempt_vuln_node.is_viable = False
-    sim._update_viability(attempt_vuln_node)
-    # Should make success unviable
-    assert not success_vuln_node.is_viable
+#     # Make attempt unviable
+#     attempt_vuln_node.is_viable = False
+#     sim._update_viability(attempt_vuln_node)
+#     # Should make success unviable
+#     assert not success_vuln_node.is_viable
 
 
 def test_malsimulator_step_attacker(corelang_lang_graph, model):

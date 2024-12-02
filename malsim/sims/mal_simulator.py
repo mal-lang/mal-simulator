@@ -433,149 +433,24 @@ class MalSimulator(BaseMalSimulator, ParallelEnv):
         return NotImplementedError
 
     def _attacker_step(self, agent: SimulatorAgent, attack_step):
-        actions = []
-        attacker = self.attack_graph.get_attacker_by_id(agent.attacker_id)
         attack_step_node = self.get_attack_graph_node_by_index(attack_step)
-
-        logger.info(
-            'Attacker agent "%s" stepping through "%s"(%d).',
-            agent.name,
-            attack_step_node.full_name,
-            attack_step_node.id
-        )
-        if query.is_node_traversable_by_attacker(attack_step_node, attacker):
-            if not attack_step_node.is_compromised_by(attacker):
-                logger.debug(
-                    'Attacker agent "%s" has compromised "%s"(%d).',
-                    agent.name,
-                    attack_step_node.full_name,
-                    attack_step_node.id
-                )
-                attacker.compromise(attack_step_node)
-                agent.action_surface = \
-                    query.update_attack_surface_add_nodes(
-                        attacker,
-                        agent.action_surface,
-                        [attack_step_node]
-                    )
-            actions.append(attack_step)
-        else:
-            logger.warning(
-                'Attacker agent "%s" tried to compromise untraversable '
-                'attack step"%s"(%d).',
-                agent.name,
-                attack_step_node.full_name,
-                attack_step_node.id
-            )
-        return actions
-
-    def _update_viability(
-            self,
-            node: AttackGraphNode,
-            unviable_attack_steps: list[AttackGraphNode] = None
-        ) -> list[AttackGraphNode]:
-        """
-        Update the viability of the node in the graph and return any
-        attack steps that are no longer viable.
-        Propagate this recursively via children as long as changes occur.
-
-        Arguments:
-        node                    - the node to propagate updates from
-        unviable_attack_steps   - a list of the attack steps that have been
-                                  made unviable by a defense enabled in the
-                                  current step
-        """
-
-        unviable_attack_steps = [] if unviable_attack_steps is None \
-            else unviable_attack_steps
-        logger.debug(
-            'Update viability for node "%s"(%d)',
-            node.full_name,
-            node.id
-        )
-        assert not node.is_viable, ("_update_viability should not be called"
-                                   f" on viable node {node.full_name}")
-
-        if node.extras.get('entrypoint'):
-            # Never make entrypoint unviable, and do not
-            # propagate its viability further
-            node.is_viable = True
-            return unviable_attack_steps
-
-        if node.type in ('and', 'or'):
-            unviable_attack_steps.append(node)
-
-        for child in node.children:
-            original_value = child.is_viable
-            if child.type == 'or':
-                child.is_viable = False
-                for parent in child.parents:
-                    child.is_viable = child.is_viable or parent.is_viable
-            if child.type == 'and':
-                child.is_viable = False
-
-            if child.is_viable != original_value:
-                self._update_viability(child, unviable_attack_steps)
-
-        return unviable_attack_steps
+        enabled_nodes = super()._attacker_step(agent, [attack_step_node])
+        # Must be converted to indices in MalSimulator
+        return [self._id_to_index[n.id] for n in enabled_nodes]
 
     def _defender_step(
             self, agent, defense_step_index
         ) -> tuple[list[int], list[AttackGraphNode]]:
 
-        actions = []
         defense_step_node = self.attack_graph.get_node_by_id(
-            self._index_to_id[defense_step_index]
-        )
-        logger.info(
-            'Defender agent "%s" stepping through "%s"(%d).',
-            agent.name,
-            defense_step_node.full_name,
-            defense_step_node.id
-        )
-        if defense_step_node not in agent.action_surface:
-            logger.warning(
-                'Defender agent "%s" tried to step through "%s"(%d).'
-                'which is not part of its defense surface. Defender '
-                'step will skip',
-                agent.name,
-                defense_step_node.full_name,
-                defense_step_node.id
-            )
-            return actions, []
+            self._index_to_id[defense_step_index])
 
-        defense_step_node.defense_status = 1.0
-        defense_step_node.is_viable = False
-        prevented_attack_steps = self._update_viability(
-            defense_step_node
-        )
-        actions.append(defense_step_index)
+        enabled_nodes, unviable_nodes = \
+            super()._defender_step(agent, [defense_step_node])
 
-        # Remove defense from all defender agents' action surfaces since it is
-        # already enabled. And remove all of the prevented attack steps from
-        # the attackers' action surfaces.
-        for agent_el in self.agents:
-            if agent_el.type== AgentType.DEFENDER:
-                try:
-                    agent_el.action_surface.remove(defense_step_node)
-                except ValueError:
-                    # Optimization: the defender is told to remove
-                    # the node from its defense surface even if it
-                    # may have not been present to save one extra
-                    # lookup.
-                    pass
-            elif agent_el.type == AgentType.ATTACKER:
-                for attack_step in prevented_attack_steps:
-                    try:
-                        # Node is no longer part of attacker action surface
-                        agent_el.action_surface.remove(attack_step)
-                    except ValueError:
-                        # Optimization: the attacker is told to remove
-                        # the node from its attack surface even if it may
-                        # have not been present to save one extra lookup.
-                        pass
-
-        return actions, prevented_attack_steps
+        # Must be converted to indices in MalSimulator
+        return [self._id_to_index[n.id] for n in enabled_nodes], \
+               unviable_nodes
 
     def _observe_attacker(
             self,
@@ -625,7 +500,7 @@ class MalSimulator(BaseMalSimulator, ParallelEnv):
             # time.
             obs_state.fill(0)
 
-        # Only show the latest steps taken
+        # Enable the latest steps taken
         for _, actions in performed_actions.items():
             for action in actions:
                 obs_state[action] = 1
