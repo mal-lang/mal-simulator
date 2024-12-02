@@ -8,9 +8,7 @@ class MalSimAgent(ABC):
 
     @abstractmethod
     def __init__(self, agent_config: dict, **kwargs):
-        raise NotImplementedError(
-            "__init__ must be implemented by inheriting class"
-        )
+        self.simulator = kwargs.get('simulator')
 
     @abstractmethod
     def compute_next_action(
@@ -27,12 +25,13 @@ class MalSimAttackerAgent(MalSimAgent):
 
     def __init__(self, agent_config: dict, **kwargs):
         self.attacker = kwargs.get('attacker')
+        super().__init__(agent_config, **kwargs)
 
 class MalSimDefenderAgent(MalSimAgent):
     """Base class for an action selecting agent for the MalSimulator"""
 
     def __init__(self, agent_config: dict, **kwargs):
-        self.simulator = kwargs.get('simulator')
+        super().__init__(agent_config, **kwargs)
 
 
 class PassiveAgent(MalSimAgent):
