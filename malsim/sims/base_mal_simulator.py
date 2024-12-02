@@ -113,7 +113,7 @@ class BaseMalSimulator():
         for agent in self.agents:
             if agent.type == AgentType.ATTACKER:
                 attacker_id = agent.attacker_id
-                attacker = self.attack_graph.attackers[attacker_id]
+                attacker = self.attack_graph.get_attacker_by_id(attacker_id)
                 # Get current action surface
                 agent.action_surface = \
                     query.get_attack_surface(attacker)
@@ -190,7 +190,7 @@ class BaseMalSimulator():
 
         enabled_nodes = []
         attacker_id = agent.attacker_id
-        attacker = self.attack_graph.attackers[attacker_id]
+        attacker = self.attack_graph.get_attacker_by_id(attacker_id)
 
         for node in nodes:
             # Compromise node if possible
