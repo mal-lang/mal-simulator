@@ -26,4 +26,4 @@ agents:
 
   'defender2':
     type: 'defender'
-    agent_class: BreadthFirstDefender
+    agent_class: DepthFirstDefender
