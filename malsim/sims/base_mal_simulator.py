@@ -63,7 +63,6 @@ class BaseMalSimulator():
             prune_unviable_unnecessary  -   Prunes graph if set to true
             sim_settings                -   Settings for simulator
         """
-        super().__init__()
         logger.info("Creating Base MAL Simulator.")
 
         # Calculate viability and necessity and optionally prune graph
@@ -89,7 +88,7 @@ class BaseMalSimulator():
         ) -> dict[str, SimulatorAgent]:
         """Reset attack graph, iteration and reinitialize agents"""
 
-        logger.info("Resetting MAL Simulator.")
+        logger.info("Resetting Base MAL Simulator.")
         # Reset attack graph
         self.attack_graph = copy.deepcopy(self.attack_graph_backup)
         # Reset current iteration
@@ -97,9 +96,7 @@ class BaseMalSimulator():
         # Reset agents
         self._reset_agents()
 
-        return {
-            agent.name: agent for agent in self.agents
-        }
+        return self.agents_dict
 
     def _reset_agents(self):
         """Reset agent rewards and action surfaces"""
@@ -147,6 +144,7 @@ class BaseMalSimulator():
         )
         self.agents.append(agent)
         self.agents_dict[agent_name] = agent
+        return agent
 
     def register_defender(self, agent_name):
         """Add defender agent to the simulator
@@ -166,6 +164,7 @@ class BaseMalSimulator():
         agent = SimulatorAgent(agent_name, AgentType.DEFENDER)
         self.agents.insert(0, agent)
         self.agents_dict[agent_name] = agent
+        return agent
 
     def get_attacker_agents(self) -> SimulatorAgent:
         """Return list of attacker agents"""
