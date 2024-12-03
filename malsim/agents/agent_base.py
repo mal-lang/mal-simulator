@@ -11,13 +11,13 @@ class MalSimAgent(ABC):
         self.simulator = kwargs.get('simulator')
 
     @abstractmethod
-    def compute_next_action(
+    def get_next_action(
         self, action_surface, **kwargs
     ) -> tuple[int, Optional[int]]:
         """From observation and mask, find the next action for agent"""
 
         raise NotImplementedError(
-            "compute_next_action must be implemented by inheriting class"
+            "get_next_action must be implemented by inheriting class"
         )
 
 class MalSimAttackerAgent(MalSimAgent):
@@ -36,5 +36,5 @@ class MalSimDefenderAgent(MalSimAgent):
 
 class PassiveAgent(MalSimAgent):
     """An agent that does nothing"""
-    def compute_next_action(self, _) -> list:
+    def get_next_action(self, _) -> list:
         return []

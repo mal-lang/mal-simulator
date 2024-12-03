@@ -37,7 +37,7 @@ def run_simulation(sim: BaseMalSimulator, agents: dict):
                 )
                 continue
 
-            agent_action = agent.compute_next_action(
+            agent_action = agent.get_next_action(
                 agents_info[agent_id].action_surface
             )
             actions[agent_id] = agent_action

@@ -69,7 +69,7 @@ class BaseSearcherAgent(MalSimAgent):
             raise ValueError("Invalid queue_type. Use 'deque' or 'list'.")
         self.rng = initialize_rng(agent_config)
 
-    def compute_next_action(
+    def get_next_action(
         self,
         action_surface: List[AttackGraphNode],
         **kwargs
@@ -103,10 +103,10 @@ class BreadthFirstAttacker(BaseSearcherAgent):
     def __init__(self, agent_config: Dict[str, Any] = {}) -> None:
         super().__init__(agent_config, queue_type="deque")
 
-    def compute_next_action(
+    def get_next_action(
             self, action_surface: List[AttackGraphNode]
         ) -> List[AttackGraphNode]:
-        return super().compute_next_action(
+        return super().get_next_action(
             action_surface,
             is_valid=lambda x: not x.is_compromised(),
             append_to_front=True
@@ -118,10 +118,10 @@ class DepthFirstAttacker(BaseSearcherAgent):
     def __init__(self, agent_config: Dict[str, Any] = {}) -> None:
         super().__init__(agent_config, queue_type="list")
 
-    def compute_next_action(
+    def get_next_action(
             self, action_surface: List[AttackGraphNode]
         ) -> List[AttackGraphNode]:
-        return super().compute_next_action(
+        return super().get_next_action(
             action_surface,
             is_valid=lambda x: not x.is_compromised(),
             append_to_front=False
@@ -133,10 +133,10 @@ class BreadthFirstDefender(BaseSearcherAgent):
     def __init__(self, agent_config: Dict[str, Any] = {}) -> None:
         super().__init__(agent_config, queue_type="deque")
 
-    def compute_next_action(
+    def get_next_action(
             self, action_surface: List[AttackGraphNode]
         ) -> List[AttackGraphNode]:
-        return super().compute_next_action(
+        return super().get_next_action(
             action_surface,
             is_valid=lambda x: x.is_available_defense(),
             append_to_front=True
@@ -148,10 +148,10 @@ class DepthFirstDefender(BaseSearcherAgent):
     def __init__(self, agent_config: Dict[str, Any] = {}) -> None:
         super().__init__(agent_config, queue_type="list")
 
-    def compute_next_action(
+    def get_next_action(
             self, action_surface: List[AttackGraphNode]
         ) -> List[AttackGraphNode]:
-        return super().compute_next_action(
+        return super().get_next_action(
             action_surface,
             is_valid=lambda x: x.is_available_defense(),
             append_to_front=False

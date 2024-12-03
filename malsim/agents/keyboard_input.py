@@ -11,7 +11,7 @@ class KeyboardAgent(MalSimAgent):
     def __init__(self):
         logger.debug("Create Keyboard agent.")
 
-    def compute_next_action(
+    def get_next_action(
             self, action_surface: list[AttackGraphNode],  **kwargs
         ) -> tuple:
         """Compute action from action_surface"""
