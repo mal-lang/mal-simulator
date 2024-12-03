@@ -260,3 +260,27 @@ def format_table(
         if (reprint_header != 0) and ((entry_nr + 1) % reprint_header == 0):
             formatted_str += header
     return formatted_str
+
+
+def log_agent_state(
+        logger, sim, agent, terminations, truncations, infos
+    ):
+    """Debug log all an agents current state"""
+
+    agent_obs_str = format_obs_var_sec(
+        sim, agent.observation, included_values = [0, 1]
+    )
+
+    logger.debug(
+        'Observation for agent "%s":\n%s', agent.name, agent_obs_str)
+    logger.debug(
+        'Rewards for agent "%s": %d', agent.name, agent.reward)
+    logger.debug(
+        'Termination for agent "%s": %s',
+        agent.name, terminations[agent.name])
+    logger.debug(
+        'Truncation for agent "%s": %s',
+        agent.name, str(truncations[agent.name]))
+    agent_info_str = format_info(sim, infos[agent.name])
+    logger.debug(
+        'Info for agent "%s":\n%s', agent.name, agent_info_str)

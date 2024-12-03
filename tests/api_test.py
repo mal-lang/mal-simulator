@@ -219,7 +219,7 @@ def test_attacker(env: MalSimulator, attacker_class) -> None:
     done = False
     while not done and steps < step_limit:
         breakpoint()
-        action = attacker.compute_next_action(
+        action = attacker.get_next_action(
             info[AGENT_ATTACKER]['action_surface']
         )
         assert action != ACTION_TERMINATE

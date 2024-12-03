@@ -33,12 +33,6 @@ class SimulatorAgent():
     done: bool = False
     attacker_id: Optional[int] = None # Only for attacker agent
 
-
-class ActionState(Enum):
-    """The state of an agent action."""
-    WAIT = 0  # Agent is waiting, not acting on any node
-    ACT = 1   # Agent is acting on a specific node
-
 class BaseMalSimulator():
     """A simple MAL Simulator that works on the AttackGraph
 
@@ -176,6 +170,32 @@ class BaseMalSimulator():
         return [a for a in self.agents
                 if a.type == AgentType.DEFENDER]
 
+    def _disable_attack_steps(
+            self, attack_steps_to_disable: list[AttackGraphNode]
+        ):
+        """Disable nodes for each attacker agent
+
+        For each compromised attack step uncompromise the node, disable its
+        observed_state, and remove the rewards.
+        """
+        for attacker_agent in self.get_attacker_agents():
+            attacker = self.attack_graph.get_attacker_by_id(
+                attacker_agent.attacker_id)
+
+            for unviable_node in attack_steps_to_disable:
+                if unviable_node.is_compromised_by(attacker):
+
+                    # Reward is no longer present for attacker
+                    node_reward = unviable_node.extras.get('reward', 0)
+                    attacker_agent.reward -= node_reward
+
+                    # Reward is no longer present for defenders
+                    for defender_agent in self.get_defender_agents():
+                        defender_agent.reward += node_reward
+
+                    # Uncompromise node if requested
+                    attacker.undo_compromise(unviable_node)
+
     def _attacker_step(
             self, agent: SimulatorAgent, nodes: list[AttackGraphNode]
         ) -> list[AttackGraphNode]:
@@ -200,7 +220,11 @@ class BaseMalSimulator():
             # Compromise node if possible
             if query.is_node_traversable_by_attacker(node, attacker):
                 attacker.compromise(node)
-                agent.reward += node.extras.get("reward", 0)
+                node_reward = node.extras.get("reward", 0)
+                agent.reward += node_reward
+                for d_agent in self.get_defender_agents():
+                    d_agent.reward -= node_reward
+
                 enabled_nodes.append(node)
 
                 # Update attacker action surface
@@ -214,7 +238,7 @@ class BaseMalSimulator():
 
     def _defender_step(
             self, agent: SimulatorAgent, nodes: list[AttackGraphNode]
-        ) -> list[AttackGraphNode]:
+        ) -> tuple[list[AttackGraphNode], list[AttackGraphNode]]:
         """Enable defense step nodes with defender
 
         Args:
@@ -266,9 +290,16 @@ class BaseMalSimulator():
                 except ValueError:
                     pass
 
+        if self.sim_settings.uncompromise_untraversable_steps:
+            # Disable attack steps for attackers to update the
+            # observations, rewards and action surface
+            self._disable_attack_steps(attack_steps_made_unviable)
+
         return enabled_nodes, attack_steps_made_unviable
 
-    def step(self, actions: dict[str, list[AttackGraphNode]]):
+    def step(
+            self, actions: dict[str, list[AttackGraphNode]]
+        ) -> dict[str, SimulatorAgent]:
         """Take a step in the simulation
 
         Args:

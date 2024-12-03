@@ -6,6 +6,7 @@ import logging
 import functools
 from typing import Optional
 import numpy as np
+from enum import Enum
 
 from gymnasium.spaces import MultiDiscrete, Box, Dict
 from pettingzoo import ParallelEnv
@@ -17,12 +18,16 @@ from maltoolbox.ingestors import neo4j
 
 from .mal_simulator_settings import MalSimulatorSettings
 from .base_mal_simulator import BaseMalSimulator, AgentType, SimulatorAgent
-from .mal_sim_logging_utils import format_full_observation, format_info, \
-                                   format_obs_var_sec, log_mapping_tables
+from .mal_sim_logging_utils import format_full_observation,\
+                                   log_mapping_tables, log_agent_state
 
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
 
+class ActionState(Enum):
+    """The state of an agent action."""
+    WAIT = 0  # Agent is waiting, not acting on any node
+    ACT = 1   # Agent is acting on a specific node
 
 class MalSimulator(BaseMalSimulator, ParallelEnv):
     def __init__(
@@ -58,7 +63,7 @@ class MalSimulator(BaseMalSimulator, ParallelEnv):
         self._blank_observation = self.create_blank_observation()
 
         # Initialize agents and record the entry point actions
-        initial_actions = self._initialize_agents()
+        self._initialize_agents()
 
     def __call__(self):
         return self
@@ -134,7 +139,6 @@ class MalSimulator(BaseMalSimulator, ParallelEnv):
                         self._model_assoc_type_to_index[
                             self._get_association_full_name(assoc)])
 
-
         np_obs = {
             "is_observable": np.array(observation["is_observable"],
                              dtype=np.int8),
@@ -165,7 +169,6 @@ class MalSimulator(BaseMalSimulator, ParallelEnv):
             )
 
         return np_obs
-
 
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent=None):
@@ -521,32 +524,6 @@ class MalSimulator(BaseMalSimulator, ParallelEnv):
                     agent, self.agents_dict[agent]["type"]
                 )
 
-    def _reward_agents(self, performed_actions):
-        """Update rewards from latest performed actions"""
-        for agent_name, actions in performed_actions.items():
-            agent = self.agents_dict[agent_name]
-
-            for action in actions:
-                if action is None:
-                    continue
-
-                node_id = self._index_to_id[action]
-                node = self.attack_graph.get_node_by_id(node_id)
-                node_reward = node.extras.get('reward', 0)
-
-                if agent.type == AgentType.ATTACKER:
-                    # If attacker performed step, it will receive
-                    # a reward and penalize all defenders
-                    agent.reward += node_reward
-
-                    for d_agent in self.get_defender_agents():
-                        d_agent.reward -= node_reward
-
-                elif agent.type == AgentType.DEFENDER:
-                    # If a defender performed step, it will be penalized
-                    agent.reward -= node_reward
-
-
     def _collect_agents_infos(self):
         """Collect agent info, this is used to determine the possible
         actions in the next iteration step. Then fill in all of the"""
@@ -589,38 +566,6 @@ class MalSimulator(BaseMalSimulator, ParallelEnv):
 
         return attackers_done, infos
 
-    def _disable_attack_steps(
-            self, attack_steps_to_disable: list[AttackGraphNode]
-        ):
-        """Disable nodes for each attacker agent
-
-        For each compromised attack step uncompromise the node, disable its
-        observed_state, and remove the rewards.
-        """
-
-        for attacker_agent in self.get_attacker_agents():
-            attacker = self.attack_graph.get_attacker_by_id(
-                attacker_agent.attacker_id)
-
-            for unviable_node in attack_steps_to_disable:
-                if unviable_node.is_compromised_by(attacker):
-
-                    # Reward is no longer present for attacker
-                    node_reward = unviable_node.extras.get('reward', 0)
-                    attacker_agent.reward -= node_reward
-
-                    # Reward is no longer present for defenders
-                    for defender_agent in self.get_defender_agents():
-                        defender_agent.reward += node_reward
-
-                    # Uncompromise node if requested
-                    attacker.undo_compromise(unviable_node)
-
-                    # Uncompromised nodes observed state is 0 (disabled)
-                    step_index = self._id_to_index[unviable_node.id]
-                    agent_obs = attacker_agent.observation
-                    agent_obs['observed_state'][step_index] = 0
-
 
     def _observe_and_reward(
             self,
@@ -648,7 +593,6 @@ class MalSimulator(BaseMalSimulator, ParallelEnv):
         # If no attackers have any actions left
         # to take the simulation will terminate.
         self._observe_agents(performed_actions)
-        self._reward_agents(performed_actions)
         attackers_done, infos = self._collect_agents_infos()
 
         for agent in self.agents:
@@ -671,27 +615,9 @@ class MalSimulator(BaseMalSimulator, ParallelEnv):
                 finished_agents.append(agent)
 
             if logger.isEnabledFor(logging.DEBUG):
-                # Debug print agent states
-                agent_obs_str = format_obs_var_sec(
-                    self,
-                    agent.observation,
-                    included_values = [0, 1]
+                log_agent_state(
+                    logger, self, agent, terminations, truncations, infos
                 )
-
-                logger.debug(
-                    'Observation for agent "%s":\n%s', agent.name, agent_obs_str)
-                logger.debug(
-                    'Rewards for agent "%s": %d', agent.name, agent.reward)
-                logger.debug(
-                    'Termination for agent "%s": %s',
-                    agent.name, terminations[agent.name])
-                logger.debug(
-                    'Truncation for agent "%s": %s',
-                    agent.name, str(truncations[agent.name]))
-
-                agent_info_str = format_info(self, infos[agent.name])
-                logger.debug(
-                    'Info for agent "%s":\n%s', agent.name, agent_info_str)
 
         observations = {name: agent.observation
                         for name, agent in self.agents_dict.items()}
@@ -705,23 +631,21 @@ class MalSimulator(BaseMalSimulator, ParallelEnv):
         for agent in finished_agents:
             agent.done = True
 
-        return (
-            observations,
-            rewards,
-            terminations,
-            truncations,
-            infos
-        )
+        return observations, rewards, terminations, truncations, infos
 
-    def step(self, actions):
+    def step(
+            self, actions: dict[str, tuple(ActionState, int)]
+        ) -> tuple[dict, dict, dict, dict, dict]:
         """
-        step(action) takes in an action for each agent and should return the
-        - observations
-        - rewards
-        - terminations
-        - truncations
-        - infos
-        dicts where each dict looks like {agent_1: item_1, agent_2: item_2}
+        Arguments:
+        actions - dict mapping from agent name to action to take
+                  the action is a tuple with action state and step index
+        Returns:
+        observations - dict from agent name to observation dict
+        rewards - dict from agent name to int reward value in this step
+        terminations - dict from agent name to boolean
+        truncations - dict from agent name to boolean
+        infos - dict from agent name to agent info dict
         """
         logger.debug(
             "Stepping through iteration %d/%d", self.cur_iter, self.max_iter)
@@ -730,23 +654,25 @@ class MalSimulator(BaseMalSimulator, ParallelEnv):
         # Map agent to defense/attack steps performed in this step
         performed_actions = {}
         prevented_attack_steps = []
+        default_action = (ActionState.WAIT, None)
 
         # Peform agent actions
         for agent in self.agents:
-            action = actions[agent.name]
-            if action[0] == 0:
+            action = actions.get(agent.name, default_action)
+            action_state = ActionState(action[0])
+            action_step_index = action[1]
+
+            if action_state == ActionState.WAIT:
                 # Agent wants to wait - do nothing
                 continue
 
-            action_step = action[1]
-
             if agent.type == AgentType.ATTACKER:
                 performed_actions[agent.name] = \
-                    self._attacker_step(agent, action_step)
+                    self._attacker_step(agent, action_step_index)
 
             elif agent.type == AgentType.DEFENDER:
                 defender_actions, prevented_attack_steps = \
-                    self._defender_step(agent, action_step)
+                    self._defender_step(agent, action_step_index)
                 performed_actions[agent.name] = defender_actions
 
             else:
@@ -754,16 +680,11 @@ class MalSimulator(BaseMalSimulator, ParallelEnv):
                     'Agent %s has unknown type: %s',
                     agent, self.agents_dict[agent]["type"])
 
-        observations, rewards, terminations, truncations, infos = (
-            self._observe_and_reward(
-                performed_actions,
-                prevented_attack_steps
-            )
-        )
-
         self.cur_iter += 1
-
-        return observations, rewards, terminations, truncations, infos
+        return self._observe_and_reward(
+            performed_actions,
+            prevented_attack_steps
+        )
 
     def render(self):
         logger.debug("Ingest attack graph into Neo4J database.")
