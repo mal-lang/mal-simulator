@@ -76,7 +76,11 @@ def main():
     args = parser.parse_args()
 
     # Create simulator from scenario
-    sim, agents = create_simulator_from_scenario(args.scenario_file)
+    sim, agents = create_simulator_from_scenario(
+        args.scenario_file,
+        sim_class=BaseMalSimulator
+    )
+
     if args.output_attack_graph:
         sim.attack_graph.save_to_file(args.output_attack_graph)
 

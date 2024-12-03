@@ -323,8 +323,8 @@ def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:
 
 
 def create_simulator_from_scenario(
-        scenario_file: str, sim_class=BaseMalSimulator, **kwargs
-    ) -> tuple[MalSimulator, dict]:
+        scenario_file: str, sim_class=MalSimulator, **kwargs
+    ) -> tuple[BaseMalSimulator, dict]:
     """Creates and returns a MalSimulator created according to scenario file
 
     A wrapper that loads the graph and config from the scenario file
