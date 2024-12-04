@@ -1,40 +1,79 @@
 """Abstract base class for agents"""
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from dataclasses import dataclass, field
+from enum import Enum
+
+from maltoolbox.attackgraph import AttackGraphNode
+
+class AgentType(Enum):
+    """Enum for agent types"""
+    ATTACKER = 'attacker'
+    DEFENDER = 'defender'
 
 class MalSimAgent(ABC):
-    """Base class for an action selecting agent for the MalSimulator"""
+    """Stores the state of an agent in the simulator"""
+
+    def __init__(self, name: str, agent_type: AgentType):
+        self.name = name
+        self.type = agent_type
+
+        self.observation = {}
+        self.action_surface = []
+        self.reward = 0
+        self.done = False
 
     @abstractmethod
-    def __init__(self, agent_config: dict, **kwargs):
-        self.simulator = kwargs.get('simulator')
+    def update_state(self, performed_steps: list[AttackGraphNode]):
+        """An abstract method that is supposed to update whatever state
+        the agent builds up for it to be able to take next action"""
+
+        raise NotImplementedError(
+            "Agent class need to implement 'update_state'"
+        )
 
     @abstractmethod
     def get_next_action(
         self, action_surface, **kwargs
-    ) -> tuple[int, Optional[int]]:
-        """From observation and mask, find the next action for agent"""
+        ) -> list[AttackGraphNode]:
+        """From the current state, find the next action for agent"""
 
         raise NotImplementedError(
-            "get_next_action must be implemented by inheriting class"
+            "Agent class need to implement 'get_next_action'"
         )
 
-class MalSimAttackerAgent(MalSimAgent):
-    """Base class for an action selecting agent for the MalSimulator"""
+class MalSimDefender(MalSimAgent):
+    """A defender agent"""
+    type = AgentType.DEFENDER
 
-    def __init__(self, agent_config: dict, **kwargs):
-        self.attacker = kwargs.get('attacker')
-        super().__init__(agent_config, **kwargs)
+    def __init__(self, name: str):
+        super().__init__(name, self.type)
 
-class MalSimDefenderAgent(MalSimAgent):
-    """Base class for an action selecting agent for the MalSimulator"""
+class MalSimAttacker(MalSimAgent):
+    """A defender agent"""
+    type = AgentType.ATTACKER
 
-    def __init__(self, agent_config: dict, **kwargs):
-        super().__init__(agent_config, **kwargs)
+    def __init__(self, name: str, attacker_id: int):
+        self.attacker_id = attacker_id
+        super().__init__(name, self.type)
 
 
-class PassiveAgent(MalSimAgent):
+class PassiveAttacker(MalSimAttacker):
     """An agent that does nothing"""
-    def get_next_action(self, _) -> list:
+
+    def update_state(self, performed_steps: list): ...
+
+    def get_next_action(
+            self, action_surface, **kwargs
+        ) -> list[AttackGraphNode]:
+        return []
+
+class PassiveDefender(MalSimDefender):
+    """An agent that does nothing"""
+
+    def update_state(self, performed_steps: list): ...
+
+    def get_next_action(
+            self, action_surface, **kwargs
+        ) -> list[AttackGraphNode]:
         return []

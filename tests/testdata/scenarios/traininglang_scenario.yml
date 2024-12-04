@@ -14,11 +14,9 @@ rewards:
 agents:
   'Attacker1':
     type: 'attacker'
-    agent_class: BreadthFirstAttacker
     entry_points:
     - 'User:3:phishing'
     - 'Host:0:connect'
 
   'Defender1':
     type: 'defender'
-    agent_class: KeyboardAgent

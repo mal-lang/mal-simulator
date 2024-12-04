@@ -1,6 +1,8 @@
 import logging
-from .agent_base import MalSimAgent
+
 from maltoolbox.attackgraph import AttackGraphNode
+
+from .agent_base import MalSimAgent
 
 logger = logging.getLogger(__name__)
 null_action = []
@@ -10,6 +12,9 @@ class KeyboardAgent(MalSimAgent):
 
     def __init__(self):
         logger.debug("Create Keyboard agent.")
+
+    def update_state(self, performed_steps: list[AttackGraphNode]):
+        pass
 
     def get_next_action(
             self, action_surface: list[AttackGraphNode],  **kwargs

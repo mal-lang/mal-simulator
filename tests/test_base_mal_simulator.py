@@ -2,6 +2,7 @@
 
 from maltoolbox.attackgraph import AttackGraph, Attacker
 from malsim.sims.base_mal_simulator import BaseMalSimulator
+from malsim.agents.agent_base import PassiveDefender, PassiveAttacker, AgentType
 from malsim.scenario import load_scenario
 
 
@@ -13,23 +14,26 @@ def test_init(corelang_lang_graph, model):
 def test_reset(corelang_lang_graph, model):
     """Make sure attack graph is reset"""
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    agent_name = "testagent"
-    agent_id = 0
+
     agent_entry_point = attack_graph.get_node_by_full_name(
         'OS App:networkConnectUninspected')
 
+    attacker_name = "testagent"
+
     attacker = Attacker(
-        agent_name,
+        attacker_name,
         entry_points=[agent_entry_point],
         reached_attack_steps=[agent_entry_point]
     )
 
-    attack_graph.add_attacker(attacker, agent_id)
+    attack_graph.add_attacker(attacker, attacker.id)
+
+    attacker_agent = PassiveAttacker(attacker.name, attacker.id)
     sim = BaseMalSimulator(attack_graph)
 
     attack_graph_before = sim.attack_graph
-    sim.register_attacker(agent_name, agent_id)
-    assert agent_name in sim.agents_dict
+    sim.register_attacker(attacker_agent)
+    assert attacker.name in sim.agents_dict
     assert len(sim.agents) == 1
 
     sim.reset()
@@ -37,7 +41,7 @@ def test_reset(corelang_lang_graph, model):
     attack_graph_after = sim.attack_graph
 
     # Make sure agent was added (and not removed)
-    assert agent_name in [a.name for a in sim.agents]
+    assert attacker.name in [a.name for a in sim.agents]
     # Make sure the attack graph is not the same object but identical
     assert id(attack_graph_before) != id(attack_graph_after)
 
@@ -49,37 +53,40 @@ def test_reset(corelang_lang_graph, model):
 
     assert attack_graph_before._to_dict() == attack_graph_after._to_dict()
 
-
 def test_register_attacker(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = BaseMalSimulator(attack_graph)
-    agent_name = "attacker1"
+
     attacker = 1
-    sim.register_attacker(agent_name, attacker)
-    assert agent_name in sim.agents_dict
-    assert agent_name in [a.name for a in sim.agents]
+    agent = PassiveAttacker("attacker1", attacker)
+    sim.register_attacker(agent)
+
+    assert agent.name in sim.agents_dict
+    assert agent.name in [a.name for a in sim.agents]
 
 
 def test_register_defender(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = BaseMalSimulator(attack_graph)
-    agent_name = "defender1"
-    sim.register_defender(agent_name)
-    assert agent_name in sim.agents_dict
-    assert agent_name in [a.name for a in sim.agents]
+
+    agent = PassiveDefender("defender1")
+    sim.register_defender(agent)
+
+    assert agent.name in sim.agents_dict
+    assert agent.name in [a.name for a in sim.agents]
 
 
 def test_simulator_initialize_agents(corelang_lang_graph, model):
     """Test _initialize_agents"""
 
-    ag, conf = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
+    ag, _ = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
     sim = BaseMalSimulator(ag)
 
     # Register the agents
-    attacker_agent_id = "attacker"
-    defender_agent_id = "defender"
-    sim.register_attacker(attacker_agent_id, 0)
-    sim.register_defender(defender_agent_id)
+    attacker = PassiveAttacker("attacker", 1)
+    defender = PassiveDefender("defender")
+    sim.register_attacker(attacker)
+    sim.register_defender(defender)
 
     sim.reset()
 
@@ -89,7 +96,7 @@ def test_simulator_initialize_agents(corelang_lang_graph, model):
 def test_get_agents():
     """Test get_attacker_agents and get_defender_agents"""
 
-    ag, conf = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
+    ag, _ = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
     sim = BaseMalSimulator(ag)
     sim.reset()
 
@@ -104,7 +111,8 @@ def test_attacker_step(corelang_lang_graph, model):
     attack_graph.add_attacker(attacker, attacker.id)
     sim = BaseMalSimulator(attack_graph)
 
-    sim.register_attacker(attacker.name, attacker.id)
+    attacker_agent = PassiveAttacker(attacker.name, attacker.id)
+    sim.register_attacker(attacker_agent)
     sim.reset()
     attacker_agent = sim.agents_dict[attacker.name]
 
@@ -124,19 +132,19 @@ def test_defender_step(corelang_lang_graph, model):
     sim = BaseMalSimulator(attack_graph)
 
     defender_name = "defender"
-    sim.register_defender(defender_name)
+    defender_agent = PassiveDefender(defender_name)
+    sim.register_defender(defender_agent)
     sim.reset()
-    defender_agent = sim.agents_dict[defender_name]
 
     defense_step = attack_graph.get_node_by_full_name(
         'OS App:notPresent')
-    actions = sim._defender_step(defender_agent, [defense_step])
+    actions, _ = sim._defender_step(defender_agent, [defense_step])
     assert actions == [defense_step]
 
     # Can not defend attack_step
     attack_step = attack_graph.get_node_by_full_name(
         'OS App:attemptUseVulnerability')
-    actions = sim._defender_step(defender_agent, [attack_step])
+    actions, _ = sim._defender_step(defender_agent, [attack_step])
     assert not actions
 
 
@@ -150,10 +158,12 @@ def test_observe_attacker():
 
     # Register the agents
     attacker_agent_id = "attacker"
+    attacker_agent = PassiveAttacker(attacker_agent_id, 1)
     defender_agent_id = "defender"
-    sim.register_attacker(attacker_agent_id, 0)
-    sim.register_defender(defender_agent_id)
+    defender_agent = PassiveDefender(defender_agent_id)
 
+    sim.register_attacker(attacker_agent)
+    sim.register_defender(defender_agent)
     sim.reset()
 
     # Make alteration to the attack graph attacker
@@ -168,10 +178,14 @@ def test_agents_registered():
         'tests/testdata/scenarios/traininglang_scenario.yml')
     sim = BaseMalSimulator(ag)
 
-    attacker_name = "attacker"
-    defender_name = "defender"
-    sim.register_attacker(attacker_name, 0)
-    sim.register_defender(defender_name)
+    # Register the agents
+    attacker_agent_id = "attacker"
+    attacker_agent = PassiveAttacker(attacker_agent_id, 1)
+    defender_agent_id = "defender"
+    defender_agent = PassiveDefender(defender_agent_id)
+
+    sim.register_attacker(attacker_agent)
+    sim.register_defender(defender_agent)
 
     # We need to reinitialize to initialize agents
     sim.reset()
@@ -184,8 +198,14 @@ def test_step_attacker_defender_action_surface_updates():
         'tests/testdata/scenarios/traininglang_scenario.yml')
 
     sim = BaseMalSimulator(ag)
-    sim.register_attacker('attacker', 0)
-    sim.register_defender('defender')
+    # Register the agents
+    attacker_agent_id = "attacker"
+    attacker_agent = PassiveAttacker(attacker_agent_id, 1)
+    defender_agent_id = "defender"
+    defender_agent = PassiveDefender(defender_agent_id)
+
+    sim.register_attacker(attacker_agent)
+    sim.register_defender(defender_agent)
 
     attacker_agent = next(iter(sim.get_attacker_agents()))
     defender_agent = next(iter(sim.get_defender_agents()))
@@ -220,10 +240,14 @@ def test_default_simulator_default_settings_eviction():
     attacker = sim.attack_graph.attackers[0]
 
     # Register the agents
+    # Register the agents
     attacker_agent_id = "attacker"
+    attacker_agent = PassiveAttacker(attacker_agent_id, 1)
     defender_agent_id = "defender"
-    sim.register_attacker(attacker_agent_id, 0)
-    sim.register_defender(defender_agent_id)
+    defender_agent = PassiveDefender(defender_agent_id)
+
+    sim.register_attacker(attacker_agent)
+    sim.register_defender(defender_agent)
 
     # Get a step to compromise and its defense parent
     user_3_compromise = sim.attack_graph.get_node_by_full_name('User:3:compromise')

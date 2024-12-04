@@ -17,7 +17,7 @@ from maltoolbox.attackgraph import query
 from maltoolbox.ingestors import neo4j
 
 from .mal_simulator_settings import MalSimulatorSettings
-from .base_mal_simulator import BaseMalSimulator, AgentType, SimulatorAgent
+from .base_mal_simulator import BaseMalSimulator, AgentType, MalSimAgent
 from .mal_sim_logging_utils import format_full_observation,\
                                    log_mapping_tables, log_agent_state
 

@@ -20,7 +20,8 @@ from maltoolbox.attackgraph import AttackGraph, Attacker
 from maltoolbox.wrappers import create_attack_graph
 
 from .agents import (
-    PassiveAgent,
+    PassiveDefender,
+    PassiveAttacker,
     BreadthFirstAttacker,
     DepthFirstAttacker,
     DepthFirstDefender,
@@ -28,12 +29,11 @@ from .agents import (
     KeyboardAgent,
 )
 
-from .sims.base_mal_simulator import BaseMalSimulator
-from .sims.mal_simulator import MalSimulator
-from .sims.base_mal_simulator import SimulatorAgent, AgentType
+from .sims.base_mal_simulator import BaseMalSimulator, MalSimAgent, AgentType
 
 agent_class_name_to_class = {
-    'PassiveAgent': PassiveAgent,
+    'PassiveAttacker': PassiveAttacker,
+    'PassiveDefender': PassiveDefender,
     'BreadthFirstAttacker': BreadthFirstAttacker,
     'DepthFirstAttacker': DepthFirstAttacker,
     'DepthFirstDefender': DepthFirstDefender,
@@ -233,7 +233,7 @@ def apply_attacker_entrypoints(
 
 def load_simulator_agents(
         attack_graph: AttackGraph, scenario: dict
-    ) -> dict[str, SimulatorAgent]:
+    ) -> dict[str, MalSimAgent]:
     """Load agents to be registered in MALSimulator
 
     Create the agents from the specified classes,
@@ -323,7 +323,7 @@ def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:
 
 
 def create_simulator_from_scenario(
-        scenario_file: str, sim_class=MalSimulator, **kwargs
+        scenario_file: str, sim_class=BaseMalSimulator, **kwargs
     ) -> tuple[BaseMalSimulator, dict]:
     """Creates and returns a MalSimulator created according to scenario file
 
