@@ -4,7 +4,7 @@ import pytest
 from maltoolbox.language import LanguageGraph, LanguageClassesFactory
 from maltoolbox.model import Model
 from maltoolbox.wrappers import create_attack_graph
-from malsim.sims.mal_simulator import MalSimulator
+from malsim.sims.malsim_parallel_env import MalSimulator
 
 model_file_name='tests/testdata/models/simple_test_model.yml'
 attack_graph_file_name=path.join('tmp','attack_graph.json')

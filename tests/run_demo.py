@@ -11,9 +11,9 @@ from maltoolbox.language import LanguageClassesFactory, LanguageGraph
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.model import Model
 
-from malsim.agents.keyboard_input import KeyboardAgent
+from malsim.agents.keyboard_agent import KeyboardAgent
 from malsim.agents.searchers import BreadthFirstAttacker
-from malsim.sims.mal_simulator import MalSimulator
+from malsim.sims.malsim_parallel_env import MalSimulator
 
 
 logger = logging.getLogger(__name__)

@@ -5,6 +5,8 @@ from typing import Any, Deque, Dict, List, Union, Optional, Tuple
 import numpy as np
 
 from maltoolbox.attackgraph import AttackGraphNode
+
+from malsim.agents.agent_base import AgentType
 from .agent_base import MalSimAgent
 
 logger = logging.getLogger(__name__)
@@ -13,7 +15,11 @@ logger = logging.getLogger(__name__)
 def initialize_rng(
         agent_config: Dict[str, Any]
     ) -> Optional[np.random.Generator]:
-    """Create random number generator for searcher agents"""
+    """Create random number generator for searcher agents if requested"""
+
+    if agent_config is None:
+        return None
+
     seed = agent_config.get("seed", np.random.SeedSequence().entropy)
     return np.random.default_rng(seed)\
            if agent_config.get("randomize", False) else None
@@ -55,11 +61,15 @@ def process_current_target(
 
 # Base Class for searcher logic
 class BaseSearcherAgent(MalSimAgent):
-    def __init__(
-            self, agent_config: Dict[str, Any],
-            queue_type: str = "deque"
-        ) -> None:
 
+    def __init__(
+            self,
+            name: str,
+            agent_type: AgentType,
+            queue_type=None,
+            agent_config=None
+        ):
+        super().__init__(name, agent_type)
         self.current_target: Optional[AttackGraphNode] = None
         if queue_type == "deque":
             self.targets: Deque[AttackGraphNode] = deque([])
@@ -103,8 +113,13 @@ class BaseSearcherAgent(MalSimAgent):
 
 # Breadth-First Attacker
 class BreadthFirstAttacker(BaseSearcherAgent):
-    def __init__(self, agent_config: Dict[str, Any] = {}) -> None:
-        super().__init__(agent_config, queue_type="deque")
+    def __init__(self, name: str, agent_config=None):
+        super().__init__(
+            name,
+            agent_type=AgentType.ATTACKER,
+            queue_type="deque",
+            agent_config=agent_config
+        )
 
     def get_next_action(
             self, action_surface: List[AttackGraphNode]
@@ -118,8 +133,19 @@ class BreadthFirstAttacker(BaseSearcherAgent):
 
 # Depth-First Attacker
 class DepthFirstAttacker(BaseSearcherAgent):
-    def __init__(self, agent_config: Dict[str, Any] = {}) -> None:
-        super().__init__(agent_config, queue_type="list")
+    # def __init__(self, agent_config: Dict[str, Any] = {}) -> None:
+    #     super().__init__(agent_config, queue_type="list")
+    def __init__(
+            self,
+            name: str,
+            agent_config=None
+        ):
+        super().__init__(
+            name,
+            agent_type=AgentType.ATTACKER,
+            queue_type="list",
+            agent_config=agent_config
+        )
 
     def get_next_action(
             self, action_surface: List[AttackGraphNode]
@@ -133,8 +159,17 @@ class DepthFirstAttacker(BaseSearcherAgent):
 
 # Breadth-First Defender
 class BreadthFirstDefender(BaseSearcherAgent):
-    def __init__(self, agent_config: Dict[str, Any] = {}) -> None:
-        super().__init__(agent_config, queue_type="deque")
+    def __init__(
+            self,
+            name: str,
+            agent_config=None
+        ):
+        super().__init__(
+            name,
+            agent_type=AgentType.DEFENDER,
+            queue_type="deque",
+            agent_config=agent_config
+        )
 
     def get_next_action(
             self, action_surface: List[AttackGraphNode]
@@ -148,8 +183,17 @@ class BreadthFirstDefender(BaseSearcherAgent):
 
 # Depth-First Defender
 class DepthFirstDefender(BaseSearcherAgent):
-    def __init__(self, agent_config: Dict[str, Any] = {}) -> None:
-        super().__init__(agent_config, queue_type="list")
+    def __init__(
+            self,
+            name: str,
+            agent_config=None
+        ):
+        super().__init__(
+            name,
+            agent_type=AgentType.DEFENDER,
+            queue_type="list",
+            agent_config=agent_config
+        )
 
     def get_next_action(
             self, action_surface: List[AttackGraphNode]

@@ -2,7 +2,7 @@ import logging
 
 from maltoolbox.attackgraph import AttackGraphNode
 
-from .agent_base import MalSimAgent
+from .agent_base import MalSimAgent, AgentType
 
 logger = logging.getLogger(__name__)
 null_action = []
@@ -10,8 +10,9 @@ null_action = []
 class KeyboardAgent(MalSimAgent):
     """An agent that makes decisions by asking user for keyboard input"""
 
-    def __init__(self):
-        logger.debug("Create Keyboard agent.")
+    def __init__(self, name: str, agent_type: AgentType):
+        super().__init__(name, agent_type)
+        logger.info("Creating KeyboardAgent")
 
     def update_state(self, performed_steps: list[AttackGraphNode]):
         pass
@@ -62,3 +63,19 @@ class KeyboardAgent(MalSimAgent):
         )
 
         return [index_to_node[index]] if index is not None else []
+
+
+class KeyboardDefender(KeyboardAgent):
+    """An agent that makes decisions by asking user for keyboard input"""
+
+    def __init__(self, name: str):
+        super().__init__(name, AgentType.DEFENDER)
+        logger.info("Creating KeyboardDefender")
+
+
+class KeyboardAttacker(KeyboardAgent):
+    """An agent that makes decisions by asking user for keyboard input"""
+
+    def __init__(self, name: str):
+        super().__init__(name, AgentType.ATTACKER)
+        logger.info("Creating KeyboardAttacker")

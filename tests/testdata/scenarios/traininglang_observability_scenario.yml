@@ -21,7 +21,7 @@ agents:
 
   'Defender1':
     type: 'defender'
-    agent_class: KeyboardAgent
+    agent_class: KeyboardDefender
 
 # Optional way to make only certain steps observable
 # If observable_steps are set, all steps not

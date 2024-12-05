@@ -26,10 +26,11 @@ from .agents import (
     DepthFirstAttacker,
     DepthFirstDefender,
     BreadthFirstDefender,
-    KeyboardAgent,
+    KeyboardAttacker,
+    KeyboardDefender,
 )
 
-from .sims.base_mal_simulator import BaseMalSimulator, MalSimAgent, AgentType
+from .sims.mal_simulator import MalSimulator, MalSimAgent, AgentType
 
 agent_class_name_to_class = {
     'PassiveAttacker': PassiveAttacker,
@@ -38,7 +39,8 @@ agent_class_name_to_class = {
     'DepthFirstAttacker': DepthFirstAttacker,
     'DepthFirstDefender': DepthFirstDefender,
     'BreadthFirstDefender': BreadthFirstDefender,
-    'KeyboardAgent': KeyboardAgent
+    'KeyboardAttacker': KeyboardAttacker,
+    'KeyboardDefender': KeyboardDefender
 }
 
 # All required fields in scenario yml file
@@ -250,29 +252,28 @@ def load_simulator_agents(
     if agents_config := scenario.get('agents', {}):
 
         for agent_id, agent_info in agents_config.items():
-
             agent_class = agent_info.get('agent_class')
+
+            if agent_class is None:
+                # Class-less agent
+                continue
+
             if agent_class and agent_class not in agent_class_name_to_class:
+                # Illegal class agent
                 raise LookupError(
                     f"Agent class '{agent_class}' not supported"
                 )
 
-            agent_type = AgentType(agent_info.get('type'))
-            agents[agent_id] = {}
-            agents[agent_id]['type'] = agent_type
+            # Initialize the agent object
+            agent = agent_class_name_to_class.get(agent_class)(agent_id)
+            agents[agent_id] = agent
 
-            if agent_type == AgentType.ATTACKER:
-                agents[agent_id]['attacker_id'] = \
+            if agent.type == AgentType.ATTACKER:
+                agent.attacker_id = \
                     apply_attacker_entrypoints(
                         attack_graph, agent_id,
                         agents_config[agent_id].get('entry_points')
                     )
-
-            if agent_class is None:
-                continue
-
-            agents[agent_id]['agent'] = \
-                agent_class_name_to_class.get(agent_class)()
 
     return agents
 
@@ -323,8 +324,8 @@ def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict]:
 
 
 def create_simulator_from_scenario(
-        scenario_file: str, sim_class=BaseMalSimulator, **kwargs
-    ) -> tuple[BaseMalSimulator, dict]:
+        scenario_file: str, sim_class=MalSimulator, **kwargs
+    ) -> tuple[MalSimulator, dict]:
     """Creates and returns a MalSimulator created according to scenario file
 
     A wrapper that loads the graph and config from the scenario file
@@ -347,10 +348,7 @@ def create_simulator_from_scenario(
     )
 
     # Register agents in simulator
-    for agent_id, agent_info in scenario_agents.items():
-        if agent_info['type'] == AgentType.ATTACKER:
-            sim.register_attacker(agent_id, agent_info.get('attacker_id'))
-        elif agent_info['type'] == AgentType.DEFENDER:
-            sim.register_defender(agent_id)
+    for _, agent in scenario_agents.items():
+        sim.register_agent(agent)
 
     return sim, scenario_agents

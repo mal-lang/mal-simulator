@@ -4,8 +4,8 @@ from __future__ import annotations
 import argparse
 import logging
 
-from .sims.base_mal_simulator import BaseMalSimulator, AgentType
-from .sims.mal_simulator import MalSimulator
+from .sims.mal_simulator import MalSimulator, AgentType
+from .sims.malsim_parallel_env import MalSimulator
 from .scenario import create_simulator_from_scenario
 
 logging.basicConfig(level=logging.INFO)
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
 
 
-def run_simulation(sim: BaseMalSimulator, agents: dict):
+def run_simulation(sim: MalSimulator, agents: dict):
     """Run a simulation on an attack graph with given config"""
 
     # Init values
@@ -78,7 +78,7 @@ def main():
     # Create simulator from scenario
     sim, agents = create_simulator_from_scenario(
         args.scenario_file,
-        sim_class=BaseMalSimulator
+        sim_class=MalSimulator
     )
 
     if args.output_attack_graph:

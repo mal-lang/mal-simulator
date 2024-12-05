@@ -1,7 +1,6 @@
 """Abstract base class for agents"""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
 from enum import Enum
 
 from maltoolbox.attackgraph import AttackGraphNode
@@ -11,10 +10,18 @@ class AgentType(Enum):
     ATTACKER = 'attacker'
     DEFENDER = 'defender'
 
+
 class MalSimAgent(ABC):
     """Stores the state of an agent in the simulator"""
 
-    def __init__(self, name: str, agent_type: AgentType):
+    def __init__(
+            self,
+            name: str,
+            agent_type: AgentType,
+            simulator = None
+        ):
+
+        self.simulator = simulator
         self.name = name
         self.type = agent_type
 
@@ -29,7 +36,7 @@ class MalSimAgent(ABC):
         the agent builds up for it to be able to take next action"""
 
         raise NotImplementedError(
-            "Agent class need to implement 'update_state'"
+            f"'{self.__class__.__name__}' need to implement 'update_state'"
         )
 
     @abstractmethod
@@ -42,20 +49,20 @@ class MalSimAgent(ABC):
             "Agent class need to implement 'get_next_action'"
         )
 
-class MalSimDefender(MalSimAgent):
-    """A defender agent"""
-    type = AgentType.DEFENDER
 
-    def __init__(self, name: str):
-        super().__init__(name, self.type)
+class MalSimDefender(MalSimAgent):
+    """A defender agent to use in MAL simulator"""
+
+    def __init__(self, name: str, simulator=None):
+        super().__init__(name, AgentType.DEFENDER, simulator=simulator)
+
 
 class MalSimAttacker(MalSimAgent):
-    """A defender agent"""
-    type = AgentType.ATTACKER
+    """An attacker agent to use in MAL Simulator"""
 
-    def __init__(self, name: str, attacker_id: int):
+    def __init__(self, name: str, attacker_id: int, simulator=None):
         self.attacker_id = attacker_id
-        super().__init__(name, self.type)
+        super().__init__(name, AgentType.ATTACKER, simulator=simulator)
 
 
 class PassiveAttacker(MalSimAttacker):
@@ -67,6 +74,7 @@ class PassiveAttacker(MalSimAttacker):
             self, action_surface, **kwargs
         ) -> list[AttackGraphNode]:
         return []
+
 
 class PassiveDefender(MalSimDefender):
     """An agent that does nothing"""

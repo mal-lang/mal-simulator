@@ -24,4 +24,4 @@ agents:
 
   'Defender1':
     type: 'defender'
-    agent_class: KeyboardAgent
+    agent_class: KeyboardDefender

@@ -11,7 +11,16 @@ from .searchers import (
     DepthFirstDefender,
     BreadthFirstDefender
 )
-from .keyboard_input import KeyboardAgent as KeyboardAgent
+from .keyboard_agent import (
+    KeyboardAgent,
+    KeyboardAttacker,
+    KeyboardDefender
+)
+from .serialized_obs_agent import (
+    SerializedObsAgent,
+    SerializedObsAttacker,
+    SerializedObsDefender
+)
 
 __all__ = [
     'MalSimAgent',
@@ -23,5 +32,9 @@ __all__ = [
     'BreadthFirstAttacker',
     'DepthFirstDefender',
     'BreadthFirstDefender',
-    'KeyboardAgent',
+    'KeyboardAttacker',
+    'KeyboardDefender',
+    'SerializedObsAgent',
+    'SerializedObsAttacker',
+    'SerializedObsDefender'
 ]
