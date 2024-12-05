@@ -14,7 +14,7 @@ class KeyboardAgent(MalSimAgent):
         super().__init__(name, agent_type)
         logger.info("Creating KeyboardAgent")
 
-    def update_state(self, performed_steps: list[AttackGraphNode]):
+    def update_obs(self, performed_steps: list[AttackGraphNode]):
         pass
 
     def get_next_action(

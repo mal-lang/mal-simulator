@@ -475,7 +475,7 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
     attacker = sim.attack_graph.attackers[0]
 
     # Observe and reward with no new actions
-    attacker_agent.update_state([])
+    attacker_agent.update_obs([])
 
     for index, state in enumerate(
             attacker_agent.observation['observed_state']):

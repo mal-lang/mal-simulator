@@ -31,12 +31,12 @@ class MalSimAgent(ABC):
         self.done = False
 
     @abstractmethod
-    def update_state(self, performed_steps: list[AttackGraphNode]):
+    def update_obs(self, performed_steps: list[AttackGraphNode]):
         """An abstract method that is supposed to update whatever state
         the agent builds up for it to be able to take next action"""
 
         raise NotImplementedError(
-            f"'{self.__class__.__name__}' need to implement 'update_state'"
+            f"'{self.__class__.__name__}' need to implement 'update_obs'"
         )
 
     @abstractmethod
@@ -68,7 +68,7 @@ class MalSimAttacker(MalSimAgent):
 class PassiveAttacker(MalSimAttacker):
     """An agent that does nothing"""
 
-    def update_state(self, performed_steps: list): ...
+    def update_obs(self, performed_steps: list): ...
 
     def get_next_action(
             self, action_surface, **kwargs
@@ -79,7 +79,7 @@ class PassiveAttacker(MalSimAttacker):
 class PassiveDefender(MalSimDefender):
     """An agent that does nothing"""
 
-    def update_state(self, performed_steps: list): ...
+    def update_obs(self, performed_steps: list): ...
 
     def get_next_action(
             self, action_surface, **kwargs

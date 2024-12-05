@@ -79,7 +79,7 @@ class BaseSearcherAgent(MalSimAgent):
             raise ValueError("Invalid queue_type. Use 'deque' or 'list'.")
         self.rng = initialize_rng(agent_config)
 
-    def update_state(self, performed_steps: List[AttackGraphNode]):
+    def update_obs(self, performed_steps: List[AttackGraphNode]):
         pass
 
     def get_next_action(

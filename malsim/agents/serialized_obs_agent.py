@@ -371,8 +371,8 @@ class SerializedObsAgent(MalSimAgent):
             }
         )
 
-    def update_state(self, performed_steps: list[AttackGraphNode]):
-        return super().update_state(performed_steps)
+    def update_obs(self, performed_steps: list[AttackGraphNode]):
+        return super().update_obs(performed_steps)
 
     def get_next_action(
         self, action_surface, **kwargs
@@ -394,7 +394,7 @@ class SerializedObsAttacker(SerializedObsAgent):
         if self.attacker_id is not None and attacker is None:
             raise LookupError(f"Attacker with id: {attacker_id} not found")
         if attacker:
-            self.update_state(attacker.entry_points)
+            self.update_obs(attacker.entry_points)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(simulator={self.simulator}, " \
@@ -415,7 +415,7 @@ class SerializedObsAttacker(SerializedObsAgent):
             if child_obs == -1:
                 self.observation['observed_state'][child_index] = 0
 
-    def update_state(self, performed_steps):
+    def update_obs(self, performed_steps):
         attacker = self.simulator\
             .attack_graph.get_attacker_by_id(self.attacker_id)
 
@@ -428,7 +428,7 @@ class SerializedObsDefender(SerializedObsAgent):
 
     def __init__(self, name: str, simulator: MalSimulator):
         super().__init__(name, AgentType.DEFENDER, simulator)
-        self.update_state(
+        self.update_obs(
             [n for n in self.simulator.attack_graph.nodes
              if n.is_enabled_defense()]
         )
@@ -436,7 +436,7 @@ class SerializedObsDefender(SerializedObsAgent):
     def __repr__(self):
         return f"{self.__class__.__name__}(simulator={self.simulator})"
 
-    def update_state(self, performed_steps):
+    def update_obs(self, performed_steps):
         for node in performed_steps:
             index = self._id_to_index[node.id]
             self.observation['observed_state'][index] = 1

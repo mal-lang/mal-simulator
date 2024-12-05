@@ -298,7 +298,7 @@ class MalSimulator():
                     'Agent %s has unknown type: %s', agent.name, agent.type)
 
         for agent in self.agents:
-            agent.update_state(enabled_nodes)
+            agent.update_obs(enabled_nodes)
 
         self.cur_iter += 1
 
