@@ -372,7 +372,6 @@ class SerializedObsAgent(MalSimAgent):
             }
         )
 
-    def get_next_action(self, action_surface, **kwargs) -> list[AttackGraphNode]: ...
 
 class SerializedObsAttacker(MalSimAttacker, SerializedObsAgent):
     """An agent that creates obs for a custom observation interface"""

@@ -33,7 +33,6 @@ from .agents import (
 from .sims.mal_simulator import (
     MalSimulator,
     MalSimAgent,
-    AgentType,
     MalSimAttacker,
     MalSimDefender,
 )
@@ -41,12 +40,12 @@ from .sims.mal_simulator import (
 agent_class_name_to_class = {
     'PassiveAttacker': PassiveAttacker,
     'PassiveDefender': PassiveDefender,
-    'BreadthFirstAttacker': BreadthFirstAttacker,
     'DepthFirstAttacker': DepthFirstAttacker,
     'DepthFirstDefender': DepthFirstDefender,
+    'BreadthFirstAttacker': BreadthFirstAttacker,
     'BreadthFirstDefender': BreadthFirstDefender,
     'KeyboardAttacker': KeyboardAttacker,
-    'KeyboardDefender': KeyboardDefender
+    'KeyboardDefender': KeyboardDefender,
 }
 
 # All required fields in scenario yml file
