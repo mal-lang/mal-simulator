@@ -116,7 +116,7 @@ class BreadthFirstAttacker(MalSimAttacker, BaseSearcherAgent):
     def __init__(
             self,
             name: str,
-            attacker_id=None,
+            attacker_id: int,
             agent_config=None
         ):
         super().__init__(

@@ -19,17 +19,15 @@ def run_simulation(sim: MalSimulator, agents: dict):
     # Init values
     agents_info = sim.reset()
     total_rewards = {agent_id: 0 for agent_id in agents}
-    all_agents_done = False
+    all_agents_waiting = False
 
     logger.info("Starting simulation.")
 
-    while not all_agents_done:
+    while not all_agents_waiting:
         actions = {}
 
         # Select actions for each agent
-        all_agents_done = True
-        for agent_id, agent_info in agents.items():
-            agent = agent_info.get('agent')
+        for agent_id, agent in agents.items():
             if agent is None:
                 logger.warning(
                     'Agent "%s" has no decision agent class '
@@ -40,13 +38,15 @@ def run_simulation(sim: MalSimulator, agents: dict):
             agent_action = agent.get_next_action(
                 agents_info[agent_id].action_surface
             )
-            actions[agent_id] = agent_action
+
+            if agent_action:
+                actions[agent_id] = agent_action
+
             logger.info(
                 'Agent "%s" chose actions: %s', agent_id,
                 [n.full_name for n in agent_action]
             )
-            if agent_action:
-                all_agents_done = False
+            all_agents_waiting = len(actions) == 0
 
         # Perform next step of simulation
         agents_info = sim.step(actions)

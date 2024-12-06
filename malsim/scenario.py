@@ -30,7 +30,13 @@ from .agents import (
     KeyboardDefender,
 )
 
-from .sims.mal_simulator import MalSimulator, MalSimAgent, AgentType
+from .sims.mal_simulator import (
+    MalSimulator,
+    MalSimAgent,
+    AgentType,
+    MalSimAttacker,
+    MalSimDefender,
+)
 
 agent_class_name_to_class = {
     'PassiveAttacker': PassiveAttacker,
@@ -252,28 +258,40 @@ def load_simulator_agents(
     if agents_config := scenario.get('agents', {}):
 
         for agent_id, agent_info in agents_config.items():
-            agent_class = agent_info.get('agent_class')
+            class_name = agent_info.get('agent_class')
 
-            if agent_class is None:
+            if class_name is None:
                 # Class-less agent
                 continue
 
-            if agent_class and agent_class not in agent_class_name_to_class:
+            if class_name and class_name not in agent_class_name_to_class:
                 # Illegal class agent
                 raise LookupError(
-                    f"Agent class '{agent_class}' not supported"
+                    f"Agent class '{class_name}' not supported"
                 )
 
             # Initialize the agent object
-            agent = agent_class_name_to_class.get(agent_class)(agent_id)
-            agents[agent_id] = agent
+            agent_class = agent_class_name_to_class.get(class_name)
 
-            if agent.type == AgentType.ATTACKER:
-                agent.attacker_id = \
-                    apply_attacker_entrypoints(
-                        attack_graph, agent_id,
-                        agents_config[agent_id].get('entry_points')
-                    )
+            if issubclass(agent_class, MalSimAttacker):
+                # Attacker init needs attacker entrypoints / attacker id
+                attacker_id = apply_attacker_entrypoints(
+                    attack_graph, agent_id,
+                    agents_config[agent_id].get('entry_points')
+                )
+                agent = agent_class(agent_id, attacker_id)
+
+            elif issubclass(agent_class, MalSimDefender):
+                # Defender init only needs agent id
+                agent = agent_class(agent_id)
+
+            else:
+                raise RuntimeError(
+                    f"Class {class_name} does not inherit from"
+                    "either MalSimDefender or MalSimAttacker"
+                )
+
+            agents[agent_id] = agent
 
     return agents
 

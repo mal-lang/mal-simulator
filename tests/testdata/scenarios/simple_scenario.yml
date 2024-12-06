@@ -17,11 +17,9 @@ rewards:
 # and attack step full_names
 agents:
   'Attacker1':
-    type: 'attacker'
     agent_class: BreadthFirstAttacker
     entry_points:
     - 'Credentials:6:attemptCredentialsReuse'
 
   'Defender1':
-    type: 'defender'
     agent_class: KeyboardDefender
