@@ -11,7 +11,7 @@ import gymnasium as gym
 from gymnasium.utils import env_checker
 from pettingzoo.test import parallel_api_test
 
-from malsim.sims.mal_simulator import MalSimulator
+from malsim.sims.malsim_parallel_env import MalSimulator
 from malsim.wrappers.gym_wrapper import AttackerEnv, DefenderEnv, MaskingWrapper
 from malsim.agents.searchers import BreadthFirstAttacker, DepthFirstAttacker
 
@@ -218,8 +218,9 @@ def test_attacker(env: MalSimulator, attacker_class) -> None:
     step_limit = 1000000
     done = False
     while not done and steps < step_limit:
-        action = attacker.compute_action_from_dict(
-            obs[AGENT_ATTACKER], info[AGENT_ATTACKER]['action_mask']
+        breakpoint()
+        action = attacker.get_next_action(
+            info[AGENT_ATTACKER]['action_surface']
         )
         assert action != ACTION_TERMINATE
         assert action != ACTION_WAIT

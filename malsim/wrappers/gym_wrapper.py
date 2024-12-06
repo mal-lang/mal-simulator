@@ -112,7 +112,7 @@ class DefenderEnv(gym.Env):
     def step(
         self, action: Any
     ) -> tuple[Any, SupportsFloat, bool, bool, dict[str, Any]]:
-        attacker_action = self.attacker.compute_action_from_dict(
+        attacker_action = self.attacker.get_next_action(
             self.attacker_obs, self.attacker_mask
         )
 
