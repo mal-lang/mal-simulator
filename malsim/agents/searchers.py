@@ -143,14 +143,12 @@ class DepthFirstAttacker(MalSimAttacker, BaseSearcherAgent):
             self,
             name: str,
             attacker_id: int,
-            simulator=None,
             agent_config=None,
             **kwargs
         ):
         super().__init__(
             name,
             attacker_id,
-            simulator,
             queue_type="list",
             agent_config=agent_config,
             **kwargs
