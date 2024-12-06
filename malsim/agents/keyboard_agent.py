@@ -2,7 +2,7 @@ import logging
 
 from maltoolbox.attackgraph import AttackGraphNode
 
-from .agent_base import MalSimAgent, AgentType
+from .agent_base import AgentType, MalSimAttacker, MalSimDefender, MalSimAgent
 
 logger = logging.getLogger(__name__)
 null_action = []
@@ -10,12 +10,9 @@ null_action = []
 class KeyboardAgent(MalSimAgent):
     """An agent that makes decisions by asking user for keyboard input"""
 
-    def __init__(self, name: str, agent_type: AgentType):
-        super().__init__(name, agent_type)
+    def __init__(self, name: str, agent_type: AgentType, **kwargs):
+        super().__init__(name, agent_type, **kwargs)
         logger.info("Creating KeyboardAgent")
-
-    def update_obs(self, performed_steps: list[AttackGraphNode]):
-        pass
 
     def get_next_action(
             self, action_surface: list[AttackGraphNode],  **kwargs
@@ -65,17 +62,17 @@ class KeyboardAgent(MalSimAgent):
         return [index_to_node[index]] if index is not None else []
 
 
-class KeyboardDefender(KeyboardAgent):
+class KeyboardDefender(MalSimDefender, KeyboardAgent):
     """An agent that makes decisions by asking user for keyboard input"""
 
-    def __init__(self, name: str):
-        super().__init__(name, AgentType.DEFENDER)
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, **kwargs)
         logger.info("Creating KeyboardDefender")
 
 
-class KeyboardAttacker(KeyboardAgent):
+class KeyboardAttacker(MalSimAttacker, KeyboardAgent):
     """An agent that makes decisions by asking user for keyboard input"""
 
-    def __init__(self, name: str):
-        super().__init__(name, AgentType.ATTACKER)
+    def __init__(self, name: str, attacker_id: int, **kwargs):
+        super().__init__(name, attacker_id, **kwargs)
         logger.info("Creating KeyboardAttacker")

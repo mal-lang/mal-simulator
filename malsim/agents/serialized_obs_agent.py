@@ -21,10 +21,11 @@ class SerializedObsAgent(MalSimAgent):
             self,
             name: str,
             agent_type: AgentType,
-            simulator: MalSimulator
+            **kwargs
         ):
 
-        super().__init__(name, agent_type, simulator=simulator)
+        super().__init__(name, agent_type, **kwargs)
+        self.simulator: MalSimulator = kwargs.get('simulator')
 
         # List mapping from node/asset index to id/name/type
         self._index_to_id = [n.id for n in self.simulator.attack_graph.nodes]
@@ -371,24 +372,20 @@ class SerializedObsAgent(MalSimAgent):
             }
         )
 
-    def update_obs(self, performed_steps: list[AttackGraphNode]):
-        return super().update_obs(performed_steps)
+    def get_next_action(self, action_surface, **kwargs) -> list[AttackGraphNode]: ...
 
-    def get_next_action(
-        self, action_surface, **kwargs
-        ) -> list[AttackGraphNode]:
-        """From the current state, find the next action for agent"""
-
-        raise NotImplementedError(
-            "Agent class need to implement 'get_next_action'"
-        )
-
-
-class SerializedObsAttacker(SerializedObsAgent):
+class SerializedObsAttacker(MalSimAttacker, SerializedObsAgent):
     """An agent that creates obs for a custom observation interface"""
 
-    def __init__(self, name: str, simulator: MalSimulator, attacker_id: int):
-        super().__init__(name, AgentType.ATTACKER, simulator)
+    def __init__(
+            self,
+            name: str,
+            attacker_id: int,
+            simulator: MalSimulator,
+            **kwargs
+        ):
+        super().__init__(name, attacker_id, simulator=simulator, **kwargs)
+
         self.attacker_id = attacker_id
         attacker = simulator.attack_graph.get_attacker_by_id(attacker_id)
         if self.attacker_id is not None and attacker is None:
@@ -423,11 +420,12 @@ class SerializedObsAttacker(SerializedObsAgent):
             if node.is_compromised_by(attacker):
                 self._observe_enabled_node(node)
 
-class SerializedObsDefender(SerializedObsAgent):
+
+class SerializedObsDefender(MalSimDefender, SerializedObsAgent):
     """An agent that creates obs for a custom observation interface"""
 
-    def __init__(self, name: str, simulator: MalSimulator):
-        super().__init__(name, AgentType.DEFENDER, simulator)
+    def __init__(self, name: str, simulator: MalSimulator, **kwargs):
+        super().__init__(name, simulator=simulator, **kwargs)
         self.update_obs(
             [n for n in self.simulator.attack_graph.nodes
              if n.is_enabled_defense()]

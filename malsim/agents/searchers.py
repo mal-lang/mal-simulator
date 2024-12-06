@@ -6,8 +6,7 @@ import numpy as np
 
 from maltoolbox.attackgraph import AttackGraphNode
 
-from malsim.agents.agent_base import AgentType
-from .agent_base import MalSimAgent
+from .agent_base import AgentType, MalSimAgent, MalSimAttacker, MalSimDefender
 
 logger = logging.getLogger(__name__)
 
@@ -67,9 +66,10 @@ class BaseSearcherAgent(MalSimAgent):
             name: str,
             agent_type: AgentType,
             queue_type=None,
-            agent_config=None
+            agent_config=None,
+            **kwargs
         ):
-        super().__init__(name, agent_type)
+        super().__init__(name, agent_type, **kwargs)
         self.current_target: Optional[AttackGraphNode] = None
         if queue_type == "deque":
             self.targets: Deque[AttackGraphNode] = deque([])
@@ -112,11 +112,16 @@ class BaseSearcherAgent(MalSimAgent):
 
 
 # Breadth-First Attacker
-class BreadthFirstAttacker(BaseSearcherAgent):
-    def __init__(self, name: str, agent_config=None):
+class BreadthFirstAttacker(MalSimAttacker, BaseSearcherAgent):
+    def __init__(
+            self,
+            name: str,
+            attacker_id=None,
+            agent_config=None
+        ):
         super().__init__(
             name,
-            agent_type=AgentType.ATTACKER,
+            attacker_id=attacker_id,
             queue_type="deque",
             agent_config=agent_config
         )
@@ -132,19 +137,23 @@ class BreadthFirstAttacker(BaseSearcherAgent):
 
 
 # Depth-First Attacker
-class DepthFirstAttacker(BaseSearcherAgent):
-    # def __init__(self, agent_config: Dict[str, Any] = {}) -> None:
-    #     super().__init__(agent_config, queue_type="list")
+class DepthFirstAttacker(MalSimAttacker, BaseSearcherAgent):
+
     def __init__(
             self,
             name: str,
-            agent_config=None
+            attacker_id: int,
+            simulator=None,
+            agent_config=None,
+            **kwargs
         ):
         super().__init__(
             name,
-            agent_type=AgentType.ATTACKER,
+            attacker_id,
+            simulator,
             queue_type="list",
-            agent_config=agent_config
+            agent_config=agent_config,
+            **kwargs
         )
 
     def get_next_action(
@@ -158,17 +167,18 @@ class DepthFirstAttacker(BaseSearcherAgent):
 
 
 # Breadth-First Defender
-class BreadthFirstDefender(BaseSearcherAgent):
+class BreadthFirstDefender(MalSimDefender, BaseSearcherAgent):
     def __init__(
             self,
             name: str,
-            agent_config=None
+            agent_config=None,
+            **kwargs
         ):
         super().__init__(
             name,
-            agent_type=AgentType.DEFENDER,
             queue_type="deque",
-            agent_config=agent_config
+            agent_config=agent_config,
+            **kwargs
         )
 
     def get_next_action(
@@ -182,17 +192,18 @@ class BreadthFirstDefender(BaseSearcherAgent):
 
 
 # Depth-First Defender
-class DepthFirstDefender(BaseSearcherAgent):
+class DepthFirstDefender(MalSimDefender, BaseSearcherAgent):
     def __init__(
             self,
             name: str,
-            agent_config=None
+            agent_config=None,
+            **kwargs
         ):
         super().__init__(
             name,
-            agent_type=AgentType.DEFENDER,
             queue_type="list",
-            agent_config=agent_config
+            agent_config=agent_config,
+            **kwargs
         )
 
     def get_next_action(

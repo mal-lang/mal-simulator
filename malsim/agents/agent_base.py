@@ -18,10 +18,9 @@ class MalSimAgent(ABC):
             self,
             name: str,
             agent_type: AgentType,
-            simulator = None
+            **kwargs
         ):
 
-        self.simulator = simulator
         self.name = name
         self.type = agent_type
 
@@ -30,14 +29,9 @@ class MalSimAgent(ABC):
         self.reward = 0
         self.done = False
 
-    @abstractmethod
     def update_obs(self, performed_steps: list[AttackGraphNode]):
         """An abstract method that is supposed to update whatever state
         the agent builds up for it to be able to take next action"""
-
-        raise NotImplementedError(
-            f"'{self.__class__.__name__}' need to implement 'update_obs'"
-        )
 
     @abstractmethod
     def get_next_action(
@@ -53,22 +47,22 @@ class MalSimAgent(ABC):
 class MalSimDefender(MalSimAgent):
     """A defender agent to use in MAL simulator"""
 
-    def __init__(self, name: str, simulator=None):
-        super().__init__(name, AgentType.DEFENDER, simulator=simulator)
+    def __init__(self, name: str, **kwargs):
+        super().__init__(name, AgentType.DEFENDER, **kwargs)
 
 
 class MalSimAttacker(MalSimAgent):
     """An attacker agent to use in MAL Simulator"""
 
-    def __init__(self, name: str, attacker_id: int, simulator=None):
+    def __init__(self, name: str, attacker_id: int, **kwargs):
+        super().__init__(
+            name, AgentType.ATTACKER, **kwargs
+        )
         self.attacker_id = attacker_id
-        super().__init__(name, AgentType.ATTACKER, simulator=simulator)
 
 
 class PassiveAttacker(MalSimAttacker):
     """An agent that does nothing"""
-
-    def update_obs(self, performed_steps: list): ...
 
     def get_next_action(
             self, action_surface, **kwargs
@@ -78,8 +72,6 @@ class PassiveAttacker(MalSimAttacker):
 
 class PassiveDefender(MalSimDefender):
     """An agent that does nothing"""
-
-    def update_obs(self, performed_steps: list): ...
 
     def get_next_action(
             self, action_surface, **kwargs

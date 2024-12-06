@@ -180,7 +180,7 @@ def test_agents_registered():
 
     # Register the agents
     attacker_agent_id = "attacker"
-    attacker_agent = PassiveAttacker(attacker_agent_id, 1)
+    attacker_agent = PassiveAttacker(attacker_agent_id, ag.attackers[0].id)
     defender_agent_id = "defender"
     defender_agent = PassiveDefender(defender_agent_id)
 
@@ -200,7 +200,7 @@ def test_step_attacker_defender_action_surface_updates():
     sim = MalSimulator(ag)
     # Register the agents
     attacker_agent_id = "attacker"
-    attacker_agent = PassiveAttacker(attacker_agent_id, 1)
+    attacker_agent = PassiveAttacker(attacker_agent_id, ag.attackers[0].id)
     defender_agent_id = "defender"
     defender_agent = PassiveDefender(defender_agent_id)
 
@@ -240,7 +240,7 @@ def test_default_simulator_default_settings_eviction():
     # Register the agents
     # Register the agents
     attacker_agent_id = "attacker"
-    attacker_agent = PassiveAttacker(attacker_agent_id, 1)
+    attacker_agent = PassiveAttacker(attacker_agent_id, ag.attackers[0].id)
     defender_agent_id = "defender"
     defender_agent = PassiveDefender(defender_agent_id)
 

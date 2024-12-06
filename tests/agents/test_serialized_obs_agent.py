@@ -14,7 +14,7 @@ def test_create_blank_observation(corelang_lang_graph, model):
     sim = MalSimulator(attack_graph)
 
     agent_name = "attacker1"
-    agent = SerializedObsAttacker(agent_name, sim, None)
+    agent = SerializedObsAttacker(agent_name, None, sim)
 
     num_objects = len(attack_graph.nodes)
     blank_observation = agent._create_blank_observation()
@@ -75,7 +75,7 @@ def test_create_blank_observation_observability_given(
     sim = MalSimulator(ag)
 
     agent_name = "attacker1"
-    agent = SerializedObsAttacker(agent_name, sim, 1)
+    agent = SerializedObsAttacker(agent_name, 1, sim)
 
     num_objects = len(sim.attack_graph.nodes)
     blank_observation = agent._create_blank_observation()
@@ -111,7 +111,7 @@ def test_create_blank_observation_actionability_given(
     sim = MalSimulator(ag)
 
     agent_name = "attacker1"
-    agent = SerializedObsAttacker(agent_name, sim, 1)
+    agent = SerializedObsAttacker(agent_name, 1, sim)
 
     num_objects = len(sim.attack_graph.nodes)
     blank_observation = agent._create_blank_observation()
@@ -141,7 +141,7 @@ def test_step(corelang_lang_graph, model):
     sim = MalSimulator(attack_graph)
 
     agent_name = "attacker1"
-    agent = SerializedObsAttacker(agent_name, sim, attacker.id)
+    agent = SerializedObsAttacker(agent_name, attacker.id, sim)
     sim.reset()
 
     # Can not attack the notPresent step
@@ -186,8 +186,8 @@ def test_malsimulator_observe_attacker():
     # Register the agents
     attacker_agent = SerializedObsAttacker(
         "attacker",
-        simulator=sim,
-        attacker_id=attack_graph.attackers[0].id
+        attacker_id=attack_graph.attackers[0].id,
+        simulator=sim
     )
     defender_agent = SerializedObsDefender(
         "defender",
@@ -286,7 +286,7 @@ def test_malsimulator_observe_and_reward_attacker_defender():
     sim = MalSimulator(attack_graph)
 
     attacker = sim.attack_graph.attackers[0]
-    attacker_agent = SerializedObsAttacker("Attacker1", sim, attacker.id)
+    attacker_agent = SerializedObsAttacker("Attacker1", attacker.id, sim)
     sim.register_agent(attacker_agent)
 
     defender_agent = SerializedObsDefender("Defender1", sim)
@@ -438,7 +438,7 @@ def test_malsimulator_observe_and_reward_attacker_no_entrypoints(
     sim = MalSimulator(attack_graph)
 
     # Register an attacker
-    attacker_agent = SerializedObsAttacker(attacker.name, sim, attacker.id)
+    attacker_agent = SerializedObsAttacker(attacker.name, attacker.id, sim)
     sim.register_agent(attacker_agent)
     sim.reset()
 
@@ -464,7 +464,7 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
 
     # Register an attacker
     attacker = sim.attack_graph.attackers[0]
-    attacker_agent = SerializedObsAttacker(attacker.name, sim, attacker.id)
+    attacker_agent = SerializedObsAttacker(attacker.name, attacker.id, sim)
     sim.register_agent(attacker_agent)
 
     # We need to reinitialize to initialize agent
