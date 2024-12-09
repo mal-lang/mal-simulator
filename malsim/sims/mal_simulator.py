@@ -4,6 +4,8 @@ import copy
 import logging
 from typing import Optional
 
+from maltoolbox import neo4j_configs
+from maltoolbox.ingestors import neo4j
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from maltoolbox.attackgraph.analyzers import apriori
 from maltoolbox.attackgraph import query
@@ -256,6 +258,18 @@ class MalSimulator():
             self._disable_attack_steps(attack_steps_made_unviable)
 
         return enabled_defenses, attack_steps_made_unviable
+
+    def render(self):
+        """Send state to neo4j where it can be rendered"""
+        logger.debug("Ingest attack graph into Neo4J database.")
+        neo4j.ingest_attack_graph(
+            self.attack_graph,
+            neo4j_configs["uri"],
+            neo4j_configs["username"],
+            neo4j_configs["password"],
+            neo4j_configs["dbname"],
+            delete=True,
+        )
 
     def step(
             self, actions: dict[str, list[AttackGraphNode]]

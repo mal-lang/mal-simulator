@@ -5,7 +5,7 @@ from maltoolbox.attackgraph import AttackGraphNode
 
 from malsim.agents.agent_base import AgentType
 import numpy as np
-from gymnasium.spaces import Box, Dict
+from gymnasium.spaces import MultiDiscrete, Box, Dict
 
 from .agent_base import MalSimAgent, MalSimAttacker, MalSimDefender
 from ..sims.mal_simulator import MalSimulator
@@ -298,6 +298,12 @@ class SerializedObsAgent(MalSimAgent):
         for _, actions in performed_actions.items():
             for action in actions:
                 obs_state[action] = 1
+
+    def action_space(self, agent=None):
+        num_actions = 2  # two actions: wait or use
+        # For now, an `object` is an attack step
+        num_steps = len(self.simulator.attack_graph.nodes)
+        return MultiDiscrete([num_actions, num_steps], dtype=np.int64)
 
     def observation_space(self, agent=None):
         # For now, an `object` is an attack step
