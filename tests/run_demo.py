@@ -11,9 +11,9 @@ from maltoolbox.language import LanguageClassesFactory, LanguageGraph
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.model import Model
 
-from malsim.agents.keyboard_input import KeyboardAgent
+from malsim.agents.keyboard_agent import KeyboardAgent
 from malsim.agents.searchers import BreadthFirstAttacker
-from malsim.sims.mal_simulator import MalSimulator
+from malsim.sims.malsim_parallel_env import MalSimulator
 
 
 logger = logging.getLogger(__name__)
@@ -106,13 +106,13 @@ total_reward_attacker = 0
 while not done:
     # env.render()
     defender_action = (
-        defender.compute_action_from_dict(
+        defender.get_next_action(
             obs[AGENT_DEFENDER], infos[AGENT_DEFENDER]["action_mask"]
         )
         if not attacker_only
         else null_action
     )
-    attacker_action = attacker.compute_action_from_dict(
+    attacker_action = attacker.get_next_action(
         obs[AGENT_ATTACKER], infos[AGENT_ATTACKER]["action_mask"]
     )
 

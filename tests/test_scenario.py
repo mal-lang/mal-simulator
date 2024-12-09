@@ -7,7 +7,7 @@ from malsim.scenario import (
     apply_scenario_node_property_rules,
     load_scenario
 )
-from malsim.agents.keyboard_input import KeyboardAgent
+from malsim.agents.keyboard_agent import KeyboardAgent
 from malsim.agents.searchers import BreadthFirstAttacker
 
 
