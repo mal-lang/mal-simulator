@@ -22,4 +22,4 @@ agents:
     - 'Credentials:6:attemptCredentialsReuse'
 
   'Defender1':
-    agent_class: KeyboardDefender
+    agent_class: PassiveDefender

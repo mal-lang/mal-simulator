@@ -14,22 +14,24 @@ class CLIEnv:
 
     def __init__(
             self,
-            scenario_file: str
+            scenario_file: str,
+            **kwargs
         ):
         """Create CLIEnv"""
         self.sim, self.agents = \
-            create_simulator_from_scenario(scenario_file)
+            create_simulator_from_scenario(scenario_file, **kwargs)
 
     def run(self):
         """Run a simulation on an attack graph with given config"""
 
         self.sim.reset()
         total_rewards = {agent_id: 0 for agent_id in self.agents}
-        all_agents_waiting = False
+        all_agents_term_or_trunc = False
 
         logger.info("Starting CLI env simulator.")
 
-        while not all_agents_waiting:
+        while not all_agents_term_or_trunc:
+            all_agents_term_or_trunc = True
             actions = {}
 
             # Select actions for each agent
@@ -49,7 +51,8 @@ class CLIEnv:
                     [n.full_name for n in agent_action]
                 )
 
-            all_agents_waiting = len(actions) == 0
+                if not agent.terminated and not agent.truncated:
+                    all_agents_term_or_trunc = False
 
             # Perform next step of simulation
             self.sim.step(actions)

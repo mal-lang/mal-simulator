@@ -1,9 +1,6 @@
 lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
 model_file: ../models/demo2_model.yml
 
-attacker_agent_class: 'BreadthFirstAttacker'
-defender_agent_class: 'DepthFirstAttacker'
-
 rewards:
   ap01:read: 2
   ap01:fullAccess: 4
@@ -99,7 +96,17 @@ observable_steps:
     Application:
       - fullAccess
       - notPresent
+
 actionable_steps:
   by_asset_type:
     Application:
       - notPresent
+
+agents:
+  'attacker1':
+    agent_class: DepthFirstAttacker
+    entry_points:
+      - 'flightlogs:fullAccess'
+
+  'defender1':
+    agent_class: PassiveDefender

@@ -45,17 +45,17 @@ def update_targets(
 def process_current_target(
     current_target: Optional[AttackGraphNode],
     targets: Union[Deque[AttackGraphNode], List[AttackGraphNode]],
-    attack_surface: List[AttackGraphNode],
+    attack_surface_ids: dict[int, AttackGraphNode],
     is_valid: callable,
 ) -> Tuple[Optional[AttackGraphNode], bool]:
     """Return next valid target that is in the attack surface
     and a value that tells whether agent is done or not"""
 
-    while current_target not in attack_surface or not is_valid(current_target):
+    while current_target not in attack_surface_ids or not is_valid(attack_surface_ids[current_target]):
         if not targets:
             return None, True
         current_target = targets.pop()
-    return current_target, False
+    return attack_surface_ids[current_target], False
 
 
 # Base Class for searcher logic
@@ -70,25 +70,28 @@ class BaseSearcherAgent(MalSimAgent):
             **kwargs
         ):
         super().__init__(name, agent_type, **kwargs)
-        self.current_target: Optional[AttackGraphNode] = None
+        self.current_target: Optional[int] = None
         if queue_type == "deque":
-            self.targets: Deque[AttackGraphNode] = deque([])
+            self.targets: Deque[int] = deque([])
         elif queue_type == "list":
-            self.targets: List[AttackGraphNode] = []
+            self.targets: List[int] = []
         else:
             raise ValueError("Invalid queue_type. Use 'deque' or 'list'.")
         self.rng = initialize_rng(agent_config)
 
     def get_next_action(
         self, **kwargs
-    ) -> List[AttackGraphNode]:
+    ) -> List[int]:
         """Compute the next action for searcher agent"""
 
-        new_targets = [node for node in self.action_surface
-                       if node not in self.targets]
+        new_target_ids = {node.id for node in self.action_surface
+                          if node.id not in self.targets}
+        action_surface_ids = {
+            node.id: node for node in self.action_surface
+        }
 
         update_targets(
-            new_targets,
+            new_target_ids,
             self.targets,
             self.rng,
             kwargs['append_to_front']
@@ -96,9 +99,9 @@ class BaseSearcherAgent(MalSimAgent):
 
         self.current_target, done = \
             process_current_target(
-                self.current_target,
+                self.current_target.id if self.current_target else None,
                 self.targets,
-                self.action_surface,
+                action_surface_ids,
                 kwargs['is_valid']
         )
 
