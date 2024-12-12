@@ -9,15 +9,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
 
-class CLIEnv:
-    """An environment with a that runs simulations in the CLI"""
+class MalSimEnv:
+    """An environment that runs simulations between two MalSimAgents"""
 
     def __init__(
             self,
             scenario_file: str,
             **kwargs
         ):
-        """Create CLIEnv"""
+        """Create MalSimEnv"""
         self.sim, self.agents = \
             create_simulator_from_scenario(scenario_file, **kwargs)
 

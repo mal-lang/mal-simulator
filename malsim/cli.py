@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import logging
 
-from .envs.cli_env import CLIEnv
+from .envs.mal_sim_env import MalSimEnv
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ def main():
     args = parser.parse_args()
 
     # Create simulator from scenario
-    cli_env = CLIEnv(args.scenario_file)
+    cli_env = MalSimEnv(args.scenario_file)
 
     if args.output_attack_graph:
         cli_env.sim.attack_graph.save_to_file(args.output_attack_graph)
