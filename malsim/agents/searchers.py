@@ -30,14 +30,14 @@ class BreadthFirstAttacker:
     def __init__(self, agent_config: dict) -> None:
         self.targets: Deque[int] = deque([])
         self.current_target: int = None
-        self.attack_graph = agent_config.get("attack_graph")
+        self.attack_graph = agent_config.get('attack_graph')
         self.logs = []
 
-        seed = agent_config.get("seed", np.random.SeedSequence().entropy)
+        seed = agent_config.get('seed', np.random.SeedSequence().entropy)
 
         self.rng = (
             np.random.default_rng(seed)
-            if agent_config.get("randomize", False)
+            if agent_config.get('randomize', False)
             else None
         )
 
@@ -57,10 +57,10 @@ class BreadthFirstAttacker:
 
         if done:
             logger.debug(
-                "Attacker Breadth First agent does not have "
-                "any valid targets it will terminate"
+                'Attacker Breadth First agent does not have '
+                'any valid targets it will terminate'
             )
-            with open(f"{self.__class__.__name__}-logs.json", "w") as f:
+            with open(f'{self.__class__.__name__}-logs.json', 'w') as f:
                 json.dump(self.logs, f)
                 self.logs = []
 
@@ -71,20 +71,26 @@ class BreadthFirstAttacker:
                 self.current_target
             ].detectors.items():
                 log = {}
-                log["timestamp"] = observation["timestamp"]
-                log["agent"] = self.__class__.__name__
-                log["_detector"] = detector["name"]
+                log['timestamp'] = observation['timestamp']
+                log['agent'] = self.__class__.__name__
+                log['_detector'] = detector['name']
 
                 assets = []
-                for label, log_asset in detector["context"].items():
+                for label, log_asset in detector['context'].items():
                     try:
                         log[label] = str(self.asset.name)
                     except AttributeError:
-                        lg_asset = self.attack_graph.lang_graph.get_asset_by_name(log_asset)
-                        asset_types = [lg_asset.name] + [a.name for a in lg_asset.sub_assets]
-                        asset = [asset for asset in
-                            self.attack_graph.model.assets if asset.type in
-                            asset_types].pop()
+                        lg_asset = self.attack_graph.lang_graph.get_asset_by_name(
+                            log_asset
+                        )
+                        asset_types = [lg_asset.name] + [
+                            a.name for a in lg_asset.sub_assets
+                        ]
+                        asset = [
+                            asset
+                            for asset in self.attack_graph.model.assets
+                            if asset.type in asset_types
+                        ].pop()
 
                         self.assets = {str(asset.name): asset}
                         log[label] = str(asset.name)
@@ -117,17 +123,17 @@ class DepthFirstAttacker:
     def __init__(self, agent_config: dict) -> None:
         self.current_target = -1
         self.targets: List[int] = []
-        self.attack_graph = agent_config.get("attack_graph")
+        self.attack_graph = agent_config.get('attack_graph')
         self.logs = []
 
         seed = (
-            agent_config["seed"]
-            if agent_config.get("seed", None)
+            agent_config['seed']
+            if agent_config.get('seed', None)
             else np.random.SeedSequence().entropy
         )
         self.rng = (
             np.random.default_rng(seed)
-            if agent_config.get("randomize", False)
+            if agent_config.get('randomize', False)
             else None
         )
 
@@ -146,10 +152,10 @@ class DepthFirstAttacker:
 
         if done:
             logger.debug(
-                "Attacker Depth First agent does not have "
-                "any valid targets it will terminate"
+                'Attacker Depth First agent does not have '
+                'any valid targets it will terminate'
             )
-            with open(f"{self.__class__.__name__}-logs.json", "w") as f:
+            with open(f'{self.__class__.__name__}-logs.json', 'w') as f:
                 json.dump(self.logs, f)
                 self.logs = []
 
@@ -159,19 +165,28 @@ class DepthFirstAttacker:
                 self.current_target
             ].detectors.items():
                 log = {}
-                log["timestamp"] = observation["timestamp"]
-                log["agent"] = self.__class__.__name__
-                log["_detector"] = detector["name"]
+                log['timestamp'] = observation['timestamp']
+                log['agent'] = self.__class__.__name__
+                log['_detector'] = detector['name']
 
-                for label, log_asset in detector["context"].items():
-                    assets = [
-                        asset
-                        for asset in self.attack_graph.model.assets
-                        if asset.type == log_asset
-                    ]
-                    self.rng.shuffle(assets)
-                    log[label] = str(assets.pop().name)
+                for label, log_asset in detector['context'].items():
+                    try:
+                        log[label] = str(self.asset.name)
+                    except AttributeError:
+                        lg_asset = self.attack_graph.lang_graph.get_asset_by_name(
+                            log_asset
+                        )
+                        asset_types = [lg_asset.name] + [
+                            a.name for a in lg_asset.sub_assets
+                        ]
+                        asset = [
+                            asset
+                            for asset in self.attack_graph.model.assets
+                            if asset.type in asset_types
+                        ].pop()
 
+                        self.assets = {str(asset.name): asset}
+                        log[label] = str(asset.name)
                 if log:
                     self.logs.append(log)
                     print(log)
