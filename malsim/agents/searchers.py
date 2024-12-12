@@ -66,6 +66,7 @@ class BreadthFirstAttacker:
 
         # TODO: this does not have Context objects etc
         else:
+            astep = self.attack_graph.nodes[self.current_target]
             for _, detector in self.attack_graph.nodes[
                 self.current_target
             ].detectors.items():
@@ -74,14 +75,19 @@ class BreadthFirstAttacker:
                 log["agent"] = self.__class__.__name__
                 log["_detector"] = detector["name"]
 
-                for label, lgasset in detector["context"].items():
-                    assets = [
-                        asset
-                        for asset in self.attack_graph.model.assets
-                        if asset.type == lgasset
-                    ]
-                    self.rng.shuffle(assets)
-                    log[label] = str(assets.pop().name)
+                assets = []
+                for label, log_asset in detector["context"].items():
+                    try:
+                        log[label] = str(self.asset.name)
+                    except AttributeError:
+                        lg_asset = self.attack_graph.lang_graph.get_asset_by_name(log_asset)
+                        asset_types = [lg_asset.name] + [a.name for a in lg_asset.sub_assets]
+                        asset = [asset for asset in
+                            self.attack_graph.model.assets if asset.type in
+                            asset_types].pop()
+
+                        self.assets = {str(asset.name): asset}
+                        log[label] = str(asset.name)
 
                 if log:
                     self.logs.append(log)
@@ -157,11 +163,11 @@ class DepthFirstAttacker:
                 log["agent"] = self.__class__.__name__
                 log["_detector"] = detector["name"]
 
-                for label, lgasset in detector["context"].items():
+                for label, log_asset in detector["context"].items():
                     assets = [
                         asset
                         for asset in self.attack_graph.model.assets
-                        if asset.type == lgasset
+                        if asset.type == log_asset
                     ]
                     self.rng.shuffle(assets)
                     log[label] = str(assets.pop().name)

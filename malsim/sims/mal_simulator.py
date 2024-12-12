@@ -107,9 +107,6 @@ class MalSimulator(ParallelEnv):
             # If no observability set for node, assume observable.
             "is_observable": [step.extras.get('observable', 1)
                            for step in self.attack_graph.nodes],
-            # Same goes for actionable.
-            "is_actionable": [step.extras.get('actionable', 1)
-                           for step in self.attack_graph.nodes],
             "observed_state": num_steps * [default_obs_state],
             "remaining_ttc": num_steps * [0],
             "asset_type": [self._asset_type_to_index[step.asset.type]
@@ -172,8 +169,6 @@ class MalSimulator(ParallelEnv):
 
         np_obs = {
             "is_observable": np.array(observation["is_observable"],
-                             dtype=np.int8),
-            "is_actionable": np.array(observation["is_actionable"],
                              dtype=np.int8),
             "observed_state": np.array(observation["observed_state"],
                               dtype=np.int8),
@@ -349,10 +344,8 @@ class MalSimulator(ParallelEnv):
             {
                 "is_observable": Box(
                     0, 1, shape=(num_steps,), dtype=np.int8
-                ),  #  0 for unobservable, 1 for observable
-                "is_actionable": Box(
-                    0, 1, shape=(num_steps,), dtype=np.int8
-                ),  #  0 for non-actionable, 1 for actionable
+                ),  #  0 for unobservable,
+                #  1 for observable
                 "observed_state": Box(
                     -1, 1, shape=(num_steps,), dtype=np.int8
                 ),  # -1 for unknown,
@@ -549,34 +542,6 @@ class MalSimulator(ParallelEnv):
                 enumerate(self._index_to_model_assoc_type)
         }
 
-    def get_attack_graph_node_by_index(self, index: int):
-        """Get a node from the attack graph by index
-
-        Index is the position of the node in the lookup list.
-
-        First convert index to id and then fetch the node from the
-        AttackGraph.
-
-        Raise LookupError if node with given index does not map to a node in
-        the attack graph and IndexError if the index is out of range for the
-        lookup list.
-
-        Returns:
-        Attack graph node matching the id of the index in the lookup list
-        """
-
-        if index >= len(self._index_to_id):
-            raise IndexError('Index given, %d, is out of range of the '
-                'lookup list which is of length %d' % (index,
-                    len(self._index_to_id)))
-
-        node_id = self._index_to_id[index]
-        node = self.attack_graph.get_node_by_id(node_id)
-        if not node:
-            raise LookupError('Index given, %d(id: %d), does not map to a '
-                'node' % (index, node_id))
-        return node
-
     def _get_association_full_name(self, association) -> str:
         """Get association full name
 
@@ -767,7 +732,8 @@ class MalSimulator(ParallelEnv):
         actions = []
         attacker_index = self.agents_dict[agent]["attacker"]
         attacker = self.attack_graph.attackers[attacker_index]
-        attack_step_node = self.get_attack_graph_node_by_index(attack_step)
+        attack_step_node = self.attack_graph.get_node_by_id(
+            self._index_to_id[attack_step])
 
         logger.info(
             'Attacker agent "%s" stepping through "%s"(%d).',
