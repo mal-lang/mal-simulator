@@ -1,9 +1,6 @@
 lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
 model_file: ../models/simple_test_model.yml
 
-attacker_agent_class: 'BreadthFirstAttacker'
-defender_agent_class: 'BreadthFirstAttacker'
-
 # Rewards for each attack step
 rewards:
   OS App:notPresent: 2
@@ -16,8 +13,11 @@ rewards:
   Identity:11:notPresent: 3.5
   Identity:8:assume: 50
 
-# Add entry points to AttackGraph with attacker names
-# and attack step full_names
-attacker_entry_points:
-  'Attacker1':
-    - 'Credentials:6:attemptCredentialsReuse'
+agents:
+  'attacker1':
+    agent_class: BreadthFirstAttacker
+    entry_points:
+      - 'Credentials:6:attemptCredentialsReuse'
+
+  'defender1':
+    agent_class: BreadthFirstDefender

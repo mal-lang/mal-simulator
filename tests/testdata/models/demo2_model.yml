@@ -1,0 +1,1179 @@
+assets:
+  0:
+    name: ap01
+    type: Application
+  1:
+    name: ap02
+    type: Application
+  2:
+    name: ap03
+    type: Application
+  3:
+    name: ap04
+    type: Application
+  4:
+    name: ap05
+    type: Application
+  5:
+    name: ap06
+    type: Application
+  6:
+    name: ap07
+    type: Application
+  7:
+    name: ap08
+    type: Application
+  8:
+    name: ap09
+    type: Application
+  9:
+    name: ap10
+    type: Application
+  10:
+    name: ap11
+    type: Application
+  11:
+    name: ap12
+    type: Application
+  12:
+    name: ap13
+    type: Application
+  13:
+    name: ap14
+    type: Application
+  14:
+    name: ap15
+    type: Application
+  15:
+    name: ap16
+    type: Application
+  16:
+    name: ca
+    type: Application
+  17:
+    name: db
+    type: Application
+  18:
+    name: dc
+    type: Application
+  19:
+    name: files
+    type: Application
+  20:
+    name: flightlogs
+    type: Application
+  21:
+    name: fw1
+    type: Application
+  22:
+    name: mail
+    type: Application
+  23:
+    name: mailrelay
+    type: Application
+  24:
+    name: payroll
+    type: Application
+  25:
+    name: snort-dmz
+    type: Application
+  26:
+    name: snort-ext
+    type: Application
+  27:
+    name: snort-hqclient
+    type: Application
+  28:
+    name: snort-srv
+    type: Application
+  29:
+    name: timereporter
+    type: Application
+  30:
+    name: weborder
+    type: Application
+  31:
+    name: 134.24.3.0/24
+    type: Network
+  32:
+    name: CR ap01-134.24.3.0/24
+    type: ConnectionRule
+  33:
+    name: CR ap02-134.24.3.0/24
+    type: ConnectionRule
+  34:
+    name: CR ap03-134.24.3.0/24
+    type: ConnectionRule
+  35:
+    name: CR ap04-134.24.3.0/24
+    type: ConnectionRule
+  36:
+    name: CR ap05-134.24.3.0/24
+    type: ConnectionRule
+  37:
+    name: CR ap06-134.24.3.0/24
+    type: ConnectionRule
+  38:
+    name: CR ap07-134.24.3.0/24
+    type: ConnectionRule
+  39:
+    name: CR ap08-134.24.3.0/24
+    type: ConnectionRule
+  40:
+    name: CR ap09-134.24.3.0/24
+    type: ConnectionRule
+  41:
+    name: CR ap10-134.24.3.0/24
+    type: ConnectionRule
+  42:
+    name: CR ap11-134.24.3.0/24
+    type: ConnectionRule
+  43:
+    name: CR ap12-134.24.3.0/24
+    type: ConnectionRule
+  44:
+    name: CR ap13-134.24.3.0/24
+    type: ConnectionRule
+  45:
+    name: CR ap14-134.24.3.0/24
+    type: ConnectionRule
+  46:
+    name: CR ap15-134.24.3.0/24
+    type: ConnectionRule
+  47:
+    name: CR ap16-134.24.3.0/24
+    type: ConnectionRule
+  48:
+    name: 134.24.4.0/24
+    type: Network
+  49:
+    name: CR ca-134.24.4.0/24
+    type: ConnectionRule
+  50:
+    name: CR db-134.24.4.0/24
+    type: ConnectionRule
+  51:
+    name: CR dc-134.24.4.0/24
+    type: ConnectionRule
+  52:
+    name: CR files-134.24.4.0/24
+    type: ConnectionRule
+  53:
+    name: CR flightlogs-134.24.4.0/24
+    type: ConnectionRule
+  54:
+    name: 52.33.204.0/24
+    type: Network
+  55:
+    name: CR fw1-52.33.204.0/24
+    type: ConnectionRule
+  56:
+    name: 134.24.2.0/24
+    type: Network
+  57:
+    name: CR fw1-134.24.2.0/24
+    type: ConnectionRule
+  58:
+    name: CR fw1-134.24.3.0/24
+    type: ConnectionRule
+  59:
+    name: CR fw1-134.24.4.0/24
+    type: ConnectionRule
+  60:
+    name: 134.24.17.0/24
+    type: Network
+  61:
+    name: CR fw1-134.24.17.0/24
+    type: ConnectionRule
+  62:
+    name: CR mail-134.24.4.0/24
+    type: ConnectionRule
+  63:
+    name: CR mailrelay-134.24.2.0/24
+    type: ConnectionRule
+  64:
+    name: CR payroll-134.24.2.0/24
+    type: ConnectionRule
+  65:
+    name: CR snort-dmz-134.24.17.0/24
+    type: ConnectionRule
+  66:
+    name: CR snort-ext-134.24.17.0/24
+    type: ConnectionRule
+  67:
+    name: CR snort-hqclient-134.24.17.0/24
+    type: ConnectionRule
+  68:
+    name: CR snort-srv-134.24.17.0/24
+    type: ConnectionRule
+  69:
+    name: CR timereporter-134.24.2.0/24
+    type: ConnectionRule
+  70:
+    name: CR weborder-134.24.2.0/24
+    type: ConnectionRule
+  71:
+    name: CR mailrelay - mail
+    type: ConnectionRule
+  72:
+    name: CR payroll - dc
+    type: ConnectionRule
+  73:
+    name: CR 134.24.3.0/24 - 134.24.2.0/24
+    type: ConnectionRule
+  74:
+    name: CR 134.24.3.0/24 - 134.24.4.0/24
+    type: ConnectionRule
+  75:
+    name: CR 134.24.4.0/24 - 134.24.2.0/24
+    type: ConnectionRule
+  76:
+    name: CR 134.24.17.0/24 - 134.24.2.0/24
+    type: ConnectionRule
+  77:
+    name: CR 134.24.17.0/24 - 134.24.3.0/24
+    type: ConnectionRule
+  78:
+    name: CR 134.24.17.0/24 - 134.24.4.0/24
+    type: ConnectionRule
+  79:
+    name: Admin Exec User - ap01
+    type: Identity
+  80:
+    name: Admin Exec User - ap02
+    type: Identity
+  81:
+    name: Admin Exec User - ap03
+    type: Identity
+  82:
+    name: Admin Exec User - ap04
+    type: Identity
+  83:
+    name: Admin Exec User - ap05
+    type: Identity
+  84:
+    name: Admin Exec User - ap06
+    type: Identity
+  85:
+    name: Admin Exec User - ap07
+    type: Identity
+  86:
+    name: Admin Exec User - ap08
+    type: Identity
+  87:
+    name: Admin Exec User - ap09
+    type: Identity
+  88:
+    name: Admin Exec User - ap10
+    type: Identity
+  89:
+    name: Admin Exec User - ap11
+    type: Identity
+  90:
+    name: Admin Exec User - ap12
+    type: Identity
+  91:
+    name: Admin Exec User - ap13
+    type: Identity
+  92:
+    name: Admin Exec User - ap14
+    type: Identity
+  93:
+    name: Admin Exec User - ap15
+    type: Identity
+  94:
+    name: Admin Exec User - ap16
+    type: Identity
+  95:
+    name: Admin Exec User - ca
+    type: Identity
+  96:
+    name: Admin Exec User - db
+    type: Identity
+  97:
+    name: Admin Exec User - dc
+    type: Identity
+  98:
+    name: Admin Exec User - files
+    type: Identity
+  99:
+    name: Admin Exec User - flightlogs
+    type: Identity
+  100:
+    name: Admin Exec User - fw1
+    type: Identity
+  101:
+    name: Admin Exec User - mail
+    type: Identity
+  102:
+    name: Admin Exec User - mailrelay
+    type: Identity
+  103:
+    name: Admin Exec User - payroll
+    type: Identity
+  104:
+    name: Admin Exec User - snort-dmz
+    type: Identity
+  105:
+    name: Admin Exec User - snort-ext
+    type: Identity
+  106:
+    name: Admin Exec User - snort-hqclient
+    type: Identity
+  107:
+    name: Admin Exec User - snort-srv
+    type: Identity
+  108:
+    name: Admin Exec User - timereporter
+    type: Identity
+  109:
+    name: Admin Exec User - weborder
+    type: Identity
+  110:
+    name: SW Vuln - ap01
+    type: SoftwareVulnerability
+  111:
+    name: SW Vuln - ap02
+    type: SoftwareVulnerability
+  112:
+    name: SW Vuln - ap03
+    type: SoftwareVulnerability
+  113:
+    name: SW Vuln - ap04
+    type: SoftwareVulnerability
+  114:
+    name: SW Vuln - ap05
+    type: SoftwareVulnerability
+  115:
+    name: SW Vuln - ap06
+    type: SoftwareVulnerability
+  116:
+    name: SW Vuln - ap07
+    type: SoftwareVulnerability
+  117:
+    name: SW Vuln - ap08
+    type: SoftwareVulnerability
+  118:
+    name: SW Vuln - ap09
+    type: SoftwareVulnerability
+  119:
+    name: SW Vuln - ap10
+    type: SoftwareVulnerability
+  120:
+    name: SW Vuln - ap11
+    type: SoftwareVulnerability
+  121:
+    name: SW Vuln - ap12
+    type: SoftwareVulnerability
+  122:
+    name: SW Vuln - ap13
+    type: SoftwareVulnerability
+  123:
+    name: SW Vuln - ap14
+    type: SoftwareVulnerability
+  124:
+    name: SW Vuln - ap15
+    type: SoftwareVulnerability
+  125:
+    name: SW Vuln - ap16
+    type: SoftwareVulnerability
+  126:
+    name: SW Vuln - ca
+    type: SoftwareVulnerability
+  127:
+    name: SW Vuln - db
+    type: SoftwareVulnerability
+  128:
+    name: SW Vuln - dc
+    type: SoftwareVulnerability
+  129:
+    name: SW Vuln - files
+    type: SoftwareVulnerability
+  130:
+    name: SW Vuln - flightlogs
+    type: SoftwareVulnerability
+  131:
+    name: SW Vuln - fw1
+    type: SoftwareVulnerability
+  132:
+    name: SW Vuln - mail
+    type: SoftwareVulnerability
+  133:
+    name: SW Vuln - mailrelay
+    type: SoftwareVulnerability
+  134:
+    name: SW Vuln - payroll
+    type: SoftwareVulnerability
+  135:
+    name: SW Vuln - snort-dmz
+    type: SoftwareVulnerability
+  136:
+    name: SW Vuln - snort-ext
+    type: SoftwareVulnerability
+  137:
+    name: SW Vuln - snort-hqclient
+    type: SoftwareVulnerability
+  138:
+    name: SW Vuln - snort-srv
+    type: SoftwareVulnerability
+  139:
+    name: SW Vuln - timereporter
+    type: SoftwareVulnerability
+  140:
+    name: SW Vuln - weborder
+    type: SoftwareVulnerability
+associations:
+- ApplicationConnection:
+    appConnections:
+    - 32
+    applications:
+    - 0
+- NetworkConnection:
+    netConnections:
+    - 32
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 33
+    applications:
+    - 1
+- NetworkConnection:
+    netConnections:
+    - 33
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 34
+    applications:
+    - 2
+- NetworkConnection:
+    netConnections:
+    - 34
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 35
+    applications:
+    - 3
+- NetworkConnection:
+    netConnections:
+    - 35
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 36
+    applications:
+    - 4
+- NetworkConnection:
+    netConnections:
+    - 36
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 37
+    applications:
+    - 5
+- NetworkConnection:
+    netConnections:
+    - 37
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 38
+    applications:
+    - 6
+- NetworkConnection:
+    netConnections:
+    - 38
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 39
+    applications:
+    - 7
+- NetworkConnection:
+    netConnections:
+    - 39
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 40
+    applications:
+    - 8
+- NetworkConnection:
+    netConnections:
+    - 40
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 41
+    applications:
+    - 9
+- NetworkConnection:
+    netConnections:
+    - 41
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 42
+    applications:
+    - 10
+- NetworkConnection:
+    netConnections:
+    - 42
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 43
+    applications:
+    - 11
+- NetworkConnection:
+    netConnections:
+    - 43
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 44
+    applications:
+    - 12
+- NetworkConnection:
+    netConnections:
+    - 44
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 45
+    applications:
+    - 13
+- NetworkConnection:
+    netConnections:
+    - 45
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 46
+    applications:
+    - 14
+- NetworkConnection:
+    netConnections:
+    - 46
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 47
+    applications:
+    - 15
+- NetworkConnection:
+    netConnections:
+    - 47
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 49
+    applications:
+    - 16
+- NetworkConnection:
+    netConnections:
+    - 49
+    networks:
+    - 48
+- ApplicationConnection:
+    appConnections:
+    - 50
+    applications:
+    - 17
+- NetworkConnection:
+    netConnections:
+    - 50
+    networks:
+    - 48
+- ApplicationConnection:
+    appConnections:
+    - 51
+    applications:
+    - 18
+- NetworkConnection:
+    netConnections:
+    - 51
+    networks:
+    - 48
+- ApplicationConnection:
+    appConnections:
+    - 52
+    applications:
+    - 19
+- NetworkConnection:
+    netConnections:
+    - 52
+    networks:
+    - 48
+- ApplicationConnection:
+    appConnections:
+    - 53
+    applications:
+    - 20
+- NetworkConnection:
+    netConnections:
+    - 53
+    networks:
+    - 48
+- ApplicationConnection:
+    appConnections:
+    - 55
+    applications:
+    - 21
+- NetworkConnection:
+    netConnections:
+    - 55
+    networks:
+    - 54
+- ApplicationConnection:
+    appConnections:
+    - 57
+    applications:
+    - 21
+- NetworkConnection:
+    netConnections:
+    - 57
+    networks:
+    - 56
+- ApplicationConnection:
+    appConnections:
+    - 58
+    applications:
+    - 21
+- NetworkConnection:
+    netConnections:
+    - 58
+    networks:
+    - 31
+- ApplicationConnection:
+    appConnections:
+    - 59
+    applications:
+    - 21
+- NetworkConnection:
+    netConnections:
+    - 59
+    networks:
+    - 48
+- ApplicationConnection:
+    appConnections:
+    - 61
+    applications:
+    - 21
+- NetworkConnection:
+    netConnections:
+    - 61
+    networks:
+    - 60
+- ApplicationConnection:
+    appConnections:
+    - 62
+    applications:
+    - 22
+- NetworkConnection:
+    netConnections:
+    - 62
+    networks:
+    - 48
+- ApplicationConnection:
+    appConnections:
+    - 63
+    applications:
+    - 23
+- NetworkConnection:
+    netConnections:
+    - 63
+    networks:
+    - 56
+- ApplicationConnection:
+    appConnections:
+    - 64
+    applications:
+    - 24
+- NetworkConnection:
+    netConnections:
+    - 64
+    networks:
+    - 56
+- ApplicationConnection:
+    appConnections:
+    - 65
+    applications:
+    - 25
+- NetworkConnection:
+    netConnections:
+    - 65
+    networks:
+    - 60
+- ApplicationConnection:
+    appConnections:
+    - 66
+    applications:
+    - 26
+- NetworkConnection:
+    netConnections:
+    - 66
+    networks:
+    - 60
+- ApplicationConnection:
+    appConnections:
+    - 67
+    applications:
+    - 27
+- NetworkConnection:
+    netConnections:
+    - 67
+    networks:
+    - 60
+- ApplicationConnection:
+    appConnections:
+    - 68
+    applications:
+    - 28
+- NetworkConnection:
+    netConnections:
+    - 68
+    networks:
+    - 60
+- ApplicationConnection:
+    appConnections:
+    - 69
+    applications:
+    - 29
+- NetworkConnection:
+    netConnections:
+    - 69
+    networks:
+    - 56
+- ApplicationConnection:
+    appConnections:
+    - 70
+    applications:
+    - 30
+- NetworkConnection:
+    netConnections:
+    - 70
+    networks:
+    - 56
+- OutApplicationConnection:
+    outApplications:
+    - 23
+    outgoingAppConnections:
+    - 71
+- InApplicationConnection:
+    inApplications:
+    - 22
+    ingoingAppConnections:
+    - 71
+- OutApplicationConnection:
+    outApplications:
+    - 24
+    outgoingAppConnections:
+    - 72
+- InApplicationConnection:
+    inApplications:
+    - 18
+    ingoingAppConnections:
+    - 72
+- OutNetworkConnection:
+    outNetworks:
+    - 31
+    outgoingNetConnections:
+    - 73
+- InNetworkConnection:
+    inNetworks:
+    - 56
+    ingoingNetConnections:
+    - 73
+- NetworkConnection:
+    netConnections:
+    - 74
+    networks:
+    - 31
+- NetworkConnection:
+    netConnections:
+    - 74
+    networks:
+    - 48
+- OutNetworkConnection:
+    outNetworks:
+    - 48
+    outgoingNetConnections:
+    - 75
+- InNetworkConnection:
+    inNetworks:
+    - 56
+    ingoingNetConnections:
+    - 75
+- OutNetworkConnection:
+    outNetworks:
+    - 60
+    outgoingNetConnections:
+    - 76
+- InNetworkConnection:
+    inNetworks:
+    - 56
+    ingoingNetConnections:
+    - 76
+- OutNetworkConnection:
+    outNetworks:
+    - 60
+    outgoingNetConnections:
+    - 77
+- InNetworkConnection:
+    inNetworks:
+    - 31
+    ingoingNetConnections:
+    - 77
+- OutNetworkConnection:
+    outNetworks:
+    - 60
+    outgoingNetConnections:
+    - 78
+- InNetworkConnection:
+    inNetworks:
+    - 48
+    ingoingNetConnections:
+    - 78
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 0
+    executionPrivIAMs:
+    - 79
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 1
+    executionPrivIAMs:
+    - 80
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 2
+    executionPrivIAMs:
+    - 81
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 3
+    executionPrivIAMs:
+    - 82
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 4
+    executionPrivIAMs:
+    - 83
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 5
+    executionPrivIAMs:
+    - 84
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 6
+    executionPrivIAMs:
+    - 85
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 7
+    executionPrivIAMs:
+    - 86
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 8
+    executionPrivIAMs:
+    - 87
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 9
+    executionPrivIAMs:
+    - 88
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 10
+    executionPrivIAMs:
+    - 89
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 11
+    executionPrivIAMs:
+    - 90
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 12
+    executionPrivIAMs:
+    - 91
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 13
+    executionPrivIAMs:
+    - 92
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 14
+    executionPrivIAMs:
+    - 93
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 15
+    executionPrivIAMs:
+    - 94
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 16
+    executionPrivIAMs:
+    - 95
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 17
+    executionPrivIAMs:
+    - 96
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 18
+    executionPrivIAMs:
+    - 97
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 19
+    executionPrivIAMs:
+    - 98
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 20
+    executionPrivIAMs:
+    - 99
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 21
+    executionPrivIAMs:
+    - 100
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 22
+    executionPrivIAMs:
+    - 101
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 23
+    executionPrivIAMs:
+    - 102
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 24
+    executionPrivIAMs:
+    - 103
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 25
+    executionPrivIAMs:
+    - 104
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 26
+    executionPrivIAMs:
+    - 105
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 27
+    executionPrivIAMs:
+    - 106
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 28
+    executionPrivIAMs:
+    - 107
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 29
+    executionPrivIAMs:
+    - 108
+- ExecutionPrivilegeAccess:
+    execPrivApps:
+    - 30
+    executionPrivIAMs:
+    - 109
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 0
+    vulnerabilities:
+    - 110
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 1
+    vulnerabilities:
+    - 111
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 2
+    vulnerabilities:
+    - 112
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 3
+    vulnerabilities:
+    - 113
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 4
+    vulnerabilities:
+    - 114
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 5
+    vulnerabilities:
+    - 115
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 6
+    vulnerabilities:
+    - 116
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 7
+    vulnerabilities:
+    - 117
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 8
+    vulnerabilities:
+    - 118
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 9
+    vulnerabilities:
+    - 119
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 10
+    vulnerabilities:
+    - 120
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 11
+    vulnerabilities:
+    - 121
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 12
+    vulnerabilities:
+    - 122
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 13
+    vulnerabilities:
+    - 123
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 14
+    vulnerabilities:
+    - 124
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 15
+    vulnerabilities:
+    - 125
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 16
+    vulnerabilities:
+    - 126
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 17
+    vulnerabilities:
+    - 127
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 18
+    vulnerabilities:
+    - 128
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 19
+    vulnerabilities:
+    - 129
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 20
+    vulnerabilities:
+    - 130
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 21
+    vulnerabilities:
+    - 131
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 22
+    vulnerabilities:
+    - 132
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 23
+    vulnerabilities:
+    - 133
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 24
+    vulnerabilities:
+    - 134
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 25
+    vulnerabilities:
+    - 135
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 26
+    vulnerabilities:
+    - 136
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 27
+    vulnerabilities:
+    - 137
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 28
+    vulnerabilities:
+    - 138
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 29
+    vulnerabilities:
+    - 139
+- ApplicationVulnerability_SoftwareVulnerability_Application:
+    application:
+    - 30
+    vulnerabilities:
+    - 140
+attackers:
+    300:
+        entry_points:
+          20:
+            attack_steps:
+            - fullAccess
+        name: TestAttacker
+metadata:
+  MAL-Toolbox Version: 0.1.10
+  info: Created by the mal-toolbox model python module.
+  langID: org.mal-lang.coreLang
+  langVersion: 1.0.0
+  malVersion: 0.1.0-SNAPSHOT
+  name: Test Model
