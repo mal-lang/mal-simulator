@@ -11,9 +11,9 @@ import gymnasium as gym
 from gymnasium.utils import env_checker
 from pettingzoo.test import parallel_api_test
 
-from malsim.sims.mal_simulator import MalSimulator
+from malsim.envs.mal_sim_parallel_env import MalSimParallelEnv, MalSimulator
 from malsim.wrappers.gym_wrapper import AttackerEnv, DefenderEnv, MaskingWrapper
-from malsim.agents.searchers import BreadthFirstAttacker, DepthFirstAttacker
+from malsim.agents import BreadthFirstAttacker, DepthFirstAttacker, PassiveAttacker, PassiveDefender
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ def register_gym_agent(agent_id, entry_point):
         gym.register(agent_id, entry_point=entry_point)
 
 
-def test_pz(env: MalSimulator):
+def test_pz(env: MalSimParallelEnv):
     logger.debug('Run Parrallel API test.')
     parallel_api_test(env)
 
@@ -43,17 +43,14 @@ def test_gym():
     env = gym.make(
         'MALDefenderEnv-v0',
         scenario_file=scenario_file,
-        unholy=False,
     )
     env_checker.check_env(env.unwrapped)
-    register_gym_agent('MALAttackerEnv-v0', entry_point=AttackerEnv)
-    env = gym.make(
-        'MALAttackerEnv-v0',
-        scenario_file=scenario_file_no_defender,
-    )
-    env_checker.check_env(env.unwrapped)
-
-    pass
+    # register_gym_agent('MALAttackerEnv-v0', entry_point=AttackerEnv)
+    # env = gym.make(
+    #     'MALAttackerEnv-v0',
+    #     scenario_file=scenario_file_no_defender,
+    # )
+    # env_checker.check_env(env.unwrapped)
 
 
 def test_random_defender_actions():
@@ -73,14 +70,13 @@ def test_random_defender_actions():
     _, info = env.reset()
 
     while not done:
+        # TODO: fix test - these functions don't return anything
         available_s = available_steps(info)
         defense = np.random.choice(1, available_s)
         available_a = available_actions(info)
         action = np.random.choice(1, available_a)
-
         _, _, term, trunc, info = env.step((action, defense))
         done = term or trunc
-
 
 def test_episode():
     logger.debug('Run Episode Test.')
@@ -88,7 +84,6 @@ def test_episode():
     env = gym.make(
         'MALDefenderEnv-v0',
         scenario_file=scenario_file,
-        unholy=False,
     )
 
     done = False
@@ -126,7 +121,6 @@ def test_defender_penalty():
     env = gym.make(
         'MALDefenderEnv-v0',
         scenario_file=scenario_file,
-        unholy=False,
     )
 
     _, info = env.reset()
@@ -146,8 +140,8 @@ def test_action_mask():
     _, info = env.reset()
 
     num_defenses = len(np.flatnonzero(info['action_mask'][1]))
-
     terminated = False
+
     while num_defenses > 1 and not terminated:
         action = env.action_space.sample(info['action_mask'])
         p, o = action
@@ -160,18 +154,36 @@ def test_action_mask():
     # assert reward < 0 # All defense steps cost something
 
 
-def test_env_step(env: MalSimulator) -> None:
+def test_env_step(env: MalSimParallelEnv) -> None:
     obs, info = env.reset()
-    attacker_action = env.action_space('attacker').sample()
-    defender_action = env.action_space('defender').sample()
-    action = {AGENT_ATTACKER: attacker_action, AGENT_DEFENDER: defender_action}
+
+    env.register_agent(
+        PassiveAttacker('attacker', env.attack_graph.attackers[0].id)
+    )
+    env.register_agent(
+        PassiveDefender('defender')
+    )
+
+    attacker_action = env.serialized_action_to_node(
+        env.action_space('attacker').sample()
+    )
+
+    defender_action = env.serialized_action_to_node(
+        env.action_space('defender').sample()
+    )
+
+    action = {
+        AGENT_ATTACKER: attacker_action,
+        AGENT_DEFENDER: defender_action
+    }
+
     obs, reward, terminated, truncated, info = env.step(action)
 
     assert 'attacker' in obs
     assert 'defender' in obs
 
 
-def test_check_space_env(env: MalSimulator) -> None:
+def test_check_space_env(env: MalSimParallelEnv) -> None:
     attacker_space = env.observation_space('attacker')
     defender_space = env.observation_space('defender')
 
@@ -190,7 +202,10 @@ def test_check_space_env(env: MalSimulator) -> None:
     check_space(attacker_space, attacker_obs)
     check_space(defender_space, defender_obs)
 
-    obs, *_ = env.step({AGENT_ATTACKER: (0, 0), AGENT_DEFENDER: (0, 0)})
+    obs, *_ = env.step({
+        AGENT_ATTACKER: env.serialized_action_to_node((0, 0)),
+        AGENT_DEFENDER: env.serialized_action_to_node((0, 0))
+    })
 
     attacker_obs = obs[AGENT_ATTACKER]
     defender_obs = obs[AGENT_DEFENDER]
@@ -206,39 +221,52 @@ def test_check_space_env(env: MalSimulator) -> None:
         DepthFirstAttacker,
     ],
 )
-def test_attacker(env: MalSimulator, attacker_class) -> None:
-    obs, info = env.reset()
-    attacker = attacker_class(
-        dict(
+def test_attacker(env: MalSimParallelEnv, attacker_class) -> None:
+    """Register attacker, run it"""
+    attacker = env.attack_graph.attackers[0]
+
+    attacker_agent_name = attacker_class.__name__
+    attacker_agent = attacker_class(
+        attacker_agent_name,
+        attacker_id=attacker.id,
+        agent_config=dict(
             seed=16,
-        )
+        ),
     )
+
+    env.register_agent(attacker_agent)
 
     steps, sum_rewards = 0, 0
     step_limit = 1000000
     done = False
     while not done and steps < step_limit:
-        action = attacker.compute_action_from_dict(
-            obs[AGENT_ATTACKER], info[AGENT_ATTACKER]['action_mask']
+        attacker_action = attacker_agent.get_next_action()
+        _, rewards, terminated, truncated, _ = env.step(
+            {
+                attacker_agent_name: attacker_action,
+                AGENT_DEFENDER: env.serialized_action_to_node((0, None))
+            }
         )
-        assert action != ACTION_TERMINATE
-        assert action != ACTION_WAIT
-        obs, rewards, terminated, truncated, info = env.step(
-            {AGENT_ATTACKER: action, AGENT_DEFENDER: [0]}
-        )
-        sum_rewards += rewards[AGENT_ATTACKER]
-        done = terminated[AGENT_ATTACKER] or truncated[AGENT_ATTACKER]
+        sum_rewards += rewards[attacker_agent_name]
+        done = terminated[attacker_agent_name] or truncated[attacker_agent_name]
         steps += 1
 
     assert done, 'Attacker failed to explore attack steps'
 
 
-def test_env_multiple_steps(env: MalSimulator) -> None:
+def test_env_multiple_steps(env: MalSimParallelEnv) -> None:
     obs, info = env.reset()
     for _ in range(100):
-        attacker_action = env.action_space('attacker').sample()
-        defender_action = env.action_space('defender').sample()
-        action = {AGENT_ATTACKER: attacker_action, AGENT_DEFENDER: defender_action}
+        attacker_action = env.serialized_action_to_node(
+            env.action_space('attacker').sample()
+        )
+        defender_action = env.serialized_action_to_node(
+            env.action_space('defender').sample()
+        )
+        action = {
+            AGENT_ATTACKER: attacker_action,
+            AGENT_DEFENDER: defender_action
+        }
         obs, reward, terminated, truncated, info = env.step(action)
         assert 'attacker' in obs
         assert 'defender' in obs

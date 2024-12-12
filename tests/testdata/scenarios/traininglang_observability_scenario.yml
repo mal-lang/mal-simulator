@@ -11,14 +11,17 @@ rewards:
   Data:2:read: 5
   Data:2:modify: 10
 
-# The possible entry points
-attacker_entry_points:
+agents:
   'Attacker1':
+    type: 'attacker'
+    agent_class: BreadthFirstAttacker
+    entry_points:
     - 'User:3:phishing'
     - 'Host:0:connect'
 
-attacker_agent_class: 'BreadthFirstAttacker'
-defender_agent_class: 'KeyboardAgent'
+  'Defender1':
+    type: 'defender'
+    agent_class: KeyboardDefender
 
 # Optional way to make only certain steps observable
 # If observable_steps are set, all steps not

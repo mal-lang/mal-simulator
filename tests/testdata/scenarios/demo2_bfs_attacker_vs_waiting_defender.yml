@@ -1,0 +1,105 @@
+lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
+model_file: ../models/demo2_model.yml
+
+attacker_agent_class: 'BreadthFirstAttacker'
+defender_agent_class: 'DepthFirstAttacker'
+
+rewards:
+  ap01:read: 2
+  ap01:fullAccess: 4
+  ap01:deny: 3
+  ap01:notPresent: 3
+  ap02:read: 2
+  ap02:fullAccess: 4
+  ap02:deny: 3
+  ap02:notPresent: 3
+  ap03:read: 2
+  ap03:fullAccess: 4
+  ap03:deny: 3
+  ap03:notPresent: 3
+  ap04:read: 2
+  ap04:fullAccess: 4
+  ap04:deny: 3
+  ap04:notPresent: 3
+  ap05:read: 2
+  ap05:fullAccess: 4
+  ap05:deny: 3
+  ap05:notPresent: 3
+  ap06:read: 2
+  ap06:fullAccess: 4
+  ap06:deny: 3
+  ap06:notPresent: 3
+  ap07:read: 2
+  ap07:fullAccess: 4
+  ap07:deny: 3
+  ap07:notPresent: 3
+  ap08:read: 2
+  ap08:fullAccess: 4
+  ap08:deny: 3
+  ap08:notPresent: 3
+  ap09:read: 2
+  ap09:fullAccess: 4
+  ap09:deny: 3
+  ap09:notPresent: 3
+  ap10:read: 2
+  ap10:fullAccess: 4
+  ap10:deny: 3
+  ap10:notPresent: 3
+  ap11:read: 2
+  ap11:fullAccess: 4
+  ap11:deny: 3
+  ap11:notPresent: 3
+  ap12:read: 2
+  ap12:fullAccess: 4
+  ap12:deny: 3
+  ap12:notPresent: 3
+  ap13:read: 2
+  ap13:fullAccess: 4
+  ap13:deny: 3
+  ap13:notPresent: 3
+  ap14:read: 2
+  ap14:fullAccess: 4
+  ap14:deny: 3
+  ap14:notPresent: 3
+  ap15:read: 2
+  ap15:fullAccess: 4
+  ap15:deny: 3
+  ap15:notPresent: 3
+  ap16:read: 2
+  ap16:fullAccess: 4
+  ap16:deny: 3
+  ap16:notPresent: 3
+  ca:read: 1
+  ca:fullAccess: 5
+  ca:deny: 4
+  ca:notPresent: 4
+  dc:read: 1
+  dc:fullAccess: 3
+  dc:deny: 4
+  dc:notPresent: 4
+  files:read: 2
+  files:fullAccess: 2
+  files:deny: 4
+  files:notPresent: 4
+  flightlogs:read: 2
+  flightlogs:fullAccess: 5
+  flightlogs:deny: 5
+  flightlogs:notPresent: 5
+  timereporter:read: 1
+  timereporter:fullAccess: 3
+  timereporter:deny: 5
+  timereporter:notPresent: 5
+  weborder:read: 1
+  weborder:fullAccess: 4
+  weborder:deny: 2
+  weborder:notPresent: 2
+
+observable_steps:
+  by_asset_type:
+    Application:
+      - fullAccess
+      - notPresent
+actionable_steps:
+  by_asset_type:
+    Application:
+      - notPresent

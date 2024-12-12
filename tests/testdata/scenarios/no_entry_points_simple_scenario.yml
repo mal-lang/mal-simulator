@@ -2,7 +2,7 @@ lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
 model_file: ../models/simple_test_model.yml
 
 attacker_agent_class: 'BreadthFirstAttacker'
-defender_agent_class: 'KeyboardAgent'
+defender_agent_class: 'KeyboardDefender'
 
 # Rewards for each attack step
 rewards:
