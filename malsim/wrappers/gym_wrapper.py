@@ -107,9 +107,6 @@ class DefenderEnv(gym.Env):
         self.action_space = \
             self.sim.action_space(self.defender_agent.name)
 
-        self.attacker_obs = None
-        self.attacker_mask = None
-
     def reset(
         self, *,
         seed: int | None = None,
@@ -123,7 +120,7 @@ class DefenderEnv(gym.Env):
             obs[self.defender_agent.name],
             infos[self.defender_agent.name]
         )
-    
+
     def step(
         self, action: tuple[int, int]
     ) -> tuple[Any, SupportsFloat, bool, bool, dict[str, Any]]:

@@ -1,21 +1,19 @@
 """"MalSimParallelEnv:
     - Abide to the ParallelEnv interface
-    - Build serialized observations from the MalSimulator
-    - step() still assumes that actions are given as AttackGraphNodes
+    - Build serialized observations from the MalSimulator state
+    - step() assumes that actions are given as AttackGraphNodes
+    - Used by AttackerEnv/DefenderEnv to be able to 
 """
 
 from __future__ import annotations
 
 import logging
-import logging
 import sys
 
 import numpy as np
-from gymnasium.spaces import MultiDiscrete
-from pettingzoo import ParallelEnv
-
-from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from gymnasium.spaces import MultiDiscrete, Box, Dict
+from pettingzoo import ParallelEnv
+from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
 from ..sims.mal_sim_settings import MalSimulatorSettings
 from ..sims.mal_simulator import MalSimulator
@@ -26,7 +24,10 @@ ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
 
 class MalSimParallelEnv(MalSimulator, ParallelEnv):
-    """Environment that can be used to run training on"""
+    """
+    Environment that runs simulation between agents.
+    Builds serialized observations.
+    """
 
     def __init__(
             self,
@@ -45,20 +46,21 @@ class MalSimParallelEnv(MalSimulator, ParallelEnv):
 
         # List mapping from node/asset index to id/name/type
         self._index_to_id = [n.id for n in self.attack_graph.nodes]
-        self._index_to_full_name = [
-            n.full_name for n in self.attack_graph.nodes]
-        self._index_to_asset_type = [
-            n.name for n in self.attack_graph.lang_graph.assets]
-        self._index_to_step_name = [
-            n.asset.name + ":" + n.name for n
-            in self.attack_graph.lang_graph.attack_steps]
-        self._index_to_model_asset_id = [int(asset.id) for asset in \
-            self.attack_graph.model.assets]
+        self._index_to_full_name = \
+            [n.full_name for n in self.attack_graph.nodes]
+        self._index_to_asset_type = \
+            [n.name for n in self.attack_graph.lang_graph.assets]
+        self._index_to_step_name = \
+            [n.asset.name + ":" + n.name
+             for n in self.attack_graph.lang_graph.attack_steps]
+        self._index_to_model_asset_id = \
+            [int(asset.id) for asset in self.attack_graph.model.assets]
         self._index_to_model_assoc_type = [
             assoc.name + '_' + \
             assoc.left_field.asset.name + '_' + \
             assoc.right_field.asset.name \
-            for assoc in self.attack_graph.lang_graph.associations]
+            for assoc in self.attack_graph.lang_graph.associations
+        ]
 
         # Lookup dicts attribute to index
         self._id_to_index = {
@@ -397,7 +399,7 @@ class MalSimParallelEnv(MalSimulator, ParallelEnv):
     def serialized_action_to_node(
             self, serialized_action: tuple[int, int]
         ) -> list[AttackGraphNode]:
-        """Convert serialized action to malsim format
+        """Convert serialized action to malsim action format
         
         (0, None) -> []
         (1, idx) -> [Node with idx]
@@ -417,7 +419,7 @@ class MalSimParallelEnv(MalSimulator, ParallelEnv):
         agent.observation = self._create_blank_observation()
         agent.info = self.create_action_mask(agent)
 
-    def update_attacker_obs(
+    def _update_attacker_obs(
             self,
             enabled_nodes,
             disabled_nodes,
@@ -452,11 +454,12 @@ class MalSimParallelEnv(MalSimulator, ParallelEnv):
 
         for node in disabled_nodes:
             if node.is_compromised_by(attacker):
-                # Disable node
+                # Mark attacker compromised steps that were
+                # disabled by a defense as disabled in obs
                 node_idx = self.node_to_index(node)
                 attacker_agent.observation['observed_state'][node_idx] = 0
 
-    def update_defender_obs(
+    def _update_defender_obs(
             self,
             enabled_nodes: list[AttackGraphNode],
             disabled_nodes: list[AttackGraphNode],
@@ -484,6 +487,7 @@ class MalSimParallelEnv(MalSimulator, ParallelEnv):
         obs = {}
         infos = {}
         for agent in self.agents_dict.values():
+            # Reset observation and action mask for agents
             agent.observation = self._create_blank_observation()
             agent.info = self.create_action_mask(agent)
             obs[agent.name] = agent.observation
@@ -491,21 +495,25 @@ class MalSimParallelEnv(MalSimulator, ParallelEnv):
 
         return obs, infos
 
-    def update_observations(self, enabled_nodes, disabled_nodes):
+    def _update_observations(self, enabled_nodes, disabled_nodes):
         """Update observations of all agents"""
 
         for agent in self.agents_dict.values():
             if agent.type == AgentType.ATTACKER:
-                self.update_attacker_obs(enabled_nodes, disabled_nodes, agent)
+                self._update_attacker_obs(
+                    enabled_nodes, disabled_nodes, agent
+                )
             elif agent.type == AgentType.DEFENDER:
-                self.update_defender_obs(enabled_nodes, disabled_nodes, agent)
+                self._update_defender_obs(
+                    enabled_nodes, disabled_nodes, agent
+                )
 
     def step(self, actions: dict[str, list[AttackGraphNode]]):
         """Perform step with mal simulator and observe in parallel env"""
 
         enabled_nodes, disabled_nodes = super().step(actions)
         self._update_agent_infos()
-        self.update_observations(enabled_nodes, disabled_nodes)
+        self._update_observations(enabled_nodes, disabled_nodes)
 
         observations = {}
         rewards = {}
@@ -520,10 +528,4 @@ class MalSimParallelEnv(MalSimulator, ParallelEnv):
             truncations[agent_name] = agent.truncated
             infos[agent_name] = agent.info
 
-        return (
-            observations,
-            rewards,
-            terminations,
-            truncations,
-            infos
-        )
+        return observations, rewards, terminations, truncations, infos
