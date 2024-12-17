@@ -1,3 +1,3 @@
-from .base_agent import PassiveAttacker, PassiveDefender
-from .keyboard_input import KeyboardDefender
+from .base_agent import PassiveAgent, MalSimAgent
+from .keyboard_input import KeyboardAgent
 from .searchers import BreadthFirstAttacker, DepthFirstAttacker

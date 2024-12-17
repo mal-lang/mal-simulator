@@ -7,17 +7,9 @@ class MalSimAttackerAgent():
 class MalSimDefenderAgent():
     pass
 
-
-class PassiveAttacker():
+class PassiveAgent():
     def __init__(self, info):
         return
 
-    def get_next_actions(self, observation, mask) -> list[tuple[int, int]]:
-        return []
-
-class PassiveDefender():
-    def __init__(self, info):
-        return
-
-    def get_next_actions(self, observation, mask) -> list[tuple[int, int]]:
+    def get_next_actions(self, state) -> list[tuple[int, int]]:
         return []

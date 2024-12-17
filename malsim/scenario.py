@@ -22,9 +22,8 @@ from maltoolbox.wrappers import create_attack_graph
 from .agents import (
     BreadthFirstAttacker,
     DepthFirstAttacker,
-    KeyboardDefender,
-    PassiveAttacker,
-    PassiveDefender
+    KeyboardAgent,
+    PassiveAgent
 )
 
 from .sims.mal_simulator import AgentType, MalSimulator
@@ -32,10 +31,15 @@ from .sims.mal_simulator import AgentType, MalSimulator
 agent_class_name_to_class = {
     'DepthFirstAttacker': DepthFirstAttacker,
     'BreadthFirstAttacker': BreadthFirstAttacker,
-    'KeyboardDefender': KeyboardDefender,
-    'PassiveAttacker': PassiveAttacker,
-    'PassiveDefender': PassiveDefender,
+    'KeyboardAgent': KeyboardAgent,
+    'PassiveAgent': PassiveAgent,
 }
+
+deprecated_fields = [
+    'attacker_agent_class',
+    'defender_agent_class',
+    'attacker_entry_points'
+]
 
 # All required fields in scenario yml file
 required_fields = [
@@ -47,7 +51,6 @@ required_fields = [
 # All allowed fields in scenario yml fild
 allowed_fields = required_fields + [
     'rewards',
-    'attacker_entry_points',
     'observable_steps',
     'actionable_steps'
 ]
@@ -58,8 +61,11 @@ def validate_scenario(scenario_dict):
 
     # Verify that all keys in dict are supported
     for key in scenario_dict.keys():
+        if key in deprecated_fields:
+            raise SyntaxError(f"Scenario setting '{key}' is deprecated, see "
+                               "README or ./tests/testdata/scenarios")
         if key not in allowed_fields:
-            raise SyntaxError(f"The setting '{key}' is not supported")
+            raise SyntaxError(f"Scenario setting '{key}' is not supported")
 
     # Verify that all required fields are in scenario file
     for key in required_fields:
@@ -248,22 +254,8 @@ def load_simulator_agents(
 
         for agent_name, agent_info in agents_config.items():
             class_name = agent_info.get('agent_class')
-
-            if class_name not in agent_class_name_to_class:
-                # Illegal class agent
-                raise LookupError(
-                    f"Agent class '{class_name}' not supported"
-                )
-
-            # Initialize the agent object
-            agent_class = agent_class_name_to_class.get(class_name)
             agent_type = AgentType(agent_info.get('type'))
-            agent = agent_class({})
-            agent_dict = {
-                'agent': agent,
-                'name': agent_name,
-                'type': agent_type
-            }
+            agent_dict = {'name': agent_name, 'type': agent_type}
 
             if agent_type == AgentType.ATTACKER:
                 # Attacker has entrypoints
@@ -273,6 +265,21 @@ def load_simulator_agents(
                 )
                 agent_dict['attacker_id'] = attacker_id
 
+            if class_name is None:
+                # No class name - no agent object created
+                agents.append(agent_dict)
+                continue
+
+            if class_name not in agent_class_name_to_class:
+                # Illegal class agent
+                raise LookupError(
+                    f"Agent class '{class_name}' not supported"
+                )
+
+            # Initialize the agent object
+            agent_class = agent_class_name_to_class.get(class_name)
+            agent = agent_class({})
+            agent_dict['agent'] = agent
             agents.append(agent_dict)
 
     return agents

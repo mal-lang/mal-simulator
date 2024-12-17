@@ -26,7 +26,7 @@ def run_simulation(sim: VectorizedObsMalSimulator, agents: list[dict]):
 
         # Select actions for each agent
         for agent_dict in agents:
-            agent = agent_dict['agent']
+            agent = agent_dict.get('agent')
             agent_name = agent_dict['name']
             if agent is None:
                 logger.warning(
@@ -35,9 +35,8 @@ def run_simulation(sim: VectorizedObsMalSimulator, agents: list[dict]):
                 )
                 continue
 
-            agent_obs = obs[agent_name]
-            agent_action_mask = infos[agent_name]['action_mask']
-            agent_actions = agent.get_next_actions(agent_obs, agent_action_mask)
+            agent_actions = \
+                agent.get_next_actions(sim.agents_dict[agent_name])
             if agent_actions:
                 actions[agent_name] = agent_actions
 

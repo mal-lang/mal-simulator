@@ -30,7 +30,11 @@ class BreadthFirstAttacker():
             else None
         )
 
-    def get_next_actions(self, observation: Dict[str, Any], mask: tuple) -> list[tuple[int, int]]:
+    def get_next_actions(self, state) -> list[tuple[int, int]]:
+
+        observation = state.observation
+        mask = state.info['action_mask']
+
         new_targets, surface_indexes = get_new_targets(observation, self.targets, mask)
 
         # Add new targets to the back of the queue
@@ -90,7 +94,10 @@ class DepthFirstAttacker():
             else None
         )
 
-    def get_next_actions(self, observation: Dict[str, Any], mask: tuple) -> list[tuple[int, int]]:
+    def get_next_actions(self, state) -> list[tuple[int, int]]:
+
+        observation = state.observation
+        mask = state.info['action_mask']
         new_targets, surface_indexes = get_new_targets(observation, self.targets, mask)
 
         # Add new targets to the top of the stack
