@@ -450,10 +450,13 @@ class MalSimParallelEnv(MalSimulator, ParallelEnv):
         for node in enabled_nodes:
             if node.is_compromised_by(attacker):
                 # Enable node
+                logger.debug("Enable %s in attacker obs", node.full_name)
                 _enable_node(node, attacker_agent)
 
         for node in disabled_nodes:
-            if node.is_compromised_by(attacker):
+            is_entrypoint = node.extras.get('entrypoint', False)
+            if node.is_compromised_by(attacker) and not is_entrypoint:
+                logger.debug("Disable %s in attacker obs", node.full_name)
                 # Mark attacker compromised steps that were
                 # disabled by a defense as disabled in obs
                 node_idx = self.node_to_index(node)
@@ -468,12 +471,16 @@ class MalSimParallelEnv(MalSimulator, ParallelEnv):
         """Update the observation of the defender"""
 
         for node in enabled_nodes:
+            logger.debug("Enable %s in defender obs", node.full_name)
             node_idx = self.node_to_index(node)
             defender_agent.observation['observed_state'][node_idx] = 1
 
         for node in disabled_nodes:
-            node_idx = self.node_to_index(node)
-            defender_agent.observation['observed_state'][node_idx] = 0
+            is_entrypoint = node.extras.get('entrypoint', False)
+            if not is_entrypoint:
+                logger.debug("Disable %s in defender obs", node.full_name)
+                node_idx = self.node_to_index(node)
+                defender_agent.observation['observed_state'][node_idx] = 0
 
     def reset(
             self,
@@ -493,10 +500,29 @@ class MalSimParallelEnv(MalSimulator, ParallelEnv):
             obs[agent.name] = agent.observation
             infos[agent.name] = agent.info
 
+        # Enable pre-enabled nodes in observation
+        attacker_entry_points = [
+            n for n in self.attack_graph.nodes if n.is_compromised()]
+        pre_enabled_defenses = [
+            n for n in self.attack_graph.nodes if n.defense_status == 1.0]
+
+        for node in attacker_entry_points:
+            node.extras['entrypoint'] = True
+
+        self._update_observations(
+            attacker_entry_points + pre_enabled_defenses, []
+        )
+
         return obs, infos
 
     def _update_observations(self, enabled_nodes, disabled_nodes):
         """Update observations of all agents"""
+
+        if not self.sim_settings.uncompromise_untraversable_steps:
+            disabled_nodes = []
+
+        logger.debug("Enable:\n\t%s", [n.full_name for n in enabled_nodes])
+        logger.debug("Disable:\n\t%s", [n.full_name for n in disabled_nodes])
 
         for agent in self.agents_dict.values():
             if agent.type == AgentType.ATTACKER:
