@@ -17,7 +17,7 @@ from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
 from ..sims.mal_sim_settings import MalSimulatorSettings
 from ..sims.mal_simulator import MalSimulator
-from ..agents.agent_base import AgentType, MalSimAgent, MalSimAttacker, MalSimDefender
+from ..sims.mal_sim_agent_info import AgentType, AgentInfo, AttackerAgentInfo, DefenderAgentInfo
 from ..sims.mal_sim_logging_utils import format_full_observation, log_mapping_tables
 
 ITERATIONS_LIMIT = int(1e9)
@@ -534,10 +534,19 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
                     enabled_nodes, disabled_nodes, agent
                 )
 
-    def step(self, actions: dict[str, list[AttackGraphNode]]):
+    def step(self, actions: dict[str, list[tuple[int, int]]]):
         """Perform step with mal simulator and observe in parallel env"""
 
-        enabled_nodes, disabled_nodes = super().step(actions)
+        malsim_actions = {}
+        for agent_name, agent_actions in actions.items():
+            malsim_actions[agent_name] = []
+            for action in agent_actions:
+                if action[0]:
+                    malsim_actions[agent_name].append(
+                        self.index_to_node(action[1])
+                    )
+
+        enabled_nodes, disabled_nodes = super().step(malsim_actions)
         self._update_agent_infos()
         self._update_observations(enabled_nodes, disabled_nodes)
 

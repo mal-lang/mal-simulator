@@ -11,8 +11,7 @@ from maltoolbox.attackgraph.analyzers import apriori
 from maltoolbox.attackgraph import query
 
 from .mal_sim_settings import MalSimulatorSettings
-from ..agents.agent_base import AgentType, MalSimAgent, \
-                                MalSimAttacker, MalSimDefender
+from ..sims.mal_sim_agent_info import AgentType, AgentInfo, AttackerAgentInfo, DefenderAgentInfo
 
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
@@ -57,7 +56,7 @@ class MalSimulator():
         self.sim_settings = sim_settings
         self.max_iter = max_iter # Max iterations before stopping simulation
         self.cur_iter = 0        # Keep track on current iteration
-        self.agents_dict: dict[str, MalSimAgent] = {}  # Keep track on registered agents
+        self.agents_dict: dict[str, AgentInfo] = {}  # Keep track on registered agents
         self.agents: list[str] = []
         self.possible_agents = []
 
@@ -65,7 +64,7 @@ class MalSimulator():
             self,
             seed: Optional[int] = None,
             options: Optional[dict] = None
-        ) -> dict[str, MalSimAgent]:
+        ) -> dict[str, AgentInfo]:
         """Reset attack graph, iteration and reinitialize agents"""
 
         logger.info("Resetting MAL Simulator.")
@@ -78,6 +77,29 @@ class MalSimulator():
 
         return self.agents_dict
 
+    def _initialize_rewards(self):
+        """Give rewards for pre-enabled attack/defense steps"""
+        for node in self.attack_graph.nodes:
+            node_reward = node.extras.get('reward', 0)
+            if not node_reward:
+                continue
+
+            for agent in self.agents_dict.values():
+
+                if agent.type == AgentType.ATTACKER:
+                    attacker = self.attack_graph.get_attacker_by_id(
+                        agent.attacker_id
+                    )
+
+                    if node.is_compromised_by(attacker):
+                        # Attacker is rewarded for pre enabled attack steps
+                        agent.reward += node_reward
+
+                elif agent.type == AgentType.DEFENDER:
+                    # Defender is penalized for all pre-enabled steps
+                    if node.is_compromised() or node.is_enabled_defense():
+                        agent.reward -= node_reward
+
     def _reset_agents(self):
         """Reset agent rewards and action surfaces"""
 
@@ -85,6 +107,7 @@ class MalSimulator():
             # Reset reward
             agent.reward = 0
 
+        self._initialize_rewards()
         self._init_agent_action_surfaces()
 
     def _init_agent_action_surfaces(self):
@@ -104,31 +127,40 @@ class MalSimulator():
             else:
                 raise LookupError(f"Agent type {agent.type} not supported")
 
-    def register_agent(self, agent: MalSimAgent):
+    def register_agent(self, agent_info: AgentInfo):
         """Register a mal sim agent"""
 
-        logger.info(
-            'Register %s agent "%s".', agent.type, agent.name)
+        logger.info('Registering agent "%s".', agent_info)
+        assert agent_info.name not in self.agents_dict, \
+            f"Duplicate agent named {agent_info.name} not allowed"
 
-        assert agent.name not in self.agents_dict, \
-            f"Duplicate agent named {agent.name} not allowed"
-
-        if agent.type == AgentType.DEFENDER:
+        if agent_info.type == AgentType.DEFENDER:
             # Defender is first in list so it can pick
             # actions before attacker when step performed
-            self.agents.insert(0, agent.name)
-        elif agent.type == AgentType.ATTACKER:
-            self.agents.append(agent.name)
+            self.agents.insert(0, agent_info.name)
+        elif agent_info.type == AgentType.ATTACKER:
+            # Attacker goes last
+            self.agents.append(agent_info.name)
 
-        self.possible_agents.append(agent.name)
-        self.agents_dict[agent.name] = agent
+        self.possible_agents.append(agent_info.name)
+        self.agents_dict[agent_info.name] = agent_info
 
-    def get_attacker_agents(self) -> list[MalSimAttacker]:
+    def register_attacker(self, name: str, attacker_id: int):
+        """Register a mal sim attacker agent"""
+        agent_info = AttackerAgentInfo(name, attacker_id)
+        self.register_agent(agent_info)
+
+    def register_defender(self, name: str):
+        """Register a mal sim defender agent"""
+        agent_info = DefenderAgentInfo(name)
+        self.register_agent(agent_info)
+
+    def get_attacker_agents(self) -> list[AttackerAgentInfo]:
         """Return list of attacker agents"""
         return [a for a in self.agents_dict.values()
                 if a.type == AgentType.ATTACKER]
 
-    def get_defender_agents(self) -> list[MalSimDefender]:
+    def get_defender_agents(self) -> list[DefenderAgentInfo]:
         """Return list of defender agents"""
         return [a for a in self.agents_dict.values()
                 if a.type == AgentType.DEFENDER]
@@ -160,7 +192,7 @@ class MalSimulator():
                     attacker.undo_compromise(unviable_node)
 
     def _attacker_step(
-            self, agent: MalSimAttacker, nodes: list[AttackGraphNode]
+            self, agent: AttackerAgentInfo, nodes: list[AttackGraphNode]
         ) -> list[AttackGraphNode]:
         """Compromise attack step nodes with attacker
 
@@ -212,7 +244,7 @@ class MalSimulator():
         return enabled_nodes
 
     def _defender_step(
-            self, agent: MalSimDefender, nodes: list[AttackGraphNode]
+            self, agent: DefenderAgentInfo, nodes: list[AttackGraphNode]
         ) -> tuple[list[AttackGraphNode], list[AttackGraphNode]]:
         """Enable defense step nodes with defender
 
@@ -277,7 +309,7 @@ class MalSimulator():
 
     def step(
             self, actions: dict[str, list[AttackGraphNode]]
-        ) -> dict[str, MalSimAgent]:
+        ) -> dict[str, AgentInfo]:
         """Take a step in the simulation
 
         Args:
