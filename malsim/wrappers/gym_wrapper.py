@@ -9,7 +9,7 @@ import numpy as np
 
 from ..scenario import load_scenario
 from ..agents import PassiveAttacker, PassiveDefender, AgentType
-from ..envs.mal_sim_parallel_env import MalSimParallelEnv
+from ..envs.mal_sim_parallel_env import VectorizedObsMalSimulator
 
 
 class AttackerEnv(gym.Env):
@@ -27,7 +27,7 @@ class AttackerEnv(gym.Env):
         # Create a simulator from the scenario given
         attack_graph, _ = load_scenario(scenario_file, **kwargs)
         attacker_id = attack_graph.attackers[0].id
-        self.sim = MalSimParallelEnv(attack_graph)
+        self.sim = VectorizedObsMalSimulator(attack_graph)
 
         self.attacker_agent = PassiveAttacker("attacker", attacker_id)
         self.sim.register_agent(self.attacker_agent)
@@ -88,7 +88,7 @@ class DefenderEnv(gym.Env):
         self.render_mode = kwargs.pop('render_mode', None)
 
         ag, agents = load_scenario(scenario_file)
-        self.sim = MalSimParallelEnv(ag, **kwargs)
+        self.sim = VectorizedObsMalSimulator(ag, **kwargs)
 
         # Register attacker agents from scenario
         self.attacker_agents = [agent for agent in agents.values()

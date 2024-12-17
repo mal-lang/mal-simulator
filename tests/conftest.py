@@ -4,7 +4,7 @@ import pytest
 from maltoolbox.language import LanguageGraph, LanguageClassesFactory
 from maltoolbox.model import Model
 from maltoolbox.wrappers import create_attack_graph
-from malsim.envs.mal_sim_parallel_env import MalSimParallelEnv
+from malsim.envs.mal_sim_parallel_env import VectorizedObsMalSimulator
 from malsim.agents import PassiveAttacker, PassiveDefender
 
 model_file_name='tests/testdata/models/simple_test_model.yml'
@@ -35,11 +35,11 @@ def empty_model(name, lang_classes_factory):
 ## Fixtures
 
 @pytest.fixture(scope="session", name="env")
-def fixture_env()-> MalSimParallelEnv:
+def fixture_env()-> VectorizedObsMalSimulator:
 
     attack_graph = create_attack_graph(lang_file_name, model_file_name)
     attack_graph.save_to_file(attack_graph_file_name)
-    env = MalSimParallelEnv(attack_graph, max_iter=1000)
+    env = VectorizedObsMalSimulator(attack_graph, max_iter=1000)
     # def_agent = PassiveDefender('defender')
     # env.register_agent(def_agent)
 

@@ -11,7 +11,7 @@ import gymnasium as gym
 from gymnasium.utils import env_checker
 from pettingzoo.test import parallel_api_test
 
-from malsim.envs.mal_sim_parallel_env import MalSimParallelEnv, MalSimulator
+from malsim.envs.mal_sim_parallel_env import VectorizedObsMalSimulator, MalSimulator
 from malsim.wrappers.gym_wrapper import AttackerEnv, DefenderEnv, MaskingWrapper
 from malsim.agents import BreadthFirstAttacker, DepthFirstAttacker, PassiveAttacker, PassiveDefender
 
@@ -31,7 +31,7 @@ def register_gym_agent(agent_id, entry_point):
         gym.register(agent_id, entry_point=entry_point)
 
 
-def test_pz(env: MalSimParallelEnv):
+def test_pz(env: VectorizedObsMalSimulator):
     logger.debug('Run Parrallel API test.')
     parallel_api_test(env)
 
@@ -154,7 +154,7 @@ def test_action_mask():
     # assert reward < 0 # All defense steps cost something
 
 
-def test_env_step(env: MalSimParallelEnv) -> None:
+def test_env_step(env: VectorizedObsMalSimulator) -> None:
     obs, info = env.reset()
 
     env.register_agent(
@@ -183,7 +183,7 @@ def test_env_step(env: MalSimParallelEnv) -> None:
     assert 'defender' in obs
 
 
-def test_check_space_env(env: MalSimParallelEnv) -> None:
+def test_check_space_env(env: VectorizedObsMalSimulator) -> None:
     attacker_space = env.observation_space('attacker')
     defender_space = env.observation_space('defender')
 
@@ -221,7 +221,7 @@ def test_check_space_env(env: MalSimParallelEnv) -> None:
         DepthFirstAttacker,
     ],
 )
-def test_attacker(env: MalSimParallelEnv, attacker_class) -> None:
+def test_attacker(env: VectorizedObsMalSimulator, attacker_class) -> None:
     """Register attacker, run it"""
     attacker = env.attack_graph.attackers[0]
 
@@ -254,7 +254,7 @@ def test_attacker(env: MalSimParallelEnv, attacker_class) -> None:
     assert done, 'Attacker failed to explore attack steps'
 
 
-def test_env_multiple_steps(env: MalSimParallelEnv) -> None:
+def test_env_multiple_steps(env: VectorizedObsMalSimulator) -> None:
     obs, info = env.reset()
     for _ in range(100):
         attacker_action = env.serialized_action_to_node(

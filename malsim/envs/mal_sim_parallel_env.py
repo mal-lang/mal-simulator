@@ -1,4 +1,4 @@
-""""MalSimParallelEnv:
+""""VectorizedObsMalSimulator:
     - Abide to the ParallelEnv interface
     - Build serialized observations from the MalSimulator state
     - step() assumes that actions are given as AttackGraphNodes
@@ -23,7 +23,7 @@ from ..sims.mal_sim_logging_utils import format_full_observation, log_mapping_ta
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
 
-class MalSimParallelEnv(MalSimulator, ParallelEnv):
+class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
     """
     Environment that runs simulation between agents.
     Builds serialized observations.
