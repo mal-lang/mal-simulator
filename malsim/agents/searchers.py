@@ -30,7 +30,7 @@ class BreadthFirstAttacker():
             else None
         )
 
-    def get_next_actions(self, state) -> list[tuple[int, int]]:
+    def get_next_action(self, state) -> tuple[int, int]:
 
         observation = state.observation
         mask = state.info['action_mask']
@@ -56,7 +56,7 @@ class BreadthFirstAttacker():
                 "any valid targets it will terminate"
             )
 
-        return [(action, self.current_target)]
+        return (action, self.current_target)
 
     @staticmethod
     def select_next_target(
@@ -94,7 +94,7 @@ class DepthFirstAttacker():
             else None
         )
 
-    def get_next_actions(self, state) -> list[tuple[int, int]]:
+    def get_next_action(self, state) -> tuple[int, int]:
 
         observation = state.observation
         mask = state.info['action_mask']
@@ -112,7 +112,7 @@ class DepthFirstAttacker():
 
         self.current_target = None if done else self.current_target
         action = 0 if done else 1
-        return [(action, self.current_target)]
+        return (action, self.current_target)
 
     @staticmethod
     def select_next_target(

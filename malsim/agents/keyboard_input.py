@@ -11,7 +11,7 @@ class KeyboardAgent(MalSimAgent):
         super().__init__(**kwargs)
         logger.info("Creating KeyboardAgent")
 
-    def get_next_actions(
+    def get_next_action(
             self, state, **kwargs
         ) -> tuple:
         """Compute action from action_surface"""
@@ -56,4 +56,4 @@ class KeyboardAgent(MalSimAgent):
             if index is not None else 'wait'
         )
 
-        return [index_to_node[index]] if index is not None else []
+        return (1, index_to_node[index]) if index is not None else (0, None)

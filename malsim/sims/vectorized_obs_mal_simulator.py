@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import functools
 import logging
 import sys
 
@@ -278,12 +279,14 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
             lang_assoc.right_field.asset.name
         return assoc_full_name
 
+    @functools.lru_cache(maxsize=None)
     def action_space(self, agent=None):
         num_actions = 2  # two actions: wait or use
         # For now, an `object` is an attack step
         num_steps = len(self.attack_graph.nodes)
         return MultiDiscrete([num_actions, num_steps], dtype=np.int64)
 
+    @functools.lru_cache(maxsize=None)
     def observation_space(self, agent_name: str = None):
         # For now, an `object` is an attack step
         num_assets = len(self.attack_graph.model.assets)
@@ -538,13 +541,13 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
         """Perform step with mal simulator and observe in parallel env"""
 
         malsim_actions = {}
-        for agent_name, agent_actions in actions.items():
+        for agent_name, agent_action in actions.items():
             malsim_actions[agent_name] = []
-            for action in agent_actions:
-                if action[0]:
-                    malsim_actions[agent_name].append(
-                        self.index_to_node(action[1])
-                    )
+            if agent_action[0]:
+                # If agent wants to act, convert index to node
+                malsim_actions[agent_name].append(
+                    self.index_to_node(agent_action[1])
+                )
 
         enabled_nodes, disabled_nodes = super().step(malsim_actions)
         self._update_agent_infos()

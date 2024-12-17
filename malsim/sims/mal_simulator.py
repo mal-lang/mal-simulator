@@ -127,7 +127,7 @@ class MalSimulator():
             else:
                 raise LookupError(f"Agent type {agent.type} not supported")
 
-    def register_agent(self, agent_info: AgentInfo):
+    def _register_agent(self, agent_info: AgentInfo):
         """Register a mal sim agent"""
 
         logger.info('Registering agent "%s".', agent_info)
@@ -148,12 +148,12 @@ class MalSimulator():
     def register_attacker(self, name: str, attacker_id: int):
         """Register a mal sim attacker agent"""
         agent_info = AttackerAgentInfo(name, attacker_id)
-        self.register_agent(agent_info)
+        self._register_agent(agent_info)
 
     def register_defender(self, name: str):
         """Register a mal sim defender agent"""
         agent_info = DefenderAgentInfo(name)
-        self.register_agent(agent_info)
+        self._register_agent(agent_info)
 
     def get_attacker_agents(self) -> list[AttackerAgentInfo]:
         """Return list of attacker agents"""
@@ -343,6 +343,7 @@ class MalSimulator():
                 case AgentType.ATTACKER:
                     enabled = self._attacker_step(agent, agent_actions)
                     enabled_nodes += enabled
+
                     if not agent.terminated:
                         all_attackers_terminated = False
 
@@ -358,6 +359,7 @@ class MalSimulator():
                         agent.name, agent.type
                     )
 
+
         if all_attackers_terminated:
             # Terminate all agents if all attackers are terminated
             for agent in self.agents_dict.values():
@@ -367,6 +369,15 @@ class MalSimulator():
             # Truncate all agents when max iter is reached
             for agent in self.agents_dict.values():
                 agent.truncated = True
+
+        agents_to_remove = set()
+        for agent_name in self.agents:
+            agent = self.agents_dict[agent_name]
+            if agent.terminated or agent.truncated:
+                agents_to_remove.add(agent.name)
+
+        for agent in agents_to_remove:
+            self.agents.remove(agent)
 
         self.cur_iter += 1
         return enabled_nodes, disabled_nodes

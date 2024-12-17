@@ -35,15 +35,13 @@ def run_simulation(sim: VectorizedObsMalSimulator, agents: list[dict]):
                 )
                 continue
 
-            agent_actions = \
-                agent.get_next_actions(sim.agents_dict[agent_name])
-            if agent_actions:
-                actions[agent_name] = agent_actions
+            agent_action = \
+                agent.get_next_action(sim.agents_dict[agent_name])
+            actions[agent_name] = agent_action
 
             logger.info(
-                'Agent "%s" chose actions: %s', agent_name,
-                [sim.index_to_node(agent_action[1]).full_name
-                 for agent_action in agent_actions]
+                'Agent "%s" chose action: %s', agent_name,
+                [sim.index_to_node(agent_action[1]).full_name]
             )
 
         # Perform next step of simulation
