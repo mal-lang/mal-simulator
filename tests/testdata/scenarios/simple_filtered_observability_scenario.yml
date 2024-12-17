@@ -1,9 +1,6 @@
 lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
 model_file: ../models/simple_test_model.yml
 
-attacker_agent_class: 'BreadthFirstAttacker'
-defender_agent_class: 'KeyboardAgent'
-
 # Rewards for each attack step
 rewards:
   OS App:notPresent: 2
@@ -18,9 +15,16 @@ rewards:
 
 # Add entry points to AttackGraph with attacker names
 # and attack step full_names
-attacker_entry_points:
+agents:
   'Attacker1':
-    - 'Credentials:6:attemptCredentialsReuse'
+    agent_class: BreadthFirstAttacker
+    type: attacker
+    entry_points:
+      - 'Credentials:6:attemptCredentialsReuse'
+
+  'Defender1':
+    agent_class: KeyboardAgent
+    type: defender
 
 # Optional way to make only certain attack steps observable
 # If observable_steps are set, all attack steps not

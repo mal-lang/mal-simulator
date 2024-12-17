@@ -1,9 +1,6 @@
 lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
 model_file: ../models/simple_test_model.yml
 
-attacker_agent_class: 'BreadthFirstAttacker'
-defender_agent_class: 'KeyboardAgent'
-
 # Rewards for each attack step
 rewards:
   OS App:notPresent: 2
@@ -17,3 +14,7 @@ rewards:
   Identity:8:assume: 50
 
 # No attacker entry points
+agents:
+  'Lonely Defender':
+    type: 'defender'
+    agent_class: PassiveAgent
