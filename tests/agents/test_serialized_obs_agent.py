@@ -2,22 +2,19 @@
 
 from maltoolbox.attackgraph import AttackGraph, Attacker
 from malsim.sims.mal_simulator import MalSimulator
-from malsim.scenario import load_scenario, create_simulator_from_scenario, load_scenario
+from malsim.envs.mal_sim_parallel_env import MalSimParallelEnv
 from malsim.sims import MalSimulatorSettings
-
-from malsim.agents import SerializedObsAttacker, SerializedObsDefender
+from malsim.scenario import load_scenario
+from malsim.agents import PassiveAttacker, PassiveDefender
 
 def test_create_blank_observation(corelang_lang_graph, model):
     """Make sure blank observation contains correct default values"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimulator(attack_graph)
-
-    agent_name = "attacker1"
-    agent = SerializedObsAttacker(agent_name, None, sim)
+    sim = MalSimParallelEnv(attack_graph)
 
     num_objects = len(attack_graph.nodes)
-    blank_observation = agent._create_blank_observation()
+    blank_observation = sim._create_blank_observation()
 
     assert len(blank_observation['is_observable']) == num_objects
     for state in blank_observation['is_observable']:
@@ -40,15 +37,15 @@ def test_create_blank_observation(corelang_lang_graph, model):
     assert len(blank_observation['asset_type']) == num_objects
     for index, asset_type_index in enumerate(blank_observation['asset_type']):
         # Note: offset is decremented from asset_type_index
-        expected_type = agent._index_to_asset_type[asset_type_index]
-        node = agent.get_attack_graph_node_by_index(index)
+        expected_type = sim._index_to_asset_type[asset_type_index]
+        node = sim.index_to_node(index)
         assert node.asset.type == expected_type
 
     # asset_id on index X in blank_observation['asset_id']
     # should be the same as the id of the asset of attack step X
     assert len(blank_observation['asset_id']) == num_objects
     for index, expected_asset_id in enumerate(blank_observation['asset_id']):
-        node = agent.get_attack_graph_node_by_index(index)
+        node = sim.index_to_node(index)
         assert node.asset.id == expected_asset_id
 
     assert len(blank_observation['step_name']) == num_objects
@@ -72,18 +69,15 @@ def test_create_blank_observation_observability_given(
     scenario_file = \
         'tests/testdata/scenarios/traininglang_observability_scenario.yml'
     ag, _ = load_scenario(scenario_file)
-    sim = MalSimulator(ag)
-
-    agent_name = "attacker1"
-    agent = SerializedObsAttacker(agent_name, 1, sim)
+    sim = MalSimParallelEnv(ag)
 
     num_objects = len(sim.attack_graph.nodes)
-    blank_observation = agent._create_blank_observation()
+    blank_observation = sim._create_blank_observation()
 
     assert len(blank_observation['is_observable']) == num_objects
 
     for index, observable in enumerate(blank_observation['is_observable']):
-        node = agent.get_attack_graph_node_by_index(index)
+        node = sim.index_to_node(index)
 
         # Below are the rules from the traininglang observability scenario
         # made into if statements
@@ -108,18 +102,15 @@ def test_create_blank_observation_actionability_given(
     # Load Scenario with observability rules set
     scenario_file = 'tests/testdata/scenarios/traininglang_actionability_scenario.yml'
     ag, _ = load_scenario(scenario_file)
-    sim = MalSimulator(ag)
-
-    agent_name = "attacker1"
-    agent = SerializedObsAttacker(agent_name, 1, sim)
+    sim = MalSimParallelEnv(ag)
 
     num_objects = len(sim.attack_graph.nodes)
-    blank_observation = agent._create_blank_observation()
+    blank_observation = sim._create_blank_observation()
 
     assert len(blank_observation['is_actionable']) == num_objects
 
     for index, actionable in enumerate(blank_observation['is_actionable']):
-        node = agent.get_attack_graph_node_by_index(index)
+        node = sim.index_to_node(index)
 
         # Below are the rules from the traininglang observability scenario
         # made into if statements
@@ -138,29 +129,31 @@ def test_step(corelang_lang_graph, model):
 
     attacker = Attacker('attacker1', id=0)
     attack_graph.add_attacker(attacker, attacker.id)
-    sim = MalSimulator(attack_graph)
+    sim = MalSimParallelEnv(attack_graph)
 
     agent_name = "attacker1"
-    agent = SerializedObsAttacker(agent_name, attacker.id, sim)
+    agent = PassiveAttacker(agent_name, attacker.id)
     sim.reset()
 
     # Can not attack the notPresent step
-    defense_step = attack_graph.get_node_by_full_name('OS App:notPresent')
+    defense_step = attack_graph\
+        .get_node_by_full_name('OS App:notPresent')
     actions = sim._attacker_step(agent, [defense_step])
     assert not actions
 
     # Can attack the attemptUseVulnerability step!
-    attack_step = attack_graph.get_node_by_full_name('OS App:attemptUseVulnerability')
+    attack_step = attack_graph\
+        .get_node_by_full_name('OS App:attemptUseVulnerability')
     actions = sim._attacker_step(agent, [attack_step])
     assert actions == [attack_step]
 
 
 def test_malsimulator_defender_step(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimulator(attack_graph)
+    sim = MalSimParallelEnv(attack_graph)
 
     agent_name = "defender1"
-    defender_agent = SerializedObsDefender(agent_name, sim)
+    defender_agent = PassiveDefender(agent_name)
     sim.register_agent(defender_agent)
     sim.reset()
 
@@ -181,18 +174,14 @@ def test_malsimulator_observe_attacker():
         'tests/testdata/scenarios/simple_scenario.yml')
 
     # Create the simulator
-    sim = MalSimulator(attack_graph)
+    sim = MalSimParallelEnv(attack_graph)
 
     # Register the agents
-    attacker_agent = SerializedObsAttacker(
+    attacker_agent = PassiveAttacker(
         "attacker",
         attacker_id=attack_graph.attackers[0].id,
-        simulator=sim
     )
-    defender_agent = SerializedObsDefender(
-        "defender",
-        simulator=sim
-    )
+    defender_agent = PassiveDefender("defender")
 
     sim.register_agent(attacker_agent)
     sim.register_agent(defender_agent)
@@ -230,12 +219,12 @@ def test_malsimulator_observe_attacker():
     attacker_observation = attacker_agent.observation["observed_state"]
 
     for node in attacker.reached_attack_steps:
-        node_index = attacker_agent._id_to_index[node.id]
+        node_index = sim._id_to_index[node.id]
         node_obs_state = attacker_observation[node_index]
         assert node_obs_state == 1
 
     for index, state in enumerate(attacker_observation):
-        node = attacker_agent.get_attack_graph_node_by_index(index)
+        node = sim.index_to_node(index)
 
         if node.is_compromised():
             assert state == 1
@@ -258,7 +247,7 @@ def test_malsimulator_observe_and_reward_attacker_defender():
         ):
         """Make sure obs state looks as expected"""
         for index, state in enumerate(agent.observation['observed_state']):
-            node_id = agent._index_to_id[index]
+            node_id = sim._index_to_id[index]
             if state == 1:
                 assert node_id in expected_reached
             elif state == 0:
@@ -267,29 +256,28 @@ def test_malsimulator_observe_and_reward_attacker_defender():
                 assert state == -1
 
     def verify_defender_obs_state(
-            agent: SerializedObsDefender
+            agent: PassiveDefender
         ):
         """Make sure obs state looks as expected"""
         for index, state in enumerate(agent.observation['observed_state']):
-            node = agent.get_attack_graph_node_by_index(index)
+            node = sim.index_to_node(index)
             if state == 1:
                 assert node.is_compromised() or node.is_enabled_defense()
             elif state == 0:
-                assert not node.is_compromised() and not node.is_enabled_defense()
+                assert not node.is_compromised() and not node.is_enabled_defense(), f"{node.full_name} not correct state {state}"
             else:
                 assert state == -1
-
 
     attack_graph, _ = load_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml')
     # Create the simulator
-    sim = MalSimulator(attack_graph)
+    sim = MalSimParallelEnv(attack_graph)
 
     attacker = sim.attack_graph.attackers[0]
-    attacker_agent = SerializedObsAttacker("Attacker1", attacker.id, sim)
+    attacker_agent = PassiveAttacker("Attacker1", attacker.id)
     sim.register_agent(attacker_agent)
 
-    defender_agent = SerializedObsDefender("Defender1", sim)
+    defender_agent = PassiveDefender("Defender1")
     sim.register_agent(defender_agent)
 
     sim.reset()
@@ -298,7 +286,8 @@ def test_malsimulator_observe_and_reward_attacker_defender():
     attacker_reached_step_children = []
     for reached in attacker.entry_points:
         attacker_reached_step_children.extend(
-            [n.id for n in reached.children])
+            [n.id for n in reached.children]
+        )
 
     # Prepare nodes that will be stepped through in order
     user_3_compromise = sim.attack_graph\
@@ -408,9 +397,9 @@ def test_malsimulator_initial_observation_defender(corelang_lang_graph, model):
     """Make sure ._observe_defender observes nodes and set observed state"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimulator(attack_graph)
+    sim = MalSimParallelEnv(attack_graph)
 
-    defender_agent = SerializedObsDefender("defender", sim)
+    defender_agent = PassiveDefender("defender")
     sim.register_agent(defender_agent)
     sim.reset()
 
@@ -423,7 +412,7 @@ def test_malsimulator_initial_observation_defender(corelang_lang_graph, model):
 
     # Assert that observed state is 1 after observe_defender
     for node in nodes_to_observe:
-        index = defender_agent._id_to_index[node.id]
+        index = sim._id_to_index[node.id]
         # Make sure observed after
         assert defender_obs_state[index] == 1
 
@@ -435,15 +424,14 @@ def test_malsimulator_observe_and_reward_attacker_no_entrypoints(
     attack_graph = AttackGraph(corelang_lang_graph, model)
     attacker = Attacker("TestAttacker", [], [])
     attack_graph.add_attacker(attacker)
-    sim = MalSimulator(attack_graph)
+    sim = MalSimParallelEnv(attack_graph)
 
     # Register an attacker
-    attacker_agent = SerializedObsAttacker(attacker.name, attacker.id, sim)
+    attacker_agent = PassiveAttacker(attacker.name, attacker.id)
     sim.register_agent(attacker_agent)
     sim.reset()
 
-    agents = sim.step({})
-    assert list(agents.keys()) == [attacker_agent.name]
+    sim.step({})
 
     # Observe and reward with no new actions
     # Since attacker has no entry points and no steps have been performed
@@ -460,11 +448,11 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
     attack_graph = AttackGraph(
         traininglang_lang_graph, traininglang_model)
     attack_graph.attach_attackers()
-    sim = MalSimulator(attack_graph)
+    sim = MalSimParallelEnv(attack_graph)
 
     # Register an attacker
     attacker = sim.attack_graph.attackers[0]
-    attacker_agent = SerializedObsAttacker(attacker.name, attacker.id, sim)
+    attacker_agent = PassiveAttacker(attacker.name, attacker.id)
     sim.register_agent(attacker_agent)
 
     # We need to reinitialize to initialize agent
@@ -474,13 +462,10 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
     # need to fetch attacker again
     attacker = sim.attack_graph.attackers[0]
 
-    # Observe and reward with no new actions
-    attacker_agent.update_obs([], [])
-
     for index, state in enumerate(
             attacker_agent.observation['observed_state']):
 
-        node = attacker_agent.get_attack_graph_node_by_index(index)
+        node = sim.index_to_node(index)
         if state == -1:
             assert node not in attacker.entry_points
             assert node not in attacker.reached_attack_steps
@@ -497,5 +482,3 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
             assert node.is_compromised()
 
     assert attacker_agent.reward == 0
-
-

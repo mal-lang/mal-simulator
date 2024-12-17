@@ -41,7 +41,7 @@ def test_reset(corelang_lang_graph, model):
     attack_graph_after = sim.attack_graph
 
     # Make sure agent was added (and not removed)
-    assert attacker.name in [a.name for a in sim.agents]
+    assert attacker.name in sim.agents
     # Make sure the attack graph is not the same object but identical
     assert id(attack_graph_before) != id(attack_graph_after)
 
@@ -62,7 +62,7 @@ def test_register_agent_attacker(corelang_lang_graph, model):
     sim.register_agent(agent)
 
     assert agent.name in sim.agents_dict
-    assert agent.name in [a.name for a in sim.agents]
+    assert agent.name in sim.agents
 
 
 def test_register_agent_defender(corelang_lang_graph, model):
@@ -73,7 +73,7 @@ def test_register_agent_defender(corelang_lang_graph, model):
     sim.register_agent(agent)
 
     assert agent.name in sim.agents_dict
-    assert agent.name in [a.name for a in sim.agents]
+    assert agent.name in sim.agents
 
 
 def test_simulator_initialize_agents(corelang_lang_graph, model):
@@ -146,6 +146,20 @@ def test_defender_step(corelang_lang_graph, model):
         'OS App:attemptUseVulnerability')
     actions, _ = sim._defender_step(defender_agent, [attack_step])
     assert not actions
+
+
+def test_defender_step_recursion(corelang_lang_graph, model):
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    sim = MalSimulator(attack_graph)
+
+    defender_agent = PassiveDefender("defender")
+    sim.register_agent(defender_agent)
+    sim.reset()
+
+    defense_step = attack_graph.get_node_by_full_name(
+        'OS App:notPresent')
+
+    assert defense_step in defender_agent.action_surface
 
 
 def test_observe_attacker():
