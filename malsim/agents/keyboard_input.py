@@ -9,12 +9,12 @@ logger = logging.getLogger(__name__)
 null_action = (0, None)
 
 
-class KeyboardAgent:
+class KeyboardDefender():
     def __init__(self, vocab):
         logger.debug("Create Keyboard agent.")
         self.vocab = vocab
 
-    def compute_action_from_dict(self, obs: dict, mask: tuple) -> tuple:
+    def get_next_actions(self, obs: dict, mask: tuple) -> list[tuple]:
         def valid_action(user_input: str) -> bool:
             if user_input == "":
                 return True
@@ -60,4 +60,4 @@ class KeyboardAgent:
             f"Selected action: {action_strings[node] if node is not None else 'wait'}"
         )
 
-        return (a, available_actions[node] if a != 0 else -1)
+        return [(a, available_actions[node] if a != 0 else -1)]

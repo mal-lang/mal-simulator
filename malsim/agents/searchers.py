@@ -2,7 +2,6 @@ import logging
 
 from collections import deque
 from typing import Any, Deque, Dict, List, Set, Union
-
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -16,12 +15,7 @@ def get_new_targets(
     new_targets = [idx for idx in surface_indexes if idx not in discovered_targets]
     return new_targets, surface_indexes
 
-
-class PassiveAttacker:
-    def compute_action_from_dict(self, observation, mask):
-        return (0, None)
-
-class BreadthFirstAttacker:
+class BreadthFirstAttacker():
     def __init__(self, agent_config: dict) -> None:
         self.targets: Deque[int] = deque([])
         self.current_target: int = None
@@ -36,7 +30,7 @@ class BreadthFirstAttacker:
             else None
         )
 
-    def compute_action_from_dict(self, observation: Dict[str, Any], mask: tuple):
+    def get_next_actions(self, observation: Dict[str, Any], mask: tuple) -> list[tuple[int, int]]:
         new_targets, surface_indexes = get_new_targets(observation, self.targets, mask)
 
         # Add new targets to the back of the queue
@@ -58,7 +52,7 @@ class BreadthFirstAttacker:
                 "any valid targets it will terminate"
             )
 
-        return (action, self.current_target)
+        return [(action, self.current_target)]
 
     @staticmethod
     def select_next_target(
@@ -81,7 +75,7 @@ class BreadthFirstAttacker:
         return current_target, False
 
 
-class DepthFirstAttacker:
+class DepthFirstAttacker():
     def __init__(self, agent_config: dict) -> None:
         self.current_target = -1
         self.targets: List[int] = []
@@ -96,7 +90,7 @@ class DepthFirstAttacker:
             else None
         )
 
-    def compute_action_from_dict(self, observation: Dict[str, Any], mask: tuple):
+    def get_next_actions(self, observation: Dict[str, Any], mask: tuple) -> list[tuple[int, int]]:
         new_targets, surface_indexes = get_new_targets(observation, self.targets, mask)
 
         # Add new targets to the top of the stack
@@ -111,7 +105,7 @@ class DepthFirstAttacker:
 
         self.current_target = None if done else self.current_target
         action = 0 if done else 1
-        return (action, self.current_target)
+        return [(action, self.current_target)]
 
     @staticmethod
     def select_next_target(
