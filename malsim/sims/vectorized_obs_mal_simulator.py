@@ -20,9 +20,9 @@ from ..sims.mal_sim_settings import MalSimulatorSettings
 from ..sims.mal_simulator import (
     MalSimulator,
     AgentType,
-    AgentState,
-    AttackerAgentState,
-    DefenderAgentState
+    MalSimAgent,
+    MalSimAttacker,
+    MalSimDefender
 )
 from ..sims.mal_sim_logging_utils import (
     format_full_observation,
@@ -52,6 +52,9 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
             sim_settings,
             max_iter
         )
+
+        # Keep track on all (dead and alive) agents
+        self.possible_agents = []
 
         # List mapping from node/asset index to id/name/type
         self._index_to_id = [n.id for n in self.attack_graph.nodes]
@@ -195,7 +198,7 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
 
         return np_obs
 
-    def create_action_mask(self, agent: AgentState):
+    def create_action_mask(self, agent: MalSimAgent):
         """
         Create an action mask for an agent based on its action_surface.
 
@@ -423,9 +426,10 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
             nodes = [self.index_to_node(step_idx)]
         return nodes
 
-    def _register_agent(self, agent: AgentState):
+    def _register_agent(self, agent: MalSimAgent):
         super()._register_agent(agent)
 
+        self.possible_agents.append(agent.name)
         # Fill in required fields for parallel env
         agent.observation = self._create_blank_observation()
         agent.info = self.create_action_mask(agent)
@@ -434,12 +438,12 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
             self,
             enabled_nodes,
             disabled_nodes,
-            attacker_agent: AttackerAgentState
+            attacker_agent: MalSimAttacker
         ):
         """Update the observation of the serialized obs attacker"""
 
         def _enable_node(
-                node: AttackGraphNode, agent: AttackerAgentState
+                node: AttackGraphNode, agent: MalSimAttacker
             ):
             """Set enabled node obs state to enabled and
             its children to disabled"""
@@ -477,7 +481,7 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
             self,
             enabled_nodes: list[AttackGraphNode],
             disabled_nodes: list[AttackGraphNode],
-            defender_agent: DefenderAgentState
+            defender_agent: MalSimDefender
         ):
         """Update the observation of the defender"""
 

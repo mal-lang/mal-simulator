@@ -25,7 +25,7 @@ class AgentType(Enum):
 
 
 @dataclass
-class AgentState:
+class MalSimAgent:
     """Stores the state of an agent in the simulator"""
 
     # Identifier of the agent, used in MalSimulator for lookup
@@ -47,13 +47,13 @@ class AgentState:
     observation: dict = field(default_factory=dict)
     info: dict = field(default_factory=dict)
 
-class AttackerAgentState(AgentState):
+class MalSimAttacker(MalSimAgent):
     """Stores the state of an attacker in the simulator"""
     def __init__(self, name: str, attacker_id: int):
         super().__init__(name, AgentType.ATTACKER)
         self.attacker_id = attacker_id
 
-class DefenderAgentState(AgentState):
+class MalSimDefender(MalSimAgent):
     """Stores the state of a defender in the simulator"""
     def __init__(self, name: str):
         super().__init__(name, AgentType.DEFENDER)
@@ -97,15 +97,18 @@ class MalSimulator():
         self.sim_settings = sim_settings
         self.max_iter = max_iter # Max iterations before stopping simulation
         self.cur_iter = 0        # Keep track on current iteration
-        self.agents_dict: dict[str, AgentState] = {}  # Keep track on registered agents
+
+        # Keep track on all registered agents state
+        self.agents_dict: dict[str, MalSimAgent] = {}
+
+        # Keep track on all 'living' agents sorted by order to step in
         self.agents: list[str] = []
-        self.possible_agents = []
 
     def reset(
             self,
             seed: Optional[int] = None,
             options: Optional[dict] = None
-        ) -> dict[str, AgentState]:
+        ) -> dict[str, MalSimAgent]:
         """Reset attack graph, iteration and reinitialize agents"""
 
         logger.info("Resetting MAL Simulator.")
@@ -168,41 +171,40 @@ class MalSimulator():
             else:
                 raise LookupError(f"Agent type {agent.type} not supported")
 
-    def _register_agent(self, agent_info: AgentState):
+    def _register_agent(self, agent: MalSimAgent):
         """Register a mal sim agent"""
 
-        logger.info('Registering agent "%s".', agent_info)
-        assert agent_info.name not in self.agents_dict, \
-            f"Duplicate agent named {agent_info.name} not allowed"
+        logger.info('Registering agent "%s".', agent)
+        assert agent.name not in self.agents_dict, \
+            f"Duplicate agent named {agent.name} not allowed"
 
-        if agent_info.type == AgentType.DEFENDER:
+        if agent.type == AgentType.DEFENDER:
             # Defender is first in list so it can pick
             # actions before attacker when step performed
-            self.agents.insert(0, agent_info.name)
-        elif agent_info.type == AgentType.ATTACKER:
+            self.agents.insert(0, agent.name)
+        elif agent.type == AgentType.ATTACKER:
             # Attacker goes last
-            self.agents.append(agent_info.name)
+            self.agents.append(agent.name)
 
-        self.possible_agents.append(agent_info.name)
-        self.agents_dict[agent_info.name] = agent_info
+        self.agents_dict[agent.name] = agent
 
     def register_attacker(self, name: str, attacker_id: int):
         """Register a mal sim attacker agent"""
-        agent_info = AttackerAgentState(name, attacker_id)
-        self._register_agent(agent_info)
+        agent_state = MalSimAttacker(name, attacker_id)
+        self._register_agent(agent_state)
 
     def register_defender(self, name: str):
         """Register a mal sim defender agent"""
-        agent_info = DefenderAgentState(name)
-        self._register_agent(agent_info)
+        agent_state = MalSimDefender(name)
+        self._register_agent(agent_state)
 
-    def get_attacker_agents(self) -> list[AttackerAgentState]:
-        """Return list of attacker agents"""
+    def get_attacker_agents(self) -> list[MalSimAttacker]:
+        """Return list of attacker agent states"""
         return [a for a in self.agents_dict.values()
                 if a.type == AgentType.ATTACKER]
 
-    def get_defender_agents(self) -> list[DefenderAgentState]:
-        """Return list of defender agents"""
+    def get_defender_agents(self) -> list[MalSimDefender]:
+        """Return list of defender agent states"""
         return [a for a in self.agents_dict.values()
                 if a.type == AgentType.DEFENDER]
 
@@ -233,7 +235,7 @@ class MalSimulator():
                     attacker.undo_compromise(unviable_node)
 
     def _attacker_step(
-            self, agent: AttackerAgentState, nodes: list[AttackGraphNode]
+            self, agent: MalSimAttacker, nodes: list[AttackGraphNode]
         ) -> list[AttackGraphNode]:
         """Compromise attack step nodes with attacker
 
@@ -285,7 +287,7 @@ class MalSimulator():
         return enabled_nodes
 
     def _defender_step(
-            self, agent: DefenderAgentState, nodes: list[AttackGraphNode]
+            self, agent: MalSimDefender, nodes: list[AttackGraphNode]
         ) -> tuple[list[AttackGraphNode], list[AttackGraphNode]]:
         """Enable defense step nodes with defender
 
@@ -350,7 +352,7 @@ class MalSimulator():
 
     def step(
             self, actions: dict[str, list[AttackGraphNode]]
-        ) -> dict[str, AgentState]:
+        ) -> dict[str, MalSimAgent]:
         """Take a step in the simulation
 
         Args:
