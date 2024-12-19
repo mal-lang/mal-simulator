@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from enum import Enum
+from dataclasses import dataclass, field
 import copy
 import logging
 from typing import Optional
@@ -24,57 +25,39 @@ class AgentType(Enum):
     DEFENDER = 'defender'
 
 
-class AgentInfo(ABC):
+@dataclass
+class AgentState:
     """Stores the state of an agent in the simulator"""
 
-    def __init__(
-            self,
-            name: str,
-            agent_type: AgentType
-        ):
+    # Identifier of the agent, used in MalSimulator for lookup
+    name: str
+    type: AgentType
 
-        # Identifier of the agent, used in MalSimulator for lookup
-        self.name = name
+    # Contains reward from last step of MalSimulator
+    reward: int = 0
 
-        # AgentType.ATTACKER / AgentType.DEFENDER
-        self.type = agent_type
+    # Contains possible actions for the agent in the next step
+    action_surface: list[AttackGraphNode] = field(default_factory=list)
 
-        # Contains reward in last step of MalSimulator
-        self.reward = 0
+    # Fields that tell if agent is 'dead'
+    truncated: bool = False
+    terminated: bool = False
 
-        # Contains action mask (only for ParallelEnv)
-        self.observation = {}
+    # Fields that are not used by 'base' MalSimulator
+    # but can be useful in other simulators/envs
+    observation: dict = field(default_factory=dict)
+    info: dict = field(default_factory=dict)
 
-        # Contains action mask (only for ParallelEnv)
-        self.info = {}
-
-        # Agent is truncated if Malsimulator has run for
-        # more than `max_iter` iterations
-        self.truncated = False
-
-        # Attacker agent is terminated if it has nothing left to do
-        # Defender agent is terminated if all attacker agents are terminated
-        self.terminated = False
-
-        # Contains list of potential actions (nodes
-        # for an agent in next step of MalSimulator
-        self.action_surface: list[AttackGraphNode] = []
-
-
-class AttackerAgentInfo(AgentInfo):
+class AttackerAgentState(AgentState):
     """Stores the state of an attacker in the simulator"""
-
-    def __init__(self, name, attacker_id: int):
+    def __init__(self, name: str, attacker_id: int):
         super().__init__(name, AgentType.ATTACKER)
         self.attacker_id = attacker_id
 
-
-class DefenderAgentInfo(AgentInfo):
+class DefenderAgentState(AgentState):
     """Stores the state of a defender in the simulator"""
-
-    def __init__(self, name):
+    def __init__(self, name: str):
         super().__init__(name, AgentType.DEFENDER)
-
 
 class MalSimulator():
     """A simple MAL Simulator that works on the AttackGraph
@@ -115,7 +98,7 @@ class MalSimulator():
         self.sim_settings = sim_settings
         self.max_iter = max_iter # Max iterations before stopping simulation
         self.cur_iter = 0        # Keep track on current iteration
-        self.agents_dict: dict[str, AgentInfo] = {}  # Keep track on registered agents
+        self.agents_dict: dict[str, AgentState] = {}  # Keep track on registered agents
         self.agents: list[str] = []
         self.possible_agents = []
 
@@ -123,7 +106,7 @@ class MalSimulator():
             self,
             seed: Optional[int] = None,
             options: Optional[dict] = None
-        ) -> dict[str, AgentInfo]:
+        ) -> dict[str, AgentState]:
         """Reset attack graph, iteration and reinitialize agents"""
 
         logger.info("Resetting MAL Simulator.")
@@ -186,7 +169,7 @@ class MalSimulator():
             else:
                 raise LookupError(f"Agent type {agent.type} not supported")
 
-    def _register_agent(self, agent_info: AgentInfo):
+    def _register_agent(self, agent_info: AgentState):
         """Register a mal sim agent"""
 
         logger.info('Registering agent "%s".', agent_info)
@@ -206,20 +189,20 @@ class MalSimulator():
 
     def register_attacker(self, name: str, attacker_id: int):
         """Register a mal sim attacker agent"""
-        agent_info = AttackerAgentInfo(name, attacker_id)
+        agent_info = AttackerAgentState(name, attacker_id)
         self._register_agent(agent_info)
 
     def register_defender(self, name: str):
         """Register a mal sim defender agent"""
-        agent_info = DefenderAgentInfo(name)
+        agent_info = DefenderAgentState(name)
         self._register_agent(agent_info)
 
-    def get_attacker_agents(self) -> list[AttackerAgentInfo]:
+    def get_attacker_agents(self) -> list[AttackerAgentState]:
         """Return list of attacker agents"""
         return [a for a in self.agents_dict.values()
                 if a.type == AgentType.ATTACKER]
 
-    def get_defender_agents(self) -> list[DefenderAgentInfo]:
+    def get_defender_agents(self) -> list[DefenderAgentState]:
         """Return list of defender agents"""
         return [a for a in self.agents_dict.values()
                 if a.type == AgentType.DEFENDER]
@@ -251,7 +234,7 @@ class MalSimulator():
                     attacker.undo_compromise(unviable_node)
 
     def _attacker_step(
-            self, agent: AttackerAgentInfo, nodes: list[AttackGraphNode]
+            self, agent: AttackerAgentState, nodes: list[AttackGraphNode]
         ) -> list[AttackGraphNode]:
         """Compromise attack step nodes with attacker
 
@@ -303,7 +286,7 @@ class MalSimulator():
         return enabled_nodes
 
     def _defender_step(
-            self, agent: DefenderAgentInfo, nodes: list[AttackGraphNode]
+            self, agent: DefenderAgentState, nodes: list[AttackGraphNode]
         ) -> tuple[list[AttackGraphNode], list[AttackGraphNode]]:
         """Enable defense step nodes with defender
 
@@ -368,7 +351,7 @@ class MalSimulator():
 
     def step(
             self, actions: dict[str, list[AttackGraphNode]]
-        ) -> dict[str, AgentInfo]:
+        ) -> dict[str, AgentState]:
         """Take a step in the simulation
 
         Args:
