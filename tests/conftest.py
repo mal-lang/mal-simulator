@@ -5,7 +5,6 @@ from maltoolbox.language import LanguageGraph, LanguageClassesFactory
 from maltoolbox.model import Model
 from maltoolbox.wrappers import create_attack_graph
 from malsim.sims import VectorizedObsMalSimulator
-from malsim.agents import PassiveAgent
 
 model_file_name='tests/testdata/models/simple_test_model.yml'
 attack_graph_file_name=path.join('tmp','attack_graph.json')

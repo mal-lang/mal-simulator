@@ -8,9 +8,7 @@ from gymnasium.core import RenderFrame
 import numpy as np
 
 from ..scenario import load_scenario
-from ..sims import VectorizedObsMalSimulator
-from ..sims.mal_sim_agent_info import AgentType
-from ..agents import PassiveAgent
+from ..sims import VectorizedObsMalSimulator, AgentType
 
 
 class AttackerEnv(gym.Env):

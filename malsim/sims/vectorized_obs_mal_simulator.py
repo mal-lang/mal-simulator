@@ -17,9 +17,17 @@ from pettingzoo import ParallelEnv
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
 from ..sims.mal_sim_settings import MalSimulatorSettings
-from ..sims.mal_simulator import MalSimulator
-from ..sims.mal_sim_agent_info import AgentType, AgentInfo, AttackerAgentInfo, DefenderAgentInfo
-from ..sims.mal_sim_logging_utils import format_full_observation, log_mapping_tables
+from ..sims.mal_simulator import (
+    MalSimulator,
+    AgentType,
+    AgentInfo,
+    AttackerAgentInfo,
+    DefenderAgentInfo
+)
+from ..sims.mal_sim_logging_utils import (
+    format_full_observation,
+    log_mapping_tables,
+)
 
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
