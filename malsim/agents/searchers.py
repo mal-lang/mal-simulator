@@ -30,10 +30,10 @@ class BreadthFirstAttacker():
             else None
         )
 
-    def get_next_action(self, state) -> tuple[int, int]:
+    def get_next_action(self, agent_state) -> tuple[int, int]:
 
-        observation = state.observation
-        mask = state.info['action_mask']
+        observation = agent_state.observation
+        mask = agent_state.info['action_mask']
 
         new_targets, surface_indexes = get_new_targets(observation, self.targets, mask)
 

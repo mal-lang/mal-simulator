@@ -334,16 +334,11 @@ class MalSimulator():
             agent = self.agents_dict[agent_name]
             agent_actions = actions.get(agent.name, [])
 
-            if len(agent_actions) == 0:
-                # Agent decided to wait, ignore.
-                continue
-
             match agent.type:
 
                 case AgentType.ATTACKER:
                     enabled = self._attacker_step(agent, agent_actions)
                     enabled_nodes += enabled
-
                     if not agent.terminated:
                         all_attackers_terminated = False
 
@@ -362,11 +357,13 @@ class MalSimulator():
 
         if all_attackers_terminated:
             # Terminate all agents if all attackers are terminated
+            logger.info("All attackers are terminated")
             for agent in self.agents_dict.values():
                 agent.terminated = True
 
         if self.cur_iter >= self.max_iter:
             # Truncate all agents when max iter is reached
+            logger.info("Max iteration reached - all agents truncated")
             for agent in self.agents_dict.values():
                 agent.truncated = True
 
@@ -374,6 +371,7 @@ class MalSimulator():
         for agent_name in self.agents:
             agent = self.agents_dict[agent_name]
             if agent.terminated or agent.truncated:
+                logger.info("Removing agent %s", agent.name)
                 agents_to_remove.add(agent.name)
 
         for agent in agents_to_remove:

@@ -187,7 +187,7 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
 
         return np_obs
 
-    def create_action_mask(self, agent: MalSimAgent):
+    def create_action_mask(self, agent: AgentInfo):
         """
         Create an action mask for an agent based on its action_surface.
 
@@ -415,8 +415,8 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
             nodes = [self.index_to_node(step_idx)]
         return nodes
 
-    def register_agent(self, agent):
-        super().register_agent(agent)
+    def _register_agent(self, agent: AgentInfo):
+        super()._register_agent(agent)
 
         # Fill in required fields for parallel env
         agent.observation = self._create_blank_observation()
@@ -426,12 +426,12 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
             self,
             enabled_nodes,
             disabled_nodes,
-            attacker_agent: MalSimAttacker
+            attacker_agent: AttackerAgentInfo
         ):
         """Update the observation of the serialized obs attacker"""
 
         def _enable_node(
-                node: AttackGraphNode, agent: MalSimAttacker
+                node: AttackGraphNode, agent: AttackerAgentInfo
             ):
             """Set enabled node obs state to enabled and
             its children to disabled"""
@@ -469,7 +469,7 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
             self,
             enabled_nodes: list[AttackGraphNode],
             disabled_nodes: list[AttackGraphNode],
-            defender_agent: MalSimDefender
+            defender_agent: DefenderAgentInfo
         ):
         """Update the observation of the defender"""
 
@@ -550,7 +550,7 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
                 )
 
         enabled_nodes, disabled_nodes = super().step(malsim_actions)
-        self._update_agent_infos()
+        self._update_agent_infos() # Update action masks
         self._update_observations(enabled_nodes, disabled_nodes)
 
         observations = {}
