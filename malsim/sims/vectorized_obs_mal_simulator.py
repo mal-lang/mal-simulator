@@ -53,9 +53,6 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
             max_iter
         )
 
-        # Keep track on all (dead and alive) agents
-        self.possible_agents = []
-
         # List mapping from node/asset index to id/name/type
         self._index_to_id = [n.id for n in self.attack_graph.nodes]
         self._index_to_full_name = \
@@ -429,7 +426,6 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
     def _register_agent(self, agent: MalSimAgent):
         super()._register_agent(agent)
 
-        self.possible_agents.append(agent.name)
         # Fill in required fields for parallel env
         agent.observation = self._create_blank_observation()
         agent.info = self.create_action_mask(agent)

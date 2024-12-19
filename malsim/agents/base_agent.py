@@ -1,10 +1,4 @@
-class MalSimAgent():
-    pass
-
-class MalSimAttackerAgent():
-    pass
-
-class MalSimDefenderAgent():
+class DecisionAgent():
     pass
 
 class PassiveAgent():

@@ -98,11 +98,15 @@ class MalSimulator():
         self.max_iter = max_iter # Max iterations before stopping simulation
         self.cur_iter = 0        # Keep track on current iteration
 
-        # Keep track on all registered agents state
+        # Keep track on all registered agent states
         self.agents_dict: dict[str, MalSimAgent] = {}
 
         # Keep track on all 'living' agents sorted by order to step in
         self.agents: list[str] = []
+
+        # Keep track on all (dead and alive) agents sorted by order to step in
+        # (Used when resetting)
+        self.possible_agents: list[str] = []
 
     def reset(
             self,
@@ -147,9 +151,16 @@ class MalSimulator():
     def _reset_agents(self):
         """Reset agent rewards and action surfaces"""
 
+        # Revive dead agents
+        self.agents = copy.deepcopy(self.possible_agents)
+
         for agent in self.agents_dict.values():
-            # Reset reward
+            # Reset agent reward
             agent.reward = 0
+
+            # Mark agent as alive again
+            agent.terminated = False
+            agent.truncated = False
 
         self._initialize_rewards()
         self._init_agent_action_surfaces()
@@ -182,9 +193,11 @@ class MalSimulator():
             # Defender is first in list so it can pick
             # actions before attacker when step performed
             self.agents.insert(0, agent.name)
+            self.possible_agents.insert(0, agent.name)
         elif agent.type == AgentType.ATTACKER:
             # Attacker goes last
             self.agents.append(agent.name)
+            self.possible_agents.append(agent.name)
 
         self.agents_dict[agent.name] = agent
 

@@ -1,10 +1,10 @@
-from .base_agent import PassiveAgent, MalSimAgent
+from .base_agent import PassiveAgent, DecisionAgent
 from .keyboard_input import KeyboardAgent
 from .searchers import BreadthFirstAttacker, DepthFirstAttacker
 
 __all__ = [
     'PassiveAgent',
-    'MalSimAgent',
+    'DecisionAgent',
     'KeyboardAgent',
     'BreadthFirstAttacker',
     'DepthFirstAttacker'

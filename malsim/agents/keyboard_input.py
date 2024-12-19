@@ -1,10 +1,10 @@
 import logging
-from .base_agent import MalSimAgent
+from .base_agent import DecisionAgent
 
 logger = logging.getLogger(__name__)
 null_action = []
 
-class KeyboardAgent(MalSimAgent):
+class KeyboardAgent(DecisionAgent):
     """An agent that makes decisions by asking user for keyboard input"""
 
     def __init__(self, _, **kwargs):

@@ -108,7 +108,7 @@ class DefenderEnv(gym.Env):
             )
 
         # Register defender agent
-        self.defender_agent_name = "DefenderEnvDefender"
+        self.defender_agent_name = "DefenderEnvAgent"
         self.sim.register_defender(self.defender_agent_name)
         self.sim.reset()
 
