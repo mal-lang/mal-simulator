@@ -11,7 +11,7 @@ import gymnasium as gym
 from gymnasium.utils import env_checker
 from pettingzoo.test import parallel_api_test
 
-from malsim.sims.mal_simulator import MalSimulator
+from malsim.sims import VectorizedObsMalSimulator
 from malsim.wrappers.gym_wrapper import AttackerEnv, DefenderEnv, MaskingWrapper
 from malsim.agents.searchers import BreadthFirstAttacker, DepthFirstAttacker
 
@@ -31,7 +31,7 @@ def register_gym_agent(agent_id, entry_point):
         gym.register(agent_id, entry_point=entry_point)
 
 
-def test_pz(env: MalSimulator):
+def test_pz(env: VectorizedObsMalSimulator):
     logger.debug('Run Parrallel API test.')
     parallel_api_test(env)
 
@@ -43,7 +43,6 @@ def test_gym():
     env = gym.make(
         'MALDefenderEnv-v0',
         scenario_file=scenario_file,
-        unholy=False,
     )
     env_checker.check_env(env.unwrapped)
     register_gym_agent('MALAttackerEnv-v0', entry_point=AttackerEnv)
@@ -88,7 +87,6 @@ def test_episode():
     env = gym.make(
         'MALDefenderEnv-v0',
         scenario_file=scenario_file,
-        unholy=False,
     )
 
     done = False
@@ -126,7 +124,6 @@ def test_defender_penalty():
     env = gym.make(
         'MALDefenderEnv-v0',
         scenario_file=scenario_file,
-        unholy=False,
     )
 
     _, info = env.reset()
@@ -160,7 +157,7 @@ def test_action_mask():
     # assert reward < 0 # All defense steps cost something
 
 
-def test_env_step(env: MalSimulator) -> None:
+def test_env_step(env: VectorizedObsMalSimulator) -> None:
     obs, info = env.reset()
     attacker_action = env.action_space('attacker').sample()
     defender_action = env.action_space('defender').sample()
@@ -171,7 +168,7 @@ def test_env_step(env: MalSimulator) -> None:
     assert 'defender' in obs
 
 
-def test_check_space_env(env: MalSimulator) -> None:
+def test_check_space_env(env: VectorizedObsMalSimulator) -> None:
     attacker_space = env.observation_space('attacker')
     defender_space = env.observation_space('defender')
 
@@ -206,7 +203,7 @@ def test_check_space_env(env: MalSimulator) -> None:
         DepthFirstAttacker,
     ],
 )
-def test_attacker(env: MalSimulator, attacker_class) -> None:
+def test_attacker(env: VectorizedObsMalSimulator, attacker_class) -> None:
     obs, info = env.reset()
     attacker = attacker_class(
         dict(
@@ -218,8 +215,8 @@ def test_attacker(env: MalSimulator, attacker_class) -> None:
     step_limit = 1000000
     done = False
     while not done and steps < step_limit:
-        action = attacker.compute_action_from_dict(
-            obs[AGENT_ATTACKER], info[AGENT_ATTACKER]['action_mask']
+        action = attacker.get_next_action(
+            env.agents_dict[AGENT_ATTACKER]
         )
         assert action != ACTION_TERMINATE
         assert action != ACTION_WAIT
@@ -233,7 +230,7 @@ def test_attacker(env: MalSimulator, attacker_class) -> None:
     assert done, 'Attacker failed to explore attack steps'
 
 
-def test_env_multiple_steps(env: MalSimulator) -> None:
+def test_env_multiple_steps(env: VectorizedObsMalSimulator) -> None:
     obs, info = env.reset()
     for _ in range(100):
         attacker_action = env.action_space('attacker').sample()

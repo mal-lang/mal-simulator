@@ -7,9 +7,7 @@ from malsim.scenario import (
     apply_scenario_node_property_rules,
     load_scenario
 )
-from malsim.agents.keyboard_input import KeyboardAgent
-from malsim.agents.searchers import BreadthFirstAttacker
-
+from malsim.agents import PassiveAgent, BreadthFirstAttacker
 
 def path_relative_to_tests(filename):
     """Returns the absolute path of a file in ./tests
@@ -25,7 +23,7 @@ def test_load_scenario():
     """Make sure we can load a scenario"""
 
     # Load the scenario
-    attack_graph, config = load_scenario(
+    attack_graph, agents = load_scenario(
         path_relative_to_tests('./testdata/scenarios/simple_scenario.yml')
     )
 
@@ -64,8 +62,8 @@ def test_load_scenario():
     # Entry points list and reached attack steps list are different lists
     assert id(attacker.entry_points) != id(attacker.reached_attack_steps)
 
-    assert config['agents']['attacker']['agent_class'] == BreadthFirstAttacker
-    assert config['agents']['defender']['agent_class'] == KeyboardAgent
+    assert isinstance(agents[0]['agent'], BreadthFirstAttacker)
+    assert isinstance(agents[1]['agent'], PassiveAgent)
 
 
 def test_load_scenario_no_attacker_in_model():
@@ -116,13 +114,13 @@ def test_load_scenario_no_defender_agent():
     """Make sure we can load a scenario"""
 
     # Load the scenario
-    _, config = load_scenario(
+    _, agents = load_scenario(
         path_relative_to_tests(
             './testdata/scenarios/no_defender_agent_scenario.yml'
         )
     )
-    assert 'defender' not in config['agents']
-    assert config['agents']['attacker']['agent_class'] == BreadthFirstAttacker
+    assert 'defender' not in [a['name'] for a  in agents]
+    assert isinstance(agents[0]['agent'], BreadthFirstAttacker)
 
 
 def test_load_scenario_agent_class_error():
