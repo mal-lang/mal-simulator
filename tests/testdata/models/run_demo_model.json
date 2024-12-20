@@ -103,17 +103,5 @@
               ]
           }
       }
-  ],
-  "attackers": {
-      "8": {
-          "name": "Attacker:8",
-          "entry_points": {
-              "0": {
-                  "attack_steps": [
-                      "networkConnectUninspected"
-                  ]
-              }
-          }
-      }
-  }
+  ]
 }
