@@ -154,13 +154,13 @@ def test_malsimulator_defender_step(corelang_lang_graph, model):
 
     defense_step = sim.attack_graph.get_node_by_full_name(
         'OS App:notPresent')
-    enabled, _ = sim._defender_step(sim.agents_dict[agent_name], [defense_step])
+    enabled, _ = sim._defender_step(sim.get_agent(agent_name), [defense_step])
     assert enabled == [defense_step]
 
     # Can not defend attack_step
     attack_step = sim.attack_graph.get_node_by_full_name(
         'OS App:attemptUseVulnerability')
-    actions, _ = sim._defender_step(sim.agents_dict[agent_name], [attack_step])
+    actions, _ = sim._defender_step(sim.get_agent(agent_name), [attack_step])
     assert not actions
 
 
