@@ -4,9 +4,6 @@
 lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
 model_file: ../models/run_demo_model.json
 
-attacker_agent_class: 'BreadthFirstAttacker'
-defender_agent_class: 'KeyboardAgent'
-
 # Rewards for each attack step (same as in run_demo.py)
 rewards:
   OS App:notPresent: 50
@@ -25,3 +22,14 @@ rewards:
   Program 1:fullAccess: 50
   Identity:5:assume: 50
   Other OS App:fullAccess: 200
+
+agents:
+  'Attacker1':
+    agent_class: BreadthFirstAttacker
+    type: attacker
+    entry_points:
+      - 'OS App:networkConnectUninspected'
+
+  'Defender1':
+    agent_class: KeyboardAgent
+    type: defender
