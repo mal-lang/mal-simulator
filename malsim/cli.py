@@ -36,7 +36,7 @@ def run_simulation(sim: VectorizedObsMalSimulator, agents: list[dict]):
                 continue
 
             agent_action = \
-                agent.get_next_action(sim.agents_dict[agent_name])
+                agent.get_next_action(sim.get_agent(agent_name))
             actions[agent_name] = agent_action
 
             if agent_action[0]:

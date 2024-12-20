@@ -112,7 +112,7 @@ def test_attacker_step(corelang_lang_graph, model):
 
     sim.register_attacker(attacker.name, attacker.id)
     sim.reset()
-    attacker_agent = sim.agents_dict[attacker.name]
+    attacker_agent = sim.get_agent(attacker.name)
 
     # Can not attack the notPresent step
     defense_step = attack_graph.get_node_by_full_name('OS App:notPresent')
@@ -133,7 +133,7 @@ def test_defender_step(corelang_lang_graph, model):
     sim.register_defender(defender_name)
     sim.reset()
 
-    defender_agent = sim.agents_dict[defender_name]
+    defender_agent = sim.get_agent(defender_name)
     defense_step = sim.attack_graph.get_node_by_full_name(
         'OS App:notPresent')
     actions, _ = sim._defender_step(defender_agent, [defense_step])
