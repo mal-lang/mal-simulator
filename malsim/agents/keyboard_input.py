@@ -1,20 +1,21 @@
-import numpy as np
 import logging
-
-AGENT_ATTACKER = "attacker"
-AGENT_DEFENDER = "defender"
+from .base_agent import DecisionAgent
 
 logger = logging.getLogger(__name__)
+null_action = []
 
-null_action = (0, None)
+class KeyboardAgent(DecisionAgent):
+    """An agent that makes decisions by asking user for keyboard input"""
 
+    def __init__(self, _, **kwargs):
+        super().__init__(**kwargs)
+        logger.info("Creating KeyboardAgent")
 
-class KeyboardAgent:
-    def __init__(self, vocab):
-        logger.debug("Create Keyboard agent.")
-        self.vocab = vocab
+    def get_next_action(
+            self, state, **kwargs
+        ) -> tuple:
+        """Compute action from action_surface"""
 
-    def compute_action_from_dict(self, obs: dict, mask: tuple) -> tuple:
         def valid_action(user_input: str) -> bool:
             if user_input == "":
                 return True
@@ -24,40 +25,35 @@ class KeyboardAgent:
             except ValueError:
                 return False
 
-            try:
-                a = associated_action[action_strings[node]]
-            except IndexError:
-                return False
-
-            if a == 0:
-                return True  # wait is always valid
-            return node < len(available_actions) and node >= 0
+            return 0 <= node <= len(state.action_surface)
 
         def get_action_object(user_input: str) -> tuple:
             node = int(user_input) if user_input != "" else None
-            action = associated_action[action_strings[node]] if user_input != "" else 0
-            return node, action
+            return node
 
-        available_actions = np.flatnonzero(mask[1])
+        if not state.action_surface:
+            print("No actions to pick for defender")
+            return []
 
-        action_strings = [self.vocab[i] for i in available_actions]
-        associated_action = {i: 1 for i in action_strings}
-        action_strings += ["wait"]
-        associated_action["wait"] = 0
-
+        index_to_node = dict(enumerate(state.action_surface))
         user_input = "xxx"
         while not valid_action(user_input):
             print("Available actions:")
-            print("\n".join([f"{i}. {a}" for i, a in enumerate(action_strings)]))
+            print(
+                "\n".join(
+                    [f"{i}. {n.full_name}" for i, n in index_to_node.items()]
+                )
+            )
             print("Enter action or leave empty to wait:")
             user_input = input("> ")
 
             if not valid_action(user_input):
                 print("Invalid action.")
 
-        node, a = get_action_object(user_input)
+        index = get_action_object(user_input)
         print(
-            f"Selected action: {action_strings[node] if node is not None else 'wait'}"
+            f"Selected action: {index_to_node[index].full_name}"
+            if index is not None else 'wait'
         )
 
-        return (a, available_actions[node] if a != 0 else -1)
+        return (1, index_to_node[index]) if index is not None else (0, None)
