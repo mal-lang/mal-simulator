@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from enum import Enum
+from dataclasses import dataclass, field
 import copy
 import logging
 from typing import Optional
@@ -17,6 +19,11 @@ from .mal_sim_agent import (
     MalSimAttacker,
     MalSimDefender
 )
+from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+from maltoolbox.attackgraph.analyzers import apriori
+from maltoolbox.attackgraph import query
+
+from .mal_sim_settings import MalSimulatorSettings
 
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)

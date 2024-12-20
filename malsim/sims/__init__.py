@@ -17,5 +17,5 @@ __all__ = [
     'MalSimAttacker',
     'MalSimulatorSettings',
     'MalSimulator',
-    'MalSimVectorizedObsEnv'
+    'MalSimVectorizedObsEnv',
 ]
