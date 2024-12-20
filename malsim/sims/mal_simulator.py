@@ -211,6 +211,13 @@ class MalSimulator():
         agent_state = MalSimDefender(name)
         self._register_agent(agent_state)
 
+    def get_agent(self, name: str) -> MalSimAgent:
+        """Return agent with given name"""
+        assert name in self.agents_dict, (
+            f"Agent with name '{name}' does not exist"
+        )
+        return self.agents_dict[name]
+
     def get_attacker_agents(self) -> list[MalSimAttacker]:
         """Return list of attacker agent states"""
         return [a for a in self.agents_dict.values()
@@ -387,7 +394,7 @@ class MalSimulator():
         # Note: by design, defenders perform actions
         # before attackers (see register_agent)
         for agent_name in self.agents:
-            agent = self.agents_dict[agent_name]
+            agent = self.get_agent(agent_name)
             agent_actions = actions.get(agent.name, [])
 
             match agent.type:
@@ -425,7 +432,7 @@ class MalSimulator():
 
         agents_to_remove = set()
         for agent_name in self.agents:
-            agent = self.agents_dict[agent_name]
+            agent = self.get_agent(agent_name)
             if agent.terminated or agent.truncated:
                 logger.info("Removing agent %s", agent.name)
                 agents_to_remove.add(agent.name)

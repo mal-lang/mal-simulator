@@ -143,9 +143,9 @@ class DefenderEnv(gym.Env):
             if 'agent' not in agent_info:
                 continue
 
-            agent = agent_info['agent']
-            agent_state = self.sim.agents_dict[agent_name]
-            actions[agent_name] = agent.get_next_action(agent_state)
+            decision_agent = agent_info['agent']
+            agent_state = self.sim.get_agent(agent_name)
+            actions[agent_name] = decision_agent.get_next_action(agent_state)
 
         # Action from defender agent needs to be converted to nodes
         actions[self.defender_agent_name] = action

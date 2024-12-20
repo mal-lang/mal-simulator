@@ -38,9 +38,9 @@ def test_bfs_vs_bfs_state_and_reward():
 
     while True:
         attacker_action = attacker_agent\
-            .get_next_action(sim.agents_dict[attacker_agent_info['name']])
+            .get_next_action(sim.get_agent(attacker_agent_info['name']))
         defender_action = defender_agent\
-            .get_next_action(sim.agents_dict[defender_agent_info['name']])
+            .get_next_action(sim.get_agent(defender_agent_info['name']))
 
         if attacker_action:
             attacker_actions.append(
