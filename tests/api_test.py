@@ -216,7 +216,7 @@ def test_attacker(env: VectorizedObsMalSimulator, attacker_class) -> None:
     done = False
     while not done and steps < step_limit:
         action = attacker.get_next_action(
-            env.agents_dict[AGENT_ATTACKER]
+            env.get_agent(AGENT_ATTACKER)
         )
         assert action != ACTION_TERMINATE
         assert action != ACTION_WAIT
