@@ -1,9 +1,24 @@
-class DecisionAgent():
-    pass
+"""A decision agent is a heuristic agent"""
 
-class PassiveAgent():
+from abc import ABC, abstractmethod
+from ..sims import MalSimAgent
+
+class DecisionAgent(ABC):
+
+    @abstractmethod
+    def get_next_action(
+        self,
+        agent: MalSimAgent,
+        **kwargs
+    ) -> tuple[int, int]: ...
+
+class PassiveAgent(DecisionAgent):
     def __init__(self, info):
         return
 
-    def get_next_action(self, state) -> tuple[int, int]:
+    def get_next_action(
+        self,
+        agent: MalSimAgent,
+        **kwargs
+    ) -> tuple[int, int]:
         return (0, None)
