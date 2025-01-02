@@ -549,11 +549,10 @@ class MalSimulator(ParallelEnv):
                 enumerate(self._index_to_model_assoc_type)
         }
 
-    def get_attack_graph_node_by_index(self, index: int):
+    def index_to_node(self, index: int) -> AttackGraphNode:
         """Get a node from the attack graph by index
 
         Index is the position of the node in the lookup list.
-
         First convert index to id and then fetch the node from the
         AttackGraph.
 
@@ -566,15 +565,43 @@ class MalSimulator(ParallelEnv):
         """
 
         if index >= len(self._index_to_id):
-            raise IndexError('Index given, %d, is out of range of the '
-                'lookup list which is of length %d' % (index,
-                    len(self._index_to_id)))
+            raise IndexError(
+                f'Index {index}, is out of range of the '
+                f'lookup list which is of length {len(self._index_to_id)}'
+            )
 
         node_id = self._index_to_id[index]
         node = self.attack_graph.get_node_by_id(node_id)
         if not node:
-            raise LookupError('Index given, %d(id: %d), does not map to a '
-                'node' % (index, node_id))
+            raise LookupError(
+                f'Index {index} (id: {node_id}), does not map to a node'
+            )
+        return node
+
+    def node_to_index(self, node: AttackGraphNode) -> int:
+        """Get the index of an attack graph node
+
+        Returns:
+        Index of the attack graph node in the lookup list
+        """
+
+        assert node, "Node can not be None"
+        return self._id_to_index[node.id]
+
+    def action_to_node(
+            self, action: tuple[int, int]
+        ) -> list[AttackGraphNode]:
+        """Convert serialized action to malsim action format
+
+        (0, None) -> None
+        (1, idx) -> Node with index idx
+
+        Currently supports single action only.
+        """
+        node = None
+        act, step_idx = action
+        if act:
+            node = self.index_to_node(step_idx)
         return node
 
     def _get_association_full_name(self, association) -> str:
@@ -767,7 +794,7 @@ class MalSimulator(ParallelEnv):
         actions = []
         attacker_index = self.agents_dict[agent]["attacker"]
         attacker = self.attack_graph.attackers[attacker_index]
-        attack_step_node = self.get_attack_graph_node_by_index(attack_step)
+        attack_step_node = self.index_to_node(attack_step)
 
         logger.info(
             'Attacker agent "%s" stepping through "%s"(%d).',
