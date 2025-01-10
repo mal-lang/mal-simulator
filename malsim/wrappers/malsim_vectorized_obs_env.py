@@ -1,4 +1,4 @@
-""""VectorizedObsMalSimulator:
+""""MalSimVectorizedObsEnv:
     - Abide to the ParallelEnv interface
     - Build serialized observations from the MalSimulator state
     - step() assumes that actions are given as AttackGraphNodes
@@ -32,10 +32,11 @@ from ..sims.mal_sim_logging_utils import (
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
 
-class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
+class MalSimVectorizedObsEnv(ParallelEnv):
     """
     Environment that runs simulation between agents.
     Builds serialized observations.
+    Implements the ParallelEnv.
     """
 
     def __init__(
@@ -46,29 +47,32 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
             max_iter=ITERATIONS_LIMIT
         ):
 
-        super().__init__(
+        self.sim = MalSimulator(
             attack_graph,
             prune_unviable_unnecessary,
             sim_settings,
             max_iter
         )
 
+        # Useful instead of having to fetch .sim.attack_graph
+        self.attack_graph = attack_graph
+
         # List mapping from node/asset index to id/name/type
-        self._index_to_id = [n.id for n in self.attack_graph.nodes]
+        self._index_to_id = [n.id for n in self.sim.attack_graph.nodes]
         self._index_to_full_name = \
-            [n.full_name for n in self.attack_graph.nodes]
+            [n.full_name for n in self.sim.attack_graph.nodes]
         self._index_to_asset_type = \
-            [n.name for n in self.attack_graph.lang_graph.assets]
+            [n.name for n in self.sim.attack_graph.lang_graph.assets]
         self._index_to_step_name = \
             [n.asset.name + ":" + n.name
-             for n in self.attack_graph.lang_graph.attack_steps]
+             for n in self.sim.attack_graph.lang_graph.attack_steps]
         self._index_to_model_asset_id = \
-            [int(asset.id) for asset in self.attack_graph.model.assets]
+            [int(asset.id) for asset in self.sim.attack_graph.model.assets]
         self._index_to_model_assoc_type = [
             assoc.name + '_' + \
             assoc.left_field.asset.name + '_' + \
             assoc.right_field.asset.name \
-            for assoc in self.attack_graph.lang_graph.associations
+            for assoc in self.sim.attack_graph.lang_graph.associations
         ]
 
         # Lookup dicts attribute to index
@@ -93,27 +97,32 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
         self._blank_observation = self._create_blank_observation()
         self.reset()
 
+    @property
+    def agents(self):
+        """Required by ParallelEnv"""
+        return self.sim.agents
+
     def _create_blank_observation(self, default_obs_state=-1):
         """Create the initial observation"""
         # For now, an `object` is an attack step
-        num_steps = len(self.attack_graph.nodes)
+        num_steps = len(self.sim.attack_graph.nodes)
 
         observation = {
             # If no observability set for node, assume observable.
             "is_observable": [step.extras.get('observable', 1)
-                              for step in self.attack_graph.nodes],
+                              for step in self.sim.attack_graph.nodes],
             # Same goes for actionable.
             "is_actionable": [step.extras.get('actionable', 1)
-                              for step in self.attack_graph.nodes],
+                              for step in self.sim.attack_graph.nodes],
             "observed_state": num_steps * [default_obs_state],
             "remaining_ttc": num_steps * [0],
             "asset_type": [self._asset_type_to_index[step.asset.type]
-                           for step in self.attack_graph.nodes],
+                           for step in self.sim.attack_graph.nodes],
             "asset_id": [step.asset.id
-                         for step in self.attack_graph.nodes],
+                         for step in self.sim.attack_graph.nodes],
             "step_name": [self._step_name_to_index[
                           str(step.asset.type + ":" + step.name)]
-                          for step in self.attack_graph.nodes],
+                          for step in self.sim.attack_graph.nodes],
         }
 
         logger.debug(
@@ -122,13 +131,13 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
         # Add attack graph edges to observation
         observation["attack_graph_edges"] = [
             [self._id_to_index[attack_step.id], self._id_to_index[child.id]]
-                for attack_step in self.attack_graph.nodes
+                for attack_step in self.sim.attack_graph.nodes
                     for child in attack_step.children
         ]
 
         # Add reverse attack graph edges for defense steps (required by some
         # defender agent logic)
-        for attack_step in self.attack_graph.nodes:
+        for attack_step in self.sim.attack_graph.nodes:
             if attack_step.type == "defense":
                 for child in attack_step.children:
                     observation["attack_graph_edges"].append(
@@ -142,14 +151,14 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
         observation["model_edges_ids"] = []
         observation["model_edges_type"] = []
 
-        for asset in self.attack_graph.model.assets:
+        for asset in self.sim.attack_graph.model.assets:
             observation["model_asset_id"].append(asset.id)
             observation["model_asset_type"].append(
                 self._asset_type_to_index[asset.type])
 
-        for assoc in self.attack_graph.model.associations:
+        for assoc in self.sim.attack_graph.model.associations:
             left_field_name, right_field_name = \
-                self.attack_graph.model.get_association_field_names(assoc)
+                self.sim.attack_graph.model.get_association_field_names(assoc)
             left_field = getattr(assoc, left_field_name)
             right_field = getattr(assoc, right_field_name)
             for left_asset in left_field:
@@ -206,7 +215,7 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
             A dictionary with the action mask for the agent.
         """
 
-        available_actions = [0] * len(self.attack_graph.nodes)
+        available_actions = [0] * len(self.sim.attack_graph.nodes)
         can_wait = 1 if agent.type == AgentType.DEFENDER else 0
         can_act = 0
 
@@ -221,7 +230,7 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
             if agent.type == AgentType.ATTACKER:
                 # Attacker can only act on nodes that are not compromised
                 attacker = \
-                    self.attack_graph.get_attacker_by_id(agent.attacker_id)
+                    self.sim.attack_graph.get_attacker_by_id(agent.attacker_id)
                 if not node.is_compromised_by(attacker):
                     index = self._id_to_index[node.id]
                     available_actions[index] = 1
@@ -235,7 +244,7 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
         }
 
     def _update_agent_infos(self):
-        for agent in self.agents_dict.values():
+        for agent in self.sim.agents_dict.values():
             agent.info = self.create_action_mask(agent)
 
     def _get_association_full_name(self, association) -> str:
@@ -264,10 +273,10 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
             return assoc_name
 
         left_field_name, right_field_name = \
-            self.attack_graph.model.get_association_field_names(association)
+            self.sim.attack_graph.model.get_association_field_names(association)
         left_field = getattr(association, left_field_name)
         right_field = getattr(association, right_field_name)
-        lang_assoc = self.attack_graph.lang_graph.get_association_by_fields_and_assets(
+        lang_assoc = self.sim.attack_graph.lang_graph.get_association_by_fields_and_assets(
             left_field_name,
             right_field_name,
             left_field[0].type,
@@ -291,17 +300,17 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
     def action_space(self, agent=None):
         num_actions = 2  # two actions: wait or use
         # For now, an `object` is an attack step
-        num_steps = len(self.attack_graph.nodes)
+        num_steps = len(self.sim.attack_graph.nodes)
         return MultiDiscrete([num_actions, num_steps], dtype=np.int64)
 
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent_name: str = None):
         # For now, an `object` is an attack step
-        num_assets = len(self.attack_graph.model.assets)
-        num_steps = len(self.attack_graph.nodes)
-        num_lang_asset_types = len(self.attack_graph.lang_graph.assets)
-        num_lang_attack_steps = len(self.attack_graph.lang_graph.attack_steps)
-        num_lang_association_types = len(self.attack_graph.lang_graph.associations)
+        num_assets = len(self.sim.attack_graph.model.assets)
+        num_steps = len(self.sim.attack_graph.nodes)
+        num_lang_asset_types = len(self.sim.attack_graph.lang_graph.assets)
+        num_lang_attack_steps = len(self.sim.attack_graph.lang_graph.attack_steps)
+        num_lang_association_types = len(self.sim.attack_graph.lang_graph.associations)
         num_attack_graph_edges = len(self._blank_observation["attack_graph_edges"])
         num_model_edges = len(self._blank_observation["model_edges_ids"])
         return Dict(
@@ -390,7 +399,7 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
             )
 
         node_id = self._index_to_id[index]
-        node = self.attack_graph.get_node_by_id(node_id)
+        node = self.sim.attack_graph.get_node_by_id(node_id)
         if not node:
             raise LookupError(
                 f'Index {index} (id: {node_id}), does not map to a node'
@@ -423,9 +432,20 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
             nodes = [self.index_to_node(step_idx)]
         return nodes
 
-    def _register_agent(self, agent: MalSimAgent):
-        super()._register_agent(agent)
+    def get_agent(self, agent_name: str):
+        return self.sim.get_agent(agent_name)
 
+    def register_attacker(self, attacker_name: str, attacker_id: int):
+        self.sim.register_attacker(attacker_name, attacker_id)
+        agent = self.sim.agents_dict[attacker_name]
+        self._init_agent(agent)
+
+    def register_defender(self, defender_name: str):
+        self.sim.register_defender(defender_name)
+        agent = self.sim.agents_dict[defender_name]
+        self._init_agent(agent)
+
+    def _init_agent(self, agent: MalSimAgent):
         # Fill in required fields for parallel env
         agent.observation = self._create_blank_observation()
         agent.info = self.create_action_mask(agent)
@@ -455,7 +475,7 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
                 if child_obs == -1:
                     agent.observation['observed_state'][child_index] = 0
 
-        attacker = self.attack_graph.get_attacker_by_id(
+        attacker = self.sim.attack_graph.get_attacker_by_id(
             attacker_agent.attacker_id)
 
         for node in enabled_nodes:
@@ -501,10 +521,11 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
         """Reset simulator and return current
         observation and infos for each agent"""
 
-        super().reset(seed, options)
+        self.sim.reset(seed, options)
+
         obs = {}
         infos = {}
-        for agent in self.agents_dict.values():
+        for agent in self.sim.agents_dict.values():
             # Reset observation and action mask for agents
             agent.observation = self._create_blank_observation()
             agent.info = self.create_action_mask(agent)
@@ -513,9 +534,9 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
 
         # Enable pre-enabled nodes in observation
         attacker_entry_points = [
-            n for n in self.attack_graph.nodes if n.is_compromised()]
+            n for n in self.sim.attack_graph.nodes if n.is_compromised()]
         pre_enabled_defenses = [
-            n for n in self.attack_graph.nodes if n.defense_status == 1.0]
+            n for n in self.sim.attack_graph.nodes if n.defense_status == 1.0]
 
         for node in attacker_entry_points:
             node.extras['entrypoint'] = True
@@ -529,13 +550,13 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
     def _update_observations(self, enabled_nodes, disabled_nodes):
         """Update observations of all agents"""
 
-        if not self.sim_settings.uncompromise_untraversable_steps:
+        if not self.sim.sim_settings.uncompromise_untraversable_steps:
             disabled_nodes = []
 
         logger.debug("Enable:\n\t%s", [n.full_name for n in enabled_nodes])
         logger.debug("Disable:\n\t%s", [n.full_name for n in disabled_nodes])
 
-        for agent in self.agents_dict.values():
+        for agent in self.sim.agents_dict.values():
             if agent.type == AgentType.ATTACKER:
                 self._update_attacker_obs(
                     enabled_nodes, disabled_nodes, agent
@@ -557,7 +578,7 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
                     self.index_to_node(agent_action[1])
                 )
 
-        enabled_nodes, disabled_nodes = super().step(malsim_actions)
+        enabled_nodes, disabled_nodes = self.sim.step(malsim_actions)
         self._update_agent_infos() # Update action masks
         self._update_observations(enabled_nodes, disabled_nodes)
 
@@ -567,7 +588,7 @@ class VectorizedObsMalSimulator(MalSimulator, ParallelEnv):
         truncations = {}
         infos = {}
 
-        for agent_name, agent in self.agents_dict.items():
+        for agent_name, agent in self.sim.agents_dict.items():
             observations[agent_name] = agent.observation
             rewards[agent_name] = agent.reward
             terminations[agent_name] = agent.terminated
