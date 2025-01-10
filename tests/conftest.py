@@ -4,7 +4,7 @@ import pytest
 from maltoolbox.language import LanguageGraph
 from maltoolbox.model import Model
 from maltoolbox.attackgraph import create_attack_graph
-from malsim.sims import VectorizedObsMalSimulator
+from malsim.sims import MalSimVectorizedObsEnv
 
 model_file_name = 'tests/testdata/models/simple_test_model.yml'
 attack_graph_file_name = path.join('/tmp','attack_graph.json')
@@ -34,14 +34,14 @@ def empty_model(name, lang_classes_factory):
 ## Fixtures
 
 @pytest.fixture(scope="session", name="env")
-def fixture_env()-> VectorizedObsMalSimulator:
+def fixture_env()-> MalSimVectorizedObsEnv:
 
     attack_graph = create_attack_graph(lang_file_name, model_file_name)
     attack_graph.save_to_file(attack_graph_file_name)
-    env = VectorizedObsMalSimulator(attack_graph, max_iter=1000)
+    env = MalSimVectorizedObsEnv(attack_graph, max_iter=1000)
     env.register_defender('defender')
 
-    attacker_id = env.attack_graph.attackers[0].id
+    attacker_id = env.sim.attack_graph.attackers[0].id
     env.register_attacker('attacker', attacker_id)
 
     return env
