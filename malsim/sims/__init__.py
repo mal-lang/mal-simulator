@@ -6,7 +6,7 @@ from .mal_simulator import (
     MalSimDefender,
     MalSimAttacker,
 )
-from .vectorized_obs_mal_simulator import VectorizedObsMalSimulator
+from ..wrappers.malsim_vectorized_obs_env import MalSimVectorizedObsEnv
 
 __all__ = [
     'AgentType',
@@ -15,5 +15,5 @@ __all__ = [
     'MalSimAttacker',
     'MalSimulatorSettings',
     'MalSimulator',
-    'VectorizedObsMalSimulator'
+    'MalSimVectorizedObsEnv'
 ]

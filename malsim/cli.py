@@ -4,14 +4,14 @@ from __future__ import annotations
 import argparse
 import logging
 
-from malsim.sims import VectorizedObsMalSimulator
+from malsim.sims import MalSimVectorizedObsEnv
 from malsim.scenario import create_simulator_from_scenario
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
 
-def run_simulation(sim: VectorizedObsMalSimulator, agents: list[dict]):
+def run_simulation(sim: MalSimVectorizedObsEnv, agents: list[dict]):
     """Run a simulation with agents"""
 
     obs, infos = sim.reset()
@@ -80,7 +80,7 @@ def main():
     sim, agents = \
         create_simulator_from_scenario(
             args.scenario_file,
-            sim_class=VectorizedObsMalSimulator
+            sim_class=MalSimVectorizedObsEnv
         )
 
     if args.output_attack_graph:

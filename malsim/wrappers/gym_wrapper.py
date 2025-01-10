@@ -8,7 +8,7 @@ from gymnasium.core import RenderFrame
 import numpy as np
 
 from ..scenario import load_scenario
-from ..sims import VectorizedObsMalSimulator, AgentType
+from ..sims import MalSimVectorizedObsEnv, AgentType
 
 
 class AttackerEnv(gym.Env):
@@ -25,7 +25,7 @@ class AttackerEnv(gym.Env):
 
         # Create a simulator from the scenario given
         attack_graph, agents = load_scenario(scenario_file, **kwargs)
-        self.sim = VectorizedObsMalSimulator(attack_graph)
+        self.sim = MalSimVectorizedObsEnv(attack_graph)
 
         attacker_agents = [
             agent for agent in agents if agent['type'] == AgentType.ATTACKER]
@@ -96,7 +96,7 @@ class DefenderEnv(gym.Env):
         self.render_mode = kwargs.pop('render_mode', None)
 
         ag, agents = load_scenario(scenario_file)
-        self.sim = VectorizedObsMalSimulator(ag, **kwargs)
+        self.sim = MalSimVectorizedObsEnv(ag, **kwargs)
 
         # Register attacker agents from scenario
         self.attacker_agents_infos = [agent_dict for agent_dict in agents

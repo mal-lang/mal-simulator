@@ -1,7 +1,7 @@
 """Test MalSimulator class"""
 
 from maltoolbox.attackgraph import AttackGraph, Attacker
-from malsim.sims import VectorizedObsMalSimulator
+from malsim.sims import MalSimVectorizedObsEnv
 from malsim.sims import MalSimAttacker
 from malsim.scenario import load_scenario
 
@@ -9,7 +9,7 @@ def test_create_blank_observation(corelang_lang_graph, model):
     """Make sure blank observation contains correct default values"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = VectorizedObsMalSimulator(attack_graph)
+    sim = MalSimVectorizedObsEnv(attack_graph)
 
     num_objects = len(attack_graph.nodes)
     blank_observation = sim._create_blank_observation()
@@ -67,15 +67,15 @@ def test_create_blank_observation_observability_given(
     scenario_file = \
         'tests/testdata/scenarios/traininglang_observability_scenario.yml'
     ag, _ = load_scenario(scenario_file)
-    sim = VectorizedObsMalSimulator(ag)
+    env = MalSimVectorizedObsEnv(ag)
 
-    num_objects = len(sim.attack_graph.nodes)
-    blank_observation = sim._create_blank_observation()
+    num_objects = len(env.sim.attack_graph.nodes)
+    blank_observation = env._create_blank_observation()
 
     assert len(blank_observation['is_observable']) == num_objects
 
     for index, observable in enumerate(blank_observation['is_observable']):
-        node = sim.index_to_node(index)
+        node = env.index_to_node(index)
 
         # Below are the rules from the traininglang observability scenario
         # made into if statements
@@ -100,15 +100,15 @@ def test_create_blank_observation_actionability_given(
     # Load Scenario with observability rules set
     scenario_file = 'tests/testdata/scenarios/traininglang_actionability_scenario.yml'
     ag, _ = load_scenario(scenario_file)
-    sim = VectorizedObsMalSimulator(ag)
+    env = MalSimVectorizedObsEnv(ag)
 
-    num_objects = len(sim.attack_graph.nodes)
-    blank_observation = sim._create_blank_observation()
+    num_objects = len(env.sim.attack_graph.nodes)
+    blank_observation = env._create_blank_observation()
 
     assert len(blank_observation['is_actionable']) == num_objects
 
     for index, actionable in enumerate(blank_observation['is_actionable']):
-        node = sim.index_to_node(index)
+        node = env.index_to_node(index)
 
         # Below are the rules from the traininglang observability scenario
         # made into if statements
@@ -127,40 +127,40 @@ def test_step(corelang_lang_graph, model):
 
     attacker = Attacker('attacker1', id=0)
     attack_graph.add_attacker(attacker, attacker.id)
-    sim = VectorizedObsMalSimulator(attack_graph)
+    env = MalSimVectorizedObsEnv(attack_graph)
 
     agent_info = MalSimAttacker(attacker.name, attacker.id)
 
     # Can not attack the notPresent step
     defense_step = attack_graph\
         .get_node_by_full_name('OS App:notPresent')
-    actions = sim._attacker_step(agent_info, [defense_step])
+    actions = env.sim._attacker_step(agent_info, [defense_step])
     assert not actions
 
     # Can attack the attemptUseVulnerability step!
     attack_step = attack_graph\
         .get_node_by_full_name('OS App:attemptUseVulnerability')
-    actions = sim._attacker_step(agent_info, [attack_step])
+    actions = env.sim._attacker_step(agent_info, [attack_step])
     assert actions == [attack_step]
 
 
 def test_malsimulator_defender_step(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = VectorizedObsMalSimulator(attack_graph)
+    env = MalSimVectorizedObsEnv(attack_graph)
 
     agent_name = "defender1"
-    sim.register_defender(agent_name)
-    sim.reset()
+    env.register_defender(agent_name)
+    env.reset()
 
-    defense_step = sim.attack_graph.get_node_by_full_name(
+    defense_step = env.sim.attack_graph.get_node_by_full_name(
         'OS App:notPresent')
-    enabled, _ = sim._defender_step(sim.get_agent(agent_name), [defense_step])
+    enabled, _ = env.sim._defender_step(env.sim.get_agent(agent_name), [defense_step])
     assert enabled == [defense_step]
 
     # Can not defend attack_step
-    attack_step = sim.attack_graph.get_node_by_full_name(
+    attack_step = env.sim.attack_graph.get_node_by_full_name(
         'OS App:attemptUseVulnerability')
-    actions, _ = sim._defender_step(sim.get_agent(agent_name), [attack_step])
+    actions, _ = env.sim._defender_step(env.sim.get_agent(agent_name), [attack_step])
     assert not actions
 
 
@@ -169,20 +169,20 @@ def test_malsimulator_observe_attacker():
         'tests/testdata/scenarios/simple_scenario.yml')
 
     # Create the simulator
-    sim = VectorizedObsMalSimulator(attack_graph)
+    env = MalSimVectorizedObsEnv(attack_graph)
 
     # Register the agents
     defender_agent_name = 'defender'
     attacker_agent_name = 'attacker'
-    sim.register_attacker(attacker_agent_name, attack_graph.attackers[0].id)
-    sim.register_defender(defender_agent_name)
+    env.register_attacker(attacker_agent_name, attack_graph.attackers[0].id)
+    env.register_defender(defender_agent_name)
 
     # Must reset after registering agents
-    sim.reset()
+    env.reset()
 
     # Make alteration to the attack graph attacker
-    assert len(sim.attack_graph.attackers) == 1
-    attacker = sim.attack_graph.attackers[0]
+    assert len(env.sim.attack_graph.attackers) == 1
+    attacker = env.sim.attack_graph.attackers[0]
     assert len(attacker.reached_attack_steps) == 1
     reached_step = attacker.reached_attack_steps[0]
 
@@ -194,13 +194,13 @@ def test_malsimulator_observe_attacker():
             # where two are children of the first one
             actions_to_take.append(child_node)
 
-    attacker = sim.attack_graph.attackers[0]
+    attacker = env.sim.attack_graph.attackers[0]
     num_reached_steps_before = len(attacker.reached_attack_steps)
 
     for attacker_action in actions_to_take:
-        obs, _, _, _, _ = sim.step({
+        obs, _, _, _, _ = env.step({
             defender_agent_name: (0, None),
-            attacker_agent_name: (1, sim.node_to_index(attacker_action))
+            attacker_agent_name: (1, env.node_to_index(attacker_action))
         })
 
         num_reached_steps_now = len(attacker.reached_attack_steps)
@@ -210,12 +210,12 @@ def test_malsimulator_observe_attacker():
     attacker_observation = obs[attacker_agent_name]["observed_state"]
 
     for node in attacker.reached_attack_steps:
-        node_index = sim._id_to_index[node.id]
+        node_index = env._id_to_index[node.id]
         node_obs_state = attacker_observation[node_index]
         assert node_obs_state == 1
 
     for index, state in enumerate(attacker_observation):
-        node = sim.index_to_node(index)
+        node = env.index_to_node(index)
 
         if node.is_compromised():
             assert state == 1
@@ -238,7 +238,7 @@ def test_malsimulator_observe_and_reward_attacker_defender():
         ):
         """Make sure obs state looks as expected"""
         for index, state in enumerate(observed_state):
-            node_id = sim._index_to_id[index]
+            node_id = env._index_to_id[index]
             if state == 1:
                 assert node_id in expected_reached
             elif state == 0:
@@ -251,7 +251,7 @@ def test_malsimulator_observe_and_reward_attacker_defender():
         ):
         """Make sure obs state looks as expected"""
         for index, state in enumerate(observed_state):
-            node = sim.index_to_node(index)
+            node = env.index_to_node(index)
             if state == 1:
                 assert node.is_compromised() or node.is_enabled_defense()
             elif state == 0:
@@ -262,16 +262,16 @@ def test_malsimulator_observe_and_reward_attacker_defender():
     attack_graph, _ = load_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml')
     # Create the simulator
-    sim = VectorizedObsMalSimulator(attack_graph)
+    env = MalSimVectorizedObsEnv(attack_graph)
 
-    attacker = sim.attack_graph.attackers[0]
+    attacker = env.sim.attack_graph.attackers[0]
     attacker_agent_name = "Attacker1"
-    sim.register_attacker(attacker_agent_name, attacker.id)
+    env.register_attacker(attacker_agent_name, attacker.id)
 
     defender_agent_name = "Defender1"
-    sim.register_defender(defender_agent_name)
+    env.register_defender(defender_agent_name)
 
-    sim.reset()
+    env.reset()
 
     attacker_reached_steps = [n.id for n in attacker.entry_points]
     attacker_reached_step_children = []
@@ -281,21 +281,21 @@ def test_malsimulator_observe_and_reward_attacker_defender():
         )
 
     # Prepare nodes that will be stepped through in order
-    user_3_compromise = sim.attack_graph\
+    user_3_compromise = env.sim.attack_graph\
         .get_node_by_full_name("User:3:compromise")
-    host_0_authenticate = sim.attack_graph\
+    host_0_authenticate = env.sim.attack_graph\
         .get_node_by_full_name("Host:0:authenticate")
-    host_0_access = sim.attack_graph\
+    host_0_access = env.sim.attack_graph\
         .get_node_by_full_name("Host:0:access")
-    host_0_notPresent = sim.attack_graph\
+    host_0_notPresent = env.sim.attack_graph\
         .get_node_by_full_name("Host:0:notPresent")
-    data_2_read = sim.attack_graph\
+    data_2_read = env.sim.attack_graph\
         .get_node_by_full_name("Data:2:read")
 
     # Step with attacker action
-    obs, rew, _, _, _ = sim.step({
+    obs, rew, _, _, _ = env.step({
             defender_agent_name: (0, None),
-            attacker_agent_name: (1, sim.node_to_index(user_3_compromise))
+            attacker_agent_name: (1, env.node_to_index(user_3_compromise))
         }
     )
 
@@ -317,9 +317,9 @@ def test_malsimulator_observe_and_reward_attacker_defender():
     assert rew[attacker_agent_name] == 0
 
     # Step with attacker again
-    obs, rew, _, _, _ = sim.step({
+    obs, rew, _, _, _ = env.step({
             defender_agent_name: (0, None),
-            attacker_agent_name: (1, sim.node_to_index(host_0_authenticate))
+            attacker_agent_name: (1, env.node_to_index(host_0_authenticate))
         }
     )
 
@@ -340,9 +340,9 @@ def test_malsimulator_observe_and_reward_attacker_defender():
     assert rew[attacker_agent_name] == 0
 
     # Step attacker again
-    obs, rew, _, _, _ = sim.step({
+    obs, rew, _, _, _ = env.step({
             defender_agent_name: (0, None),
-            attacker_agent_name: (1, sim.node_to_index(host_0_access))
+            attacker_agent_name: (1, env.node_to_index(host_0_access))
         }
     )
 
@@ -366,9 +366,9 @@ def test_malsimulator_observe_and_reward_attacker_defender():
     # Step defender and attacker
     # Attacker wont be able to traverse Data:2:read since
     # Host:0:notPresent is activated before
-    obs, rew, _, _, _ = sim.step({
-            defender_agent_name: (1, sim.node_to_index(host_0_notPresent)),
-            attacker_agent_name: (1, sim.node_to_index(data_2_read))
+    obs, rew, _, _, _ = env.step({
+            defender_agent_name: (1, env.node_to_index(host_0_notPresent)),
+            attacker_agent_name: (1, env.node_to_index(data_2_read))
         }
     )
 
@@ -391,22 +391,22 @@ def test_malsimulator_initial_observation_defender(corelang_lang_graph, model):
     """Make sure ._observe_defender observes nodes and set observed state"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = VectorizedObsMalSimulator(attack_graph)
+    env = MalSimVectorizedObsEnv(attack_graph)
 
     defender_agent_name = "defender"
-    sim.register_defender(defender_agent_name)
-    obs, _ = sim.reset()
+    env.register_defender(defender_agent_name)
+    obs, _ = env.reset()
 
     defender_obs_state = obs[defender_agent_name]["observed_state"]
 
     nodes_to_observe = [
-        node for node in sim.attack_graph.nodes
+        node for node in env.sim.attack_graph.nodes
         if node.is_enabled_defense() or node.is_compromised()
     ]
 
     # Assert that observed state is 1 after observe_defender
     for node in nodes_to_observe:
-        index = sim._id_to_index[node.id]
+        index = env._id_to_index[node.id]
         # Make sure observed after
         assert defender_obs_state[index] == 1
 
@@ -418,7 +418,7 @@ def test_malsimulator_observe_and_reward_attacker_no_entrypoints(
     attack_graph = AttackGraph(corelang_lang_graph, model)
     attacker = Attacker("TestAttacker", [], [])
     attack_graph.add_attacker(attacker)
-    sim = VectorizedObsMalSimulator(attack_graph)
+    sim = MalSimVectorizedObsEnv(attack_graph)
 
     # Register an attacker
     sim.register_attacker(attacker.name, attacker.id)
@@ -441,23 +441,23 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
     attack_graph = AttackGraph(
         traininglang_lang_graph, traininglang_model)
     attack_graph.attach_attackers()
-    sim = VectorizedObsMalSimulator(attack_graph)
+    env = MalSimVectorizedObsEnv(attack_graph)
 
     # Register an attacker
-    attacker = sim.attack_graph.attackers[0]
-    sim.register_attacker(attacker.name, attacker.id)
+    attacker = env.sim.attack_graph.attackers[0]
+    env.register_attacker(attacker.name, attacker.id)
 
     # We need to reinitialize to initialize agent
-    obs, _ = sim.reset()
+    obs, _ = env.reset()
 
     # Since reset deepcopies attack graph we
     # need to fetch attacker again
-    attacker = sim.attack_graph.attackers[0]
+    attacker = env.sim.attack_graph.attackers[0]
 
     for index, state in enumerate(
             obs[attacker.name]['observed_state']):
 
-        node = sim.index_to_node(index)
+        node = env.index_to_node(index)
         if state == -1:
             assert node not in attacker.entry_points
             assert node not in attacker.reached_attack_steps
