@@ -4,12 +4,12 @@ expected reward is given to agents
 """
 
 from malsim.scenario import create_simulator_from_scenario
-from malsim.sims import VectorizedObsMalSimulator
+from malsim.sims import MalSimVectorizedObsEnv
 
 def test_bfs_vs_bfs_state_and_reward():
     sim, agents = create_simulator_from_scenario(
         'tests/testdata/scenarios/bfs_vs_bfs_scenario.yml',
-        sim_class=VectorizedObsMalSimulator
+        sim_class=MalSimVectorizedObsEnv
     )
     obs, infos = sim.reset()
 
