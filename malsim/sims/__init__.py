@@ -8,6 +8,7 @@ from .mal_simulator import (
     MalSimAgentView
 )
 from ..wrappers.malsim_vectorized_obs_env import MalSimVectorizedObsEnv
+from ..wrappers.malsim_groundings_env import MalSimGroundingsEnv
 
 __all__ = [
     'AgentType',
@@ -18,4 +19,5 @@ __all__ = [
     'MalSimulatorSettings',
     'MalSimulator',
     'MalSimVectorizedObsEnv',
+    'MalSimGroundingsEnv'
 ]
