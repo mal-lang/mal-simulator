@@ -167,7 +167,7 @@ class MalSimulator(ParallelEnv):
                     )
                     observation["model_edges_type"].append(
                         self._model_assoc_type_to_index[
-                            self._get_association_full_name(assoc)])
+                            assoc.__class__.__name__.removeprefix('Association_')])
 
 
         np_obs = {
@@ -523,15 +523,19 @@ class MalSimulator(ParallelEnv):
         self._index_to_id = [n.id for n in self.attack_graph.nodes]
         self._index_to_full_name = [n.full_name
                                     for n in self.attack_graph.nodes]
-        self._index_to_asset_type = [n.name for n in self.lang_graph.assets]
-        self._index_to_step_name = [n.asset.name + ":" + n.name
-                                    for n in self.lang_graph.attack_steps]
+        self._index_to_asset_type = [n.name for n in self.lang_graph.assets.values()]
+        self._index_to_step_name = [
+            n.full_name
+            for asset in self.lang_graph.assets.values()
+            for n in asset.attack_steps.values()
+        ]
         self._index_to_model_asset_id = [int(asset.id) for asset in \
             self.attack_graph.model.assets]
-        self._index_to_model_assoc_type = [assoc.name + '_' + \
-            assoc.left_field.asset.name + '_' + \
-            assoc.right_field.asset.name \
-                for assoc in self.lang_graph.associations]
+        self._index_to_model_assoc_type = [
+            assoc.full_name
+            for asset in self.lang_graph.assets.values()
+            for assoc in asset.associations.values()
+        ]
 
         # Lookup dicts attribute to index
         self._id_to_index = {
@@ -603,55 +607,6 @@ class MalSimulator(ParallelEnv):
         if act:
             node = self.index_to_node(step_idx)
         return node
-
-    def _get_association_full_name(self, association) -> str:
-        """Get association full name
-
-        TODO: Remove this method once the language graph integration is
-        complete in the mal-toolbox because the language graph associations
-        will use their full names for the name property
-
-        Arguments:
-        association     - the association whose full name will be returned
-
-        Return:
-        A string containing the association name and the name of each of the
-        two asset types for the left and right fields separated by
-        underscores.
-        """
-
-        assoc_name = association.__class__.__name__
-        if '_' in assoc_name:
-            # TODO: Not actually a to-do, but just an extra clarification that
-            # this is an ugly hack that will work for now until we get the
-            # unique association names. Right now some associations already
-            # use the asset types as part of their name if there are multiple
-            # associations with the same name.
-            return assoc_name
-
-        left_field_name, right_field_name = \
-            self.model.get_association_field_names(association)
-        left_field = getattr(association, left_field_name)
-        right_field = getattr(association, right_field_name)
-        lang_assoc = self.lang_graph.get_association_by_fields_and_assets(
-            left_field_name,
-            right_field_name,
-            left_field[0].type,
-            right_field[0].type
-        )
-        if lang_assoc is None:
-            raise LookupError('Failed to find association for fields '
-                '"%s" "%s" and asset types "%s" "%s"!' % (
-                    left_field_name,
-                    right_field_name,
-                    left_field[0].type,
-                    right_field[0].type
-                )
-            )
-        assoc_full_name = lang_assoc.name + '_' + \
-            lang_assoc.left_field.asset.name + '_' + \
-            lang_assoc.right_field.asset.name
-        return assoc_full_name
 
 
     def _initialize_agents(self) -> dict[str, list[int]]:
