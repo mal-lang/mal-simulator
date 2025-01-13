@@ -11,10 +11,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
 
-def run_simulation(sim: MalSimVectorizedObsEnv, agents: list[dict]):
+def run_simulation(env: MalSimVectorizedObsEnv, agents: list[dict]):
     """Run a simulation with agents"""
 
-    obs, infos = sim.reset()
+    obs, infos = env.reset()
     total_rewards = {agent_dict['name']: 0 for agent_dict in agents}
     all_agents_term_or_trunc = False
 
@@ -36,17 +36,17 @@ def run_simulation(sim: MalSimVectorizedObsEnv, agents: list[dict]):
                 continue
 
             agent_action = \
-                agent.get_next_action(sim.get_agent(agent_name))
+                agent.get_next_action(env.get_agent(agent_name))
             actions[agent_name] = agent_action
 
             if agent_action[0]:
                 logger.info(
                     'Agent "%s" chose action: %s', agent_name,
-                    [sim.index_to_node(agent_action[1]).full_name]
+                    [env.index_to_node(agent_action[1]).full_name]
                 )
 
         # Perform next step of simulation
-        obs, rew, term, trunc, infos = sim.step(actions)
+        obs, rew, term, trunc, infos = env.step(actions)
 
         for agent_dict in agents:
             agent_name = agent_dict['name']
@@ -80,13 +80,14 @@ def main():
     sim, agents = \
         create_simulator_from_scenario(
             args.scenario_file,
-            sim_class=MalSimVectorizedObsEnv
         )
 
-    if args.output_attack_graph:
-        sim.attack_graph.save_to_file(args.output_attack_graph)
+    env = MalSimVectorizedObsEnv(sim)
 
-    run_simulation(sim, agents)
+    if args.output_attack_graph:
+        env.attack_graph.save_to_file(args.output_attack_graph)
+
+    run_simulation(env, agents)
 
 
 if __name__ == '__main__':

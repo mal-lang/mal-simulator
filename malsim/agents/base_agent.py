@@ -1,7 +1,11 @@
 """A decision agent is a heuristic agent"""
 
+from __future__ import annotations
+from typing import TYPE_CHECKING
 from abc import ABC, abstractmethod
-from ..sims import MalSimAgent
+
+if TYPE_CHECKING:
+    from ..sims import MalSimAgent
 
 class DecisionAgent(ABC):
 
