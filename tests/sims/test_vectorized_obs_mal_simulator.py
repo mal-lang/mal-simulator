@@ -1,7 +1,7 @@
 """Test MalSimulator class"""
 
 from maltoolbox.attackgraph import AttackGraph, Attacker
-from malsim.sims import MalSimVectorizedObsEnv
+from malsim.sims import MalSimVectorizedObsEnv, MalSimulator
 from malsim.sims import MalSimAttacker
 from malsim.scenario import load_scenario
 
@@ -9,7 +9,7 @@ def test_create_blank_observation(corelang_lang_graph, model):
     """Make sure blank observation contains correct default values"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimVectorizedObsEnv(attack_graph)
+    sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
     num_objects = len(attack_graph.nodes)
     blank_observation = sim._create_blank_observation()
@@ -67,7 +67,7 @@ def test_create_blank_observation_observability_given(
     scenario_file = \
         'tests/testdata/scenarios/traininglang_observability_scenario.yml'
     ag, _ = load_scenario(scenario_file)
-    env = MalSimVectorizedObsEnv(ag)
+    env = MalSimVectorizedObsEnv(MalSimulator(ag))
 
     num_objects = len(env.sim.attack_graph.nodes)
     blank_observation = env._create_blank_observation()
@@ -100,7 +100,7 @@ def test_create_blank_observation_actionability_given(
     # Load Scenario with observability rules set
     scenario_file = 'tests/testdata/scenarios/traininglang_actionability_scenario.yml'
     ag, _ = load_scenario(scenario_file)
-    env = MalSimVectorizedObsEnv(ag)
+    env = MalSimVectorizedObsEnv(MalSimulator(ag))
 
     num_objects = len(env.sim.attack_graph.nodes)
     blank_observation = env._create_blank_observation()
@@ -127,7 +127,7 @@ def test_step(corelang_lang_graph, model):
 
     attacker = Attacker('attacker1', id=0)
     attack_graph.add_attacker(attacker, attacker.id)
-    env = MalSimVectorizedObsEnv(attack_graph)
+    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
     agent_info = MalSimAttacker(attacker.name, attacker.id)
 
@@ -146,7 +146,7 @@ def test_step(corelang_lang_graph, model):
 
 def test_malsimulator_defender_step(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    env = MalSimVectorizedObsEnv(attack_graph)
+    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
     agent_name = "defender1"
     env.register_defender(agent_name)
@@ -169,7 +169,7 @@ def test_malsimulator_observe_attacker():
         'tests/testdata/scenarios/simple_scenario.yml')
 
     # Create the simulator
-    env = MalSimVectorizedObsEnv(attack_graph)
+    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
     # Register the agents
     defender_agent_name = 'defender'
@@ -262,7 +262,7 @@ def test_malsimulator_observe_and_reward_attacker_defender():
     attack_graph, _ = load_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml')
     # Create the simulator
-    env = MalSimVectorizedObsEnv(attack_graph)
+    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
     attacker = env.sim.attack_graph.attackers[0]
     attacker_agent_name = "Attacker1"
@@ -391,7 +391,7 @@ def test_malsimulator_initial_observation_defender(corelang_lang_graph, model):
     """Make sure ._observe_defender observes nodes and set observed state"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    env = MalSimVectorizedObsEnv(attack_graph)
+    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
     defender_agent_name = "defender"
     env.register_defender(defender_agent_name)
@@ -418,7 +418,7 @@ def test_malsimulator_observe_and_reward_attacker_no_entrypoints(
     attack_graph = AttackGraph(corelang_lang_graph, model)
     attacker = Attacker("TestAttacker", [], [])
     attack_graph.add_attacker(attacker)
-    sim = MalSimVectorizedObsEnv(attack_graph)
+    sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
     # Register an attacker
     sim.register_attacker(attacker.name, attacker.id)
@@ -441,7 +441,7 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
     attack_graph = AttackGraph(
         traininglang_lang_graph, traininglang_model)
     attack_graph.attach_attackers()
-    env = MalSimVectorizedObsEnv(attack_graph)
+    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
     # Register an attacker
     attacker = env.sim.attack_graph.attackers[0]

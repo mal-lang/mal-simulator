@@ -29,10 +29,12 @@ from ..sims.mal_sim_logging_utils import (
     log_mapping_tables,
 )
 
+from .base_classes import MalSimEnv
+
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
 
-class MalSimVectorizedObsEnv(ParallelEnv):
+class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
     """
     Environment that runs simulation between agents.
     Builds serialized observations.
@@ -41,21 +43,13 @@ class MalSimVectorizedObsEnv(ParallelEnv):
 
     def __init__(
             self,
-            attack_graph: AttackGraph,
-            prune_unviable_unnecessary: bool = True,
-            sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
-            max_iter=ITERATIONS_LIMIT
+            sim: MalSimulator
         ):
 
-        self.sim = MalSimulator(
-            attack_graph,
-            prune_unviable_unnecessary,
-            sim_settings,
-            max_iter
-        )
+        super().__init__(sim)
 
         # Useful instead of having to fetch .sim.attack_graph
-        self.attack_graph = attack_graph
+        self.attack_graph = sim.attack_graph
 
         # List mapping from node/asset index to id/name/type
         self._index_to_id = [n.id for n in self.sim.attack_graph.nodes]
@@ -436,12 +430,12 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         return self.sim.get_agent(agent_name)
 
     def register_attacker(self, attacker_name: str, attacker_id: int):
-        self.sim.register_attacker(attacker_name, attacker_id)
+        super().register_attacker(attacker_name, attacker_id)
         agent = self.sim.agents_dict[attacker_name]
         self._init_agent(agent)
 
     def register_defender(self, defender_name: str):
-        self.sim.register_defender(defender_name)
+        super().register_defender(defender_name)
         agent = self.sim.agents_dict[defender_name]
         self._init_agent(agent)
 
@@ -521,7 +515,9 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         """Reset simulator and return current
         observation and infos for each agent"""
 
-        self.sim.reset(seed, options)
+        MalSimEnv.reset(self, seed, options)
+
+        self.attack_graph = self.sim.attack_graph # new ref
 
         obs = {}
         infos = {}

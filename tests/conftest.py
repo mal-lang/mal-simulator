@@ -4,7 +4,7 @@ import pytest
 from maltoolbox.language import LanguageGraph, LanguageClassesFactory
 from maltoolbox.model import Model
 from maltoolbox.wrappers import create_attack_graph
-from malsim.sims import MalSimVectorizedObsEnv
+from malsim.sims import MalSimVectorizedObsEnv, MalSimulator
 
 model_file_name='tests/testdata/models/simple_test_model.yml'
 attack_graph_file_name=path.join('tmp','attack_graph.json')
@@ -38,7 +38,7 @@ def fixture_env()-> MalSimVectorizedObsEnv:
 
     attack_graph = create_attack_graph(lang_file_name, model_file_name)
     attack_graph.save_to_file(attack_graph_file_name)
-    env = MalSimVectorizedObsEnv(attack_graph, max_iter=1000)
+    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph, max_iter=1000))
     env.register_defender('defender')
 
     attacker_id = env.sim.attack_graph.attackers[0].id
