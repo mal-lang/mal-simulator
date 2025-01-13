@@ -82,10 +82,12 @@ def main():
 
     sim, agents = create_simulator_from_scenario(args.scenario_file)
 
-    if args.output_attack_graph:
-        sim.attack_graph.save_to_file(args.output_attack_graph)
+    env = MalSimVectorizedObsEnv(sim)
 
-    run_simulation(sim, agents)
+    if args.output_attack_graph:
+        env.attack_graph.save_to_file(args.output_attack_graph)
+
+    run_simulation(env, agents)
 
 
 if __name__ == '__main__':
