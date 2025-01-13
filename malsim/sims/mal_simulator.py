@@ -26,12 +26,13 @@ ITERATIONS_LIMIT = int(1e9)
 
 logger = logging.getLogger(__name__)
 
+
 def format_table(
-        entry_format: str,
-        header_entry: list[str],
-        entries: list[list[str]],
-        reprint_header: int = 0
-    ) -> str:
+    entry_format: str,
+    header_entry: list[str],
+    entries: list[list[str]],
+    reprint_header: int = 0,
+) -> str:
     """
     Format a table according to the parameters specified.
 
@@ -55,6 +56,7 @@ def format_table(
             formatted_str += header
     return formatted_str
 
+
 class MalSimulator(ParallelEnv):
     def __init__(
         self,
@@ -76,7 +78,7 @@ class MalSimulator(ParallelEnv):
             sim_settings                -   Settings for simulator
         """
         super().__init__()
-        logger.info("Create Mal Simulator.")
+        logger.info('Create Mal Simulator.')
         self.lang_graph = lang_graph
         self.model = model
 
@@ -121,11 +123,10 @@ class MalSimulator(ParallelEnv):
                           for step in self.attack_graph.nodes],
         }
 
-        logger.debug(
-            'Create blank observation with %d attack steps.', num_steps)
+        logger.debug('Create blank observation with %d attack steps.', num_steps)
 
         # Add attack graph edges to observation
-        observation["attack_graph_edges"] = [
+        observation['attack_graph_edges'] = [
             [self._id_to_index[attack_step.id], self._id_to_index[child.id]]
                 for attack_step in self.attack_graph.nodes
                     for child in attack_step.children
@@ -136,25 +137,26 @@ class MalSimulator(ParallelEnv):
         for attack_step in self.attack_graph.nodes:
             if attack_step.type == "defense":
                 for child in attack_step.children:
-                    observation["attack_graph_edges"].append(
-                        [self._id_to_index[child.id],
-                            self._id_to_index[attack_step.id]]
+                    observation['attack_graph_edges'].append(
+                        [self._id_to_index[child.id], self._id_to_index[attack_step.id]]
                     )
 
         # Add instance model assets
-        observation["model_asset_id"] = []
-        observation["model_asset_type"] = []
-        observation["model_edges_ids"] = []
-        observation["model_edges_type"] = []
+        observation['model_asset_id'] = []
+        observation['model_asset_type'] = []
+        observation['model_edges_ids'] = []
+        observation['model_edges_type'] = []
 
         for asset in self.model.assets:
-            observation["model_asset_id"].append(asset.id)
-            observation["model_asset_type"].append(
-                self._asset_type_to_index[asset.type])
+            observation['model_asset_id'].append(asset.id)
+            observation['model_asset_type'].append(
+                self._asset_type_to_index[asset.type]
+            )
 
         for assoc in self.model.associations:
-            left_field_name, right_field_name = \
-                self.model.get_association_field_names(assoc)
+            left_field_name, right_field_name = self.model.get_association_field_names(
+                assoc
+            )
             left_field = getattr(assoc, left_field_name)
             right_field = getattr(assoc, right_field_name)
             for left_asset in left_field:
@@ -163,7 +165,7 @@ class MalSimulator(ParallelEnv):
                     observation["model_edges_ids"].append(
                         [
                             self._model_asset_id_to_index[left_asset.id],
-                            self._model_asset_id_to_index[right_asset.id]
+                            self._model_asset_id_to_index[right_asset.id],
                         ]
                     )
 
@@ -176,27 +178,24 @@ class MalSimulator(ParallelEnv):
 
 
         np_obs = {
-            "is_observable": np.array(observation["is_observable"],
-                             dtype=np.int8),
-            "is_actionable": np.array(observation["is_actionable"],
-                             dtype=np.int8),
-            "observed_state": np.array(observation["observed_state"],
-                              dtype=np.int8),
-            "remaining_ttc": np.array(observation["remaining_ttc"],
-                             dtype=np.int64),
-            "asset_type": np.array(observation["asset_type"], dtype=np.int64),
-            "asset_id": np.array(observation["asset_id"], dtype=np.int64),
-            "step_name": np.array(observation["step_name"], dtype=np.int64),
-            "attack_graph_edges": np.array(observation["attack_graph_edges"],
-                                  dtype=np.int64),
-            "model_asset_id": np.array(observation["model_asset_id"],
-                                dtype=np.int64),
-            "model_asset_type": np.array(observation["model_asset_type"],
-                                dtype=np.int64),
-            "model_edges_ids": np.array(observation["model_edges_ids"],
-                                dtype=np.int64),
-            "model_edges_type": np.array(observation["model_edges_type"],
-                                dtype=np.int64)
+            'is_observable': np.array(observation['is_observable'], dtype=np.int8),
+            'is_actionable': np.array(observation['is_actionable'], dtype=np.int8),
+            'observed_state': np.array(observation['observed_state'], dtype=np.int8),
+            'remaining_ttc': np.array(observation['remaining_ttc'], dtype=np.int64),
+            'asset_type': np.array(observation['asset_type'], dtype=np.int64),
+            'asset_id': np.array(observation['asset_id'], dtype=np.int64),
+            'step_name': np.array(observation['step_name'], dtype=np.int64),
+            'attack_graph_edges': np.array(
+                observation['attack_graph_edges'], dtype=np.int64
+            ),
+            'model_asset_id': np.array(observation['model_asset_id'], dtype=np.int64),
+            'model_asset_type': np.array(
+                observation['model_asset_type'], dtype=np.int64
+            ),
+            'model_edges_ids': np.array(observation['model_edges_ids'], dtype=np.int64),
+            'model_edges_type': np.array(
+                observation['model_edges_type'], dtype=np.int64
+            ),
         }
 
         return np_obs
@@ -209,94 +208,102 @@ class MalSimulator(ParallelEnv):
         """
         obs_str = '\nAttack Graph Steps\n'
 
-        str_format = "{:<5} {:<80} {:<6} {:<5} {:<5} {:<30} {:<8} {:<}\n"
+        str_format = '{:<5} {:<80} {:<6} {:<5} {:<5} {:<30} {:<8} {:<}\n'
         header_entry = [
-            "Entry", "Name", "Is_Obs", "State", "RTTC", "Asset Type(Index)", "Asset Id", "Step"]
+            'Entry',
+            'Name',
+            'Is_Obs',
+            'State',
+            'RTTC',
+            'Asset Type(Index)',
+            'Asset Id',
+            'Step',
+        ]
         entries = []
-        for entry in range(0, len(observation["observed_state"])):
-            asset_type_index = observation["asset_type"][entry]
-            asset_type_str = self._index_to_asset_type[asset_type_index ] + \
-                '(' + str(asset_type_index) + ')'
+        for entry in range(0, len(observation['observed_state'])):
+            asset_type_index = observation['asset_type'][entry]
+            asset_type_str = (
+                self._index_to_asset_type[asset_type_index]
+                + '('
+                + str(asset_type_index)
+                + ')'
+            )
             entries.append(
                 [
                     entry,
                     self._index_to_full_name[entry],
-                    observation["is_observable"][entry],
-                    observation["observed_state"][entry],
-                    observation["remaining_ttc"][entry],
+                    observation['is_observable'][entry],
+                    observation['observed_state'][entry],
+                    observation['remaining_ttc'][entry],
                     asset_type_str,
-                    observation["asset_id"][entry],
-                    observation["step_name"][entry],
+                    observation['asset_id'][entry],
+                    observation['step_name'][entry],
                 ]
             )
-        obs_str += format_table(
-            str_format, header_entry, entries, reprint_header = 30
-        )
+        obs_str += format_table(str_format, header_entry, entries, reprint_header=30)
 
-        obs_str += "\nAttack Graph Edges:\n"
-        for edge in observation["attack_graph_edges"]:
-            obs_str += str(edge) + "\n"
+        obs_str += '\nAttack Graph Edges:\n'
+        for edge in observation['attack_graph_edges']:
+            obs_str += str(edge) + '\n'
 
-        obs_str += "\nInstance Model Assets:\n"
-        str_format = "{:<5} {:<5} {:<}\n"
-        header_entry = [
-            "Entry", "Id", "Type(Index)"]
+        obs_str += '\nInstance Model Assets:\n'
+        str_format = '{:<5} {:<5} {:<}\n'
+        header_entry = ['Entry', 'Id', 'Type(Index)']
         entries = []
-        for entry in range(0, len(observation["model_asset_id"])):
-            asset_type_str = self._index_to_asset_type[
-                observation["model_asset_type"][entry]] + \
-                    '(' + str(observation["model_asset_type"][entry]) + ')'
-            entries.append(
-                [
-                    entry,
-                    observation["model_asset_id"][entry],
-                    asset_type_str
-                ]
+        for entry in range(0, len(observation['model_asset_id'])):
+            asset_type_str = (
+                self._index_to_asset_type[observation['model_asset_type'][entry]]
+                + '('
+                + str(observation['model_asset_type'][entry])
+                + ')'
             )
-        obs_str += format_table(
-            str_format, header_entry, entries, reprint_header = 30
-        )
+            entries.append(
+                [entry, observation['model_asset_id'][entry], asset_type_str]
+            )
+        obs_str += format_table(str_format, header_entry, entries, reprint_header=30)
 
-        obs_str += "\nInstance Model Edges:\n"
-        str_format = "{:<5} {:<40} {:<40} {:<}\n"
+        obs_str += '\nInstance Model Edges:\n'
+        str_format = '{:<5} {:<40} {:<40} {:<}\n'
         header_entry = [
-            "Entry",
-            "Left Asset(Id/Index)",
-            "Right Asset(Id/Index)",
-            "Type(Index)"
+            'Entry',
+            'Left Asset(Id/Index)',
+            'Right Asset(Id/Index)',
+            'Type(Index)',
         ]
         entries = []
-        for entry in range(0, len(observation["model_edges_ids"])):
-            assoc_type_str = self._index_to_model_assoc_type[
-                observation["model_edges_type"][entry]] + \
-                    '(' + str(observation["model_edges_type"][entry]) + ')'
-            left_asset_index = int(observation["model_edges_ids"][entry][0])
-            right_asset_index = int(observation["model_edges_ids"][entry][1])
+        for entry in range(0, len(observation['model_edges_ids'])):
+            assoc_type_str = (
+                self._index_to_model_assoc_type[observation['model_edges_type'][entry]]
+                + '('
+                + str(observation['model_edges_type'][entry])
+                + ')'
+            )
+            left_asset_index = int(observation['model_edges_ids'][entry][0])
+            right_asset_index = int(observation['model_edges_ids'][entry][1])
             left_asset_id = self._index_to_model_asset_id[left_asset_index]
             right_asset_id = self._index_to_model_asset_id[right_asset_index]
-            left_asset_str = \
-                self.model.get_asset_by_id(left_asset_id).name + \
-                '(' + str(left_asset_id) + '/' + str(left_asset_index) + ')'
-            right_asset_str = \
-                self.model.get_asset_by_id(right_asset_id).name + \
-                '(' + str(right_asset_id) + '/' + str(right_asset_index) + ')'
-            entries.append(
-                [
-                    entry,
-                    left_asset_str,
-                    right_asset_str,
-                    assoc_type_str
-                ]
+            left_asset_str = (
+                self.model.get_asset_by_id(left_asset_id).name
+                + '('
+                + str(left_asset_id)
+                + '/'
+                + str(left_asset_index)
+                + ')'
             )
-        obs_str += format_table(
-            str_format, header_entry, entries, reprint_header = 30
-        )
+            right_asset_str = (
+                self.model.get_asset_by_id(right_asset_id).name
+                + '('
+                + str(right_asset_id)
+                + '/'
+                + str(right_asset_index)
+                + ')'
+            )
+            entries.append([entry, left_asset_str, right_asset_str, assoc_type_str])
+        obs_str += format_table(str_format, header_entry, entries, reprint_header=30)
 
         return obs_str
 
-    def format_obs_var_sec(self,
-        observation,
-        included_values = [-1, 0, 1]):
+    def format_obs_var_sec(self, observation, included_values=[-1, 0, 1]):
         """
         Return a formatted string of the sections of the observation that can
         vary over time.
@@ -307,35 +314,37 @@ class MalSimulator(ParallelEnv):
                           list will be filtered out
         """
 
-        str_format = "{:>5} {:>80} {:<5} {:<5} {:<}\n"
-        header_entry = ["Id", "Name", "State", "RTTC", "Entry"]
+        str_format = '{:>5} {:>80} {:<5} {:<5} {:<}\n'
+        header_entry = ['Id', 'Name', 'State', 'RTTC', 'Entry']
         entries = []
-        for entry in range(0, len(observation["observed_state"])):
-            if observation["is_observable"][entry] and \
-               observation["observed_state"][entry] in included_values:
+        for entry in range(0, len(observation['observed_state'])):
+            if (
+                observation['is_observable'][entry]
+                and observation['observed_state'][entry] in included_values
+            ):
                 entries.append(
                     [
                         self._index_to_id[entry],
                         self._index_to_full_name[entry],
-                        observation["observed_state"][entry],
-                        observation["remaining_ttc"][entry],
-                        entry
+                        observation['observed_state'][entry],
+                        observation['remaining_ttc'][entry],
+                        entry,
                     ]
                 )
 
-        obs_str = format_table(
-            str_format, header_entry, entries, reprint_header = 30
-        )
+        obs_str = format_table(str_format, header_entry, entries, reprint_header=30)
 
         return obs_str
 
     def _format_info(self, info):
-        can_act = "Yes" if info["action_mask"][0][1] > 0 else "No"
-        agent_info_str = f"Can act? {can_act}\n"
-        for entry in range(0, len(info["action_mask"][1])):
-            if info["action_mask"][1][entry] == 1:
-                agent_info_str += f"{self._index_to_id[entry]} " \
-                    f"{self._index_to_full_name[entry]}\n"
+        can_act = 'Yes' if info['action_mask'][0][1] > 0 else 'No'
+        agent_info_str = f'Can act? {can_act}\n'
+        for entry in range(0, len(info['action_mask'][1])):
+            if info['action_mask'][1][entry] == 1:
+                agent_info_str += (
+                    f'{self._index_to_id[entry]} '
+                    f'{self._index_to_full_name[entry]}\n'
+                )
         return agent_info_str
 
     @functools.lru_cache(maxsize=None)
@@ -364,63 +373,63 @@ class MalSimulator(ParallelEnv):
             self._blank_observation["model_edges_ids"])
         return Dict(
             {
-                "is_observable": Box(
+                'is_observable': Box(
                     0, 1, shape=(num_steps,), dtype=np.int8
                 ),  #  0 for unobservable, 1 for observable
-                "is_actionable": Box(
+                'is_actionable': Box(
                     0, 1, shape=(num_steps,), dtype=np.int8
                 ),  #  0 for non-actionable, 1 for actionable
-                "observed_state": Box(
+                'observed_state': Box(
                     -1, 1, shape=(num_steps,), dtype=np.int8
                 ),  # -1 for unknown,
                 #  0 for disabled/not compromised,
                 #  1 for enabled/compromised
-                "remaining_ttc": Box(
+                'remaining_ttc': Box(
                     0, sys.maxsize, shape=(num_steps,), dtype=np.int64
                 ),  # remaining TTC
-                "asset_type": Box(
+                'asset_type': Box(
                     0,
                     num_lang_asset_types,
                     shape=(num_steps,),
                     dtype=np.int64,
                 ),  # asset type
-                "asset_id": Box(
+                'asset_id': Box(
                     0, sys.maxsize, shape=(num_steps,), dtype=np.int64
                 ),  # asset id
-                "step_name": Box(
+                'step_name': Box(
                     0,
                     num_lang_attack_steps,
                     shape=(num_steps,),
                     dtype=np.int64,
                 ),  # attack/defense step name
-                "attack_graph_edges": Box(
+                'attack_graph_edges': Box(
                     0,
                     num_steps,
                     shape=(num_attack_graph_edges, 2),
                     dtype=np.int64,
                 ),  # edges between attack graph steps
-                "model_asset_id": Box(
+                'model_asset_id': Box(
                     0,
                     num_assets,
                     shape=(num_assets,),
                     dtype=np.int64,
                 ),  # instance model asset ids
-                "model_asset_type": Box(
+                'model_asset_type': Box(
                     0,
                     num_lang_asset_types,
                     shape=(num_assets,),
                     dtype=np.int64,
                 ),  # instance model asset types
-                "model_edges_ids": Box(
+                'model_edges_ids': Box(
                     0,
                     num_assets,
                     shape=(num_model_edges, 2),
                     dtype=np.int64,
                 ),  # instance model edge ids
-                "model_edges_type": Box(
+                'model_edges_type': Box(
                     0,
                     num_lang_association_types,
-                    shape=(num_model_edges, ),
+                    shape=(num_model_edges,),
                     dtype=np.int64,
                 ),  # instance model edge types
             }
@@ -433,108 +442,68 @@ class MalSimulator(ParallelEnv):
         num_steps = len(self.attack_graph.nodes)
         return MultiDiscrete([num_actions, num_steps], dtype=np.int64)
 
-    def reset(
-            self,
-            seed: Optional[int] = None,
-            options: Optional[dict] = None
-        ):
-        logger.info("Resetting simulator.")
+    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
+        logger.info('Resetting simulator.')
         self.attack_graph = copy.deepcopy(self.attack_graph_backup)
         return self.initialize(self.max_iter)
 
     def log_mapping_tables(self):
         """Log all mapping tables in MalSimulator"""
 
-        str_format = "{:<5} {:<15} {:<}\n"
-        table = "\n"
-        header_entry = ["Index", "Attack Step Id", "Attack Step Full Name"]
+        str_format = '{:<5} {:<15} {:<}\n'
+        table = '\n'
+        header_entry = ['Index', 'Attack Step Id', 'Attack Step Full Name']
         entries = []
         for entry in self._index_to_id:
             entries.append(
                 [
                     self._id_to_index[entry],
                     entry,
-                    self._index_to_full_name[self._id_to_index[entry]]
+                    self._index_to_full_name[self._id_to_index[entry]],
                 ]
             )
-        table += format_table(
-            str_format,
-            header_entry,
-            entries,
-            reprint_header = 30
-        )
+        table += format_table(str_format, header_entry, entries, reprint_header=30)
         logger.debug(table)
 
-        str_format = "{:<5} {:<}\n"
-        table = "\n"
-        header_entry = ["Index", "Asset Id"]
+        str_format = '{:<5} {:<}\n'
+        table = '\n'
+        header_entry = ['Index', 'Asset Id']
         entries = []
         for entry in self._model_asset_id_to_index:
-            entries.append(
-                [
-                    self._model_asset_id_to_index[entry],
-                    entry
-                ]
-            )
-        table += format_table(
-            str_format,
-            header_entry,
-            entries,
-            reprint_header = 30
-        )
+            entries.append([self._model_asset_id_to_index[entry], entry])
+        table += format_table(str_format, header_entry, entries, reprint_header=30)
         logger.debug(table)
 
-        str_format = "{:<5} {:<}\n"
-        table = "\n"
-        header_entry = ["Index", "Asset Type"]
+        str_format = '{:<5} {:<}\n'
+        table = '\n'
+        header_entry = ['Index', 'Asset Type']
         entries = []
         for entry in self._asset_type_to_index:
-            entries.append(
-                [
-                    self._asset_type_to_index[entry],
-                    entry
-                ]
-            )
-        table += format_table(
-            str_format,
-            header_entry,
-            entries,
-            reprint_header = 30
-        )
+            entries.append([self._asset_type_to_index[entry], entry])
+        table += format_table(str_format, header_entry, entries, reprint_header=30)
         logger.debug(table)
 
-        str_format = "{:<5} {:<}\n"
-        table = "\n"
-        header_entry = ["Index", "Attack Step Name"]
+        str_format = '{:<5} {:<}\n'
+        table = '\n'
+        header_entry = ['Index', 'Attack Step Name']
         entries = []
         for entry in self._index_to_step_name:
             entries.append([self._step_name_to_index[entry], entry])
-        table += format_table(
-            str_format,
-            header_entry,
-            entries,
-            reprint_header = 30
-        )
+        table += format_table(str_format, header_entry, entries, reprint_header=30)
         logger.debug(table)
 
-        str_format = "{:<5} {:<}\n"
-        table = "\n"
-        header_entry = ["Index", "Association Type"]
+        str_format = '{:<5} {:<}\n'
+        table = '\n'
+        header_entry = ['Index', 'Association Type']
         entries = []
         for entry in self._index_to_model_assoc_type:
             entries.append([self._model_assoc_type_to_index[entry], entry])
-        table += format_table(
-            str_format,
-            header_entry,
-            entries,
-            reprint_header = 30
-        )
+        table += format_table(str_format, header_entry, entries, reprint_header=30)
         logger.debug(table)
-
 
     def _create_mapping_tables(self):
         """Create mapping tables"""
-        logger.debug("Creating and listing mapping tables.")
+        logger.debug('Creating and listing mapping tables.')
 
         # Lookup lists index to attribute
         self._index_to_id = [n.id for n in self.attack_graph.nodes]
@@ -564,10 +533,10 @@ class MalSimulator(ParallelEnv):
         self._index_to_model_assoc_type = list(unique_assoc_type_names)
 
         # Lookup dicts attribute to index
-        self._id_to_index = {
-            n: i for i, n in enumerate(self._index_to_id)}
+        self._id_to_index = {n: i for i, n in enumerate(self._index_to_id)}
         self._asset_type_to_index = {
-            n: i for i, n in enumerate(self._index_to_asset_type)}
+            n: i for i, n in enumerate(self._index_to_asset_type)
+        }
         self._step_name_to_index = {
             n: i for i, n in enumerate(self._index_to_step_name)
         }
@@ -575,8 +544,8 @@ class MalSimulator(ParallelEnv):
             asset: i for i, asset in enumerate(self._index_to_model_asset_id)
         }
         self._model_assoc_type_to_index = {
-            assoc_type: i for i, assoc_type in \
-                enumerate(self._index_to_model_assoc_type)
+            assoc_type: i
+            for i, assoc_type in enumerate(self._index_to_model_assoc_type)
         }
 
     def index_to_node(self, index: int) -> AttackGraphNode:
@@ -603,9 +572,7 @@ class MalSimulator(ParallelEnv):
         node_id = self._index_to_id[index]
         node = self.attack_graph.get_node_by_id(node_id)
         if not node:
-            raise LookupError(
-                f'Index {index} (id: {node_id}), does not map to a node'
-            )
+            raise LookupError(f'Index {index} (id: {node_id}), does not map to a node')
         return node
 
     def node_to_index(self, node: AttackGraphNode) -> int:
@@ -615,12 +582,10 @@ class MalSimulator(ParallelEnv):
         Index of the attack graph node in the lookup list
         """
 
-        assert node, "Node can not be None"
+        assert node, 'Node can not be None'
         return self._id_to_index[node.id]
 
-    def action_to_node(
-            self, action: tuple[int, int]
-        ) -> list[AttackGraphNode]:
+    def action_to_node(self, action: tuple[int, int]) -> list[AttackGraphNode]:
         """Convert serialized action to malsim action format
 
         (0, None) -> None
@@ -650,33 +615,34 @@ class MalSimulator(ParallelEnv):
 
         for agent in self.agents:
             # Initialize rewards
-            self.agents_dict[agent]["rewards"] = 0
-            agent_type = self.agents_dict[agent]["type"]
+            self.agents_dict[agent]['rewards'] = 0
+            agent_type = self.agents_dict[agent]['type']
             initial_actions[agent] = []
 
-            if agent_type == "attacker":
-                attacker_id = self.agents_dict[agent]["attacker"]
+            if agent_type == 'attacker':
+                attacker_id = self.agents_dict[agent]['attacker']
                 attacker = self.attack_graph.attackers[attacker_id]
-                assert attacker, f"No attacker at index {attacker_id}"
+                assert attacker, f'No attacker at index {attacker_id}'
 
                 # Initialize observations and action surfaces
-                self.agents_dict[agent]["observation"] = \
-                    self.create_blank_observation()
-                self.agents_dict[agent]["action_surface"] = \
-                    query.get_attack_surface(attacker)
+                self.agents_dict[agent]['observation'] = self.create_blank_observation()
+                self.agents_dict[agent]['action_surface'] = query.get_attack_surface(
+                    attacker
+                )
 
                 # Initial actions for attacker are its entrypoints
                 for entry_point in attacker.entry_points:
-                    initial_actions[agent].append(
-                        self._id_to_index[entry_point.id])
+                    initial_actions[agent].append(self._id_to_index[entry_point.id])
                     entry_point.extras['entrypoint'] = True
 
-            elif agent_type == "defender":
+            elif agent_type == 'defender':
                 # Initialize observations and action surfaces
-                self.agents_dict[agent]["observation"] = \
-                    self.create_blank_observation(default_obs_state = 0)
-                self.agents_dict[agent]["action_surface"] = \
-                    query.get_defense_surface(self.attack_graph)
+                self.agents_dict[agent]['observation'] = self.create_blank_observation(
+                    default_obs_state=0
+                )
+                self.agents_dict[agent]['action_surface'] = query.get_defense_surface(
+                    self.attack_graph
+                )
 
                 # Initial actions for defender are all pre-enabled defenses
                 initial_actions[agent] = [self._id_to_index[node.id]
@@ -684,7 +650,7 @@ class MalSimulator(ParallelEnv):
                                           if node.is_enabled_defense()]
 
             else:
-                self.agents_dict[agent]["action_surface"] = []
+                self.agents_dict[agent]['action_surface'] = []
 
         return initial_actions
 
@@ -695,7 +661,7 @@ class MalSimulator(ParallelEnv):
         Return initial observations and infos.
         """
 
-        logger.info("Initializing MAL ParralelEnv Simulator.")
+        logger.info('Initializing MAL ParralelEnv Simulator.')
         self._create_mapping_tables()
 
         if logger.isEnabledFor(logging.DEBUG):
@@ -704,36 +670,35 @@ class MalSimulator(ParallelEnv):
         self.max_iter = max_iter
         self.cur_iter = 0
 
-        logger.debug("Creating and listing blank observation space.")
+        logger.debug('Creating and listing blank observation space.')
         self._blank_observation = self.create_blank_observation()
         if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(
-                self.format_full_observation(self._blank_observation)
-            )
+            logger.debug(self.format_full_observation(self._blank_observation))
 
         # Initialize agents and record the entry point actions
         initial_actions = self._initialize_agents()
 
-        observations, _, _, _, infos = (
-            self._observe_and_reward(initial_actions, []))
+        observations, _, _, _, infos = self._observe_and_reward(initial_actions, [])
 
         return observations, infos
 
     def register_attacker(self, agent_name, attacker: int):
         logger.info(
-            'Register attacker "%s" agent with '
-            "attacker index %d.", agent_name, attacker
+            'Register attacker "%s" agent with ' 'attacker index %d.',
+            agent_name,
+            attacker,
         )
-        assert agent_name not in self.agents_dict, \
-                f"Duplicate attacker agent named {agent_name} not allowed"
+        assert (
+            agent_name not in self.agents_dict
+        ), f'Duplicate attacker agent named {agent_name} not allowed'
 
         self.possible_agents.append(agent_name)
         self.agents_dict[agent_name] = {
-            "type": "attacker",
-            "attacker": attacker,
-            "observation": {},
-            "action_surface": [],
-            "rewards": 0
+            'type': 'attacker',
+            'attacker': attacker,
+            'observation': {},
+            'action_surface': [],
+            'rewards': 0,
         }
 
     def register_defender(self, agent_name):
@@ -744,28 +709,27 @@ class MalSimulator(ParallelEnv):
         defenders safeguards against during the same step.
         """
         logger.info('Register defender "%s" agent.', agent_name)
-        assert agent_name not in self.agents_dict, \
-                f"Duplicate defender agent named {agent_name} not allowed"
+        assert (
+            agent_name not in self.agents_dict
+        ), f'Duplicate defender agent named {agent_name} not allowed'
 
         # Add defenders at the front of the list to make sure they have
         # priority.
         self.possible_agents.insert(0, agent_name)
         self.agents_dict[agent_name] = {
-            "type": "defender",
-            "observation": {},
-            "action_surface": [],
-            "rewards": 0
+            'type': 'defender',
+            'observation': {},
+            'action_surface': [],
+            'rewards': 0,
         }
 
     def get_attacker_agents(self) -> dict:
         """Return agents dictionaries of attacker agents"""
-        return {k: v for k, v in self.agents_dict.items()
-                if v['type'] == "attacker"}
+        return {k: v for k, v in self.agents_dict.items() if v['type'] == 'attacker'}
 
     def get_defender_agents(self) -> dict:
         """Return agents dictionaries of defender agents"""
-        return {k: v for k, v in self.agents_dict.items()
-                if v['type'] == "defender"}
+        return {k: v for k, v in self.agents_dict.items() if v['type'] == 'defender'}
 
     def state(self):
         # Should return a state for all agents
@@ -773,7 +737,7 @@ class MalSimulator(ParallelEnv):
 
     def _attacker_step(self, agent, attack_step):
         actions = []
-        attacker_index = self.agents_dict[agent]["attacker"]
+        attacker_index = self.agents_dict[agent]['attacker']
         attacker = self.attack_graph.attackers[attacker_index]
         attack_step_node = self.index_to_node(attack_step)
 
@@ -781,7 +745,7 @@ class MalSimulator(ParallelEnv):
             'Attacker agent "%s" stepping through "%s"(%d).',
             agent,
             attack_step_node.full_name,
-            attack_step_node.id
+            attack_step_node.id,
         )
         if query.is_node_traversable_by_attacker(attack_step_node, attacker):
             if not attack_step_node.is_compromised_by(attacker):
@@ -789,15 +753,16 @@ class MalSimulator(ParallelEnv):
                     'Attacker agent "%s" has compromised "%s"(%d).',
                     agent,
                     attack_step_node.full_name,
-                    attack_step_node.id
+                    attack_step_node.id,
                 )
                 attacker.compromise(attack_step_node)
-                self.agents_dict[agent]["action_surface"] = \
+                self.agents_dict[agent]['action_surface'] = (
                     query.update_attack_surface_add_nodes(
                         attacker,
-                        self.agents_dict[agent]["action_surface"],
-                        [attack_step_node]
+                        self.agents_dict[agent]['action_surface'],
+                        [attack_step_node],
                     )
+                )
             actions.append(attack_step)
         else:
             logger.warning(
@@ -805,15 +770,13 @@ class MalSimulator(ParallelEnv):
                 'attack step"%s"(%d).',
                 agent,
                 attack_step_node.full_name,
-                attack_step_node.id
+                attack_step_node.id,
             )
         return actions
 
     def update_viability(
-            self,
-            node: AttackGraphNode,
-            unviable_attack_steps: list[AttackGraphNode] = None
-        ) -> list[AttackGraphNode]:
+        self, node: AttackGraphNode, unviable_attack_steps: list[AttackGraphNode] = None
+    ) -> list[AttackGraphNode]:
         """
         Update the viability of the node in the graph and return any
         attack steps that are no longer viable.
@@ -826,15 +789,13 @@ class MalSimulator(ParallelEnv):
                                   current step
         """
 
-        unviable_attack_steps = [] if unviable_attack_steps is None \
-            else unviable_attack_steps
-        logger.debug(
-            'Update viability for node "%s"(%d)',
-            node.full_name,
-            node.id
+        unviable_attack_steps = (
+            [] if unviable_attack_steps is None else unviable_attack_steps
         )
-        assert not node.is_viable, ("update_viability should not be called"
-                                   f" on viable node {node.full_name}")
+        logger.debug('Update viability for node "%s"(%d)', node.full_name, node.id)
+        assert not node.is_viable, (
+            'update_viability should not be called' f' on viable node {node.full_name}'
+        )
 
         if node.extras.get('entrypoint'):
             # Never make entrypoint unviable, and do not
@@ -860,9 +821,8 @@ class MalSimulator(ParallelEnv):
         return unviable_attack_steps
 
     def _defender_step(
-            self, agent, defense_step_index
-        ) -> tuple[list[int], list[AttackGraphNode]]:
-
+        self, agent, defense_step_index
+    ) -> tuple[list[int], list[AttackGraphNode]]:
         actions = []
         defense_step_node = self.attack_graph.get_node_by_id(
             self._index_to_id[defense_step_index]
@@ -871,60 +831,55 @@ class MalSimulator(ParallelEnv):
             'Defender agent "%s" stepping through "%s"(%d).',
             agent,
             defense_step_node.full_name,
-            defense_step_node.id
+            defense_step_node.id,
         )
-        if defense_step_node not in self.agents_dict[agent]["action_surface"]:
+        if defense_step_node not in self.agents_dict[agent]['action_surface']:
             logger.warning(
                 'Defender agent "%s" tried to step through "%s"(%d).'
                 'which is not part of its defense surface. Defender '
                 'step will skip',
                 agent,
                 defense_step_node.full_name,
-                defense_step_node.id
+                defense_step_node.id,
             )
             return actions, []
 
         defense_step_node.defense_status = 1.0
         defense_step_node.is_viable = False
-        prevented_attack_steps = self.update_viability(
-            defense_step_node
-        )
+        prevented_attack_steps = self.update_viability(defense_step_node)
         actions.append(defense_step_index)
 
         # Remove defense from all defender agents' action surfaces since it is
         # already enabled. And remove all of the prevented attack steps from
         # the attackers' action surfaces.
         for agent_el in self.agents:
-            if self.agents_dict[agent_el]["type"] == "defender":
+            if self.agents_dict[agent_el]['type'] == 'defender':
                 try:
-                    self.agents_dict[agent_el]["action_surface"].\
-                        remove(defense_step_node)
+                    self.agents_dict[agent_el]['action_surface'].remove(
+                        defense_step_node
+                    )
                 except ValueError:
                     # Optimization: the defender is told to remove
                     # the node from its defense surface even if it
                     # may have not been present to save one extra
                     # lookup.
                     pass
-            elif self.agents_dict[agent_el]["type"] == "attacker":
+            elif self.agents_dict[agent_el]['type'] == 'attacker':
                 for attack_step in prevented_attack_steps:
                     try:
                         # Node is no longer part of attacker action surface
-                        self.agents_dict[agent_el]\
-                            ["action_surface"].remove(attack_step)
+                        self.agents_dict[agent_el]['action_surface'].remove(attack_step)
                     except ValueError:
                         # Optimization: the attacker is told to remove
                         # the node from its attack surface even if it may
                         # have not been present to save one extra lookup.
                         pass
 
-
         return actions, prevented_attack_steps
 
     def _observe_attacker(
-            self,
-            attacker_agent,
-            performed_actions: dict[str, list[int]]
-        ) -> None:
+        self, attacker_agent, performed_actions: dict[str, list[int]]
+    ) -> None:
         """
         Update the attacker observation based on the actions performed
         in current step.
@@ -934,13 +889,11 @@ class MalSimulator(ParallelEnv):
         observation     - the blank observation to fill in
         """
 
-        obs_state = self.agents_dict[attacker_agent]["observation"]\
-            ["observed_state"]
+        obs_state = self.agents_dict[attacker_agent]['observation']['observed_state']
 
         # Set obs state of reached attack steps to 1 (enabled)
         for _, actions in performed_actions.items():
             for step_index in actions:
-
                 if step_index is None:
                     # Waiting does not affect obs
                     continue
@@ -958,13 +911,9 @@ class MalSimulator(ParallelEnv):
                             obs_state[child_index] = 0
 
     def _observe_defender(
-            self,
-            defender_agent,
-            performed_actions: dict[str, list[int]]
-        ):
-
-        obs_state = self.agents_dict[defender_agent]["observation"]\
-            ["observed_state"]
+        self, defender_agent, performed_actions: dict[str, list[int]]
+    ):
+        obs_state = self.agents_dict[defender_agent]['observation']['observed_state']
 
         if not self.sim_settings.cumulative_defender_obs:
             # Clear the state if we do not it to accumulate observations over
@@ -980,23 +929,24 @@ class MalSimulator(ParallelEnv):
         """Collect agents observations"""
 
         for agent in self.agents:
-            agent_type = self.agents_dict[agent]["type"]
-            if  agent_type == "defender":
+            agent_type = self.agents_dict[agent]['type']
+            if agent_type == 'defender':
                 self._observe_defender(agent, performed_actions)
 
-            elif agent_type == "attacker":
+            elif agent_type == 'attacker':
                 self._observe_attacker(agent, performed_actions)
 
             else:
                 logger.error(
-                    "Agent %s has unknown type: %s",
-                    agent, self.agents_dict[agent]["type"]
+                    'Agent %s has unknown type: %s',
+                    agent,
+                    self.agents_dict[agent]['type'],
                 )
 
     def _reward_agents(self, performed_actions):
         """Update rewards from latest performed actions"""
         for agent, actions in performed_actions.items():
-            agent_type = self.agents_dict[agent]["type"]
+            agent_type = self.agents_dict[agent]['type']
 
             for action in actions:
                 if action is None:
@@ -1006,17 +956,16 @@ class MalSimulator(ParallelEnv):
                 node = self.attack_graph.get_node_by_id(node_id)
                 node_reward = node.extras.get('reward', 0)
 
-                if agent_type == "attacker":
+                if agent_type == 'attacker':
                     # If attacker performed step, it will receive
                     # a reward and penalize all defenders
-                    self.agents_dict[agent]["rewards"] += node_reward
+                    self.agents_dict[agent]['rewards'] += node_reward
 
                     for d_agent in self.get_defender_agents():
-                        self.agents_dict[d_agent]["rewards"] -= node_reward
+                        self.agents_dict[d_agent]['rewards'] -= node_reward
                 else:
                     # If a defender performed step, it will be penalized
-                    self.agents_dict[agent]["rewards"] -= node_reward
-
+                    self.agents_dict[agent]['rewards'] -= node_reward
 
     def _collect_agents_infos(self):
         """Collect agent info, this is used to determine the possible
@@ -1025,26 +974,26 @@ class MalSimulator(ParallelEnv):
         attackers_done = True
         infos = {}
         can_wait = {
-            "attacker": 0,
-            "defender": 1,
+            'attacker': 0,
+            'defender': 1,
         }
 
         for agent in self.agents:
-            agent_type = self.agents_dict[agent]["type"]
+            agent_type = self.agents_dict[agent]['type']
             available_actions = [0] * len(self.attack_graph.nodes)
             can_act = 0
 
-            if agent_type == "defender":
-                for node in self.agents_dict[agent]["action_surface"]:
+            if agent_type == 'defender':
+                for node in self.agents_dict[agent]['action_surface']:
                     index = self._id_to_index[node.id]
                     available_actions[index] = 1
                     can_act = 1
 
-            if agent_type == "attacker":
+            if agent_type == 'attacker':
                 attacker = self.attack_graph.attackers[
-                    self.agents_dict[agent]["attacker"]
+                    self.agents_dict[agent]['attacker']
                 ]
-                for node in self.agents_dict[agent]["action_surface"]:
+                for node in self.agents_dict[agent]['action_surface']:
                     if not node.is_compromised_by(attacker):
                         index = self._id_to_index[node.id]
                         available_actions[index] = 1
@@ -1052,18 +1001,15 @@ class MalSimulator(ParallelEnv):
                         attackers_done = False
 
             infos[agent] = {
-                "action_mask": (
-                    np.array(
-                        [can_wait[agent_type], can_act], dtype=np.int8),
-                    np.array(
-                        available_actions, dtype=np.int8)
-                )}
+                'action_mask': (
+                    np.array([can_wait[agent_type], can_act], dtype=np.int8),
+                    np.array(available_actions, dtype=np.int8),
+                )
+            }
 
         return attackers_done, infos
 
-    def _disable_attack_steps(
-            self, attack_steps_to_disable: list[AttackGraphNode]
-        ):
+    def _disable_attack_steps(self, attack_steps_to_disable: list[AttackGraphNode]):
         """Disable nodes for each attacker agent
 
         For each compromised attack step uncompromise the node, disable its
@@ -1071,34 +1017,32 @@ class MalSimulator(ParallelEnv):
         """
 
         for attacker_agent in self.get_attacker_agents():
-            attacker_index = self.agents_dict[attacker_agent]["attacker"]
+            attacker_index = self.agents_dict[attacker_agent]['attacker']
             attacker: Attacker = self.attack_graph.attackers[attacker_index]
 
             for unviable_node in attack_steps_to_disable:
                 if unviable_node.is_compromised_by(attacker):
-
                     # Reward is no longer present for attacker
                     node_reward = unviable_node.extras.get('reward', 0)
-                    self.agents_dict[attacker_agent]["rewards"] -= node_reward
+                    self.agents_dict[attacker_agent]['rewards'] -= node_reward
 
                     # Reward is no longer present for defenders
                     for defender_agent in self.get_defender_agents():
-                        self.agents_dict[defender_agent]["rewards"] += node_reward
+                        self.agents_dict[defender_agent]['rewards'] += node_reward
 
                     # Uncompromise node if requested
                     attacker.undo_compromise(unviable_node)
 
                     # Uncompromised nodes observed state is 0 (disabled)
                     step_index = self._id_to_index[unviable_node.id]
-                    agent_obs = self.agents_dict[attacker_agent]["observation"]
+                    agent_obs = self.agents_dict[attacker_agent]['observation']
                     agent_obs['observed_state'][step_index] = 0
 
-
     def _observe_and_reward(
-            self,
-            performed_actions: dict[str, list[int]],
-            prevented_attack_steps: list[AttackGraphNode]
-        ):
+        self,
+        performed_actions: dict[str, list[int]],
+        prevented_attack_steps: list[AttackGraphNode],
+    ):
         """Update observations and reward agents based on latest actions
 
         Returns 5 dicts, each mapping from agent to:
@@ -1128,15 +1072,18 @@ class MalSimulator(ParallelEnv):
             terminations[agent] = attackers_done
             if attackers_done:
                 logger.debug(
-                    "No attacker has actions left to perform, "
-                    "terminate agent \"%s\".", agent)
+                    'No attacker has actions left to perform, ' 'terminate agent "%s".',
+                    agent,
+                )
 
             truncations[agent] = False
             if self.cur_iter >= self.max_iter:
                 logger.debug(
-                    "Simulation has reached the maximum number of "
-                    "iterations, %d, terminate agent \"%s\".",
-                    self.max_iter, agent)
+                    'Simulation has reached the maximum number of '
+                    'iterations, %d, terminate agent "%s".',
+                    self.max_iter,
+                    agent,
+                )
                 truncations[agent] = True
 
             if terminations[agent] or truncations[agent]:
@@ -1145,39 +1092,35 @@ class MalSimulator(ParallelEnv):
             if logger.isEnabledFor(logging.DEBUG):
                 # Debug print agent states
                 agent_obs_str = self.format_obs_var_sec(
-                    self.agents_dict[agent]["observation"],
-                    included_values = [0, 1])
+                    self.agents_dict[agent]['observation'], included_values=[0, 1]
+                )
 
+                logger.debug('Observation for agent "%s":\n%s', agent, agent_obs_str)
                 logger.debug(
-                    'Observation for agent "%s":\n%s', agent, agent_obs_str)
+                    'Rewards for agent "%s": %d',
+                    agent,
+                    self.agents_dict[agent]['rewards'],
+                )
                 logger.debug(
-                    'Rewards for agent "%s": %d', agent,
-                    self.agents_dict[agent]["rewards"])
+                    'Termination for agent "%s": %s', agent, terminations[agent]
+                )
                 logger.debug(
-                    'Termination for agent "%s": %s',
-                    agent, terminations[agent])
-                logger.debug(
-                    'Truncation for agent "%s": %s',
-                    agent, str(truncations[agent]))
+                    'Truncation for agent "%s": %s', agent, str(truncations[agent])
+                )
 
                 agent_info_str = self._format_info(infos[agent])
-                logger.debug(
-                    'Info for agent "%s":\n%s', agent, agent_info_str)
+                logger.debug('Info for agent "%s":\n%s', agent, agent_info_str)
 
         for agent in finished_agents:
             self.agents.remove(agent)
 
-        observations = {agent: self.agents_dict[agent]["observation"] \
-            for agent in self.agents_dict}
-        rewards = {agent: self.agents_dict[agent]["rewards"] \
-            for agent in self.agents_dict}
-        return (
-            observations,
-            rewards,
-            terminations,
-            truncations,
-            infos
-        )
+        observations = {
+            agent: self.agents_dict[agent]['observation'] for agent in self.agents_dict
+        }
+        rewards = {
+            agent: self.agents_dict[agent]['rewards'] for agent in self.agents_dict
+        }
+        return (observations, rewards, terminations, truncations, infos)
 
     def step(self, actions):
         """
@@ -1189,9 +1132,8 @@ class MalSimulator(ParallelEnv):
         - infos
         dicts where each dict looks like {agent_1: item_1, agent_2: item_2}
         """
-        logger.debug(
-            "Stepping through iteration %d/%d", self.cur_iter, self.max_iter)
-        logger.debug("Performing actions: %s", actions)
+        logger.debug('Stepping through iteration %d/%d', self.cur_iter, self.max_iter)
+        logger.debug('Performing actions: %s', actions)
 
         # Map agent to defense/attack steps performed in this step
         performed_actions = {}
@@ -1206,25 +1148,24 @@ class MalSimulator(ParallelEnv):
 
             action_step = action[1]
 
-            if self.agents_dict[agent]["type"] == "attacker":
-                performed_actions[agent] = \
-                    self._attacker_step(agent, action_step)
+            if self.agents_dict[agent]['type'] == 'attacker':
+                performed_actions[agent] = self._attacker_step(agent, action_step)
 
-            elif self.agents_dict[agent]["type"] == "defender":
-                defender_actions, prevented_attack_steps = \
-                    self._defender_step(agent, action_step)
+            elif self.agents_dict[agent]['type'] == 'defender':
+                defender_actions, prevented_attack_steps = self._defender_step(
+                    agent, action_step
+                )
                 performed_actions[agent] = defender_actions
 
             else:
                 logger.error(
                     'Agent %s has unknown type: %s',
-                    agent, self.agents_dict[agent]["type"])
+                    agent,
+                    self.agents_dict[agent]['type'],
+                )
 
         observations, rewards, terminations, truncations, infos = (
-            self._observe_and_reward(
-                performed_actions,
-                prevented_attack_steps
-            )
+            self._observe_and_reward(performed_actions, prevented_attack_steps)
         )
 
         self.cur_iter += 1
@@ -1232,12 +1173,12 @@ class MalSimulator(ParallelEnv):
         return observations, rewards, terminations, truncations, infos
 
     def render(self):
-        logger.debug("Ingest attack graph into Neo4J database.")
+        logger.debug('Ingest attack graph into Neo4J database.')
         neo4j.ingest_attack_graph(
             self.attack_graph,
-            neo4j_configs["uri"],
-            neo4j_configs["username"],
-            neo4j_configs["password"],
-            neo4j_configs["dbname"],
+            neo4j_configs['uri'],
+            neo4j_configs['username'],
+            neo4j_configs['password'],
+            neo4j_configs['dbname'],
             delete=True,
         )
