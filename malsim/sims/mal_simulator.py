@@ -94,6 +94,9 @@ class MalSimulator():
 
         # Initialize all values
         self.attack_graph = attack_graph
+        self.lang_graph = attack_graph.lang_graph
+        self.model = attack_graph.model
+
         self.sim_settings = sim_settings
         self.max_iter = max_iter # Max iterations before stopping simulation
         self.cur_iter = 0        # Keep track on current iteration
@@ -372,7 +375,7 @@ class MalSimulator():
 
     def step(
             self, actions: dict[str, list[AttackGraphNode]]
-        ) -> dict[str, MalSimAgent]:
+        ) -> tuple[list[AttackGraphNode], list[AttackGraphNode]]:
         """Take a step in the simulation
 
         Args:
@@ -380,7 +383,7 @@ class MalSimulator():
                   contains the actions for that user.
 
         Returns:
-        - state of each agent after step is performed
+        - (enabled_nodes, disabled_nodes)
         """
         logger.debug(
             "Stepping through iteration %d/%d", self.cur_iter, self.max_iter)
