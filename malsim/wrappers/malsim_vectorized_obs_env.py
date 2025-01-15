@@ -14,9 +14,8 @@ import sys
 import numpy as np
 from gymnasium.spaces import MultiDiscrete, Box, Dict
 from pettingzoo import ParallelEnv
-from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+from maltoolbox.attackgraph import AttackGraphNode
 
-from ..sims.mal_sim_settings import MalSimulatorSettings
 from ..sims.mal_simulator import (
     MalSimulator,
     AgentType,
@@ -24,7 +23,7 @@ from ..sims.mal_simulator import (
     MalSimAttacker,
     MalSimDefender
 )
-from ..sims.mal_sim_logging_utils import (
+from .malsim_vectorized_obs_logging_utils import (
     format_full_observation,
     log_mapping_tables,
 )
