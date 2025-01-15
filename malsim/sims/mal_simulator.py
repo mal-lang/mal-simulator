@@ -32,13 +32,14 @@ class MalSimAgent:
     name: str
     type: AgentType
 
-    # Contains reward from last step of MalSimulator
+    # Contains current agent reward in the simulation
+    # Attackers get positive rewards, defenders negative
     reward: int = 0
 
     # Contains possible actions for the agent in the next step
     action_surface: list[AttackGraphNode] = field(default_factory=list)
 
-    # Fields that tell if agent is 'dead'
+    # Fields that tell if agent is 'dead' / disabled
     truncated: bool = False
     terminated: bool = False
 
@@ -59,7 +60,7 @@ class MalSimDefender(MalSimAgent):
         super().__init__(name, AgentType.DEFENDER)
 
 class MalSimulator():
-    """A simple MAL Simulator that works on the AttackGraph
+    """A MAL Simulator that works on the AttackGraph
 
     Allows user to register agents (defender and attacker)
     and lets the agents perform actions step by step and updates
@@ -172,8 +173,10 @@ class MalSimulator():
         """Set agent action surfaces according to current state"""
         for agent in self.agents_dict.values():
             if agent.type == AgentType.ATTACKER:
-                attacker_id = agent.attacker_id
-                attacker = self.attack_graph.get_attacker_by_id(attacker_id)
+                # Get the Attacker object
+                attacker = \
+                    self.attack_graph.get_attacker_by_id(agent.attacker_id)
+
                 # Get current action surface
                 agent.action_surface = \
                     query.get_attack_surface(attacker)
@@ -395,7 +398,7 @@ class MalSimulator():
 
         # Peform agent actions
         # Note: by design, defenders perform actions
-        # before attackers (see register_agent)
+        # before attackers (see _register_agent)
         for agent_name in self.agents:
             agent = self.get_agent(agent_name)
             agent_actions = actions.get(agent.name, [])
