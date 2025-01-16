@@ -129,7 +129,7 @@ class MalSimulator():
 
         return self._agents_dict
 
-    def _initialize_rewards(self):
+    def _init_agent_rewards(self):
         """Give rewards for pre-enabled attack/defense steps"""
         for node in self.attack_graph.nodes:
             node_reward = node.extras.get('reward', 0)
@@ -152,23 +152,6 @@ class MalSimulator():
                     if node.is_compromised() or node.is_enabled_defense():
                         agent.reward -= node_reward
 
-    def _reset_agents(self):
-        """Reset agent rewards and action surfaces"""
-
-        # Revive dead agents
-        self.agents = copy.deepcopy(self.possible_agents)
-
-        for agent in self.agents_dict.values():
-            # Reset agent reward
-            agent.reward = 0
-
-            # Mark agent as alive again
-            agent.terminated = False
-            agent.truncated = False
-
-        self._initialize_rewards()
-        self._init_agent_action_surfaces()
-
     def _init_agent_action_surfaces(self):
         """Set agent action surfaces according to current state"""
         for agent in self._agents_dict.values():
@@ -187,6 +170,23 @@ class MalSimulator():
                     query.get_defense_surface(self.attack_graph)
             else:
                 raise LookupError(f"Agent type {agent.type} not supported")
+
+    def _reset_agents(self):
+        """Reset agent rewards and action surfaces"""
+
+        # Revive dead agents
+        self.agents = copy.deepcopy(self.possible_agents)
+
+        for agent in self._agents_dict.values():
+            # Reset agent reward
+            agent.reward = 0
+
+            # Mark agent as alive again
+            agent.terminated = False
+            agent.truncated = False
+
+        self._init_agent_rewards()
+        self._init_agent_action_surfaces()
 
     def _register_agent(self, agent: MalSimAgent):
         """Register a mal sim agent"""
@@ -423,17 +423,16 @@ class MalSimulator():
                         agent.name, agent.type
                     )
 
-
         if all_attackers_terminated:
             # Terminate all agents if all attackers are terminated
             logger.info("All attackers are terminated")
-            for agent in self.__agents_dict.values():
+            for agent in self._agents_dict.values():
                 agent.terminated = True
 
         if self.cur_iter >= self.max_iter:
             # Truncate all agents when max iter is reached
             logger.info("Max iteration reached - all agents truncated")
-            for agent in self.__agents_dict.values():
+            for agent in self._agents_dict.values():
                 agent.truncated = True
 
         agents_to_remove = set()
