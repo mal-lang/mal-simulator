@@ -237,7 +237,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
         }
 
     def _update_agent_infos(self):
-        for agent in self.sim.agents_dict.values():
+        for agent in self.sim._agents_dict.values():
             agent.info = self.create_action_mask(agent)
 
     def _get_association_full_name(self, association) -> str:
@@ -430,12 +430,12 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
 
     def register_attacker(self, attacker_name: str, attacker_id: int):
         super().register_attacker(attacker_name, attacker_id)
-        agent = self.sim.agents_dict[attacker_name]
+        agent = self.sim._agents_dict[attacker_name]
         self._init_agent(agent)
 
     def register_defender(self, defender_name: str):
         super().register_defender(defender_name)
-        agent = self.sim.agents_dict[defender_name]
+        agent = self.sim._agents_dict[defender_name]
         self._init_agent(agent)
 
     def _init_agent(self, agent: MalSimAgent):
@@ -520,7 +520,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
 
         obs = {}
         infos = {}
-        for agent in self.sim.agents_dict.values():
+        for agent in self.sim._agents_dict.values():
             # Reset observation and action mask for agents
             agent.observation = self._create_blank_observation()
             agent.info = self.create_action_mask(agent)
@@ -551,7 +551,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
         logger.debug("Enable:\n\t%s", [n.full_name for n in enabled_nodes])
         logger.debug("Disable:\n\t%s", [n.full_name for n in disabled_nodes])
 
-        for agent in self.sim.agents_dict.values():
+        for agent in self.sim._agents_dict.values():
             if agent.type == AgentType.ATTACKER:
                 self._update_attacker_obs(
                     enabled_nodes, disabled_nodes, agent
@@ -583,7 +583,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
         truncations = {}
         infos = {}
 
-        for agent_name, agent in self.sim.agents_dict.items():
+        for agent_name, agent in self.sim._agents_dict.items():
             observations[agent_name] = agent.observation
             rewards[agent_name] = agent.reward
             terminations[agent_name] = agent.terminated
