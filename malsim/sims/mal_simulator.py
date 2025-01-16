@@ -106,19 +106,19 @@ class MalSimulator(ParallelEnv):
         observation = {
             # If no observability set for node, assume observable.
             "is_observable": [step.extras.get('observable', 1)
-                           for step in self.attack_graph.nodes],
+                           for step in self.attack_graph.nodes.values()],
             # Same goes for actionable.
             "is_actionable": [step.extras.get('actionable', 1)
-                           for step in self.attack_graph.nodes],
+                           for step in self.attack_graph.nodes.values()],
             "observed_state": num_steps * [default_obs_state],
             "remaining_ttc": num_steps * [0],
             "asset_type": [self._asset_type_to_index[step.asset.type]
-                           for step in self.attack_graph.nodes],
+                           for step in self.attack_graph.nodes.values()],
             "asset_id": [step.asset.id
-                         for step in self.attack_graph.nodes],
+                         for step in self.attack_graph.nodes.values()],
             "step_name": [self._step_name_to_index[
                           str(step.asset.type + ":" + step.name)]
-                          for step in self.attack_graph.nodes],
+                          for step in self.attack_graph.nodes.values()],
         }
 
         logger.debug(
@@ -127,13 +127,13 @@ class MalSimulator(ParallelEnv):
         # Add attack graph edges to observation
         observation["attack_graph_edges"] = [
             [self._id_to_index[attack_step.id], self._id_to_index[child.id]]
-                for attack_step in self.attack_graph.nodes
+                for attack_step in self.attack_graph.nodes.values()
                     for child in attack_step.children
         ]
 
         # Add reverse attack graph edges for defense steps (required by some
         # defender agent logic)
-        for attack_step in self.attack_graph.nodes:
+        for attack_step in self.attack_graph.nodes.values():
             if attack_step.type == "defense":
                 for child in attack_step.children:
                     observation["attack_graph_edges"].append(
@@ -537,15 +537,11 @@ class MalSimulator(ParallelEnv):
         logger.debug("Creating and listing mapping tables.")
 
         # Lookup lists index to attribute
-        self._index_to_id = [n.id for n in self.attack_graph.nodes]
-        self._index_to_full_name = (
-            [n.full_name for n in self.attack_graph.nodes]
-        )
-        self._index_to_asset_type = (
-            [n.name for n in self.lang_graph.assets.values()]
-        )
-
-        unique_step_type_names = {
+        self._index_to_id = [n.id for n in self.attack_graph.nodes.values()]
+        self._index_to_full_name = [n.full_name
+                                    for n in self.attack_graph.nodes.values()]
+        self._index_to_asset_type = [n.name for n in self.lang_graph.assets.values()]
+        self._index_to_step_name = [
             n.full_name
             for asset in self.lang_graph.assets.values()
             for n in asset.attack_steps.values()
@@ -601,7 +597,7 @@ class MalSimulator(ParallelEnv):
             )
 
         node_id = self._index_to_id[index]
-        node = self.attack_graph.get_node_by_id(node_id)
+        node = self.attack_graph.nodes[node_id]
         if not node:
             raise LookupError(
                 f'Index {index} (id: {node_id}), does not map to a node'
@@ -680,7 +676,7 @@ class MalSimulator(ParallelEnv):
 
                 # Initial actions for defender are all pre-enabled defenses
                 initial_actions[agent] = [self._id_to_index[node.id]
-                                          for node in self.attack_graph.nodes
+                                          for node in self.attack_graph.nodes.values()
                                           if node.is_enabled_defense()]
 
             else:
@@ -864,9 +860,9 @@ class MalSimulator(ParallelEnv):
         ) -> tuple[list[int], list[AttackGraphNode]]:
 
         actions = []
-        defense_step_node = self.attack_graph.get_node_by_id(
+        defense_step_node = self.attack_graph.nodes[
             self._index_to_id[defense_step_index]
-        )
+        ]
         logger.info(
             'Defender agent "%s" stepping through "%s"(%d).',
             agent,
@@ -946,7 +942,7 @@ class MalSimulator(ParallelEnv):
                     continue
 
                 node_id = self._index_to_id[step_index]
-                node = self.attack_graph.get_node_by_id(node_id)
+                node = self.attack_graph.nodes[node_id]
                 if node.type in ('or', 'and'):
                     # Attack step activated, set to 1 (enabled)
                     obs_state[step_index] = 1
@@ -1003,7 +999,7 @@ class MalSimulator(ParallelEnv):
                     continue
 
                 node_id = self._index_to_id[action]
-                node = self.attack_graph.get_node_by_id(node_id)
+                node = self.attack_graph.nodes[node_id]
                 node_reward = node.extras.get('reward', 0)
 
                 if agent_type == "attacker":

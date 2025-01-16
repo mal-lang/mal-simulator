@@ -30,29 +30,29 @@ def test_load_scenario():
     )
 
     # Verify rewards were added as defined in './testdata/simple_scenario.yml'
-    assert attack_graph.get_node_by_full_name('OS App:notPresent')\
+    assert attack_graph.nodes.fetch("full_name", 'OS App:notPresent')\
         .extras['reward'] == 2
-    assert attack_graph.get_node_by_full_name('OS App:supplyChainAuditing')\
+    assert attack_graph.nodes.fetch("full_name", 'OS App:supplyChainAuditing')\
         .extras['reward'] == 7
-    assert attack_graph.get_node_by_full_name('Program 1:notPresent')\
+    assert attack_graph.nodes.fetch("full_name", 'Program 1:notPresent')\
         .extras['reward'] == 3
-    assert attack_graph.get_node_by_full_name('Program 1:supplyChainAuditing')\
+    assert attack_graph.nodes.fetch("full_name", 'Program 1:supplyChainAuditing')\
         .extras['reward'] == 7
-    assert attack_graph.get_node_by_full_name('SoftwareVulnerability:4:notPresent')\
+    assert attack_graph.nodes.fetch("full_name", 'SoftwareVulnerability:4:notPresent')\
         .extras['reward'] == 4
-    assert attack_graph.get_node_by_full_name('Data:5:notPresent')\
+    assert attack_graph.nodes.fetch("full_name", 'Danodes.fetch:"full_name", 5:notPresent')\
         .extras['reward'] == 1
-    assert attack_graph.get_node_by_full_name('Credentials:6:notPhishable')\
+    assert attack_graph.nodes.fetch("full_name", 'Credentials:6:notPhishable')\
         .extras['reward'] == 7
-    assert attack_graph.get_node_by_full_name('Identity:11:notPresent')\
+    assert attack_graph.nodes.fetch("full_name", 'Identity:11:notPresent')\
         .extras['reward'] == 3.5
 
     # One attacker from scenario (overrides attacker from model)
     assert len(attack_graph.attackers) == 1
 
     # Verify attacker entrypoint was added
-    attack_step = attack_graph.get_node_by_full_name(
-        'Credentials:6:attemptCredentialsReuse'
+    attack_step = attack_graph.nodes.fetch("full_name",
+       'Credentials:6:attemptCredentialsReuse'
     )
     attacker_name = "Attacker1"
     attacker = next(
@@ -78,8 +78,8 @@ def test_load_scenario_no_attacker_in_model():
 
     # Verify one attacker entrypoint was added (model is missing attacker)
     assert len(attack_graph.attackers) == 1
-    attack_step = attack_graph.get_node_by_full_name(
-        'Credentials:6:attemptCredentialsReuse'
+    attack_step = attack_graph.nodes.fetch("full_name",
+       'Credentials:6:attemptCredentialsReuse'
     )
     attacker_name = "Attacker1"
     attacker = next(

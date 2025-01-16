@@ -81,7 +81,7 @@ def apply_scenario_rewards(
 
     # Set the rewards according to scenario rewards
     for attack_step_full_name, reward in rewards.items():
-        node = attack_graph.get_node_by_full_name(attack_step_full_name)
+        node = attack_graph.nodes.fetch("full_name", attack_step_full_name)
         if node is None:
             raise LookupError(
                 f"Could not set reward to node {attack_step_full_name}"
@@ -136,7 +136,7 @@ def _validate_scenario_property_rules(
             # Make sure each specified attack step name exists
             # for the specified asset
             expected_full_name = f"{asset_name}:{step_name}"
-            assert graph.get_node_by_full_name(expected_full_name), (
+            assert graph.nodes.fetch("full_name", expected_full_name), (
                 f"Attack step '{step_name}' not found for asset "
                 f"'{asset_name}' when applying scenario"
                 "observability/actionability rules"
@@ -206,7 +206,7 @@ def apply_scenario_attacker_entrypoints(
         attack_graph.add_attacker(attacker)
 
         for entry_point_name in entry_point_names:
-            entry_point = attack_graph.get_node_by_full_name(entry_point_name)
+            entry_point = attack_graph.nodes.fetch("full_name", entry_point_name)
             if not entry_point:
                 raise LookupError(f"Node {entry_point_name} does not exist")
             attacker.compromise(entry_point)

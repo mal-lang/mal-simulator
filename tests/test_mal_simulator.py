@@ -111,7 +111,7 @@ def test_malsimulator_create_blank_observation_actionability_given(
 
     for index, actionable in enumerate(blank_observation['is_actionable']):
         node_id = sim._index_to_id[index]
-        node = sim.attack_graph.get_node_by_id(node_id)
+        node = sim.attack_graph.nodes[node_id]
 
         # Below are the rules from the traininglang observability scenario
         # made into if statements
@@ -197,8 +197,8 @@ def test_malsimulator_reset(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
     agent_name = "testagent"
     agent_id = 0
-    agent_entry_point = attack_graph.get_node_by_full_name(
-        'OS App:networkConnectUninspected')
+    agent_entry_point = attack_graph.nodes.fetch("full_name",
+                 'OS App:networkConnectUninspected')
 
     attacker = Attacker(
         agent_name,
@@ -299,12 +299,12 @@ def test_malsimulator_attacker_step(corelang_lang_graph, model):
     sim.reset()
 
     # Can not attack the notPresent step
-    defense_step = attack_graph.get_node_by_full_name('OS App:notPresent')
+    defense_step = attack_graph.nodes.fetch("full_name", 'OS App:notPresent')
     actions = sim._attacker_step(attacker.name, defense_step.id)
     assert not actions
 
     # Can attack the attemptUseVulnerability step!
-    attack_step = attack_graph.get_node_by_full_name('OS App:attemptUseVulnerability')
+    attack_step = attack_graph.nodes.fetch("full_name", 'OS App:attemptUseVulnerability')
     actions = sim._attacker_step(attacker.name, attack_step.id)
     assert actions == [attack_step.id]
 
@@ -317,14 +317,12 @@ def test_malsimulator_defender_step(corelang_lang_graph, model):
     sim.register_defender(defender_name)
     sim.reset()
 
-    defense_step = attack_graph.get_node_by_full_name(
-        'OS App:notPresent')
+    defense_step = attack_graph.nodes.fetch("full_name", 'OS App:notPresent')
     actions, _ = sim._defender_step(defender_name, defense_step.id)
     assert actions == [defense_step.id]
 
     # Can not defend attack_step
-    attack_step = attack_graph.get_node_by_full_name(
-        'OS App:attemptUseVulnerability')
+    attack_step = attack_graph.nodes.fetch("full_name", 'OS App:attemptUseVulnerability')
     actions, _ = sim._defender_step(defender_name, attack_step.id)
     assert not actions
 
@@ -512,9 +510,9 @@ def test_malsimulator_agents_registered(
 def test_malsimulator_update_viability(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
-    attempt_vuln_node = attack_graph.get_node_by_full_name('OS App:attemptUseVulnerability')
+    attempt_vuln_node = attack_graph.nodes.fetch("full_name", 'OS App:attemptUseVulnerability')
     assert attempt_vuln_node.is_viable
-    success_vuln_node = attack_graph.get_node_by_full_name('OS App:successfulUseVulnerability')
+    success_vuln_node = attack_graph.nodes.fetch("full_name", 'OS App:successfulUseVulnerability')
     assert success_vuln_node.is_viable
 
     # Make attempt unviable
@@ -539,7 +537,7 @@ def test_malsimulator_step_attacker(corelang_lang_graph, model):
 
     # Run step() with action crafted in test
     action = 1
-    step = sim.attack_graph.get_node_by_full_name('OS App:attemptRead')
+    step = sim.attack_graph.nodes.fetch("full_name", 'OS App:attemptRead')
     assert step in sim.agents_dict[agent_name]['action_surface']
 
     step_index = sim._id_to_index[step.id]
@@ -568,10 +566,10 @@ def test_step_attacker_defender_action_surface_updates(
     sim.reset()
 
     # Run step() with action crafted in test
-    attacker_step = sim.attack_graph.get_node_by_full_name('User:3:compromise')
+    attacker_step = sim.attack_graph.nodes.fetch("full_name", 'User:3:compromise')
     assert attacker_step in sim.agents_dict[attacker_agent]['action_surface']
 
-    defender_step = sim.attack_graph.get_node_by_full_name('User:3:notPresent')
+    defender_step = sim.attack_graph.nodes.fetch("full_name", 'User:3:notPresent')
     assert defender_step in sim.agents_dict[defender_agent]['action_surface']
 
     actions = {
@@ -597,7 +595,7 @@ def test_default_simulator_default_settings_eviction():
     defender_agent_id = next(iter(sim.get_defender_agents()))
 
     # Get a step to compromise and its defense parent
-    user_3_compromise = sim.attack_graph.get_node_by_full_name('User:3:compromise')
+    user_3_compromise = sim.attack_graph.nodes.fetch("full_name", 'User:3:compromise')
     assert attacker not in user_3_compromise.compromised_by
     user_3_compromise_defense = next(n for n in user_3_compromise.parents if n.type=='defense')
     assert not user_3_compromise_defense.is_enabled_defense()
@@ -659,15 +657,15 @@ def test_malsimulator_observe_and_reward_attacker_defender():
 
     # Prepare nodes that will be stepped through in order
     user_3_compromise = sim.attack_graph\
-        .get_node_by_full_name("User:3:compromise")
+        .nodes.fetch("full_name", "User:3:compromise")
     host_0_authenticate = sim.attack_graph\
-        .get_node_by_full_name("Host:0:authenticate")
+        .nodes.fetch("full_name", "Host:0:authenticate")
     host_0_access = sim.attack_graph\
-        .get_node_by_full_name("Host:0:access")
+        .nodes.fetch("full_name", "Host:0:access")
     host_0_notPresent = sim.attack_graph\
-        .get_node_by_full_name("Host:0:notPresent")
+        .nodes.fetch("full_name", "Host:0:notPresent")
     data_2_read = sim.attack_graph\
-        .get_node_by_full_name("Data:2:read")
+        .nodes.fetch("full_name", "Data:2:read")
 
     # Step with attacker action
     obs, rew, _, _, _ = sim.step({
@@ -760,7 +758,7 @@ def test_malsimulator_observe_and_reward_uncompromise_untraversable():
         """Make sure obs state looks as expected"""
         for index, state in enumerate(obs_state):
             node_id = sim._index_to_id[index]
-            node = sim.attack_graph.get_node_by_id(node_id)
+            node = sim.attack_graph.nodes[node_id]
             if state == 1:
                 assert node_id in expected_reached
             elif state == 0:
@@ -788,15 +786,15 @@ def test_malsimulator_observe_and_reward_uncompromise_untraversable():
 
     # Prepare nodes that will be stepped through in order
     user_3_compromise = sim.attack_graph\
-        .get_node_by_full_name("User:3:compromise")
+        .nodes.fetch("full_name", "User:3:compromise")
     host_0_authenticate = sim.attack_graph\
-        .get_node_by_full_name("Host:0:authenticate")
+        .nodes.fetch("full_name", "Host:0:authenticate")
     host_0_access = sim.attack_graph\
-        .get_node_by_full_name("Host:0:access")
+        .nodes.fetch("full_name", "Host:0:access")
     host_0_notPresent = sim.attack_graph\
-        .get_node_by_full_name("Host:0:notPresent")
+        .nodes.fetch("full_name", "Host:0:notPresent")
     data_2_read = sim.attack_graph\
-        .get_node_by_full_name("Data:2:read")
+        .nodes.fetch("full_name", "Data:2:read")
 
     # Step with attacker action
     obs, rew, _, _, _ = sim.step({
@@ -897,7 +895,7 @@ def test_simulator_settings_evict_attacker():
     defender_agent_id = next(iter(sim.get_defender_agents()))
 
    # Get a step to compromise and its defense parent
-    user_3_compromise = sim.attack_graph.get_node_by_full_name('User:3:compromise')
+    user_3_compromise = sim.attack_graph.nodes.fetch("full_name", 'User:3:compromise')
     assert attacker not in user_3_compromise.compromised_by
     user_3_compromise_defense = next(n for n in user_3_compromise.parents if n.type=='defense')
     assert not user_3_compromise_defense.is_enabled_defense()
@@ -938,8 +936,7 @@ def test_simulator_default_settings_defender_observation():
     defender_agent_id = next(iter(sim.get_defender_agents()))
 
    # Get an uncompromised step
-    user_3_compromise = sim.attack_graph.get_node_by_full_name(
-        'User:3:compromise')
+    user_3_compromise = sim.attack_graph.nodes.fetch("full_name", 'User:3:compromise')
     assert attacker not in user_3_compromise.compromised_by
 
     # Get a defense for the uncompromised step
@@ -959,7 +956,7 @@ def test_simulator_default_settings_defender_observation():
     # Verify that all states in obs match the state of the attack graph
     for index, state in enumerate(defender_observation):
         step_id = sim._index_to_id[index]
-        node = sim.attack_graph.get_node_by_id(step_id)
+        node = sim.attack_graph.nodes[step_id]
         if state == 1:
             assert node.is_compromised()
         else:
@@ -976,7 +973,7 @@ def test_simulator_default_settings_defender_observation():
     # Verify that all states in obs match the state of the attack graph
     for index, state in enumerate(defender_observation):
         step_id = sim._index_to_id[index]
-        node = sim.attack_graph.get_node_by_id(step_id)
+        node = sim.attack_graph.nodes[step_id]
         if state == 1:
             assert node.is_compromised() or node.is_enabled_defense()
         else:
@@ -1001,8 +998,7 @@ def test_simulator_settings_defender_observation():
     defender_agent_id = next(iter(sim.get_defender_agents()))
 
    # Get an uncompromised step
-    user_3_compromise = sim.attack_graph.get_node_by_full_name(
-        'User:3:compromise')
+    user_3_compromise = sim.attack_graph.nodes.fetch("full_name", 'User:3:compromise')
     assert attacker not in user_3_compromise.compromised_by
 
     # Get a defense for the uncompromised step
@@ -1023,7 +1019,7 @@ def test_simulator_settings_defender_observation():
     # is the latest performed step (User:3:compromise)
     for index, state in enumerate(defender_observation):
         step_id = sim._index_to_id[index]
-        node = sim.attack_graph.get_node_by_id(step_id)
+        node = sim.attack_graph.nodes[step_id]
         if node == user_3_compromise:
             assert state == 1 # Last performed step known active state
         else:

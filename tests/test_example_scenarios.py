@@ -97,8 +97,8 @@ def test_bfs_vs_bfs_state_and_reward():
         "Identity:8:notPresent",
     ]
 
-    for step_fullname in attacker_actions:
-        node = sim.attack_graph.get_node_by_full_name(step_fullname)
+    for step_index in attacker_actions:
+        node = sim.attack_graph.nodes[sim._index_to_id[step_index]]
         if node.is_compromised():
             node_index = sim.node_to_index(node)
             assert obs[defender_agent_id]["observed_state"][node_index]
