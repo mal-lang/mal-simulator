@@ -103,7 +103,7 @@ class MalSimulator():
         self.cur_iter = 0        # Keep track on current iteration
 
         # Keep track on all registered agent states
-        self.agents_dict: dict[str, MalSimAgent] = {}
+        self._agents_dict: dict[str, MalSimAgent] = {}
 
         # Keep track on all 'living' agents sorted by order to step in
         self.agents: list[str] = []
@@ -127,7 +127,7 @@ class MalSimulator():
         # Reset agents
         self._reset_agents()
 
-        return self.agents_dict
+        return self._agents_dict
 
     def _initialize_rewards(self):
         """Give rewards for pre-enabled attack/defense steps"""
@@ -136,7 +136,7 @@ class MalSimulator():
             if not node_reward:
                 continue
 
-            for agent in self.agents_dict.values():
+            for agent in self._agents_dict.values():
 
                 if agent.type == AgentType.ATTACKER:
                     attacker = self.attack_graph.get_attacker_by_id(
@@ -171,7 +171,7 @@ class MalSimulator():
 
     def _init_agent_action_surfaces(self):
         """Set agent action surfaces according to current state"""
-        for agent in self.agents_dict.values():
+        for agent in self._agents_dict.values():
             if agent.type == AgentType.ATTACKER:
                 # Get the Attacker object
                 attacker = \
@@ -192,7 +192,7 @@ class MalSimulator():
         """Register a mal sim agent"""
 
         logger.info('Registering agent "%s".', agent)
-        assert agent.name not in self.agents_dict, \
+        assert agent.name not in self._agents_dict, \
             f"Duplicate agent named {agent.name} not allowed"
 
         if agent.type == AgentType.DEFENDER:
@@ -205,7 +205,7 @@ class MalSimulator():
             self.agents.append(agent.name)
             self.possible_agents.append(agent.name)
 
-        self.agents_dict[agent.name] = agent
+        self._agents_dict[agent.name] = agent
 
     def register_attacker(self, name: str, attacker_id: int):
         """Register a mal sim attacker agent"""
@@ -219,19 +219,19 @@ class MalSimulator():
 
     def get_agent(self, name: str) -> MalSimAgent:
         """Return agent with given name"""
-        assert name in self.agents_dict, (
+        assert name in self._agents_dict, (
             f"Agent with name '{name}' does not exist"
         )
-        return self.agents_dict[name]
+        return self._agents_dict[name]
 
     def get_attacker_agents(self) -> list[MalSimAttacker]:
         """Return list of attacker agent states"""
-        return [a for a in self.agents_dict.values()
+        return [a for a in self._agents_dict.values()
                 if a.type == AgentType.ATTACKER]
 
     def get_defender_agents(self) -> list[MalSimDefender]:
         """Return list of defender agent states"""
-        return [a for a in self.agents_dict.values()
+        return [a for a in self._agents_dict.values()
                 if a.type == AgentType.DEFENDER]
 
     def _disable_attack_steps(
@@ -400,8 +400,8 @@ class MalSimulator():
         # Note: by design, defenders perform actions
         # before attackers (see _register_agent)
         for agent_name in self.agents:
-            agent = self.get_agent(agent_name)
-            agent_actions = actions.get(agent.name, [])
+            agent = self._agents_dict[agent_name]
+            agent_actions = actions.get(agent_name, [])
 
             match agent.type:
 
@@ -427,13 +427,13 @@ class MalSimulator():
         if all_attackers_terminated:
             # Terminate all agents if all attackers are terminated
             logger.info("All attackers are terminated")
-            for agent in self.agents_dict.values():
+            for agent in self.__agents_dict.values():
                 agent.terminated = True
 
         if self.cur_iter >= self.max_iter:
             # Truncate all agents when max iter is reached
             logger.info("Max iteration reached - all agents truncated")
-            for agent in self.agents_dict.values():
+            for agent in self.__agents_dict.values():
                 agent.truncated = True
 
         agents_to_remove = set()
