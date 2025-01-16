@@ -31,7 +31,7 @@ def test_reset(corelang_lang_graph, model):
 
     attack_graph_before = sim.attack_graph
     sim.register_attacker(attacker_name, attacker.id)
-    assert attacker.name in sim.agents_dict
+    assert attacker.name in sim._agents_dict
     assert len(sim.agents) == 1
 
     sim.reset()
@@ -59,7 +59,7 @@ def test_register_agent_attacker(corelang_lang_graph, model):
     agent_name = "attacker1"
     sim.register_attacker(agent_name, attacker)
 
-    assert agent_name in sim.agents_dict
+    assert agent_name in sim._agents_dict
     assert agent_name in sim.agents
 
 
@@ -70,7 +70,7 @@ def test_register_agent_defender(corelang_lang_graph, model):
     agent_name = "defender1"
     sim.register_defender(agent_name)
 
-    assert agent_name in sim.agents_dict
+    assert agent_name in sim._agents_dict
     assert agent_name in sim.agents
 
 
@@ -89,7 +89,7 @@ def test_simulator_initialize_agents(corelang_lang_graph, model):
 
     sim.reset()
 
-    assert set(sim.agents_dict.keys()) == {attacker_name, defender_name}
+    assert set(sim._agents_dict.keys()) == {attacker_name, defender_name}
 
 
 def test_get_agents():
