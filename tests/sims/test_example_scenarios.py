@@ -38,24 +38,27 @@ def test_bfs_vs_bfs_state_and_reward():
 
     while True:
         attacker_agent_state = env.get_agent(attacker_agent_info['name'])
-        attacker_action = attacker_agent.get_next_action(
-            attacker_agent_state,
-            action_mask = infos[attacker_agent_name]['action_mask']
+        attacker_node = attacker_agent.get_next_action(
+            attacker_agent_state
         )
         defender_agent_state = env.get_agent(defender_agent_info['name'])
-        defender_action = defender_agent.get_next_action(
-            defender_agent_state,
-            action_mask = infos[defender_agent_name]['action_mask']
+        defender_node = defender_agent.get_next_action(
+            defender_agent_state
         )
 
-        if attacker_action:
-            attacker_actions.append(
-                int(attacker_action[1])
-            )
-        if defender_action:
-            defender_actions.append(
-                int(defender_action[1])
-            )
+        attacker_action = (0, None)
+        defender_action = (0, None)
+
+        if attacker_node:
+            node_index = env.node_to_index(attacker_node)
+            attacker_action = (1, node_index)
+            attacker_actions.append(node_index)
+
+        if defender_node:
+            node_index = env.node_to_index(defender_node)
+            defender_action = (1, node_index)
+            defender_actions.append(node_index)
+
         actions = {
             defender_agent_name: defender_action,
             attacker_agent_name: attacker_action
@@ -64,14 +67,13 @@ def test_bfs_vs_bfs_state_and_reward():
 
         total_reward_defender += rew[defender_agent_name]
         total_reward_attacker += rew[attacker_agent_name]
-
         if term[defender_agent_name] or term[attacker_agent_name]:
             break
 
         if trunc[defender_agent_name] or trunc[attacker_agent_name]:
             break
-        
-    assert attacker_actions == [328, 329, 353, 330, 354, 355, 356, 331, 357, 283, 332, 375, 358, 376, 377]
+
+    assert attacker_actions == [328, 329, 353, 330, 354, 355, 356, 357, 331, 358, 375, 283, 332, 376, 377]
     assert defender_actions == [68, 249, 324, 325, 349, 350, 396, 397, 421, 422, 423, 457, 0, 31, 88, 113, 144, 181, 212, 252, 276, 326, 327, 351, 352, 374]
 
     for step_index in attacker_actions:

@@ -107,9 +107,6 @@ class DefenderEnv(gym.Env):
                 agent_info['attacker_id']
             )
 
-        self.last_obs = {}
-        self.last_infos = {}
-
         # Register defender agent
         self.defender_agent_name = "DefenderEnvAgent"
         self.sim.register_defender(self.defender_agent_name)
@@ -129,9 +126,6 @@ class DefenderEnv(gym.Env):
         super().reset(seed=seed, options=options)
         obs, infos = self.sim.reset(seed=seed, options=options)
 
-        self.last_infos = infos
-        self.last_obs = obs
-
         return (
             obs[self.defender_agent_name],
             infos[self.defender_agent_name]
@@ -142,6 +136,7 @@ class DefenderEnv(gym.Env):
     ) -> tuple[Any, SupportsFloat, bool, bool, dict[str, Any]]:
 
         actions = {}
+        actions[self.defender_agent_name] = action
 
         # Get actions from scenario attackers
         for agent_info in self.attacker_agents:
@@ -150,18 +145,19 @@ class DefenderEnv(gym.Env):
             if 'agent' not in agent_info:
                 continue
 
+            # Get the decision agent and the sim agent state
             decision_agent = agent_info['agent']
             agent_state = self.sim.get_agent(agent_name)
 
-            attacker_action = decision_agent.get_next_action(
-                agent_state,
-                action_mask=self.last_infos[agent_name]['action_mask']
-            )
+            # get next action from decision agent and put it in actions dict
+            attacker_action_node = decision_agent.get_next_action(agent_state)
+            attacker_action = (0, None) # Default to null action
+            if attacker_action_node:
+                node_index = self.sim.node_to_index(attacker_action_node)
+                attacker_action = (1, node_index)
+            actions[agent_name] = attacker_action
 
-            actions[agent_name] = attacker_action or (0, None)
-
-        actions[self.defender_agent_name] = action
-
+        # Perform step
         obs, rewards, terminated, truncated, infos = \
             self.sim.step(actions)
 
