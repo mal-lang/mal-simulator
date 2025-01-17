@@ -35,8 +35,12 @@ def run_simulation(env: MalSimVectorizedObsEnv, agents: list[dict]):
                 )
                 continue
 
+            sim_agent_state = env.get_agent(agent_name)
             agent_action = \
-                agent.get_next_action(env.get_agent(agent_name))
+                agent.get_next_action(
+                    sim_agent_state,
+                    action_mask=infos[agent_name]['action_mask']
+                )
             actions[agent_name] = agent_action
 
             if agent_action[0]:

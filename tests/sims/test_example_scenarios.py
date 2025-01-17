@@ -37,10 +37,16 @@ def test_bfs_vs_bfs_state_and_reward():
                         if n.is_enabled_defense()]
 
     while True:
-        attacker_action = attacker_agent\
-            .get_next_action(env.get_agent(attacker_agent_info['name']))
-        defender_action = defender_agent\
-            .get_next_action(env.get_agent(defender_agent_info['name']))
+        attacker_agent_state = env.get_agent(attacker_agent_info['name'])
+        attacker_action = attacker_agent.get_next_action(
+            attacker_agent_state,
+            action_mask = infos[attacker_agent_name]['action_mask']
+        )
+        defender_agent_state = env.get_agent(defender_agent_info['name'])
+        defender_action = defender_agent.get_next_action(
+            defender_agent_state,
+            action_mask = infos[defender_agent_name]['action_mask']
+        )
 
         if attacker_action:
             attacker_actions.append(

@@ -5,13 +5,12 @@ from typing import Deque, List, Set, Union
 import numpy as np
 
 from .base_agent import DecisionAgent
-from ..sims import MalSimAgent
+from ..sims import MalSimAgentView
 
 logger = logging.getLogger(__name__)
 
-
 def get_new_targets(
-    observation: dict, discovered_targets: Set[int], mask: tuple
+    discovered_targets: Set[int], mask: tuple
 ) -> List[int]:
     attack_surface = mask[1]
     surface_indexes = list(np.flatnonzero(attack_surface))
@@ -22,6 +21,7 @@ class BreadthFirstAttacker(DecisionAgent):
     def __init__(self, agent_config: dict) -> None:
         self.targets: Deque[int] = deque([])
         self.current_target: int = None
+
         seed = (
             agent_config["seed"]
             if agent_config.get("seed", None)
@@ -35,14 +35,13 @@ class BreadthFirstAttacker(DecisionAgent):
 
     def get_next_action(
         self,
-        agent: MalSimAgent,
+        agent: MalSimAgentView,
         **kwargs
     ) -> tuple[int, int]:
-
-        observation = agent.observation
-        mask = agent.info['action_mask']
-
-        new_targets, surface_indexes = get_new_targets(observation, self.targets, mask)
+        # TODO: Make use of MalSimAgentView state instead of `action_mask`
+        #       which requires the SerializedObsEnv to work
+        mask = kwargs.get('action_mask')
+        new_targets, surface_indexes = get_new_targets(self.targets, mask)
 
         # Add new targets to the back of the queue
         # if desired, shuffle the new targets to make the attacker more unpredictable
@@ -103,13 +102,15 @@ class DepthFirstAttacker():
 
     def get_next_action(
         self,
-        agent: MalSimAgent,
+        agent: MalSimAgentView,
         **kwargs
     ) -> tuple[int, int]:
 
-        observation = agent.observation
-        mask = agent.info['action_mask']
-        new_targets, surface_indexes = get_new_targets(observation, self.targets, mask)
+        # TODO: Make use of MalSimAgentView state instead of `action_mask`
+        #       which requires the SerializedObsEnv to work
+
+        mask = kwargs.get('action_mask')
+        new_targets, surface_indexes = get_new_targets(self.targets, mask)
 
         # Add new targets to the top of the stack
         if self.rng:
