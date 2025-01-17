@@ -5,14 +5,14 @@ from typing import TYPE_CHECKING
 from abc import ABC, abstractmethod
 
 if TYPE_CHECKING:
-    from ..sims import MalSimAgent
+    from ..sims import MalSimAgentView
 
 class DecisionAgent(ABC):
 
     @abstractmethod
     def get_next_action(
         self,
-        agent: MalSimAgent,
+        agent: MalSimAgentView,
         **kwargs
     ) -> tuple[int, int]: ...
 
@@ -22,7 +22,7 @@ class PassiveAgent(DecisionAgent):
 
     def get_next_action(
         self,
-        agent: MalSimAgent,
+        agent: MalSimAgentView,
         **kwargs
     ) -> tuple[int, int]:
         return (0, None)

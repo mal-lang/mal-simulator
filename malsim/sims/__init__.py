@@ -5,12 +5,14 @@ from .mal_simulator import (
     MalSimAgent,
     MalSimDefender,
     MalSimAttacker,
+    MalSimAgentView
 )
 from ..wrappers.malsim_vectorized_obs_env import MalSimVectorizedObsEnv
 
 __all__ = [
     'AgentType',
     'MalSimAgent',
+    'MalSimAgentView',
     'MalSimDefender',
     'MalSimAttacker',
     'MalSimulatorSettings',
