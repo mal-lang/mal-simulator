@@ -99,13 +99,16 @@ class DefenderEnv(gym.Env):
         self.sim = MalSimVectorizedObsEnv(MalSimulator(ag), **kwargs)
 
         # Register attacker agents from scenario
-        self.attacker_agents_infos = [agent_dict for agent_dict in agents
+        self.attacker_agents = [agent_dict for agent_dict in agents
                                       if agent_dict['type'] == AgentType.ATTACKER]
-        for agent_info in self.attacker_agents_infos:
+        for agent_info in self.attacker_agents:
             self.sim.register_attacker(
                 agent_info['name'],
                 agent_info['attacker_id']
             )
+
+        self.last_obs = {}
+        self.last_infos = {}
 
         # Register defender agent
         self.defender_agent_name = "DefenderEnvAgent"
@@ -126,6 +129,9 @@ class DefenderEnv(gym.Env):
         super().reset(seed=seed, options=options)
         obs, infos = self.sim.reset(seed=seed, options=options)
 
+        self.last_infos = infos
+        self.last_obs = obs
+
         return (
             obs[self.defender_agent_name],
             infos[self.defender_agent_name]
@@ -138,20 +144,29 @@ class DefenderEnv(gym.Env):
         actions = {}
 
         # Get actions from scenario attackers
-        for agent_info in self.attacker_agents_infos:
+        for agent_info in self.attacker_agents:
             agent_name = agent_info['name']
+
             if 'agent' not in agent_info:
                 continue
 
             decision_agent = agent_info['agent']
             agent_state = self.sim.get_agent(agent_name)
-            actions[agent_name] = decision_agent.get_next_action(agent_state)
 
-        # Action from defender agent needs to be converted to nodes
+            attacker_action = decision_agent.get_next_action(
+                agent_state,
+                action_mask=self.last_infos[agent_name]['action_mask']
+            )
+
+            actions[agent_name] = attacker_action or (0, None)
+
         actions[self.defender_agent_name] = action
 
         obs, rewards, terminated, truncated, infos = \
             self.sim.step(actions)
+
+        self.last_infos = infos
+        self.last_obs = obs
 
         return (
             obs[self.defender_agent_name],
