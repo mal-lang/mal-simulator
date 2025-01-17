@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from ..sims import MalSimulator
+from ..sims import MalSimulator, MalSimAgentView
 
 class MalSimEnv(ABC):
 
@@ -22,6 +22,9 @@ class MalSimEnv(ABC):
             self, defender_name: str
         ):
         self.sim.register_defender(defender_name)
+
+    def get_agent(self, agent_name: str) -> MalSimAgentView:
+        return self.sim.get_agent(agent_name)
 
     def render(self):
         pass
