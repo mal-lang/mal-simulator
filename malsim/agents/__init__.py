@@ -1,4 +1,4 @@
-from .base_agent import PassiveAgent, DecisionAgent
+from .decision_agent import PassiveAgent, DecisionAgent
 from .keyboard_input import KeyboardAgent
 from .searchers import BreadthFirstAttacker, DepthFirstAttacker
 

@@ -1,5 +1,5 @@
 import logging
-from .base_agent import DecisionAgent
+from .decision_agent import DecisionAgent
 from ..sims import MalSimAgentView
 
 logger = logging.getLogger(__name__)
