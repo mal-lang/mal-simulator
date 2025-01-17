@@ -9,7 +9,6 @@ if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
 
 logger = logging.getLogger(__name__)
-null_action = []
 
 class KeyboardAgent(DecisionAgent):
     """An agent that makes decisions by asking user for keyboard input"""
