@@ -1,6 +1,6 @@
 import logging
 from .base_agent import DecisionAgent
-from ..sims import MalSimAgent
+from ..sims import MalSimAgentView
 
 logger = logging.getLogger(__name__)
 null_action = []
@@ -14,7 +14,7 @@ class KeyboardAgent(DecisionAgent):
 
     def get_next_action(
             self,
-            agent: MalSimAgent,
+            agent: MalSimAgentView,
             **kwargs
         ) -> tuple:
         """Compute action from action_surface"""

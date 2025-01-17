@@ -1,63 +1,25 @@
 from __future__ import annotations
 
-from enum import Enum
-from dataclasses import dataclass, field
 import copy
 import logging
 from typing import Optional
 
 from maltoolbox import neo4j_configs
 from maltoolbox.ingestors import neo4j
-from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+from maltoolbox.attackgraph import AttackGraph, AttackGraphNode, query
 from maltoolbox.attackgraph.analyzers import apriori
-from maltoolbox.attackgraph import query
 
 from .mal_sim_settings import MalSimulatorSettings
+from .mal_sim_agent import (
+    AgentType,
+    MalSimAgent,
+    MalSimAgentView,
+    MalSimAttacker,
+    MalSimDefender
+)
 
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
-
-
-class AgentType(Enum):
-    """Enum for agent types"""
-    ATTACKER = 'attacker'
-    DEFENDER = 'defender'
-
-
-@dataclass
-class MalSimAgent:
-    """Stores the state of an agent in the simulator"""
-
-    # Identifier of the agent, used in MalSimulator for lookup
-    name: str
-    type: AgentType
-
-    # Contains current agent reward in the simulation
-    # Attackers get positive rewards, defenders negative
-    reward: int = 0
-
-    # Contains possible actions for the agent in the next step
-    action_surface: list[AttackGraphNode] = field(default_factory=list)
-
-    # Fields that tell if agent is 'dead' / disabled
-    truncated: bool = False
-    terminated: bool = False
-
-    # Fields that are not used by 'base' MalSimulator
-    # but can be useful in other simulators/envs
-    observation: dict = field(default_factory=dict)
-    info: dict = field(default_factory=dict)
-
-class MalSimAttacker(MalSimAgent):
-    """Stores the state of an attacker in the simulator"""
-    def __init__(self, name: str, attacker_id: int):
-        super().__init__(name, AgentType.ATTACKER)
-        self.attacker_id = attacker_id
-
-class MalSimDefender(MalSimAgent):
-    """Stores the state of a defender in the simulator"""
-    def __init__(self, name: str):
-        super().__init__(name, AgentType.DEFENDER)
 
 class MalSimulator():
     """A MAL Simulator that works on the AttackGraph
@@ -217,20 +179,25 @@ class MalSimulator():
         agent_state = MalSimDefender(name)
         self._register_agent(agent_state)
 
-    def get_agent(self, name: str) -> MalSimAgent:
-        """Return agent with given name"""
-        assert name in self._agents_dict, (
-            f"Agent with name '{name}' does not exist"
-        )
-        return self._agents_dict[name]
+    def get_agent(self, name: str) -> MalSimAgentView:
+        """Return read only agent state for agent with given name"""
 
-    def get_attacker_agents(self) -> list[MalSimAttacker]:
-        """Return list of attacker agent states"""
+        assert name in self._agents_dict, (
+            f"Agent with name '{name}' does not exist")
+        agent = self._agents_dict[name]
+        return MalSimAgentView(agent)
+
+    def get_agents(self) -> list[MalSimAgentView]:
+        """Return read only agent state for all dead and alive agents"""
+        return [self.get_agent(agent) for agent in self.possible_agents]
+
+    def _get_attacker_agents(self) -> list[MalSimAttacker]:
+        """Return list of mutable attacker agent states"""
         return [a for a in self._agents_dict.values()
                 if a.type == AgentType.ATTACKER]
 
-    def get_defender_agents(self) -> list[MalSimDefender]:
-        """Return list of defender agent states"""
+    def _get_defender_agents(self) -> list[MalSimDefender]:
+        """Return list of mutable defender agent states"""
         return [a for a in self._agents_dict.values()
                 if a.type == AgentType.DEFENDER]
 
@@ -242,7 +209,7 @@ class MalSimulator():
         For each compromised attack step uncompromise the node, disable its
         observed_state, and remove the rewards.
         """
-        for attacker_agent in self.get_attacker_agents():
+        for attacker_agent in self._get_attacker_agents():
             attacker = self.attack_graph.get_attacker_by_id(
                 attacker_agent.attacker_id)
 
@@ -254,7 +221,7 @@ class MalSimulator():
                     attacker_agent.reward -= node_reward
 
                     # Reward is no longer present for defenders
-                    for defender_agent in self.get_defender_agents():
+                    for defender_agent in self._get_defender_agents():
                         defender_agent.reward += node_reward
 
                     # Uncompromise node if requested
@@ -286,7 +253,7 @@ class MalSimulator():
                 attacker.compromise(node)
                 node_reward = node.extras.get("reward", 0)
                 agent.reward += node_reward
-                for d_agent in self.get_defender_agents():
+                for d_agent in self._get_defender_agents():
                     d_agent.reward -= node_reward
                 enabled_nodes.append(node)
 
@@ -357,7 +324,7 @@ class MalSimulator():
 
         for node in enabled_defenses:
             # Remove enabled defenses from defender action surfaces
-            for defender_agent in self.get_defender_agents():
+            for defender_agent in self._get_defender_agents():
                 try:
                     defender_agent.action_surface.remove(node)
                 except ValueError:
@@ -365,7 +332,7 @@ class MalSimulator():
 
         for attack_step in attack_steps_made_unviable:
             # Remove unviable attack steps from attacker action surfaces
-            for attacker_agent in self.get_attacker_agents():
+            for attacker_agent in self._get_attacker_agents():
                 try:
                     attacker_agent.action_surface.remove(attack_step)
                 except ValueError:
@@ -399,10 +366,8 @@ class MalSimulator():
         # Peform agent actions
         # Note: by design, defenders perform actions
         # before attackers (see _register_agent)
-        for agent_name in self.agents:
-            agent = self._agents_dict[agent_name]
+        for agent_name, agent in self._agents_dict.items():
             agent_actions = actions.get(agent_name, [])
-
             match agent.type:
 
                 case AgentType.ATTACKER:
@@ -437,7 +402,7 @@ class MalSimulator():
 
         agents_to_remove = set()
         for agent_name in self.agents:
-            agent = self.get_agent(agent_name)
+            agent = self._agents_dict[agent_name]
             if agent.terminated or agent.truncated:
                 logger.info("Removing agent %s", agent.name)
                 agents_to_remove.add(agent.name)
