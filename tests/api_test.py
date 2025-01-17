@@ -216,12 +216,15 @@ def test_attacker(env: MalSimVectorizedObsEnv, attacker_class) -> None:
     done = False
     while not done and steps < step_limit:
         action = attacker.get_next_action(
-            env.get_agent(AGENT_ATTACKER)
+            env.get_agent(AGENT_ATTACKER),
+            action_mask=info[AGENT_ATTACKER]['action_mask']
         )
+
+        action = action or (0, None)
         assert action != ACTION_TERMINATE
         assert action != ACTION_WAIT
         obs, rewards, terminated, truncated, info = env.step(
-            {AGENT_ATTACKER: action, AGENT_DEFENDER: [0]}
+            {AGENT_ATTACKER: action, AGENT_DEFENDER: (0, None)}
         )
         sum_rewards += rewards[AGENT_ATTACKER]
         done = terminated[AGENT_ATTACKER] or truncated[AGENT_ATTACKER]
