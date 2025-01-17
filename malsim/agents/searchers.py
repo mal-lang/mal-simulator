@@ -81,7 +81,7 @@ class BreadthFirstAttacker(DecisionAgent):
         previous_target: int,
         targets: Union[List[int], Deque[int]],
         attack_surface: Set[int],
-    ) -> int:
+    ) -> Optional[int]:
         """Select a target from attack surface
         by going through the target queue"""
 
@@ -154,7 +154,7 @@ class DepthFirstAttacker(DecisionAgent):
         previous_target: int,
         targets: Union[List[int], Deque[int]],
         attack_surface: Set[int],
-    ) -> int:
+    ) -> Optional[int]:
         if previous_target in attack_surface:
             return previous_target
 
