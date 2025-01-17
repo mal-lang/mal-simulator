@@ -304,7 +304,7 @@ class MalSimulator():
                 logger.warning(
                     'Defender agent "%s" tried to step through "%s"(%d).'
                     'which is not part of its defense surface. Defender '
-                    'step will skip', agent, node.full_name, node.id
+                    'step will skip', agent.name, node.full_name, node.id
                 )
                 continue
 
