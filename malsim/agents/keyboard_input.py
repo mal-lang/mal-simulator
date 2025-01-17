@@ -1,6 +1,12 @@
+from __future__ import annotations
 import logging
+from typing import TYPE_CHECKING, Optional
+
 from .decision_agent import DecisionAgent
 from ..sims import MalSimAgentView
+
+if TYPE_CHECKING:
+    from maltoolbox.attackgraph import AttackGraphNode
 
 logger = logging.getLogger(__name__)
 null_action = []
@@ -16,7 +22,7 @@ class KeyboardAgent(DecisionAgent):
             self,
             agent: MalSimAgentView,
             **kwargs
-        ) -> tuple:
+        ) -> Optional[AttackGraphNode]:
         """Compute action from action_surface"""
 
         def valid_action(user_input: str) -> bool:
@@ -59,4 +65,4 @@ class KeyboardAgent(DecisionAgent):
             if index is not None else 'wait'
         )
 
-        return (1, index_to_node[index]) if index is not None else (0, None)
+        return index_to_node[index] if index is not None else None
