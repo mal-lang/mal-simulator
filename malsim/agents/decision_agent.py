@@ -1,11 +1,12 @@
 """A decision agent is a heuristic agent"""
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from abc import ABC, abstractmethod
 
 if TYPE_CHECKING:
     from ..sims import MalSimAgentView
+    from maltoolbox.attackgraph import AttackGraphNode
 
 class DecisionAgent(ABC):
 
@@ -14,7 +15,7 @@ class DecisionAgent(ABC):
         self,
         agent: MalSimAgentView,
         **kwargs
-    ) -> tuple[int, int]: ...
+    ) -> Optional[AttackGraphNode]: ...
 
 class PassiveAgent(DecisionAgent):
     def __init__(self, info):
@@ -24,5 +25,5 @@ class PassiveAgent(DecisionAgent):
         self,
         agent: MalSimAgentView,
         **kwargs
-    ) -> tuple[int, int]:
-        return (0, None)
+    ) -> Optional[AttackGraphNode]:
+        return None
