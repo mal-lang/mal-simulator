@@ -1,21 +1,26 @@
+from __future__ import annotations
 import logging
 
 from collections import deque
-from typing import Deque, List, Set, Union
+from typing import Deque, List, Set, Union, Optional, TYPE_CHECKING
 import numpy as np
 
 from .decision_agent import DecisionAgent
 from ..sims import MalSimAgentView
 
+if TYPE_CHECKING:
+    from maltoolbox.attackgraph import AttackGraphNode
+
 logger = logging.getLogger(__name__)
 
 def get_new_targets(
-    discovered_targets: Set[int], mask: tuple
-) -> List[int]:
-    attack_surface = mask[1]
-    surface_indexes = list(np.flatnonzero(attack_surface))
-    new_targets = [idx for idx in surface_indexes if idx not in discovered_targets]
-    return new_targets, surface_indexes
+    discovered_targets: set[int],
+    possible_actions: set[int]
+) -> list[int]:
+    """Return targets that are not already discovered"""
+    new_targets = [id for id in possible_actions
+                   if id not in discovered_targets]
+    return new_targets
 
 class BreadthFirstAttacker(DecisionAgent):
     def __init__(self, agent_config: dict) -> None:
@@ -34,58 +39,69 @@ class BreadthFirstAttacker(DecisionAgent):
         )
 
     def get_next_action(
-        self,
-        agent: MalSimAgentView,
-        **kwargs
-    ) -> tuple[int, int]:
-        # TODO: Make use of MalSimAgentView state instead of `action_mask`
-        #       which requires the SerializedObsEnv to work
-        mask = kwargs.get('action_mask')
-        new_targets, surface_indexes = get_new_targets(self.targets, mask)
+        self, agent: MalSimAgentView, **kwargs
+    ) -> Optional[AttackGraphNode]:
+
+        # Create a dict of possible actions
+        # mapping id to node
+        possible_actions = {
+            n.id: n for n in agent.action_surface
+            if not n.is_compromised()
+        }
+
+        # Get targets that are not discovered yet
+        new_targets = get_new_targets(
+            self.targets, possible_actions.keys()
+        )
 
         # Add new targets to the back of the queue
-        # if desired, shuffle the new targets to make the attacker more unpredictable
+        # if desired, shuffle the new targets to
+        # make the attacker more unpredictable
         if self.rng:
             self.rng.shuffle(new_targets)
         for c in new_targets:
             self.targets.appendleft(c)
 
-        self.current_target, done = self.select_next_target(
-            self.current_target, self.targets, surface_indexes
+        # Select next target
+        self.current_target = self.select_next_target(
+            self.current_target,
+            self.targets,
+            possible_actions.keys()
         )
 
-        self.current_target = None if done else self.current_target
-        action = 0 if done else 1
-        if action == 0:
-            logger.debug(
-                "Attacker Breadth First agent does not have "
-                "any valid targets it will terminate"
-            )
+        # Convert the current target id to AttackGraphNode
+        action_node = None
+        if self.current_target is not None:
+            action_node = possible_actions[self.current_target]
 
-        return (action, self.current_target)
+        return action_node
 
     @staticmethod
     def select_next_target(
-        current_target: int,
+        previous_target: int,
         targets: Union[List[int], Deque[int]],
         attack_surface: Set[int],
     ) -> int:
-        # If the current target was not compromised, put it
-        # back, but on the bottom of the stack.
-        if current_target in attack_surface:
-            targets.appendleft(current_target)
-            current_target = targets.pop()
+        """Select a target from attack surface
+        by going through the target queue"""
 
-        while current_target not in attack_surface:
+        next_target = None
+        if previous_target in attack_surface:
+            # If the current target was not compromised, put it
+            # back, but on the bottom of the stack.
+            targets.appendleft(previous_target)
+            next_target = targets.pop()
+
+        while next_target not in attack_surface:
             if len(targets) == 0:
-                return None, True
+                return None
 
-            current_target = targets.pop()
+            next_target = targets.pop()
 
-        return current_target, False
+        return next_target
 
 
-class DepthFirstAttacker():
+class DepthFirstAttacker(DecisionAgent):
     def __init__(self, agent_config: dict) -> None:
         self.current_target = -1
         self.targets: List[int] = []
@@ -101,16 +117,20 @@ class DepthFirstAttacker():
         )
 
     def get_next_action(
-        self,
-        agent: MalSimAgentView,
-        **kwargs
-    ) -> tuple[int, int]:
+        self, agent: MalSimAgentView, **kwargs
+    ) -> Optional[AttackGraphNode]:
 
-        # TODO: Make use of MalSimAgentView state instead of `action_mask`
-        #       which requires the SerializedObsEnv to work
+        # Create a dict of possible actions
+        # mapping id to node
+        possible_actions = {
+            n.id: n for n in agent.action_surface
+            if not n.is_compromised()
+        }
 
-        mask = kwargs.get('action_mask')
-        new_targets, surface_indexes = get_new_targets(self.targets, mask)
+        # Get targets that are not discovered yet
+        new_targets = get_new_targets(
+            self.targets, possible_actions.keys()
+        )
 
         # Add new targets to the top of the stack
         if self.rng:
@@ -118,30 +138,33 @@ class DepthFirstAttacker():
         for c in new_targets:
             self.targets.append(c)
 
-        self.current_target, done = self.select_next_target(
-            self.current_target, self.targets, surface_indexes
+        self.current_target = self.select_next_target(
+            self.current_target, self.targets, possible_actions.keys()
         )
 
-        self.current_target = None if done else self.current_target
-        action = 0 if done else 1
-        return (action, self.current_target)
+        # Convert the current target id to AttackGraphNode
+        action_node = None
+        if self.current_target is not None:
+            action_node = possible_actions[self.current_target]
+
+        return action_node
 
     @staticmethod
     def select_next_target(
-        current_target: int,
+        previous_target: int,
         targets: Union[List[int], Deque[int]],
         attack_surface: Set[int],
     ) -> int:
-        if current_target in attack_surface:
-            return current_target, False
+        if previous_target in attack_surface:
+            return previous_target
 
-        while current_target not in attack_surface:
+        next_target = None
+        while next_target not in attack_surface:
             if len(targets) == 0:
-                return None, True
+                return None
+            next_target = targets.pop()
 
-            current_target = targets.pop()
-
-        return current_target, False
+        return next_target
 
 
 AGENTS = {
