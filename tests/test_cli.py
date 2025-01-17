@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from malsim.scenario import create_simulator_from_scenario
 from malsim.cli import run_simulation
-from malsim.sims import MalSimulator, MalSimVectorizedObsEnv
+from malsim.sims import MalSimulator
 
 
 def path_relative_to_tests(filename):
@@ -29,8 +29,7 @@ def test_run_simulation(mock_input):
 
     sim, agents = create_simulator_from_scenario(
         scenario_file, sim_class=MalSimulator)
-    env = MalSimVectorizedObsEnv(sim)
-    run_simulation(env, agents)
+    run_simulation(sim, agents)
 
 @patch("builtins.input", return_value="\n") # to not freeze on input()
 def test_run_simulation_without_defender_agent(mock_input):
@@ -42,5 +41,4 @@ def test_run_simulation_without_defender_agent(mock_input):
     )
     sim, agents = create_simulator_from_scenario(
         scenario_file, sim_class=MalSimulator)
-    env = MalSimVectorizedObsEnv(sim)
-    run_simulation(env, agents)
+    run_simulation(sim, agents)
