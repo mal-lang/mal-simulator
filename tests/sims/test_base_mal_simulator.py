@@ -93,14 +93,14 @@ def test_simulator_initialize_agents(corelang_lang_graph, model):
 
 
 def test_get_agents():
-    """Test get_attacker_agents and get_defender_agents"""
+    """Test _get_attacker_agents and _get_defender_agents"""
 
     ag, _ = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
     sim = MalSimulator(ag)
     sim.reset()
 
-    sim.get_attacker_agents() == ['attacker']
-    sim.get_defender_agents() == ['defender']
+    sim._get_attacker_agents() == ['attacker']
+    sim._get_defender_agents() == ['defender']
 
 
 def test_attacker_step(corelang_lang_graph, model):
@@ -112,7 +112,7 @@ def test_attacker_step(corelang_lang_graph, model):
 
     sim.register_attacker(attacker.name, attacker.id)
     sim.reset()
-    attacker_agent = sim.get_agent(attacker.name)
+    attacker_agent = sim._agents_dict[attacker.name]
 
     # Can not attack the notPresent step
     defense_step = attack_graph.get_node_by_full_name('OS App:notPresent')
@@ -133,7 +133,7 @@ def test_defender_step(corelang_lang_graph, model):
     sim.register_defender(defender_name)
     sim.reset()
 
-    defender_agent = sim.get_agent(defender_name)
+    defender_agent = sim._agents_dict[defender_name]
     defense_step = sim.attack_graph.get_node_by_full_name(
         'OS App:notPresent')
     actions, _ = sim._defender_step(defender_agent, [defense_step])
@@ -180,8 +180,8 @@ def test_step_attacker_defender_action_surface_updates():
     sim.register_attacker(attacker_agent_id, 1)
     sim.register_defender(defender_agent_id)
 
-    attacker_agent = next(iter(sim.get_attacker_agents()))
-    defender_agent = next(iter(sim.get_defender_agents()))
+    attacker_agent = next(iter(sim._get_attacker_agents()))
+    defender_agent = next(iter(sim._get_defender_agents()))
 
     sim.reset()
 
