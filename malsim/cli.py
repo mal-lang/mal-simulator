@@ -5,6 +5,7 @@ import argparse
 import logging
 
 from malsim.sims import MalSimVectorizedObsEnv
+from malsim.agents import DecisionAgent
 from malsim.scenario import create_simulator_from_scenario
 
 logging.basicConfig(level=logging.INFO)
@@ -14,7 +15,7 @@ logging.getLogger().setLevel(logging.INFO)
 def run_simulation(env: MalSimVectorizedObsEnv, agents: list[dict]):
     """Run a simulation with agents"""
 
-    obs, infos = env.reset()
+    env.reset()
     total_rewards = {agent_dict['name']: 0 for agent_dict in agents}
     all_agents_term_or_trunc = False
 
@@ -26,9 +27,9 @@ def run_simulation(env: MalSimVectorizedObsEnv, agents: list[dict]):
 
         # Select actions for each agent
         for agent_dict in agents:
-            agent = agent_dict.get('agent')
+            decision_agent: DecisionAgent = agent_dict.get('agent')
             agent_name = agent_dict['name']
-            if agent is None:
+            if decision_agent is None:
                 logger.warning(
                     'Agent "%s" has no decision agent class '
                     'specified in scenario. Waiting.', agent_name,
@@ -36,21 +37,20 @@ def run_simulation(env: MalSimVectorizedObsEnv, agents: list[dict]):
                 continue
 
             sim_agent_state = env.get_agent(agent_name)
-            agent_action = \
-                agent.get_next_action(
-                    sim_agent_state,
-                    action_mask=infos[agent_name]['action_mask']
-                )
-            actions[agent_name] = agent_action
+            agent_action_node = decision_agent.get_next_action(sim_agent_state)
+            actions[agent_name] = (0, None)
 
-            if agent_action[0]:
+            if agent_action_node:
+                # Convert action to serialized env index format
+                agent_action = (1, env.node_to_index(agent_action_node))
+                actions[agent_name] = agent_action
                 logger.info(
-                    'Agent "%s" chose action: %s', agent_name,
-                    [env.index_to_node(agent_action[1]).full_name]
+                    'Agent "%s" chose action: %s',
+                    agent_name, agent_action_node.full_name
                 )
 
         # Perform next step of simulation
-        obs, rew, term, trunc, infos = env.step(actions)
+        _, rew, term, trunc, _ = env.step(actions)
 
         for agent_dict in agents:
             agent_name = agent_dict['name']
