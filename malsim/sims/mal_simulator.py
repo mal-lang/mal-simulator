@@ -366,7 +366,8 @@ class MalSimulator():
         # Peform agent actions
         # Note: by design, defenders perform actions
         # before attackers (see _register_agent)
-        for agent_name, agent in self._agents_dict.items():
+        for agent_name in self.agents:
+            agent = self._agents_dict[agent_name]
             agent_actions = actions.get(agent_name, [])
             match agent.type:
 
