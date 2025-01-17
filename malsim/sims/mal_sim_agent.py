@@ -57,31 +57,31 @@ class MalSimAgentView:
         self._agent = agent
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._agent.name
 
     @property
-    def type(self):
+    def type(self) -> AgentType:
         return self._agent.type
 
     @property
-    def reward(self):
+    def reward(self) -> int:
         return self._agent.reward
 
     @property
-    def truncated(self):
+    def truncated(self) -> bool:
         return self._agent.truncated
 
     @property
-    def terminated(self):
+    def terminated(self) -> bool:
         return self._agent.terminated
 
     @property
-    def action_surface(self):
+    def action_surface(self) -> list[AttackGraphNode]:
         return self._agent.action_surface
 
     @property
-    def attacker_id(self):
+    def attacker_id(self) -> int:
         assert isinstance(self._agent, MalSimAttacker), \
                "Only MalSimAttackers have property attacker_id"
         return self._agent.attacker_id
