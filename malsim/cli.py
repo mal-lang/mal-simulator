@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import logging
 
-from malsim.sims import MalSimVectorizedObsEnv
+from malsim.sims import MalSimulator
 from malsim.agents import DecisionAgent
 from malsim.scenario import create_simulator_from_scenario
 
@@ -12,10 +12,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
 
-def run_simulation(env: MalSimVectorizedObsEnv, agents: list[dict]):
+def run_simulation(sim: MalSimulator, agents: list[dict]):
     """Run a simulation with agents"""
 
-    env.reset()
+    sim.reset()
     total_rewards = {agent_dict['name']: 0 for agent_dict in agents}
     all_agents_term_or_trunc = False
 
@@ -36,26 +36,23 @@ def run_simulation(env: MalSimVectorizedObsEnv, agents: list[dict]):
                 )
                 continue
 
-            sim_agent_state = env.get_agent(agent_name)
-            agent_action_node = decision_agent.get_next_action(sim_agent_state)
-            actions[agent_name] = (0, None)
-
-            if agent_action_node:
-                # Convert action to serialized env index format
-                agent_action = (1, env.node_to_index(agent_action_node))
-                actions[agent_name] = agent_action
+            sim_agent_state = sim.get_agent(agent_name)
+            agent_action = decision_agent.get_next_action(sim_agent_state)
+            if agent_action:
+                actions[agent_name] = [agent_action]
                 logger.info(
                     'Agent "%s" chose action: %s',
-                    agent_name, agent_action_node.full_name
+                    agent_name, agent_action.full_name
                 )
 
         # Perform next step of simulation
-        _, rew, term, trunc, _ = env.step(actions)
+        sim.step(actions)
 
         for agent_dict in agents:
             agent_name = agent_dict['name']
-            total_rewards[agent_name] += rew[agent_name]
-            if not term[agent_name] and not trunc[agent_name]:
+            agent_state = sim.get_agent(agent_name)
+            total_rewards[agent_name] += agent_state.reward
+            if not agent_state.terminated and not agent_state.truncated:
                 all_agents_term_or_trunc = False
 
         print("---\n")
@@ -86,12 +83,10 @@ def main():
             args.scenario_file,
         )
 
-    env = MalSimVectorizedObsEnv(sim)
-
     if args.output_attack_graph:
-        env.attack_graph.save_to_file(args.output_attack_graph)
+        sim.attack_graph.save_to_file(args.output_attack_graph)
 
-    run_simulation(env, agents)
+    run_simulation(sim, agents)
 
 
 if __name__ == '__main__':
