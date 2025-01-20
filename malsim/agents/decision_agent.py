@@ -15,15 +15,25 @@ class DecisionAgent(ABC):
         self,
         agent: MalSimAgentStateView,
         **kwargs
-    ) -> Optional[AttackGraphNode]: ...
+    ) -> Optional[AttackGraphNode]:
+        """
+        Select next action the agent will work with.
+
+        Attributes:
+            agent: Current state of and other info about the agent from the simulator
+
+        Returns:
+            The selected action or None if there are no actions to select from.
+        """
+        ...
 
 class PassiveAgent(DecisionAgent):
-    def __init__(self, info):
-        return
+    def __init__(self, *args, **kwargs):
+        ...
 
     def get_next_action(
         self,
         agent: MalSimAgentStateView,
         **kwargs
     ) -> Optional[AttackGraphNode]:
-        return None
+        ...
