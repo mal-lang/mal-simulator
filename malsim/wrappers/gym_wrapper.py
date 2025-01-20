@@ -161,9 +161,6 @@ class DefenderEnv(gym.Env):
         obs, rewards, terminated, truncated, infos = \
             self.sim.step(actions)
 
-        self.last_infos = infos
-        self.last_obs = obs
-
         return (
             obs[self.defender_agent_name],
             rewards[self.defender_agent_name],
