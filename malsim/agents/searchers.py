@@ -6,7 +6,7 @@ from typing import Deque, List, Set, Union, Optional, TYPE_CHECKING
 import numpy as np
 
 from .decision_agent import DecisionAgent
-from ..sims import MalSimAgentView
+from ..sims import MalSimAgentStateView
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
@@ -39,7 +39,7 @@ class BreadthFirstAttacker(DecisionAgent):
         )
 
     def get_next_action(
-        self, agent: MalSimAgentView, **kwargs
+        self, agent: MalSimAgentStateView, **kwargs
     ) -> Optional[AttackGraphNode]:
 
         # Create a dict of possible actions
@@ -117,7 +117,7 @@ class DepthFirstAttacker(DecisionAgent):
         )
 
     def get_next_action(
-        self, agent: MalSimAgentView, **kwargs
+        self, agent: MalSimAgentStateView, **kwargs
     ) -> Optional[AttackGraphNode]:
 
         # Create a dict of possible actions

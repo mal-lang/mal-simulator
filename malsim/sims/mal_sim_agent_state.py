@@ -1,4 +1,4 @@
-"""MalSimAgent stores the state of an agent inside the MalSimulator"""
+"""MalSimAgentState stores the state of an agent inside the MalSimulator"""
 
 from __future__ import annotations
 from typing import TYPE_CHECKING
@@ -16,7 +16,7 @@ class AgentType(Enum):
 
 
 @dataclass
-class MalSimAgent:
+class MalSimAgentState:
     """Stores the state of an agent in the simulator"""
 
     # Identifier of the agent, used in MalSimulator for lookup
@@ -39,21 +39,21 @@ class MalSimAgent:
     observation: dict = field(default_factory=dict)
     info: dict = field(default_factory=dict)
 
-class MalSimAttacker(MalSimAgent):
+class MalSimAttackerState(MalSimAgentState):
     """Stores the state of an attacker in the simulator"""
     def __init__(self, name: str, attacker_id: int):
         super().__init__(name, AgentType.ATTACKER)
         self.attacker_id = attacker_id
 
-class MalSimDefender(MalSimAgent):
+class MalSimDefenderState(MalSimAgentState):
     """Stores the state of a defender in the simulator"""
     def __init__(self, name: str):
         super().__init__(name, AgentType.DEFENDER)
 
 
-class MalSimAgentView:
-    """Read-only interface to MalSimAgent."""
-    def __init__(self, agent: MalSimAgent):
+class MalSimAgentStateView:
+    """Read-only interface to MalSimAgentState."""
+    def __init__(self, agent: MalSimAgentState):
         self._agent = agent
 
     @property
@@ -82,6 +82,6 @@ class MalSimAgentView:
 
     @property
     def attacker_id(self) -> int:
-        assert isinstance(self._agent, MalSimAttacker), \
+        assert isinstance(self._agent, MalSimAttackerState), \
                "Only MalSimAttackers have property attacker_id"
         return self._agent.attacker_id
