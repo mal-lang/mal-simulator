@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 from maltoolbox.attackgraph import AttackGraphNode, Attacker
 from maltoolbox.attackgraph.query import get_attack_surface
-from malsim.sims import MalSimAgentView
+from malsim.sims import MalSimAgentStateView
 from malsim.agents import BreadthFirstAttacker, DepthFirstAttacker
 
 
@@ -33,12 +33,12 @@ def test_breadth_first_traversal_simple():
     attacker = Attacker(name="TestAttacker")
     attacker.entry_points = [node1]
 
-    # Set up a mock MalSimAgent
+    # Set up a mock MalSimAgentState
     agent = MagicMock()
     agent.action_surface = [node1]
 
-    # Set up MalSimAgentView
-    agent_view = MalSimAgentView(agent)
+    # Set up MalSimAgentStateView
+    agent_view = MalSimAgentStateView(agent)
 
     # Configure BreadthFirstAttacker
     agent_config = {"seed": 42, "randomize": False}
@@ -104,12 +104,12 @@ def test_breadth_first_traversal_complicated():
     attacker = Attacker(name="TestAttacker")
     attacker.entry_points = [node1]
 
-    # Set up a mock MalSimAgent
+    # Set up a mock MalSimAgentState
     agent = MagicMock()
     agent.action_surface = [node1]
 
-    # Set up MalSimAgentView
-    agent_view = MalSimAgentView(agent)
+    # Set up MalSimAgentStateView
+    agent_view = MalSimAgentStateView(agent)
 
     # Configure BreadthFirstAttacker
     agent_config = {"seed": 42, "randomize": False}
@@ -176,12 +176,12 @@ def test_depth_first_traversal_complicated():
     attacker = Attacker(name="TestAttacker")
     attacker.entry_points = [node1]
 
-    # Set up a mock MalSimAgent
+    # Set up a mock MalSimAgentState
     agent = MagicMock()
     agent.action_surface = [node1]
 
-    # Set up MalSimAgentView
-    agent_view = MalSimAgentView(agent)
+    # Set up MalSimAgentStateView
+    agent_view = MalSimAgentStateView(agent)
 
     # Configure BreadthFirstAttacker
     agent_config = {"seed": 42, "randomize": False}
