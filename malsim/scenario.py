@@ -12,7 +12,7 @@ A scenario is a combination of:
 """
 
 import os
-from typing import Optional
+from typing import Optional, Any
 
 import yaml
 
@@ -235,7 +235,7 @@ def apply_attacker_entrypoints(
 
 def load_simulator_agents(
         attack_graph: AttackGraph, scenario: dict
-    ) -> dict[str]:
+    ) -> list[dict[str, Any]]:
     """Load agents to be registered in MALSimulator
 
     Create the agents from the specified classes,
@@ -311,7 +311,9 @@ def apply_scenario_to_attack_graph(
             attack_graph, node_prop, node_prop_settings)
 
 
-def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict[str]]:
+def load_scenario(
+        scenario_file: str
+    ) -> tuple[AttackGraph, list[dict[str, Any]]]:
     """Load a scenario from a scenario file to an AttackGraph"""
 
     with open(scenario_file, 'r', encoding='utf-8') as s_file:
@@ -332,7 +334,7 @@ def load_scenario(scenario_file: str) -> tuple[AttackGraph, dict[str]]:
 
 def create_simulator_from_scenario(
         scenario_file: str, sim_class=MalSimulator, **kwargs
-    ) -> tuple[MalSimulator, dict]:
+    ) -> tuple[MalSimulator, list[dict[str, Any]]]:
     """Creates and returns a MalSimulator created according to scenario file
 
     A wrapper that loads the graph and config from the scenario file
@@ -344,7 +346,7 @@ def create_simulator_from_scenario(
 
     Returns:
     - sim: the resulting simulator
-    - agents: the agents as a dict
+    - agents: the agent infos as a list of dicts
     """
 
     attack_graph, scenario_agents = load_scenario(scenario_file)
