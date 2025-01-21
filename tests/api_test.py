@@ -216,7 +216,7 @@ def test_attacker(env: MalSimVectorizedObsEnv, attacker_class) -> None:
     done = False
     while not done and steps < step_limit:
         action_node = attacker.get_next_action(
-            env.get_agent(AGENT_ATTACKER))
+            env.get_agent_state(AGENT_ATTACKER))
         action = (0, None)
         if action_node:
             action = (1, env.node_to_index(action_node))
