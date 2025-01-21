@@ -9,6 +9,7 @@ import numpy as np
 
 from ..scenario import load_scenario
 from ..sims import MalSimulator, MalSimVectorizedObsEnv, AgentType
+from ..agents import DecisionAgent
 
 
 class AttackerEnv(gym.Env):
@@ -96,16 +97,13 @@ class DefenderEnv(gym.Env):
         self.render_mode = kwargs.pop('render_mode', None)
 
         ag, agents = load_scenario(scenario_file)
+
+        self.scenario_agents = agents
         self.sim = MalSimVectorizedObsEnv(MalSimulator(ag), **kwargs)
 
         # Register attacker agents from scenario
-        self.attacker_agents = [agent_dict for agent_dict in agents
-                                      if agent_dict['type'] == AgentType.ATTACKER]
-        for agent_info in self.attacker_agents:
-            self.sim.register_attacker(
-                agent_info['name'],
-                agent_info['attacker_id']
-            )
+        self._register_attacker_agents(self.scenario_agents)
+        self.attacker_decision_agents = {}
 
         # Register defender agent
         self.defender_agent_name = "DefenderEnvAgent"
@@ -117,6 +115,33 @@ class DefenderEnv(gym.Env):
         self.action_space = \
             self.sim.action_space(self.defender_agent_name)
 
+    def _register_attacker_agents(self, agents: list[dict]):
+        """Register attackers in simulator"""
+        for agent_info in agents:
+            if agent_info['type'] == AgentType.ATTACKER:
+                agent_name = agent_info['name']
+                attacker_id = agent_info['attacker_id']
+                self.sim.register_attacker(agent_name, attacker_id)
+
+    def _create_attacker_decision_agents(
+            self, agents: list[dict], seed=None
+        ) -> dict[str, DecisionAgent]:
+        """Create decision agents for each attacker"""
+
+        attacker_agents = {}
+
+        for agent_info in agents:
+            if agent_info['type'] == AgentType.ATTACKER:
+                agent_name = agent_info['name']
+                agent_class = agent_info.get('agent_class')
+                if agent_class:
+                    attacker_agents[agent_name] = (
+                        agent_class(
+                            {'seed': seed, 'randomize': self.randomize}
+                        )
+                    )
+        return attacker_agents
+
     def reset(
         self, *,
         seed: int | None = None,
@@ -124,8 +149,10 @@ class DefenderEnv(gym.Env):
     ) -> tuple[Any, dict[str, Any]]:
 
         super().reset(seed=seed, options=options)
+        self.attacker_decision_agents = self._create_attacker_decision_agents(
+            self.scenario_agents, seed=seed
+        )
         obs, infos = self.sim.reset(seed=seed, options=options)
-
         return (
             obs[self.defender_agent_name],
             infos[self.defender_agent_name]
@@ -139,23 +166,13 @@ class DefenderEnv(gym.Env):
         actions[self.defender_agent_name] = action
 
         # Get actions from scenario attackers
-        for agent_info in self.attacker_agents:
-            agent_name = agent_info['name']
-
-            if 'agent' not in agent_info:
-                continue
-
-            # Get the decision agent and the sim agent state
-            decision_agent = agent_info['agent']
-            agent_state = self.sim.get_agent_state(agent_name)
-
+        for agent_name, decision_agent in self.attacker_decision_agents.items():
             # get next action from decision agent and put it in actions dict
-            attacker_action_node = decision_agent.get_next_action(agent_state)
-            attacker_action = (0, None) # Default to null action
+            attacker_state = self.sim.get_agent_state(agent_name)
+            attacker_action_node = decision_agent.get_next_action(attacker_state)
             if attacker_action_node:
                 node_index = self.sim.node_to_index(attacker_action_node)
-                attacker_action = (1, node_index)
-            actions[agent_name] = attacker_action
+                actions[agent_name] = (1, node_index)
 
         # Perform step
         obs, rewards, terminated, truncated, infos = \
