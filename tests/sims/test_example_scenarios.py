@@ -49,13 +49,13 @@ def test_bfs_vs_bfs_state_and_reward():
         # Run the simulation until agents are terminated/truncated
 
         # Select attacker node
-        attacker_agent_state = sim.get_agent(attacker_agent_info['name'])
+        attacker_agent_state = sim.get_agent_state(attacker_agent_info['name'])
         attacker_node = attacker_agent.get_next_action(
             attacker_agent_state
         )
 
         # Select defender node
-        defender_agent_state = sim.get_agent(defender_agent_info['name'])
+        defender_agent_state = sim.get_agent_state(defender_agent_info['name'])
         defender_node = defender_agent.get_next_action(
             defender_agent_state
         )
