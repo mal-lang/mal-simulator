@@ -279,6 +279,7 @@ def load_simulator_agents(
             # Initialize the agent object
             agent_class = agent_class_name_to_class.get(class_name)
             agent = agent_class({})
+            agent_dict['agent_class'] = agent_class
             agent_dict['agent'] = agent
             agents.append(agent_dict)
 
