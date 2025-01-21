@@ -2,7 +2,7 @@
 
 from maltoolbox.attackgraph import AttackGraph, Attacker
 from malsim.sims import MalSimVectorizedObsEnv, MalSimulator
-from malsim.sims import MalSimAttacker
+from malsim.sims import MalSimAttackerState
 from malsim.scenario import load_scenario
 
 def test_create_blank_observation(corelang_lang_graph, model):
@@ -129,7 +129,7 @@ def test_step(corelang_lang_graph, model):
     attack_graph.add_attacker(attacker, attacker.id)
     env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
-    agent_info = MalSimAttacker(attacker.name, attacker.id)
+    agent_info = MalSimAttackerState(attacker.name, attacker.id)
 
     # Can not attack the notPresent step
     defense_step = attack_graph\

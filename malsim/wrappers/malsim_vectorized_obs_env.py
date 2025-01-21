@@ -19,9 +19,9 @@ from maltoolbox.attackgraph import AttackGraphNode
 from ..sims.mal_simulator import (
     MalSimulator,
     AgentType,
-    MalSimAgent,
-    MalSimAttacker,
-    MalSimDefender
+    MalSimAgentState,
+    MalSimAttackerState,
+    MalSimDefenderState
 )
 from .malsim_vectorized_obs_logging_utils import (
     format_full_observation,
@@ -201,7 +201,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
 
         return np_obs
 
-    def create_action_mask(self, agent: MalSimAgent):
+    def create_action_mask(self, agent: MalSimAgentState):
         """
         Create an action mask for an agent based on its action_surface.
 
@@ -439,7 +439,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
         agent = self.sim._agents_dict[defender_name]
         self._init_agent(agent)
 
-    def _init_agent(self, agent: MalSimAgent):
+    def _init_agent(self, agent: MalSimAgentState):
         # Fill dicts with env specific agent obs/infos
         self._agent_observations[agent.name] = \
             self._create_blank_observation()
@@ -451,7 +451,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
             self,
             enabled_nodes,
             disabled_nodes,
-            attacker_agent: MalSimAttacker
+            attacker_agent: MalSimAttackerState
         ):
         """Update the observation of the serialized obs attacker"""
 
@@ -496,7 +496,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
             self,
             enabled_nodes: list[AttackGraphNode],
             disabled_nodes: list[AttackGraphNode],
-            defender_agent: MalSimDefender
+            defender_agent: MalSimDefenderState
         ):
         """Update the observation of the defender"""
 

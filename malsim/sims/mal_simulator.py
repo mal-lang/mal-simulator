@@ -10,12 +10,12 @@ from maltoolbox.attackgraph import AttackGraph, AttackGraphNode, query
 from maltoolbox.attackgraph.analyzers import apriori
 
 from .mal_sim_settings import MalSimulatorSettings
-from .mal_sim_agent import (
+from .mal_sim_agent_state import (
     AgentType,
-    MalSimAgent,
-    MalSimAgentView,
-    MalSimAttacker,
-    MalSimDefender
+    MalSimAgentState,
+    MalSimAgentStateView,
+    MalSimAttackerState,
+    MalSimDefenderState
 )
 
 ITERATIONS_LIMIT = int(1e9)
@@ -65,7 +65,7 @@ class MalSimulator():
         self.cur_iter = 0        # Keep track on current iteration
 
         # Keep track on all registered agent states
-        self._agents_dict: dict[str, MalSimAgent] = {}
+        self._agents_dict: dict[str, MalSimAgentState] = {}
 
         # Keep track on all 'living' agents sorted by order to step in
         self.agents: list[str] = []
@@ -78,7 +78,7 @@ class MalSimulator():
             self,
             seed: Optional[int] = None,
             options: Optional[dict] = None
-        ) -> dict[str, MalSimAgent]:
+        ) -> dict[str, MalSimAgentState]:
         """Reset attack graph, iteration and reinitialize agents"""
 
         logger.info("Resetting MAL Simulator.")
@@ -150,7 +150,7 @@ class MalSimulator():
         self._init_agent_rewards()
         self._init_agent_action_surfaces()
 
-    def _register_agent(self, agent: MalSimAgent):
+    def _register_agent(self, agent: MalSimAgentState):
         """Register a mal sim agent"""
 
         logger.info('Registering agent "%s".', agent)
@@ -171,32 +171,32 @@ class MalSimulator():
 
     def register_attacker(self, name: str, attacker_id: int):
         """Register a mal sim attacker agent"""
-        agent_state = MalSimAttacker(name, attacker_id)
+        agent_state = MalSimAttackerState(name, attacker_id)
         self._register_agent(agent_state)
 
     def register_defender(self, name: str):
         """Register a mal sim defender agent"""
-        agent_state = MalSimDefender(name)
+        agent_state = MalSimDefenderState(name)
         self._register_agent(agent_state)
 
-    def get_agent(self, name: str) -> MalSimAgentView:
+    def get_agent(self, name: str) -> MalSimAgentStateView:
         """Return read only agent state for agent with given name"""
 
         assert name in self._agents_dict, (
             f"Agent with name '{name}' does not exist")
         agent = self._agents_dict[name]
-        return MalSimAgentView(agent)
+        return MalSimAgentStateView(agent)
 
-    def get_agents(self) -> list[MalSimAgentView]:
+    def get_agents(self) -> list[MalSimAgentStateView]:
         """Return read only agent state for all dead and alive agents"""
         return [self.get_agent(agent) for agent in self.possible_agents]
 
-    def _get_attacker_agents(self) -> list[MalSimAttacker]:
+    def _get_attacker_agents(self) -> list[MalSimAttackerState]:
         """Return list of mutable attacker agent states"""
         return [a for a in self._agents_dict.values()
                 if a.type == AgentType.ATTACKER]
 
-    def _get_defender_agents(self) -> list[MalSimDefender]:
+    def _get_defender_agents(self) -> list[MalSimDefenderState]:
         """Return list of mutable defender agent states"""
         return [a for a in self._agents_dict.values()
                 if a.type == AgentType.DEFENDER]
@@ -228,7 +228,7 @@ class MalSimulator():
                     attacker.undo_compromise(unviable_node)
 
     def _attacker_step(
-            self, agent: MalSimAttacker, nodes: list[AttackGraphNode]
+            self, agent: MalSimAttackerState, nodes: list[AttackGraphNode]
         ) -> list[AttackGraphNode]:
         """Compromise attack step nodes with attacker
 
@@ -280,7 +280,7 @@ class MalSimulator():
         return enabled_nodes
 
     def _defender_step(
-            self, agent: MalSimDefender, nodes: list[AttackGraphNode]
+            self, agent: MalSimDefenderState, nodes: list[AttackGraphNode]
         ) -> tuple[list[AttackGraphNode], list[AttackGraphNode]]:
         """Enable defense step nodes with defender
 
