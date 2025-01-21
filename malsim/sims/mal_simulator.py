@@ -179,7 +179,7 @@ class MalSimulator():
         agent_state = MalSimDefenderState(name)
         self._register_agent(agent_state)
 
-    def get_agent(self, name: str) -> MalSimAgentStateView:
+    def get_agent_state(self, name: str) -> MalSimAgentStateView:
         """Return read only agent state for agent with given name"""
 
         assert name in self._agents_dict, (
@@ -189,7 +189,7 @@ class MalSimulator():
 
     def get_agents(self) -> list[MalSimAgentStateView]:
         """Return read only agent state for all dead and alive agents"""
-        return [self.get_agent(agent) for agent in self.possible_agents]
+        return [self.get_agent_state(agent) for agent in self.possible_agents]
 
     def _get_attacker_agents(self) -> list[MalSimAttackerState]:
         """Return list of mutable attacker agent states"""

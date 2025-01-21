@@ -147,7 +147,7 @@ class DefenderEnv(gym.Env):
 
             # Get the decision agent and the sim agent state
             decision_agent = agent_info['agent']
-            agent_state = self.sim.get_agent(agent_name)
+            agent_state = self.sim.get_agent_state(agent_name)
 
             # get next action from decision agent and put it in actions dict
             attacker_action_node = decision_agent.get_next_action(agent_state)
