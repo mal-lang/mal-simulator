@@ -17,7 +17,7 @@ dependencies = [
   "mal-toolbox>=0.1.10",
   "numpy>=1.21.4",
   "pettingzoo>=1.24.2",
-  "gymnasium>=0.29.1, <1",
+  "gymnasium==1.0",
   "PyYAML>=6.0.1"
 ]
 license = {text = "Apache Software License"}
