@@ -1,6 +1,5 @@
 from unittest.mock import MagicMock
 from maltoolbox.attackgraph import AttackGraphNode, Attacker
-from maltoolbox.attackgraph.query import get_attack_surface
 from malsim.sims import MalSimAgentStateView
 from malsim.agents import (
     DefendCompromisedDefender,
