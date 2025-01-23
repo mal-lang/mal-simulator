@@ -24,7 +24,8 @@ from .agents import (
     DepthFirstAttacker,
     KeyboardAgent,
     PassiveAgent,
-    ShutdownCompromisedMachinesDefender
+    DefendCompromisedDefender,
+    DefendFutureCompromisedDefender
 )
 
 from .sims.mal_simulator import AgentType, MalSimulator
@@ -34,7 +35,8 @@ agent_class_name_to_class = {
     'BreadthFirstAttacker': BreadthFirstAttacker,
     'KeyboardAgent': KeyboardAgent,
     'PassiveAgent': PassiveAgent,
-    'ShutdownCompromisedMachinesAgent': ShutdownCompromisedMachinesDefender
+    'DefendCompromisedDefender': DefendCompromisedDefender,
+    'DefendFutureCompromisedDefender': DefendFutureCompromisedDefender
 }
 
 deprecated_fields = [
