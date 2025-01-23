@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-class ShutdownCompromisedMachinesDefender(DecisionAgent):
+class DefendCompromisedDefender(DecisionAgent):
     """A defender that defends compromised assets using notPresent"""
 
     def __init__(self, agent_config, **_):
@@ -54,6 +54,55 @@ class ShutdownCompromisedMachinesDefender(DecisionAgent):
                 )
 
                 if node_has_compromised_child:
+                    selected_node = node
+                    selected_node_cost = node_cost
+
+        return selected_node
+
+
+class DefendFutureCompromisedDefender(DecisionAgent):
+    """A defender that defends compromised assets using notPresent"""
+
+    def __init__(self, agent_config, **_):
+        # Seed and rng not currently used
+        seed = (
+            agent_config["seed"]
+            if agent_config.get("seed")
+            else np.random.SeedSequence().entropy
+        )
+        self.rng = (
+            np.random.default_rng(seed)
+            if agent_config.get("randomize")
+            else None
+        )
+
+    def get_next_action(
+        self, agent: MalSimAgentStateView, **kwargs
+    ) -> Optional[AttackGraphNode]:
+
+        """Return an action that disables a compromised node"""
+
+        selected_node_cost = math.inf
+        selected_node = None
+
+        for node in agent.action_surface:
+            node_cost = node.extras.get('reward', 0)
+
+            # Strategy:
+            # - Enabled the cheapest defense node
+            #   that has a non compromised child
+            #   that has a compromised parent.
+            if node_cost < selected_node_cost:
+
+                node_has_child_that_can_be_compromised = (
+                    any(
+                        any(p.is_compromised() for p in child_node.parents)
+                        and not child_node.is_compromised()
+                        for child_node in node.children
+                    )
+                )
+
+                if node_has_child_that_can_be_compromised:
                     selected_node = node
                     selected_node_cost = node_cost
 
