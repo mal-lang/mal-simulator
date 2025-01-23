@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 import logging
+import math
 
 import numpy as np
 
@@ -32,15 +33,28 @@ class ShutdownCompromisedMachinesDefender(DecisionAgent):
         self, agent: MalSimAgentStateView, **kwargs
     ) -> Optional[AttackGraphNode]:
 
-        """Return an action that disables a compromised asset"""
+        """Return an action that disables a compromised node"""
 
+        selected_node_cost = math.inf
         selected_node = None
-        for node in agent.action_surface:
 
-            # Child of a defense node is compromised -> enable the defense
-            # TODO: optionally randomize order so not always same.
-            for child_node in node.children:
-                if child_node.is_compromised():
-                    return node
+        for node in agent.action_surface:
+            node_cost = node.extras.get('reward', 0)
+
+            # Strategy:
+            # - Enabled the cheapest defense node
+            #   that has compromised child nodes
+            if node_cost < selected_node_cost:
+
+                node_has_compromised_child = (
+                    any(
+                        child_node.is_compromised()
+                        for child_node in node.children
+                    )
+                )
+
+                if node_has_compromised_child:
+                    selected_node = node
+                    selected_node_cost = node_cost
 
         return selected_node
