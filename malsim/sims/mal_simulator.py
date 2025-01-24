@@ -159,15 +159,20 @@ class MalSimulator(ParallelEnv):
             right_field = getattr(assoc, right_field_name)
             for left_asset in left_field:
                 for right_asset in right_field:
+
                     observation["model_edges_ids"].append(
                         [
                             self._model_asset_id_to_index[left_asset.id],
                             self._model_asset_id_to_index[right_asset.id]
                         ]
                     )
+
                     observation["model_edges_type"].append(
                         self._model_assoc_type_to_index[
-                            assoc.__class__.__name__.removeprefix('Association_')])
+                            # TODO: change this when lang_class factory not used anymore
+                            assoc.__class__.__name__.removeprefix('Association_')
+                        ]
+                    )
 
 
         np_obs = {
@@ -336,11 +341,25 @@ class MalSimulator(ParallelEnv):
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent=None):
         # For now, an `object` is an attack step
-        num_assets = len(self.model.assets)
+        num_assets = len(self.attack_graph.model.assets)
         num_steps = len(self.attack_graph.nodes)
         num_lang_asset_types = len(self.lang_graph.assets)
-        num_lang_attack_steps = len(self.lang_graph.attack_steps)
-        num_lang_association_types = len(self.lang_graph.associations)
+
+        unique_step_type_names = set()
+        for asset_type in self.lang_graph.assets.values():
+            for attack_step_type in asset_type.attack_steps.values():
+                unique_step_type_names.add(
+                    attack_step_type.full_name
+                )
+        num_lang_attack_steps = len(unique_step_type_names)
+
+        unique_assoc_type_names = set()
+        for asset_type in self.lang_graph.assets.values():
+            for assoc_type in asset_type.associations.values():
+                unique_assoc_type_names.add(
+                    assoc_type.full_name
+                )
+        num_lang_association_types = len(unique_assoc_type_names)
         num_attack_graph_edges = len(
             self._blank_observation["attack_graph_edges"])
         num_model_edges = len(
@@ -521,21 +540,30 @@ class MalSimulator(ParallelEnv):
 
         # Lookup lists index to attribute
         self._index_to_id = [n.id for n in self.attack_graph.nodes]
-        self._index_to_full_name = [n.full_name
-                                    for n in self.attack_graph.nodes]
-        self._index_to_asset_type = [n.name for n in self.lang_graph.assets.values()]
-        self._index_to_step_name = [
+        self._index_to_full_name = (
+            [n.full_name for n in self.attack_graph.nodes]
+        )
+        self._index_to_asset_type = (
+            [n.name for n in self.lang_graph.assets.values()]
+        )
+
+        unique_step_type_names = {
             n.full_name
             for asset in self.lang_graph.assets.values()
             for n in asset.attack_steps.values()
-        ]
-        self._index_to_model_asset_id = [int(asset.id) for asset in \
-            self.attack_graph.model.assets]
-        self._index_to_model_assoc_type = [
+        }
+        self._index_to_step_name = list(unique_step_type_names)
+
+        self._index_to_model_asset_id = (
+            [int(asset.id) for asset in self.attack_graph.model.assets]
+        )
+
+        unique_assoc_type_names = {
             assoc.full_name
             for asset in self.lang_graph.assets.values()
             for assoc in asset.associations.values()
-        ]
+        }
+        self._index_to_model_assoc_type = list(unique_assoc_type_names)
 
         # Lookup dicts attribute to index
         self._id_to_index = {
