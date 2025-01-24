@@ -14,40 +14,38 @@ assets:
   4:
     name: Network:3
     type: Network
-
 associations:
-
 - HostsInNetworks:
     hosts:
-    - 0
-    - 1
+      0: Host:0
+      1: Host:1
     networks:
-    - 4
+      4: Network:3
 - UsersOnHosts:
-    users:
-    - 3
     hosts:
-    - 0
+      0: Host:0
+    users:
+      3: User:3
 - DataOnHosts:
     data:
-    - 2
+      2: Data:2
     hosts:
-    - 0
-
+      0: Host:0
 attackers:
   5:
     entry_points:
-      0:
+      Host:0:
+        asset_id: 0
         attack_steps:
         - connect
-      3:
+      User:3:
+        asset_id: 3
         attack_steps:
         - phishing
     name: Attacker1
-
 metadata:
-  MAL-Toolbox Version: 0.1.8
-  info: Created manually by Joakim.
+  MAL-Toolbox Version: 0.2.0
+  info: Created by the mal-toolbox model python module.
   langID: org.mal-lang.trainingLang
   langVersion: 1.0.0
   malVersion: 0.1.0-SNAPSHOT
