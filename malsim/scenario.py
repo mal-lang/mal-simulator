@@ -97,7 +97,7 @@ def _validate_scenario_property_rules(
 
     # a way to lookup attack steps for asset types
     asset_type_step_names = {
-        asset_type_name: [step for step in asset_type.attack_steps]
+        asset_type_name: [step_name for step_name in asset_type.attack_steps]
         for asset_type_name, asset_type in graph.lang_graph.assets.items()
     }
 
