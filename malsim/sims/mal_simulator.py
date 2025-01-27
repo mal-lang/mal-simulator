@@ -345,14 +345,10 @@ class MalSimulator(ParallelEnv):
         num_steps = len(self.attack_graph.nodes)
         num_lang_asset_types = len(self.lang_graph.assets)
 
-        unique_step_type_names = set()
+        unique_step_types = set()
         for asset_type in self.lang_graph.assets.values():
-            unique_step_type_names = (
-                unique_step_type_names.union(
-                    asset_type.attack_steps.values()
-                )
-            )
-        num_lang_attack_steps = len(unique_step_type_names)
+            unique_step_types |= set(asset_type.attack_steps.values())
+        num_lang_attack_steps = len(unique_step_types)
 
         unique_assoc_type_names = set()
         for asset_type in self.lang_graph.assets.values():
