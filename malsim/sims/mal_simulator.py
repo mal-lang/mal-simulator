@@ -347,10 +347,11 @@ class MalSimulator(ParallelEnv):
 
         unique_step_type_names = set()
         for asset_type in self.lang_graph.assets.values():
-            for attack_step_type in asset_type.attack_steps.values():
-                unique_step_type_names.add(
-                    attack_step_type.full_name
+            unique_step_type_names = (
+                unique_step_type_names.union(
+                    asset_type.attack_steps.values()
                 )
+            )
         num_lang_attack_steps = len(unique_step_type_names)
 
         unique_assoc_type_names = set()
@@ -360,6 +361,7 @@ class MalSimulator(ParallelEnv):
                     assoc_type.full_name
                 )
         num_lang_association_types = len(unique_assoc_type_names)
+
         num_attack_graph_edges = len(
             self._blank_observation["attack_graph_edges"])
         num_model_edges = len(
