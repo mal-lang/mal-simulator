@@ -234,7 +234,7 @@ def apply_attacker_entrypoints(
 
 
 def load_simulator_agents(
-        attack_graph: AttackGraph, scenario: dict
+        attack_graph: AttackGraph, scenario: dict, agent_config={}
     ) -> list[dict[str, Any]]:
     """Load agents to be registered in MALSimulator
 
@@ -277,8 +277,8 @@ def load_simulator_agents(
                 )
 
             # Initialize the agent object
-            agent_class = agent_class_name_to_class.get(class_name)
-            agent = agent_class({})
+            agent_class = agent_class_name_to_class[class_name]
+            agent = agent_class(agent_config)
             agent_dict['agent_class'] = agent_class
             agent_dict['agent'] = agent
             agents.append(agent_dict)
@@ -313,7 +313,8 @@ def apply_scenario_to_attack_graph(
 
 
 def load_scenario(
-        scenario_file: str
+        scenario_file: str,
+        agent_config={}
     ) -> tuple[AttackGraph, list[dict[str, Any]]]:
     """Load a scenario from a scenario file to an AttackGraph"""
 
@@ -328,13 +329,20 @@ def load_scenario(
         apply_scenario_to_attack_graph(attack_graph, scenario)
 
         # Load the scenario configuration
-        scenario_agents = load_simulator_agents(attack_graph, scenario)
+        scenario_agents = load_simulator_agents(
+            attack_graph,
+            scenario,
+            agent_config=agent_config
+        )
 
         return attack_graph, scenario_agents
 
 
 def create_simulator_from_scenario(
-        scenario_file: str, sim_class=MalSimulator, **kwargs
+        scenario_file: str,
+        sim_class=MalSimulator,
+        agent_config={},
+        **kwargs,
     ) -> tuple[MalSimulator, list[dict[str, Any]]]:
     """Creates and returns a MalSimulator created according to scenario file
 
@@ -350,7 +358,7 @@ def create_simulator_from_scenario(
     - agents: the agent infos as a list of dicts
     """
 
-    attack_graph, scenario_agents = load_scenario(scenario_file)
+    attack_graph, scenario_agents = load_scenario(scenario_file, agent_config=agent_config)
 
     sim = sim_class(
         attack_graph,
