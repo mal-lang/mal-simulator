@@ -38,6 +38,9 @@ class DefendCompromisedDefender(DecisionAgent):
         selected_node_cost = math.inf
         selected_node = None
 
+        # To make it deterministic
+        agent.action_surface.sort(key=lambda n: n.id)
+
         for node in agent.action_surface:
             node_cost = node.extras.get('reward', 0)
 
@@ -84,6 +87,9 @@ class DefendFutureCompromisedDefender(DecisionAgent):
 
         selected_node_cost = math.inf
         selected_node = None
+
+        # To make it deterministic
+        agent.action_surface.sort(key=lambda n: n.id)
 
         for node in agent.action_surface:
             node_cost = node.extras.get('reward', 0)
