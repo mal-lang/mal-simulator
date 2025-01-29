@@ -16,10 +16,10 @@ def test_breadth_first_traversal_simple():
                     node4
     """
     # Create nodes
-    node1 = AttackGraphNode(name="Node1", id=1, type='or')
-    node2 = AttackGraphNode(name="Node2", id=2, type='or')
-    node3 = AttackGraphNode(name="Node3", id=3, type='or')
-    node4 = AttackGraphNode(name="Node4", id=4, type='or')
+    node1 = AttackGraphNode(name="Node1", lang_graph_attack_step=None, id=1, type='or')
+    node2 = AttackGraphNode(name="Node2", lang_graph_attack_step=None, id=2, type='or')
+    node3 = AttackGraphNode(name="Node3", lang_graph_attack_step=None, id=3, type='or')
+    node4 = AttackGraphNode(name="Node4", lang_graph_attack_step=None, id=4, type='or')
 
     # Connect nodes (Node1 -> Node2 -> Node3 -> Node4)
     node1.children.append(node2)
@@ -73,14 +73,14 @@ def test_breadth_first_traversal_complicated():
 
     """
     # Create nodes
-    node1 = AttackGraphNode(name="Node1", id=1, type='or')
-    node2 = AttackGraphNode(name="Node2", id=2, type='or')
-    node3 = AttackGraphNode(name="Node3", id=3, type='or')
-    node4 = AttackGraphNode(name="Node4", id=4, type='or')
-    node5 = AttackGraphNode(name="Node5", id=5, type='or')
-    node6 = AttackGraphNode(name="Node6", id=6, type='or')
-    node7 = AttackGraphNode(name="Node7", id=7, type='or')
-    node8 = AttackGraphNode(name="Node8", id=8, type='or')
+    node1 = AttackGraphNode(name="Node1", lang_graph_attack_step=None, id=1, type='or')
+    node2 = AttackGraphNode(name="Node2", lang_graph_attack_step=None, id=2, type='or')
+    node3 = AttackGraphNode(name="Node3", lang_graph_attack_step=None, id=3, type='or')
+    node4 = AttackGraphNode(name="Node4", lang_graph_attack_step=None, id=4, type='or')
+    node5 = AttackGraphNode(name="Node5", lang_graph_attack_step=None, id=5, type='or')
+    node6 = AttackGraphNode(name="Node6", lang_graph_attack_step=None, id=6, type='or')
+    node7 = AttackGraphNode(name="Node7", lang_graph_attack_step=None, id=7, type='or')
+    node8 = AttackGraphNode(name="Node8", lang_graph_attack_step=None, id=8, type='or')
 
     # Connect nodes (Node1 -> Node2 -> Node3 -> Node4)
     node1.children.append(node2)
@@ -145,14 +145,14 @@ def test_depth_first_traversal_complicated():
 
     """
     # Create nodes
-    node1 = AttackGraphNode(name="Node1", id=1, type='or')
-    node2 = AttackGraphNode(name="Node2", id=2, type='or')
-    node3 = AttackGraphNode(name="Node3", id=3, type='or')
-    node4 = AttackGraphNode(name="Node4", id=4, type='or')
-    node5 = AttackGraphNode(name="Node5", id=5, type='or')
-    node6 = AttackGraphNode(name="Node6", id=6, type='or')
-    node7 = AttackGraphNode(name="Node7", id=7, type='or')
-    node8 = AttackGraphNode(name="Node8", id=8, type='or')
+    node1 = AttackGraphNode(name="Node1", lang_graph_attack_step=None, id=1, type='or')
+    node2 = AttackGraphNode(name="Node2", lang_graph_attack_step=None, id=2, type='or')
+    node3 = AttackGraphNode(name="Node3", lang_graph_attack_step=None, id=3, type='or')
+    node4 = AttackGraphNode(name="Node4", lang_graph_attack_step=None, id=4, type='or')
+    node5 = AttackGraphNode(name="Node5", lang_graph_attack_step=None, id=5, type='or')
+    node6 = AttackGraphNode(name="Node6", lang_graph_attack_step=None, id=6, type='or')
+    node7 = AttackGraphNode(name="Node7", lang_graph_attack_step=None, id=7, type='or')
+    node8 = AttackGraphNode(name="Node8", lang_graph_attack_step=None, id=8, type='or')
 
     # Connect nodes (Node1 -> Node2 -> Node3 -> Node4)
     node1.children.append(node2)
