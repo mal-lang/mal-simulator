@@ -17,53 +17,48 @@ def test_bfs_vs_bfs_state_and_reward():
     """
 
     sim, agents = create_simulator_from_scenario(
-        'tests/testdata/scenarios/bfs_vs_bfs_scenario.yml',
+        "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml",
     )
 
     sim.reset()
 
-    defender_agent_name = 'defender1'
-    attacker_agent_name = 'attacker1'
+    defender_agent_name = "defender1"
+    attacker_agent_name = "attacker1"
 
     attacker_agent_info = next(
-        agent for agent in agents
-        if agent['name'] == attacker_agent_name
+        agent for agent in agents if agent["name"] == attacker_agent_name
     )
     defender_agent_info = next(
-        agent for agent in agents
-        if agent['name'] == defender_agent_name
+        agent for agent in agents if agent["name"] == defender_agent_name
     )
 
-    attacker_agent = attacker_agent_info['agent']
-    defender_agent = defender_agent_info['agent']
+    attacker_agent = attacker_agent_info["agent"]
+    defender_agent = defender_agent_info["agent"]
 
     total_reward_defender = 0
     total_reward_attacker = 0
 
-    attacker = sim.attack_graph.get_attacker_by_id(attacker_agent_info['attacker_id'])
+    attacker = sim.attack_graph.get_attacker_by_id(attacker_agent_info["attacker_id"])
     attacker_actions = [n.full_name for n in attacker.entry_points]
-    defender_actions = [n.full_name for n in sim.attack_graph.nodes
-                        if n.is_enabled_defense()]
+    defender_actions = [
+        n.full_name for n in sim.attack_graph.nodes if n.is_enabled_defense()
+    ]
 
     while True:
         # Run the simulation until agents are terminated/truncated
 
         # Select attacker node
-        attacker_agent_state = sim.get_agent_state(attacker_agent_info['name'])
-        attacker_node = attacker_agent.get_next_action(
-            attacker_agent_state
-        )
+        attacker_agent_state = sim.get_agent_state(attacker_agent_info["name"])
+        attacker_node = attacker_agent.get_next_action(attacker_agent_state)
 
         # Select defender node
-        defender_agent_state = sim.get_agent_state(defender_agent_info['name'])
-        defender_node = defender_agent.get_next_action(
-            defender_agent_state
-        )
+        defender_agent_state = sim.get_agent_state(defender_agent_info["name"])
+        defender_node = defender_agent.get_next_action(defender_agent_state)
 
         # Step
         actions = {
             defender_agent_name: [defender_node] or [],
-            attacker_agent_name: [attacker_node] or []
+            attacker_agent_name: [attacker_node] or [],
         }
         performed_actions, _ = sim.step(actions)
 
@@ -82,7 +77,7 @@ def test_bfs_vs_bfs_state_and_reward():
             break
         if defender_agent_state.truncated or attacker_agent_state.truncated:
             break
-    
+
     # Make sure the actions performed were as expected
     assert attacker_actions == [
         "Credentials:6:attemptCredentialsReuse",

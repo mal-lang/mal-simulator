@@ -74,6 +74,19 @@ def test_register_agent_defender(corelang_lang_graph, model):
     assert agent_name in sim.agents
 
 
+def test_register_agent_action_surface(corelang_lang_graph, model):
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    sim = MalSimulator(attack_graph)
+
+    agent_name = "defender1"
+    sim.register_defender(agent_name)
+
+    sim._init_agent_action_surfaces()
+    action_surface = sim.get_agent_state(agent_name).action_surface
+    for node in action_surface:
+        assert node.is_available_defense()
+
+
 def test_simulator_initialize_agents(corelang_lang_graph, model):
     """Test _initialize_agents"""
 
