@@ -14,12 +14,12 @@ def test_defend_compromised_defender():
 
     """
     # Create nodes
-    node1 = AttackGraphNode(name="Node1", id=1, type='defense')
-    node2 = AttackGraphNode(name="Node2", id=2, type='defense')
+    node1 = AttackGraphNode(name="Node1", lang_graph_attack_step=None, id=1, type='defense')
+    node2 = AttackGraphNode(name="Node2", lang_graph_attack_step=None, id=2, type='defense')
 
-    node3 = AttackGraphNode(name="Node3", id=3, type='defense')
-    node4 = AttackGraphNode(name="Node4", id=4, type='or')
-    node5 = AttackGraphNode(name="Node5", id=5, type='or')
+    node3 = AttackGraphNode(name="Node3", lang_graph_attack_step=None, id=3, type='defense')
+    node4 = AttackGraphNode(name="Node4", lang_graph_attack_step=None, id=4, type='or')
+    node5 = AttackGraphNode(name="Node5", lang_graph_attack_step=None, id=5, type='or')
 
     # Connect nodes (Node1 -> Node2 -> Node3 -> Node4)
     node1.children.append(node3)
@@ -76,13 +76,13 @@ def test_defend_future_compromised_defender():
                          node 6
     """
     # Create nodes
-    node1 = AttackGraphNode(name="Node1", id=1, type='defense')
-    node2 = AttackGraphNode(name="Node2", id=2, type='defense')
+    node1 = AttackGraphNode(name="Node1", lang_graph_attack_step=None, id=1, type='defense')
+    node2 = AttackGraphNode(name="Node2", lang_graph_attack_step=None, id=2, type='defense')
 
-    node3 = AttackGraphNode(name="Node3", id=3, type='or')
-    node4 = AttackGraphNode(name="Node4", id=4, type='or')
-    node5 = AttackGraphNode(name="Node5", id=5, type='or')
-    node6 = AttackGraphNode(name="Node6", id=6, type='or')
+    node3 = AttackGraphNode(name="Node3", lang_graph_attack_step=None, id=3, type='or')
+    node4 = AttackGraphNode(name="Node4", lang_graph_attack_step=None, id=4, type='or')
+    node5 = AttackGraphNode(name="Node5", lang_graph_attack_step=None, id=5, type='or')
+    node6 = AttackGraphNode(name="Node6", lang_graph_attack_step=None, id=6, type='or')
 
     # Connect nodes (Node1 -> Node2 -> Node3 -> Node4)
     node1.children.append(node3)
