@@ -51,22 +51,31 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
         self.attack_graph = sim.attack_graph
 
         # List mapping from node/asset index to id/name/type
-        self._index_to_id = [n.id for n in self.sim.attack_graph.nodes]
-        self._index_to_full_name = \
-            [n.full_name for n in self.sim.attack_graph.nodes]
-        self._index_to_asset_type = \
-            [n.name for n in self.sim.attack_graph.lang_graph.assets]
-        self._index_to_step_name = \
-            [n.asset.name + ":" + n.name
-             for n in self.sim.attack_graph.lang_graph.attack_steps]
-        self._index_to_model_asset_id = \
-            [int(asset.id) for asset in self.sim.attack_graph.model.assets]
-        self._index_to_model_assoc_type = [
-            assoc.name + '_' + \
-            assoc.left_field.asset.name + '_' + \
-            assoc.right_field.asset.name \
-            for assoc in self.sim.attack_graph.lang_graph.associations
-        ]
+        self._index_to_id = [n.id for n in self.attack_graph.nodes]
+        self._index_to_full_name = (
+            [n.full_name for n in self.attack_graph.nodes]
+        )
+        self._index_to_asset_type = (
+            [n.name for n in self.sim.lang_graph.assets.values()]
+        )
+
+        unique_step_type_names = {
+            n.full_name
+            for asset in self.sim.lang_graph.assets.values()
+            for n in asset.attack_steps.values()
+        }
+        self._index_to_step_name = list(unique_step_type_names)
+
+        self._index_to_model_asset_id = (
+            [int(asset.id) for asset in self.attack_graph.model.assets]
+        )
+
+        unique_assoc_type_names = {
+            assoc.full_name
+            for asset in self.sim.lang_graph.assets.values()
+            for assoc in asset.associations.values()
+        }
+        self._index_to_model_assoc_type = list(unique_assoc_type_names)
 
         # Lookup dicts attribute to index
         self._id_to_index = {
@@ -168,7 +177,10 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
                     )
                     observation["model_edges_type"].append(
                         self._model_assoc_type_to_index[
-                            self._get_association_full_name(assoc)])
+                            # TODO: change this when lang_class factory not used anymore
+                            assoc.__class__.__name__.removeprefix('Association_')
+                        ]
+                    )
 
         np_obs = {
             "is_observable": np.array(observation["is_observable"],
@@ -303,13 +315,28 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent_name: str = None):
         # For now, an `object` is an attack step
-        num_assets = len(self.sim.attack_graph.model.assets)
-        num_steps = len(self.sim.attack_graph.nodes)
-        num_lang_asset_types = len(self.sim.attack_graph.lang_graph.assets)
-        num_lang_attack_steps = len(self.sim.attack_graph.lang_graph.attack_steps)
-        num_lang_association_types = len(self.sim.attack_graph.lang_graph.associations)
-        num_attack_graph_edges = len(self._blank_observation["attack_graph_edges"])
-        num_model_edges = len(self._blank_observation["model_edges_ids"])
+        num_assets = len(self.attack_graph.model.assets)
+        num_steps = len(self.attack_graph.nodes)
+        num_lang_asset_types = len(self.sim.lang_graph.assets)
+
+        unique_step_types = set()
+        for asset_type in self.sim.lang_graph.assets.values():
+            unique_step_types |= set(asset_type.attack_steps.values())
+        num_lang_attack_steps = len(unique_step_types)
+
+        unique_assoc_type_names = set()
+        for asset_type in self.sim.lang_graph.assets.values():
+            for assoc_type in asset_type.associations.values():
+                unique_assoc_type_names.add(
+                    assoc_type.full_name
+                )
+        num_lang_association_types = len(unique_assoc_type_names)
+
+        num_attack_graph_edges = len(
+            self._blank_observation["attack_graph_edges"])
+        num_model_edges = len(
+            self._blank_observation["model_edges_ids"])        
+        
         return Dict(
             {
                 "is_observable": Box(
