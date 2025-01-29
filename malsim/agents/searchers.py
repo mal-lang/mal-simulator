@@ -58,7 +58,12 @@ class BreadthFirstAttacker(DecisionAgent):
 
         return self.current_target
 
-    def _update_targets(self, action_surface):
+    def _update_targets(self, action_surface: list[AttackGraphNode]):
+
+        # action surface does not have a guaranteed order,
+        # so for the agent to be deterministic we need to sort
+        action_surface.sort(key=lambda n: n.id)
+
         new_targets = [
             step
             for step in action_surface
