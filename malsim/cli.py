@@ -4,9 +4,9 @@ from __future__ import annotations
 import argparse
 import logging
 
-from malsim.sims import MalSimulator
-from malsim.agents import DecisionAgent
-from malsim.scenario import create_simulator_from_scenario
+from .sims import MalSimulator
+from .agents import DecisionAgent
+from .scenario import create_simulator_from_scenario
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
