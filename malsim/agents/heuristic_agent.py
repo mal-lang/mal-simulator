@@ -42,6 +42,10 @@ class DefendCompromisedDefender(DecisionAgent):
         agent.action_surface.sort(key=lambda n: n.id)
 
         for node in agent.action_surface:
+
+            if node.is_enabled_defense():
+                continue
+
             node_cost = node.extras.get('reward', 0)
 
             # Strategy:
@@ -92,6 +96,10 @@ class DefendFutureCompromisedDefender(DecisionAgent):
         agent.action_surface.sort(key=lambda n: n.id)
 
         for node in agent.action_surface:
+
+            if node.is_enabled_defense():
+                continue
+
             node_cost = node.extras.get('reward', 0)
 
             # Strategy:
