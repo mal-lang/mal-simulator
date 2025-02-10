@@ -147,31 +147,23 @@ class MalSimulator(ParallelEnv):
         observation["model_edges_ids"] = []
         observation["model_edges_type"] = []
 
-        for asset in self.model.assets:
+        for asset in self.model.assets.values():
             observation["model_asset_id"].append(asset.id)
             observation["model_asset_type"].append(
                 self._asset_type_to_index[asset.type])
 
-        for assoc in self.model.associations:
-            left_field_name, right_field_name = \
-                self.model.get_association_field_names(assoc)
-            left_field = getattr(assoc, left_field_name)
-            right_field = getattr(assoc, right_field_name)
-            for left_asset in left_field:
-                for right_asset in right_field:
-
+            for fieldname, other_assets in asset.associated_assets.items():
+                for other_asset in other_assets:
                     observation["model_edges_ids"].append(
                         [
-                            self._model_asset_id_to_index[left_asset.id],
-                            self._model_asset_id_to_index[right_asset.id]
+                            self._model_asset_id_to_index[asset.id],
+                            self._model_asset_id_to_index[other_asset.id]
                         ]
                     )
 
+                    lg_assoc = asset.lg_asset.associations[fieldname]
                     observation["model_edges_type"].append(
-                        self._model_assoc_type_to_index[
-                            # TODO: change this when lang_class factory not used anymore
-                            assoc.__class__.__name__.removeprefix('Association_')
-                        ]
+                        self._model_assoc_type_to_index[lg_assoc.full_name]
                     )
 
 
@@ -553,7 +545,7 @@ class MalSimulator(ParallelEnv):
         self._index_to_step_name = list(unique_step_type_names)
 
         self._index_to_model_asset_id = (
-            [int(asset.id) for asset in self.attack_graph.model.assets]
+            [int(asset_id) for asset_id in self.attack_graph.model.assets]
         )
 
         unique_assoc_type_names = {
@@ -575,8 +567,8 @@ class MalSimulator(ParallelEnv):
             asset: i for i, asset in enumerate(self._index_to_model_asset_id)
         }
         self._model_assoc_type_to_index = {
-            assoc_type: i for i, assoc_type in \
-                enumerate(self._index_to_model_assoc_type)
+            assoc_type: i for i, assoc_type in
+            enumerate(self._index_to_model_assoc_type)
         }
 
     def index_to_node(self, index: int) -> AttackGraphNode:

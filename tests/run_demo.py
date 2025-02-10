@@ -55,7 +55,7 @@ model = Model.load_from_file("tests/testdata/models/run_demo_model.json", lang_c
 
 attack_graph = AttackGraph(lang_graph, model)
 attack_graph.attach_attackers()
-attack_graph.save_to_file("tmp/attack_graph.json")
+attack_graph.save_to_file("logs/attack_graph.json")
 
 env = MalSimulator(lang_graph, model, attack_graph, max_iter=500)
 

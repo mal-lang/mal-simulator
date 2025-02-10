@@ -1,14 +1,14 @@
 from os import path
 import pytest
 
-from maltoolbox.language import LanguageGraph, LanguageClassesFactory
+from maltoolbox.language import LanguageGraph
 from maltoolbox.model import Model
-from maltoolbox.wrappers import create_attack_graph
+from maltoolbox.attackgraph import create_attack_graph
 from malsim.sims.mal_simulator import MalSimulator
 
-model_file_name='tests/testdata/models/simple_test_model.yml'
-attack_graph_file_name=path.join('tmp','attack_graph.json')
-lang_file_name='tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar'
+model_file_name = 'tests/testdata/models/simple_test_model.yml'
+attack_graph_file_name = path.join('/tmp','attack_graph.json')
+lang_file_name ='tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar'
 
 ## Helpers
 
@@ -38,15 +38,11 @@ def fixture_env()-> MalSimulator:
 
     attack_graph = create_attack_graph(lang_file_name, model_file_name)
     lang_graph = attack_graph.lang_graph
-
     model = attack_graph.model
 
     attack_graph.save_to_file(attack_graph_file_name)
 
-    env = MalSimulator(lang_graph,
-        model,
-        attack_graph,
-        max_iter=1000)
+    env = MalSimulator(lang_graph, model, attack_graph, max_iter=1000)
 
     env.register_attacker("attacker", 0)
     env.register_defender("defender")
@@ -77,8 +73,7 @@ def traininglang_model(traininglang_lang_graph):
     """
     # Init LanguageClassesFactory
     traininglang_model_file = 'tests/testdata/models/traininglang_model.yml'
-    lang_classes_factory = LanguageClassesFactory(traininglang_lang_graph)
-    return Model.load_from_file(traininglang_model_file, lang_classes_factory)
+    return Model.load_from_file(traininglang_model_file, traininglang_lang_graph)
 
 
 @pytest.fixture
@@ -89,5 +84,4 @@ def model(corelang_lang_graph):
     Model object with no assets or associations
     """
     # Init LanguageClassesFactory
-    lang_classes_factory = LanguageClassesFactory(corelang_lang_graph)
-    return Model.load_from_file(model_file_name, lang_classes_factory)
+    return Model.load_from_file(model_file_name, corelang_lang_graph)

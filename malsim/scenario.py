@@ -16,8 +16,7 @@ from typing import Optional
 
 import yaml
 
-from maltoolbox.attackgraph import AttackGraph, Attacker
-from maltoolbox.wrappers import create_attack_graph
+from maltoolbox.attackgraph import AttackGraph, Attacker, create_attack_graph
 
 from .agents.searchers import BreadthFirstAttacker, DepthFirstAttacker
 from .agents.keyboard_input import KeyboardAgent
