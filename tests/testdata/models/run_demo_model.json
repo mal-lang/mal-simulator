@@ -10,100 +10,45 @@
     "assets": {
         "0": {
             "name": "OS App",
-            "type": "Application"
+            "type": "Application",
+            "associated_assets": {}
         },
         "1": {
             "name": "Program 1",
-            "type": "Application"
+            "type": "Application",
+            "associated_assets": {}
         },
         "2": {
             "name": "SoftwareVulnerability:2",
-            "type": "SoftwareVulnerability"
+            "type": "SoftwareVulnerability",
+            "associated_assets": {}
         },
         "3": {
             "name": "Data:3",
-            "type": "Data"
+            "type": "Data",
+            "associated_assets": {}
         },
         "4": {
             "name": "Credentials:4",
-            "type": "Credentials"
+            "type": "Credentials",
+            "associated_assets": {}
         },
         "5": {
             "name": "Identity:5",
-            "type": "Identity"
+            "type": "Identity",
+            "associated_assets": {}
         },
         "6": {
             "name": "ConnectionRule:6",
-            "type": "ConnectionRule"
+            "type": "ConnectionRule",
+            "associated_assets": {}
         },
         "7": {
             "name": "Other OS App",
-            "type": "Application"
+            "type": "Application",
+            "associated_assets": {}
         }
     },
-    "associations": [
-        {
-            "AppExecution": {
-                "hostApp": {
-                    "0": "OS App"
-                },
-                "appExecutedApps": {
-                    "1": "Program 1"
-                }
-            }
-        },
-        {
-            "ApplicationVulnerability": {
-                "vulnerabilities": {
-                    "2": "SoftwareVulnerability:2"
-                },
-                "application": {
-                    "0": "OS App"
-                }
-            }
-        },
-        {
-            "AppContainment": {
-                "containedData": {
-                    "3": "Data:3"
-                },
-                "containingApp": {
-                    "1": "Program 1"
-                }
-            }
-        },
-        {
-            "IdentityCredentials": {
-                "identities": {
-                    "5": "Identity:5"
-                },
-                "credentials": {
-                    "4": "Credentials:4"
-                }
-            }
-        },
-        {
-            "InfoContainment": {
-                "containerData": {
-                    "3": "Data:3"
-                },
-                "information": {
-                    "4": "Credentials:4"
-                }
-            }
-        },
-        {
-            "ApplicationConnection": {
-                "applications": {
-                    "0": "OS App",
-                    "7": "Other OS App"
-                },
-                "appConnections": {
-                    "6": "ConnectionRule:6"
-                }
-            }
-        }
-    ],
     "attackers": {
         "8": {
             "name": "Attacker:8",
