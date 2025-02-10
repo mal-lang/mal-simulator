@@ -105,13 +105,11 @@ class BreadthFirstAttacker(DecisionAgent):
         except IndexError:
             self.current_target = None
 
-    def _collect_logs(self, observation):
-        for _, detector in self.attack_graph.nodes[
-            self.current_target
-        ].detectors.items():
-            attack_step = self.attack_graph.nodes[self.current_target]
+    def _collect_logs(self, state):
+        attack_step = self.attack_graph.nodes[self.current_target.id]
+        for _, detector in attack_step.detectors.items():
             log = {
-                'timestamp': observation['timestamp'],
+                'timestamp': state.timestamp,
                 '_detector': detector.name,
                 'asset': str(attack_step.asset.name),
                 'attack_step': attack_step.name,
@@ -120,12 +118,25 @@ class BreadthFirstAttacker(DecisionAgent):
             }
 
             for label, lgasset in detector.context.items():
-                *_, asset = (
+                ret = (
                     step.asset
                     for step in self.attack_graph.attackers[0].reached_attack_steps
                     if step.asset.type
                     in [subasset.name for subasset in lgasset.sub_assets]
                 )
+                try:
+                    *_, asset = (
+                        step.asset
+                        for step in self.attack_graph.attackers[0].reached_attack_steps
+                        if step.asset.type
+                        in [subasset.name for subasset in lgasset.sub_assets]
+                    )
+                except ValueError:
+                    msg = (
+                        f'Context {detector.context} cannot be satisfied '
+                        f'for step {attack_step.full_name}.'
+                    )
+                    raise ValueError(msg)
 
                 log[label] = str(asset.name)
 
