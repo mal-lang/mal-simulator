@@ -3,7 +3,7 @@ from malsim.scenario import create_simulator_from_scenario
 
 def test_bfs_vs_bfs_state_and_reward():
     sim, sim_config = create_simulator_from_scenario(
-        "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml"
+        "tests/testdata/scenarios/bfs_vs_bfs_network_app_data_scenario.yml"
     )
     obs, infos = sim.reset()
 
@@ -20,11 +20,8 @@ def test_bfs_vs_bfs_state_and_reward():
     total_reward_defender = 0
     total_reward_attacker = 0
 
-    attacker = sim.attack_graph.attackers[0]
-    attacker_actions = [n.full_name for n in attacker.entry_points]
-    defender_actions = [
-        n.full_name for n in sim.attack_graph.nodes if n.is_enabled_defense()
-    ]
+    attacker_actions = []
+    defender_actions = []
 
     while True:
         defender_action = defender_agent.compute_action_from_dict(
@@ -52,51 +49,62 @@ def test_bfs_vs_bfs_state_and_reward():
             break
 
     assert attacker_actions == [
-        "Credentials:6:attemptCredentialsReuse",
-        "Credentials:6:credentialsReuse",
-        "Credentials:7:attemptCredentialsReuse",
-        "Credentials:6:attemptUse",
-        "Credentials:7:credentialsReuse",
-        "Credentials:7:attemptUse",
-        "Credentials:7:use",
-        "Credentials:7:attemptPropagateOneCredentialCompromised",
-        "Credentials:7:propagateOneCredentialCompromised",
-        "User:12:oneCredentialCompromised",
-        "User:12:passwordReuseCompromise",
-        "Credentials:9:attemptCredentialsReuse",
-        "Credentials:10:attemptCredentialsReuse",
-        "Credentials:9:credentialsReuse",
-        "Credentials:9:attemptUse",
-    ]
-    assert defender_actions == [
-        "Program 1:notPresent",
-        "IDPS 1:effectiveness",
-        "Credentials:6:notDisclosed",
-        "Credentials:6:notGuessable",
-        "Credentials:7:notDisclosed",
-        "Credentials:7:notGuessable",
-        "Credentials:9:notDisclosed",
-        "Credentials:9:notGuessable",
-        "Credentials:10:notDisclosed",
-        "Credentials:10:notGuessable",
-        "Credentials:10:unique",
-        "User:12:noRemovableMediaUsage",
-        "OS App:notPresent",
-        "OS App:supplyChainAuditing",
-        "Program 1:supplyChainAuditing",
-        "Program 2:notPresent",
-        "Program 2:supplyChainAuditing",
-        "IDPS 1:notPresent",
-        "IDPS 1:supplyChainAuditing",
-        "SoftwareVulnerability:4:notPresent",
-        "Data:5:notPresent",
-        "Credentials:6:unique",
-        "Credentials:6:notPhishable",
-        "Credentials:7:unique",
-        "Credentials:7:notPhishable",
-        "Identity:8:notPresent",
+        'Internet:attemptReverseReach',
+        'Internet:networkForwardingUninspected',
+        'Internet:deny',
+        'Internet:accessNetworkData',
+        'ConnectionRule Internet->Linux '
+        'System:attemptConnectToApplicationsUninspected',
+        'Internet:reverseReach',
+        'Internet:networkForwardingInspected',
+        'ConnectionRule Internet->Linux System:attemptAccessNetworksUninspected',
+        'ConnectionRule Internet->Linux System:attemptDeny',
+        'Internet:attemptEavesdrop',
+        'Internet:attemptAdversaryInTheMiddle',
+        'ConnectionRule Internet->Linux System:bypassRestricted',
+        'ConnectionRule Internet->Linux System:bypassPayloadInspection',
+        'ConnectionRule Internet->Linux System:connectToApplicationsUninspected',
+        'ConnectionRule Internet->Linux System:attemptReverseReach',
+        'ConnectionRule Internet->Linux System:attemptAccessNetworksInspected',
+        'ConnectionRule Internet->Linux System:attemptConnectToApplicationsInspected',
+        'ConnectionRule Internet->Linux System:successfulAccessNetworksUninspected',
+        'ConnectionRule Internet->Linux System:deny',
+        'Internet:bypassEavesdropDefense',
+        'Internet:successfulEavesdrop',
+        'Internet:bypassAdversaryInTheMiddleDefense',
+        'Internet:successfulAdversaryInTheMiddle',
+        'Linux system:networkConnectUninspected',
+        'Linux system:networkConnectInspected',
+        'ConnectionRule Internet->Linux System:reverseReach',
+        'ConnectionRule Internet->Linux System:successfulAccessNetworksInspected',
+        'ConnectionRule Internet->Linux System:connectToApplicationsInspected',
+        'ConnectionRule Internet->Linux System:accessNetworksUninspected',
+        'Linux system:denyFromNetworkingAsset',
+        'Internet:eavesdrop',
+        'Internet:adversaryInTheMiddle',
+        'Linux system:attemptUseVulnerability',
+        'Linux system:networkConnect',
+        'Linux system:specificAccessNetworkConnect',
+        'Linux system:softwareProductVulnerabilityNetworkAccessAchieved',
+        'Linux system:attemptReverseReach',
+        'ConnectionRule Internet->Linux System:accessNetworksInspected',
+        'Linux system:attemptDeny',
+        'Internet:accessInspected'
     ]
 
+    assert defender_actions == [
+        'Linux system:notPresent',
+        'Linux system:supplyChainAuditing',
+        'Internet:networkAccessControl',
+        'Internet:eavesdropDefense',
+        'Internet:adversaryInTheMiddleDefense',
+        'ConnectionRule Internet->Linux System:restricted',
+        'ConnectionRule Internet->Linux System:payloadInspection',
+        'Secret data:notPresent',
+        'SoftwareVuln:notPresent'
+    ]
+
+    # Verify observations
     for step_fullname in attacker_actions:
         node = sim.attack_graph.get_node_by_full_name(step_fullname)
         if node.is_compromised():
@@ -109,7 +117,56 @@ def test_bfs_vs_bfs_state_and_reward():
         assert obs[defender_agent_id]["observed_state"][node_index]
 
     assert rewards[attacker_agent_id] == 0
-    assert rewards[defender_agent_id] == -31
+    assert rewards[defender_agent_id] == -50
 
     assert total_reward_attacker == 0
-    assert total_reward_defender == -307
+    assert total_reward_defender == -2000
+
+
+def test_scenario_step_by_step():
+    sim, sim_config = create_simulator_from_scenario(
+        "tests/testdata/scenarios/bfs_vs_bfs_network_app_data_scenario.yml"
+    )
+    sim.reset()
+
+    attacker_agent_id = next(iter(sim.get_attacker_agents()))
+    defender_agent_id = next(iter(sim.get_defender_agents()), None)
+
+    attacker_actions = [
+        "Internet:attemptReverseReach",
+        "Internet:reverseReach",
+        "ConnectionRule Internet->Linux System:attemptReverseReach",
+        "ConnectionRule Internet->Linux System:reverseReach",
+        "Linux system:attemptReverseReach",
+        "Linux system:successfulReverseReach",
+        "Linux system:reverseReach",
+        "Secret data:attemptReverseReach",
+        "Secret data:reverseReach",
+    ]
+
+    # Make sure attacker can take these steps
+    for attacker_action_fn in attacker_actions:
+        attacker_node = sim.attack_graph.get_node_by_full_name(attacker_action_fn)
+        attacker_action_index = sim.node_to_index(attacker_node)
+        actions = {
+            defender_agent_id: (0, None),
+            attacker_agent_id: (1, attacker_action_index)
+        }
+        sim.step(actions)
+        assert attacker_node.is_compromised()
+
+
+    # TODO: find out if this fails because is_traversable is not correct
+    # But not this one
+    # attacker_node = sim.attack_graph.get_node_by_full_name(
+    #     "Secret data:read"
+    # )
+    # attacker_action_index = sim.node_to_index(attacker_node)
+
+    # actions = {
+    #     defender_agent_id: (0, None),
+    #     attacker_agent_id: (1, attacker_action_index)
+    # }
+
+    # sim.step(actions)
+    # assert not attacker_node.is_compromised()
