@@ -6,7 +6,6 @@ authors = [
   { name="Joakim Loxdal", email="loxdal@kth.se" },
   { name="Jakob Nyberg", email="jaknyb@kth.se" },
   { name="Nikolaos Kakouros", email="nkak@kth.se" }
-
 ]
 description = "A MAL compliant simulator."
 readme = "README.md"
@@ -36,7 +35,6 @@ classifiers = [
 "Bug Tracker" = "https://github.com/mal-lang/mal-simulator/issues"
 "Repository" = "https://github.com/mal-lang/mal-simulator"
 
-
 [project.scripts]
 malsim = "malsim.cli:main"
 
@@ -46,9 +44,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["malsim*"]
-
-[tool.setuptools.package-data]
-maltoolbox = ["tests*"]
 
 [tool.pytest.ini_options]
 pythonpath = ['.']
