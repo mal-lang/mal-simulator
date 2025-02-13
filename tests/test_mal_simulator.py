@@ -111,21 +111,32 @@ def test_malsimulator_step_deterministic(
     sim.register_attacker("test_attacker", all_attackers[0].id)
     sim.register_defender("test_defender")
 
+    obs1 = {}
+    obs2 = {}
+
     # Run 1
     sim.reset(seed=123)
-    attacker_node = sim.agents_dict['test_attacker']['action_surface'][0]
-    attacker_action = (1, sim.node_to_index(attacker_node))
-    obs1, _, _, _, _ = sim.step(
-        {'test_defender': [1, 0], 'test_attacker': attacker_action}
-    )
+    for _ in range(10):
+        attacker_node = next(
+            n for n in sim.agents_dict['test_attacker']['action_surface']
+            if not n.is_compromised()
+        )
+        attacker_action = (1, sim.node_to_index(attacker_node))
+        obs1, _, _, _, _ = sim.step(
+            {'test_defender': [1, 0], 'test_attacker': attacker_action}
+        )
 
-    # Run 2
+    # Run 2 - identical
     sim.reset(seed=123)
-    attacker_node = sim.agents_dict['test_attacker']['action_surface'][0]
-    attacker_action = (1, sim.node_to_index(attacker_node))
-    obs2, _, _, _, _ = sim.step(
-        {'test_defender': [1, 0], 'test_attacker': attacker_action}
-    )
+    for _ in range(10):
+        attacker_node = next(
+            n for n in sim.agents_dict['test_attacker']['action_surface']
+            if not n.is_compromised()
+        )
+        attacker_action = (1, sim.node_to_index(attacker_node))
+        obs2, _, _, _, _ = sim.step(
+            {'test_defender': [1, 0], 'test_attacker': attacker_action}
+        )
 
     assert list(obs1['test_attacker']['observed_state']) == list(obs2['test_attacker']['observed_state'])
     assert list(obs1['test_defender']['observed_state']) == list(obs2['test_defender']['observed_state'])

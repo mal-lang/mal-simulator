@@ -795,9 +795,7 @@ class MalSimulator(ParallelEnv):
             if not attack_step_node.is_compromised_by(attacker):
                 logger.debug(
                     'Attacker agent "%s" has compromised "%s"(%d).',
-                    agent,
-                    attack_step_node.full_name,
-                    attack_step_node.id
+                    agent, attack_step_node.full_name, attack_step_node.id
                 )
                 attacker.compromise(attack_step_node)
                 self.agents_dict[agent]["action_surface"] = \
@@ -806,6 +804,13 @@ class MalSimulator(ParallelEnv):
                         self.agents_dict[agent]["action_surface"],
                         [attack_step_node]
                     )
+                self.agents_dict[agent]["action_surface"].sort(key=lambda n: n.id)
+            else:
+                logger.warning(
+                    'Attacker agent "%s" has already compromised "%s"(%d).',
+                    agent, attack_step_node.full_name, attack_step_node.id
+                )
+
             actions.append(attack_step)
         else:
             logger.warning(
