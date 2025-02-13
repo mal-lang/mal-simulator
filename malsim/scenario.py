@@ -336,8 +336,8 @@ def create_simulator_from_scenario(
         if agent_info['type'] == "attacker":
             all_attackers = list(attack_graph.attackers.values())
             assert len(all_attackers) == 1, (
-                "You have defined more than one attacker,",
-                "can not decide which one belongs to agent in simulator"
+                "You have defined more than one attacker, ",
+                "cannot decide which one belongs to agent in simulator"
             )
             sim.register_attacker(agent_id, all_attackers[0].id)
         elif agent_info['type'] == "defender":
