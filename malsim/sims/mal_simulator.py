@@ -541,10 +541,6 @@ class MalSimulator(ParallelEnv):
         """Create mapping tables"""
         logger.debug("Creating and listing mapping tables.")
 
-        # Since nodes are stored as sets and we need deterministic
-        # observations in the simulator, we need to convert them
-        # to a list and sort them
-
         # Lookup lists index to attribute
         self._index_to_id = [n.id for n in self.attack_graph.nodes.values()]
         self._index_to_full_name = (
