@@ -103,31 +103,23 @@ class MalSimulator(ParallelEnv):
         # For now, an `object` is an attack step
         num_steps = len(self.attack_graph.nodes)
 
-        # Since nodes are stored as sets and we need deterministic
-        # observations in the simulator, we need to convert them
-        # to a list and sort them
-        ordered_nodes: list[AttackGraphNode] = (
-            list(self.attack_graph.nodes.values())
-        )
-        ordered_nodes.sort(key=lambda n: n.id)
-
         observation = {
             # If no observability set for node, assume observable.
             "is_observable": [step.extras.get('observable', 1)
-                           for step in ordered_nodes],
+                           for step in self.attack_graph.nodes.values()],
             # Same goes for actionable.
             "is_actionable": [step.extras.get('actionable', 1)
-                           for step in ordered_nodes],
+                           for step in self.attack_graph.nodes.values()],
             "observed_state": num_steps * [default_obs_state],
             "remaining_ttc": num_steps * [0],
             "asset_type": [self._asset_type_to_index[step.lg_attack_step.asset.name]
-                           for step in ordered_nodes],
+                           for step in self.attack_graph.nodes.values()],
             "asset_id": [step.model_asset.id
-                         for step in ordered_nodes],
+                         for step in self.attack_graph.nodes.values()],
             "step_name": [
                 self._step_name_to_index.get(
                     str(step.lg_attack_step.asset.name + ":" + step.name)
-                ) for step in ordered_nodes],
+                ) for step in self.attack_graph.nodes.values()],
         }
 
         logger.debug(
@@ -135,7 +127,7 @@ class MalSimulator(ParallelEnv):
 
         # Add attack graph edges to observation
         observation["attack_graph_edges"] = []
-        for attack_step in ordered_nodes:
+        for attack_step in self.attack_graph.nodes.values():
             # For determinism we need to order the children
             ordered_children = list(attack_step.children)
             ordered_children.sort(key=lambda n: n.id)
@@ -149,7 +141,7 @@ class MalSimulator(ParallelEnv):
 
         # Add reverse attack graph edges for defense steps (required by some
         # defender agent logic)
-        for attack_step in ordered_nodes:
+        for attack_step in self.attack_graph.nodes.values():
             if attack_step.type == "defense":
                 # For determinism we need to order the children
                 ordered_children = list(attack_step.children)
@@ -552,15 +544,11 @@ class MalSimulator(ParallelEnv):
         # Since nodes are stored as sets and we need deterministic
         # observations in the simulator, we need to convert them
         # to a list and sort them
-        ordered_ag_nodes: list[AttackGraphNode] = (
-            list(self.attack_graph.nodes.values())
-        )
-        ordered_ag_nodes.sort(key=lambda n: n.id)
 
         # Lookup lists index to attribute
-        self._index_to_id = [n.id for n in ordered_ag_nodes]
+        self._index_to_id = [n.id for n in self.attack_graph.nodes.values()]
         self._index_to_full_name = (
-            [n.full_name for n in ordered_ag_nodes]
+            [n.full_name for n in self.attack_graph.nodes.values()]
         )
         self._index_to_asset_type = (
             [n.name for n in self.lang_graph.assets.values()]
