@@ -695,6 +695,9 @@ class MalSimulator(ParallelEnv):
             else:
                 self.agents_dict[agent]["action_surface"] = []
 
+            # Sort to make action surface deterministic
+            self.agents_dict[agent]["action_surface"].sort(key=lambda n: n.id)
+
         return initial_actions
 
     def initialize(self, max_iter=ITERATIONS_LIMIT):

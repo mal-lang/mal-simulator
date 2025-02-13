@@ -98,6 +98,39 @@ def test_malsimulator_create_blank_observation_deterministic(
     assert list(obs1['test_attacker']['model_edges_type']) == list(obs2['test_attacker']['model_edges_type'])
 
 
+def test_malsimulator_step_deterministic(
+        corelang_lang_graph, model
+    ):
+    """Make sure blank observation is deterministic with seed given"""
+
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    attack_graph.attach_attackers()
+    all_attackers = list(attack_graph.attackers.values())
+
+    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
+    sim.register_attacker("test_attacker", all_attackers[0].id)
+    sim.register_defender("test_defender")
+
+    # Run 1
+    sim.reset(seed=123)
+    attacker_node = sim.agents_dict['test_attacker']['action_surface'][0]
+    attacker_action = (1, sim.node_to_index(attacker_node))
+    obs1, _, _, _, _ = sim.step(
+        {'test_defender': [1, 0], 'test_attacker': attacker_action}
+    )
+
+    # Run 2
+    sim.reset(seed=123)
+    attacker_node = sim.agents_dict['test_attacker']['action_surface'][0]
+    attacker_action = (1, sim.node_to_index(attacker_node))
+    obs2, _, _, _, _ = sim.step(
+        {'test_defender': [1, 0], 'test_attacker': attacker_action}
+    )
+
+    assert list(obs1['test_attacker']['observed_state']) == list(obs2['test_attacker']['observed_state'])
+    assert list(obs1['test_defender']['observed_state']) == list(obs2['test_defender']['observed_state'])
+
+
 def test_malsimulator_create_blank_observation_observability_given(
         corelang_lang_graph, model
     ):
