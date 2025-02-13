@@ -118,13 +118,13 @@ def test_malsimulator_create_blank_observation_observability_given(
 
         # Below are the rules from the traininglang observability scenario
         # made into if statements
-        if node.asset.type == 'Host' and node.name in ('access'):
+        if node.lg_attack_step.asset.name == 'Host' and node.name in ('access'):
             assert observable
-        elif node.asset.type == 'Host' and node.name in ('authenticate'):
+        elif node.lg_attack_step.asset.name == 'Host' and node.name in ('authenticate'):
             assert observable
-        elif node.asset.type == 'Data' and node.name in ('read'):
+        elif node.lg_attack_step.asset.name == 'Data' and node.name in ('read'):
             assert observable
-        elif node.asset.name == 'User:3' and node.name in ('phishing'):
+        elif node.model_asset.name == 'User:3' and node.name in ('phishing'):
             assert observable
         else:
             assert not observable
@@ -147,15 +147,15 @@ def test_malsimulator_create_blank_observation_actionability_given(
 
     for index, actionable in enumerate(blank_observation['is_actionable']):
         node_id = sim._index_to_id[index]
-        node = sim.attack_graph.get_node_by_id(node_id)
+        node = sim.attack_graph.nodes[node_id]
 
         # Below are the rules from the traininglang observability scenario
         # made into if statements
-        if node.asset.type == 'Host' and node.name in ('notPresent'):
+        if node.lg_attack_step.asset.name == 'Host' and node.name in ('notPresent'):
             assert actionable
-        elif node.asset.type == 'Data' and node.name in ('notPresent'):
+        elif node.lg_attack_step.asset.name == 'Data' and node.name in ('notPresent'):
             assert actionable
-        elif node.asset.name == 'User:3' and node.name in ('notPresent'):
+        elif node.model_asset.name == 'User:3' and node.name in ('notPresent'):
             assert actionable
         else:
             assert not actionable
@@ -238,8 +238,8 @@ def test_malsimulator_reset(corelang_lang_graph, model):
 
     attacker = Attacker(
         agent_name,
-        entry_points=[agent_entry_point],
-        reached_attack_steps=[agent_entry_point]
+        entry_points={agent_entry_point},
+        reached_attack_steps={agent_entry_point}
     )
 
     attack_graph.add_attacker(attacker, agent_id)
@@ -264,7 +264,7 @@ def test_malsimulator_reset(corelang_lang_graph, model):
     # Make sure the attack graph is not the same object but identical
     assert id(attack_graph_before) != id(attack_graph_after)
 
-    for node in attack_graph_after.nodes:
+    for node in attack_graph_after.nodes.values():
         # Entry points are added to the nodes after backup is created
         # So they have to be removed for the graphs to be compared as identical
         if 'entrypoint' in node.extras:
@@ -302,7 +302,7 @@ def test_simulator_initialize_agents():
     agents = sim._initialize_agents()
     assert set(agents.keys()) == {'defender', 'attacker'}
 
-    for node in sim.attack_graph.nodes:
+    for node in sim.attack_graph.nodes.values():
         node_index = sim._id_to_index[node.id]
         if node.is_enabled_defense():
             assert node_index in agents['defender']
@@ -327,11 +327,12 @@ def test_get_agents():
 def test_malsimulator_attacker_step(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
 
-    attacker = Attacker('attacker1', id=0)
-    attack_graph.add_attacker(attacker, attacker.id)
+    attacker_id = 0
+    attacker = Attacker('attacker1', set(), set())
+    attack_graph.add_attacker(attacker, attacker_id)
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
 
-    sim.register_attacker(attacker.name, attacker.id)
+    sim.register_attacker(attacker.name, attacker_id)
     sim.reset()
 
     # Can not attack the notPresent step
@@ -377,16 +378,21 @@ def test_malsimulator_observe_attacker():
     # Register the agents
     attacker_agent_id = "attacker"
     defender_agent_id = "defender"
-    sim.register_attacker(attacker_agent_id, 0)
+
+    all_attackers = list(sim.attack_graph.attackers.values())
+    attacker = all_attackers[0]
+
+    sim.register_attacker(attacker_agent_id, attacker.id)
     sim.register_defender(defender_agent_id)
 
     obs, _ = sim.reset()
 
     # Make alteration to the attack graph attacker
     assert len(sim.attack_graph.attackers) == 1
-    attacker = sim.attack_graph.attackers[0]
+    # We reset to get the new attacker
+    attacker = sim.attack_graph.attackers[attacker.id]
     assert len(attacker.reached_attack_steps) == 1
-    reached_step = attacker.reached_attack_steps[0]
+    reached_step = list(attacker.reached_attack_steps)[0]
 
     # Select actions for the attacker
     actions_to_take = []
@@ -397,7 +403,6 @@ def test_malsimulator_observe_attacker():
             actions_to_take.append(child_node)
 
     attacker_agent_id = next(iter(sim.get_attacker_agents()))
-    attacker = sim.attack_graph.attackers[0]
     num_reached_steps_before = len(attacker.reached_attack_steps)
 
     for attacker_action in actions_to_take:
@@ -444,7 +449,7 @@ def test_malsimulator_initial_observation_defender(corelang_lang_graph, model):
 
     # Assert that observed state is not 1 before observe_defender
     nodes_to_observe = [
-        node for node in sim.attack_graph.nodes
+        node for node in sim.attack_graph.nodes.values()
         if node.is_enabled_defense() or node.is_compromised()
     ]
 
@@ -459,7 +464,7 @@ def test_malsimulator_observe_and_reward_attacker_no_entrypoints(
         corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
 
-    attacker = Attacker("TestAttacker", [], [])
+    attacker = Attacker("TestAttacker", set(), set())
     attack_graph.add_attacker(attacker)
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
 
@@ -628,7 +633,8 @@ def test_default_simulator_default_settings_eviction():
 
     sim.reset()
 
-    attacker = sim.attack_graph.attackers[0]
+    all_attackers = list(sim.attack_graph.attackers.values())
+    attacker = all_attackers[0]
     attacker_agent_id = next(iter(sim.get_attacker_agents()))
     defender_agent_id = next(iter(sim.get_defender_agents()))
 
@@ -684,7 +690,8 @@ def test_malsimulator_observe_and_reward_attacker_defender():
         'tests/testdata/scenarios/traininglang_scenario.yml')
     sim.reset()
 
-    attacker = sim.attack_graph.attackers[0]
+    all_attackers = list(sim.attack_graph.attackers.values())
+    attacker = all_attackers[0]
     attacker_name = "attacker"
     defender_name = "defender"
     attacker_reached_steps = [n.id for n in attacker.entry_points]
@@ -796,7 +803,7 @@ def test_malsimulator_observe_and_reward_uncompromise_untraversable():
         """Make sure obs state looks as expected"""
         for index, state in enumerate(obs_state):
             node_id = sim._index_to_id[index]
-            node = sim.attack_graph.get_node_by_id(node_id)
+            node = sim.attack_graph.nodes[node_id]
             if state == 1:
                 assert node_id in expected_reached
             elif state == 0:
@@ -813,7 +820,8 @@ def test_malsimulator_observe_and_reward_uncompromise_untraversable():
     )
     sim.reset()
 
-    attacker = sim.attack_graph.attackers[0]
+    all_attackers = list(sim.attack_graph.attackers.values())
+    attacker = all_attackers[0]
     attacker_name = "attacker"
     defender_name = "defender"
     attacker_reached_steps = [n.id for n in attacker.entry_points]
@@ -928,7 +936,8 @@ def test_simulator_settings_evict_attacker():
 
     sim.reset()
 
-    attacker = sim.attack_graph.attackers[0]
+    all_attackers = list(sim.attack_graph.attackers.values())
+    attacker = all_attackers[0]
     attacker_agent_id = next(iter(sim.get_attacker_agents()))
     defender_agent_id = next(iter(sim.get_defender_agents()))
 
@@ -969,7 +978,8 @@ def test_simulator_default_settings_defender_observation():
     )
     sim.reset()
 
-    attacker = sim.attack_graph.attackers[0]
+    all_attackers = list(sim.attack_graph.attackers.values())
+    attacker = all_attackers[0]
     attacker_agent_id = next(iter(sim.get_attacker_agents()))
     defender_agent_id = next(iter(sim.get_defender_agents()))
 
@@ -995,7 +1005,7 @@ def test_simulator_default_settings_defender_observation():
     # Verify that all states in obs match the state of the attack graph
     for index, state in enumerate(defender_observation):
         step_id = sim._index_to_id[index]
-        node = sim.attack_graph.get_node_by_id(step_id)
+        node = sim.attack_graph.nodes[step_id]
         if state == 1:
             assert node.is_compromised()
         else:
@@ -1012,7 +1022,7 @@ def test_simulator_default_settings_defender_observation():
     # Verify that all states in obs match the state of the attack graph
     for index, state in enumerate(defender_observation):
         step_id = sim._index_to_id[index]
-        node = sim.attack_graph.get_node_by_id(step_id)
+        node = sim.attack_graph.nodes[step_id]
         if state == 1:
             assert node.is_compromised() or node.is_enabled_defense()
         else:
@@ -1032,7 +1042,8 @@ def test_simulator_settings_defender_observation():
     )
     sim.reset()
 
-    attacker = sim.attack_graph.attackers[0]
+    all_attackers = list(sim.attack_graph.attackers)
+    attacker = all_attackers[0]
     attacker_agent_id = next(iter(sim.get_attacker_agents()))
     defender_agent_id = next(iter(sim.get_defender_agents()))
 
@@ -1059,7 +1070,7 @@ def test_simulator_settings_defender_observation():
     # is the latest performed step (User:3:compromise)
     for index, state in enumerate(defender_observation):
         step_id = sim._index_to_id[index]
-        node = sim.attack_graph.get_node_by_id(step_id)
+        node = sim.attack_graph.nodes[step_id]
         if node == user_3_compromise:
             assert state == 1 # Last performed step known active state
         else:

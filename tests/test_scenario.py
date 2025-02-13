@@ -56,7 +56,7 @@ def test_load_scenario():
     )
     attacker_name = "Attacker1"
     attacker = next(
-        (attacker for attacker in attack_graph.attackers
+        (attacker for attacker in attack_graph.attackers.values()
          if attacker.name == attacker_name)
     )
     assert attack_step in attacker.entry_points
@@ -83,7 +83,7 @@ def test_load_scenario_no_attacker_in_model():
     )
     attacker_name = "Attacker1"
     attacker = next(
-        (attacker for attacker in attack_graph.attackers
+        (attacker for attacker in attack_graph.attackers.values()
          if attacker.name == attacker_name)
     )
     assert attack_step in attacker.entry_points
@@ -100,16 +100,19 @@ def test_load_scenario_attacker_in_model():
         path_relative_to_tests(
             'testdata/scenarios/simple_scenario.yml')
     )
-    assert len(attack_graph.attackers) == 1
-    assert attack_graph.attackers[0].name == 'Attacker1' # From scenario
+
+    all_attackers = list(attack_graph.attackers.values())
+    assert len(all_attackers) == 1
+    assert all_attackers[0].name == 'Attacker1' # From scenario
 
     # Load the scenario that has no entry point defined
     attack_graph, _ = load_scenario(
         path_relative_to_tests(
             'testdata/scenarios/no_entry_points_simple_scenario.yml')
     )
-    assert len(attack_graph.attackers) == 1
-    assert attack_graph.attackers[0].name == 'Attacker:15' # From model
+    all_attackers = list(attack_graph.attackers.values())
+    assert len(all_attackers) == 1
+    assert all_attackers[0].name == 'Attacker:15' # From scenario
 
 
 def test_load_scenario_no_defender_agent():
@@ -149,12 +152,12 @@ def test_load_scenario_observability_given():
 
     # Make sure only attack steps of name fullAccess
     # part of asset type Application are observable.
-    for node in attack_graph.nodes:
-        if node.asset.type == "Application" and node.name == "fullAccess":
+    for node in attack_graph.nodes.values():
+        if node.lg_attack_step.asset.name == "Application" and node.name == "fullAccess":
             assert node.extras['observable']
-        elif node.asset.type == "Application" and node.name == "supplyChainAuditing":
+        elif node.lg_attack_step.asset.name == "Application" and node.name == "supplyChainAuditing":
             assert node.extras['observable']
-        elif node.asset.name == "Identity:8" and node.name == "assume":
+        elif node.model_asset.name == "Identity:8" and node.name == "assume":
             assert node.extras['observable']
         else:
             assert not node.extras['observable']
@@ -170,7 +173,7 @@ def test_load_scenario_observability_not_given():
     )
     # Make sure all attack steps are observable
     # if no observability settings are given
-    for node in attack_graph.nodes:
+    for node in attack_graph.nodes.values():
         assert node.extras['observable']
 
 
@@ -200,12 +203,12 @@ def test_apply_scenario_observability():
 
     # Make sure all attack steps are observable
     # if no observability settings are given
-    for node in attack_graph.nodes:
-        if node.asset.type == 'Data' and node.name in ('read', 'write', 'delete'):
+    for node in attack_graph.nodes.values():
+        if node.lg_attack_step.asset.name == 'Data' and node.name in ('read', 'write', 'delete'):
             assert node.extras['observable']
-        elif node.asset.type == 'Application' and node.name in ('fullAccess', 'notPresent'):
+        elif node.lg_attack_step.asset.name == 'Application' and node.name in ('fullAccess', 'notPresent'):
             assert node.extras['observable']
-        elif node.asset.name == 'OS App' and node.name in ('read'):
+        elif node.model_asset.name == 'OS App' and node.name in ('read'):
             assert node.extras['observable']
         else:
             assert not node.extras['observable']
