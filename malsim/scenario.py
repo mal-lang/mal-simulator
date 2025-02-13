@@ -167,16 +167,16 @@ def apply_scenario_node_property_rules(
 
     if not rules:
         # If no rules are given, make all steps as observable/actionable
-        for step in attack_graph.nodes:
+        for step in attack_graph.nodes.values():
             step.extras[node_prop] = 1
     else:
         # If observability/actionability rules are given
         # make the matching steps observable/actionable,
         # and all other unobservable/unactionable
-        for step in attack_graph.nodes:
+        for step in attack_graph.nodes.values():
             node_prop_rule_step_names = (
-                rules.get('by_asset_type', {}).get(step.asset.type, []) +
-                rules.get('by_asset_name', {}).get(step.asset.name, [])
+                rules.get('by_asset_type', {}).get(step.lg_attack_step.asset.name, []) +
+                rules.get('by_asset_name', {}).get(step.model_asset.name, [])
             )
 
             if step.name in node_prop_rule_step_names:
@@ -200,7 +200,7 @@ def apply_scenario_attacker_entrypoints(
 
     for attacker_name, entry_point_names in entry_points.items():
         attacker = Attacker(
-            attacker_name, entry_points=[], reached_attack_steps=[]
+            attacker_name, entry_points=set(), reached_attack_steps=set()
         )
         attack_graph.add_attacker(attacker)
 
@@ -273,7 +273,8 @@ def apply_scenario_to_attack_graph(
     if entry_points:
         # Override attackers in attack graph if
         # entry points defined in scenario
-        for attacker in attack_graph.attackers:
+        all_attackers = set(attack_graph.attackers.values())
+        for attacker in all_attackers:
             attack_graph.remove_attacker(attacker)
 
         # Apply attacker entry points from scenario
@@ -330,9 +331,15 @@ def create_simulator_from_scenario(
         **kwargs
     )
 
+    # This version only supports one defender and one attacker
     for agent_id, agent_info in conf['agents'].items():
         if agent_info['type'] == "attacker":
-            sim.register_attacker(agent_id, 0)
+            all_attackers = list(attack_graph.attackers.values())
+            assert len(all_attackers) == 1, (
+                "You have defined more than one attacker,",
+                "can not decide which one belongs to agent in simulator"
+            )
+            sim.register_attacker(agent_id, all_attackers[0].id)
         elif agent_info['type'] == "defender":
             sim.register_defender(agent_id)
 

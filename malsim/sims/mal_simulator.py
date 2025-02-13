@@ -103,42 +103,63 @@ class MalSimulator(ParallelEnv):
         # For now, an `object` is an attack step
         num_steps = len(self.attack_graph.nodes)
 
+        # Since nodes are stored as sets and we need deterministic
+        # observations in the simulator, we need to convert them
+        # to a list and sort them
+        ordered_nodes: list[AttackGraphNode] = (
+            list(self.attack_graph.nodes.values())
+        )
+        ordered_nodes.sort(key=lambda n: n.id)
+
         observation = {
             # If no observability set for node, assume observable.
             "is_observable": [step.extras.get('observable', 1)
-                           for step in self.attack_graph.nodes],
+                           for step in ordered_nodes],
             # Same goes for actionable.
             "is_actionable": [step.extras.get('actionable', 1)
-                           for step in self.attack_graph.nodes],
+                           for step in ordered_nodes],
             "observed_state": num_steps * [default_obs_state],
             "remaining_ttc": num_steps * [0],
-            "asset_type": [self._asset_type_to_index[step.asset.type]
-                           for step in self.attack_graph.nodes],
-            "asset_id": [step.asset.id
-                         for step in self.attack_graph.nodes],
-            "step_name": [self._step_name_to_index[
-                          str(step.asset.type + ":" + step.name)]
-                          for step in self.attack_graph.nodes],
+            "asset_type": [self._asset_type_to_index[step.lg_attack_step.asset.name]
+                           for step in ordered_nodes],
+            "asset_id": [step.model_asset.id
+                         for step in ordered_nodes],
+            "step_name": [
+                self._step_name_to_index.get(
+                    str(step.lg_attack_step.asset.name + ":" + step.name)
+                ) for step in ordered_nodes],
         }
 
         logger.debug(
             'Create blank observation with %d attack steps.', num_steps)
 
         # Add attack graph edges to observation
-        observation["attack_graph_edges"] = [
-            [self._id_to_index[attack_step.id], self._id_to_index[child.id]]
-                for attack_step in self.attack_graph.nodes
-                    for child in attack_step.children
-        ]
+        observation["attack_graph_edges"] = []
+        for attack_step in ordered_nodes:
+            # For determinism we need to order the children
+            ordered_children = list(attack_step.children)
+            ordered_children.sort(key=lambda n: n.id)
+            for child in ordered_children:
+                observation["attack_graph_edges"].append(
+                    [
+                        self._id_to_index[attack_step.id],
+                        self._id_to_index[child.id]
+                    ]
+                )
 
         # Add reverse attack graph edges for defense steps (required by some
         # defender agent logic)
-        for attack_step in self.attack_graph.nodes:
+        for attack_step in ordered_nodes:
             if attack_step.type == "defense":
-                for child in attack_step.children:
+                # For determinism we need to order the children
+                ordered_children = list(attack_step.children)
+                ordered_children.sort(key=lambda n: n.id)
+                for child in ordered_children:
                     observation["attack_graph_edges"].append(
-                        [self._id_to_index[child.id],
-                            self._id_to_index[attack_step.id]]
+                        [
+                            self._id_to_index[child.id],
+                            self._id_to_index[attack_step.id]
+                        ]
                     )
 
         # Add instance model assets
@@ -528,10 +549,18 @@ class MalSimulator(ParallelEnv):
         """Create mapping tables"""
         logger.debug("Creating and listing mapping tables.")
 
+        # Since nodes are stored as sets and we need deterministic
+        # observations in the simulator, we need to convert them
+        # to a list and sort them
+        ordered_ag_nodes: list[AttackGraphNode] = (
+            list(self.attack_graph.nodes.values())
+        )
+        ordered_ag_nodes.sort(key=lambda n: n.id)
+
         # Lookup lists index to attribute
-        self._index_to_id = [n.id for n in self.attack_graph.nodes]
+        self._index_to_id = [n.id for n in ordered_ag_nodes]
         self._index_to_full_name = (
-            [n.full_name for n in self.attack_graph.nodes]
+            [n.full_name for n in ordered_ag_nodes]
         )
         self._index_to_asset_type = (
             [n.name for n in self.lang_graph.assets.values()]
@@ -593,7 +622,7 @@ class MalSimulator(ParallelEnv):
             )
 
         node_id = self._index_to_id[index]
-        node = self.attack_graph.get_node_by_id(node_id)
+        node = self.attack_graph.nodes[node_id]
         if not node:
             raise LookupError(
                 f'Index {index} (id: {node_id}), does not map to a node'
@@ -649,7 +678,7 @@ class MalSimulator(ParallelEnv):
             if agent_type == "attacker":
                 attacker_id = self.agents_dict[agent]["attacker"]
                 attacker = self.attack_graph.attackers[attacker_id]
-                assert attacker, f"No attacker at index {attacker_id}"
+                assert attacker, f"No attacker with id {attacker_id}"
 
                 # Initialize observations and action surfaces
                 self.agents_dict[agent]["observation"] = \
@@ -672,7 +701,7 @@ class MalSimulator(ParallelEnv):
 
                 # Initial actions for defender are all pre-enabled defenses
                 initial_actions[agent] = [self._id_to_index[node.id]
-                                          for node in self.attack_graph.nodes
+                                          for node in self.attack_graph.nodes.values()
                                           if node.is_enabled_defense()]
 
             else:
@@ -856,9 +885,9 @@ class MalSimulator(ParallelEnv):
         ) -> tuple[list[int], list[AttackGraphNode]]:
 
         actions = []
-        defense_step_node = self.attack_graph.get_node_by_id(
+        defense_step_node = self.attack_graph.nodes[
             self._index_to_id[defense_step_index]
-        )
+        ]
         logger.info(
             'Defender agent "%s" stepping through "%s"(%d).',
             agent,
@@ -938,7 +967,7 @@ class MalSimulator(ParallelEnv):
                     continue
 
                 node_id = self._index_to_id[step_index]
-                node = self.attack_graph.get_node_by_id(node_id)
+                node = self.attack_graph.nodes[node_id]
                 if node.type in ('or', 'and'):
                     # Attack step activated, set to 1 (enabled)
                     obs_state[step_index] = 1
@@ -995,7 +1024,7 @@ class MalSimulator(ParallelEnv):
                     continue
 
                 node_id = self._index_to_id[action]
-                node = self.attack_graph.get_node_by_id(node_id)
+                node = self.attack_graph.nodes[node_id]
                 node_reward = node.extras.get('reward', 0)
 
                 if agent_type == "attacker":

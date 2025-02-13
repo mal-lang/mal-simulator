@@ -42,24 +42,60 @@ def test_malsimulator_create_blank_observation(corelang_lang_graph, model):
         # Note: offset is decremented from asset_type_index
         expected_type = sim._index_to_asset_type[asset_type_index]
         node = sim.index_to_node(index)
-        assert node.asset.type == expected_type
+        assert node.lg_attack_step.asset.name == expected_type
 
     # asset_id on index X in blank_observation['asset_id']
     # should be the same as the id of the asset of attack step X
     assert len(blank_observation['asset_id']) == num_objects
     for index, expected_asset_id in enumerate(blank_observation['asset_id']):
         node = sim.index_to_node(index)
-        assert node.asset.id == expected_asset_id
+        assert node.model_asset.id == expected_asset_id
 
     assert len(blank_observation['step_name']) == num_objects
 
-    expected_num_edges = sum([1 for step in attack_graph.nodes
+    expected_num_edges = sum([1 for step in attack_graph.nodes.values()
                                 for child in step.children] +
                                 # We expect all defenses again (reversed)
-                             [1 for step in attack_graph.nodes
+                             [1 for step in attack_graph.nodes.values()
                                 for child in step.children
                                 if step.type == "defense"])
     assert len(blank_observation['attack_graph_edges']) == expected_num_edges
+
+
+def test_malsimulator_create_blank_observation_deterministic(
+        corelang_lang_graph, model
+    ):
+    """Make sure blank observation is deterministic with seed given"""
+
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    attack_graph.attach_attackers()
+    all_attackers = list(attack_graph.attackers.values())
+
+    sim = MalSimulator(corelang_lang_graph, model, attack_graph)
+    sim.register_attacker("test_attacker", all_attackers[0].id)
+    sim.register_defender("test_defender")
+
+    obs1, _ = sim.reset(seed=123)
+    obs2, _ = sim.reset(seed=123)
+    
+    assert list(obs1['test_attacker']['is_observable']) == list(obs2['test_attacker']['is_observable'])
+    assert list(obs1['test_attacker']['is_actionable']) == list(obs2['test_attacker']['is_actionable'])
+    assert list(obs1['test_attacker']['observed_state']) == list(obs2['test_attacker']['observed_state'])
+    assert list(obs1['test_attacker']['remaining_ttc']) == list(obs2['test_attacker']['remaining_ttc'])
+    assert list(obs1['test_attacker']['asset_type']) == list(obs2['test_attacker']['asset_type'])
+    assert list(obs1['test_attacker']['asset_id']) == list(obs2['test_attacker']['asset_id'])
+    assert list(obs1['test_attacker']['step_name']) == list(obs2['test_attacker']['step_name'])
+
+    for i, elem in  enumerate(obs1['test_attacker']['attack_graph_edges']):
+        assert list(obs2['test_attacker']['attack_graph_edges'][i]) == list(elem)
+
+    assert list(obs1['test_attacker']['model_asset_id']) == list(obs2['test_attacker']['model_asset_id'])
+    assert list(obs1['test_attacker']['model_asset_type']) == list(obs2['test_attacker']['model_asset_type'])
+
+    for i, elem in  enumerate(obs1['test_attacker']['model_edges_ids']):
+        assert list(obs2['test_attacker']['model_edges_ids'][i]) == list(elem)
+
+    assert list(obs1['test_attacker']['model_edges_type']) == list(obs2['test_attacker']['model_edges_type'])
 
 
 def test_malsimulator_create_blank_observation_observability_given(
