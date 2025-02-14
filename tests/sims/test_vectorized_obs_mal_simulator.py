@@ -64,10 +64,10 @@ def test_create_blank_observation_deterministic(
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
     attack_graph.attach_attackers()
-    all_attackers = list(attack_graph.attackers.values())
+    attacker = next(iter(attack_graph.attackers.values()))
 
     sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
-    sim.register_attacker("test_attacker", all_attackers[0].id)
+    sim.register_attacker("test_attacker", attacker.id)
     sim.register_defender("test_defender")
 
     obs1, _ = sim.reset(seed=123)
@@ -100,10 +100,10 @@ def test_step_deterministic(
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
     attack_graph.attach_attackers()
-    all_attackers = list(attack_graph.attackers.values())
+    attacker = next(iter(attack_graph.attackers.values()))
 
     sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
-    sim.register_attacker("test_attacker", all_attackers[0].id)
+    sim.register_attacker("test_attacker", attacker.id)
     sim.register_defender("test_defender")
 
     obs1 = {}
@@ -345,8 +345,7 @@ def test_malsimulator_observe_and_reward_attacker_defender():
     # Create the simulator
     env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
-    all_attackers = list(attack_graph.attackers.values())
-    attacker = all_attackers[0]
+    attacker = next(iter(attack_graph.attackers.values()))
     attacker_agent_name = "Attacker1"
     env.register_attacker(attacker_agent_name, attacker.id)
 
