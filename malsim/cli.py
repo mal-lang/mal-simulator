@@ -21,7 +21,9 @@ def run_simulation(sim: MalSimulator, agents: list[dict]):
 
     logger.info("Starting CLI env simulator.")
 
+    i = 1
     while not all_agents_term_or_trunc:
+        logger.info("Iteration %s", i)
         all_agents_term_or_trunc = True
         actions = {}
 
@@ -54,8 +56,8 @@ def run_simulation(sim: MalSimulator, agents: list[dict]):
             total_rewards[agent_name] += agent_state.reward
             if not agent_state.terminated and not agent_state.truncated:
                 all_agents_term_or_trunc = False
-
         print("---\n")
+        i += 1
 
     logger.info("Game Over.")
 
