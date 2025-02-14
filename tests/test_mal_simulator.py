@@ -321,8 +321,8 @@ def test_malsimulator_register_attacker(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(corelang_lang_graph, model, attack_graph)
     agent_name = "attacker1"
-    attacker = 1
-    sim.register_attacker(agent_name, attacker)
+    attacker_id = 1
+    sim.register_attacker(agent_name, attacker_id)
     assert agent_name in sim.possible_agents
     assert agent_name in sim.agents_dict
 
@@ -423,8 +423,7 @@ def test_malsimulator_observe_attacker():
     attacker_agent_id = "attacker"
     defender_agent_id = "defender"
 
-    all_attackers = list(sim.attack_graph.attackers.values())
-    attacker = all_attackers[0]
+    attacker = next(iter(sim.attack_graph.attackers.values()))
 
     sim.register_attacker(attacker_agent_id, attacker.id)
     sim.register_defender(defender_agent_id)
@@ -433,6 +432,7 @@ def test_malsimulator_observe_attacker():
 
     # Make alteration to the attack graph attacker
     assert len(sim.attack_graph.attackers) == 1
+
     # We reset to get the new attacker
     attacker = sim.attack_graph.attackers[attacker.id]
     assert len(attacker.reached_attack_steps) == 1
@@ -677,8 +677,7 @@ def test_default_simulator_default_settings_eviction():
 
     sim.reset()
 
-    all_attackers = list(sim.attack_graph.attackers.values())
-    attacker = all_attackers[0]
+    attacker = next(iter(sim.attack_graph.attackers.values()))
     attacker_agent_id = next(iter(sim.get_attacker_agents()))
     defender_agent_id = next(iter(sim.get_defender_agents()))
 
@@ -734,8 +733,7 @@ def test_malsimulator_observe_and_reward_attacker_defender():
         'tests/testdata/scenarios/traininglang_scenario.yml')
     sim.reset()
 
-    all_attackers = list(sim.attack_graph.attackers.values())
-    attacker = all_attackers[0]
+    attacker = next(iter(sim.attack_graph.attackers.values()))
     attacker_name = "attacker"
     defender_name = "defender"
     attacker_reached_steps = [n.id for n in attacker.entry_points]
@@ -864,8 +862,7 @@ def test_malsimulator_observe_and_reward_uncompromise_untraversable():
     )
     sim.reset()
 
-    all_attackers = list(sim.attack_graph.attackers.values())
-    attacker = all_attackers[0]
+    attacker = next(iter(sim.attack_graph.attackers.values()))
     attacker_name = "attacker"
     defender_name = "defender"
     attacker_reached_steps = [n.id for n in attacker.entry_points]
@@ -980,8 +977,7 @@ def test_simulator_settings_evict_attacker():
 
     sim.reset()
 
-    all_attackers = list(sim.attack_graph.attackers.values())
-    attacker = all_attackers[0]
+    attacker = next(iter(sim.attack_graph.attackers.values()))
     attacker_agent_id = next(iter(sim.get_attacker_agents()))
     defender_agent_id = next(iter(sim.get_defender_agents()))
 
@@ -1022,8 +1018,7 @@ def test_simulator_default_settings_defender_observation():
     )
     sim.reset()
 
-    all_attackers = list(sim.attack_graph.attackers.values())
-    attacker = all_attackers[0]
+    attacker = next(iter(sim.attack_graph.attackers.values()))
     attacker_agent_id = next(iter(sim.get_attacker_agents()))
     defender_agent_id = next(iter(sim.get_defender_agents()))
 
@@ -1086,8 +1081,7 @@ def test_simulator_settings_defender_observation():
     )
     sim.reset()
 
-    all_attackers = list(sim.attack_graph.attackers)
-    attacker = all_attackers[0]
+    attacker = next(iter(sim.attack_graph.attackers.values()))
     attacker_agent_id = next(iter(sim.get_attacker_agents()))
     defender_agent_id = next(iter(sim.get_defender_agents()))
 
