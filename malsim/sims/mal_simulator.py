@@ -131,6 +131,7 @@ class MalSimulator(ParallelEnv):
             # For determinism we need to order the children
             ordered_children = list(attack_step.children)
             ordered_children.sort(key=lambda n: n.id)
+
             for child in ordered_children:
                 observation["attack_graph_edges"].append(
                     [
@@ -139,14 +140,9 @@ class MalSimulator(ParallelEnv):
                     ]
                 )
 
-        # Add reverse attack graph edges for defense steps (required by some
-        # defender agent logic)
-        for attack_step in self.attack_graph.nodes.values():
-            if attack_step.type == "defense":
-                # For determinism we need to order the children
-                ordered_children = list(attack_step.children)
-                ordered_children.sort(key=lambda n: n.id)
-                for child in ordered_children:
+                # Add reverse attack graph edges for defense steps
+                # (required by some defender agent logic)
+                if attack_step.type == "defense":
                     observation["attack_graph_edges"].append(
                         [
                             self._id_to_index[child.id],
