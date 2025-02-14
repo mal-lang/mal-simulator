@@ -1,0 +1,61 @@
+assets:
+  1:
+    associated_assets:
+      appConnections:
+        3: ConnectionRule Internet->Linux System
+      containedData:
+        8: Secret data
+    extras:
+      position:
+        x: -2057.0
+        y: -1296.0
+    name: Linux system
+    type: Application
+  2:
+    associated_assets:
+      netConnections:
+        3: ConnectionRule Internet->Linux System
+    extras:
+      position:
+        x: -2063.0
+        y: -897.0
+    name: Internet
+    type: Network
+  3:
+    associated_assets:
+      applications:
+        1: Linux system
+      networks:
+        2: Internet
+    extras:
+      position:
+        x: -2058.0
+        y: -1083.0
+    name: ConnectionRule Internet->Linux System
+    type: ConnectionRule
+  8:
+    associated_assets:
+      containingApp:
+        1: Linux system
+    extras:
+      position:
+        x: -2054.0
+        y: -1475.0
+    name: Secret data
+    type: Data
+  10:
+    associated_assets: {}
+    extras:
+      position:
+        x: -1617.3333333333333
+        y: -1299.3333333333333
+    name: SoftwareVuln
+    type: SoftwareVulnerability
+attackers: {}
+metadata:
+  MAL-Toolbox Version: 0.3.1
+  info: Created by the mal-toolbox model python module.
+  langID: org.mal-lang.coreLang
+  langVersion: 1.0.0
+  malVersion: 0.1.0-SNAPSHOT
+  name: network_app_data_model

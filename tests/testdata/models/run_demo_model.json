@@ -4,106 +4,99 @@
         "langVersion": "1.0.0",
         "langID": "org.mal-lang.coreLang",
         "malVersion": "0.1.0-SNAPSHOT",
-        "MAL-Toolbox Version": "0.2.0",
+        "MAL-Toolbox Version": "0.3.1",
         "info": "Created by the mal-toolbox model python module."
     },
     "assets": {
         "0": {
             "name": "OS App",
-            "type": "Application"
-        },
-        "1": {
-            "name": "Program 1",
-            "type": "Application"
-        },
-        "2": {
-            "name": "SoftwareVulnerability:2",
-            "type": "SoftwareVulnerability"
-        },
-        "3": {
-            "name": "Data:3",
-            "type": "Data"
-        },
-        "4": {
-            "name": "Credentials:4",
-            "type": "Credentials"
-        },
-        "5": {
-            "name": "Identity:5",
-            "type": "Identity"
-        },
-        "6": {
-            "name": "ConnectionRule:6",
-            "type": "ConnectionRule"
-        },
-        "7": {
-            "name": "Other OS App",
-            "type": "Application"
-        }
-    },
-    "associations": [
-        {
-            "AppExecution": {
-                "hostApp": {
-                    "0": "OS App"
-                },
+            "type": "Application",
+            "associated_assets": {
                 "appExecutedApps": {
                     "1": "Program 1"
-                }
-            }
-        },
-        {
-            "ApplicationVulnerability": {
+                },
                 "vulnerabilities": {
                     "2": "SoftwareVulnerability:2"
                 },
+                "appConnections": {
+                    "6": "ConnectionRule:6"
+                }
+            }
+        },
+        "1": {
+            "name": "Program 1",
+            "type": "Application",
+            "associated_assets": {
+                "hostApp": {
+                    "0": "OS App"
+                },
+                "containedData": {
+                    "3": "Data:3"
+                }
+            }
+        },
+        "2": {
+            "name": "SoftwareVulnerability:2",
+            "type": "SoftwareVulnerability",
+            "associated_assets": {
                 "application": {
                     "0": "OS App"
                 }
             }
         },
-        {
-            "AppContainment": {
-                "containedData": {
-                    "3": "Data:3"
-                },
+        "3": {
+            "name": "Data:3",
+            "type": "Data",
+            "associated_assets": {
                 "containingApp": {
                     "1": "Program 1"
-                }
-            }
-        },
-        {
-            "IdentityCredentials": {
-                "identities": {
-                    "5": "Identity:5"
-                },
-                "credentials": {
-                    "4": "Credentials:4"
-                }
-            }
-        },
-        {
-            "InfoContainment": {
-                "containerData": {
-                    "3": "Data:3"
                 },
                 "information": {
                     "4": "Credentials:4"
                 }
             }
         },
-        {
-            "ApplicationConnection": {
-                "applications": {
-                    "0": "OS App",
-                    "7": "Other OS App"
+        "4": {
+            "name": "Credentials:4",
+            "type": "Credentials",
+            "associated_assets": {
+                "containerData": {
+                    "3": "Data:3"
                 },
+                "identities": {
+                    "5": "Identity:5"
+                }
+            }
+        },
+        "5": {
+            "name": "Identity:5",
+            "type": "Identity",
+            "associated_assets": {
+                "credentials": {
+                    "4": "Credentials:4"
+                }
+            }
+        },
+        "6": {
+            "name": "ConnectionRule:6",
+            "type": "ConnectionRule",
+            "associated_assets": {
+                "applications": {
+                    "7": "Other OS App",
+                    "0": "OS App"
+                }
+            }
+        },
+        "7": {
+            "name": "Other OS App",
+            "type": "Application",
+            "associated_assets": {
                 "appConnections": {
                     "6": "ConnectionRule:6"
                 }
             }
         }
-    ],
+    },
     "attackers": {
         "8": {
             "name": "Attacker:8",

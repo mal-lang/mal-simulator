@@ -31,8 +31,10 @@ __docformat__ = "restructuredtext en"
 
 __all__ = ("AttackerEnv", "DefenderEnv", "register_envs")
 
+
+# TODO: Make sure logging dir exists and make it configurable (or use same as maltoolbox)
 formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%m-%d %H:%M')
-file_handler = logging.FileHandler('tmp/malsim_log.txt', mode='w')
+file_handler = logging.FileHandler('logs/malsim_log.txt', mode='w')
 file_handler.setFormatter(formatter)
 
 logger = logging.getLogger(__name__)
