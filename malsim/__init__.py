@@ -24,7 +24,7 @@ MAL Simulator
 """
 
 __title__ = "malsim"
-__version__ = "0.0.40"
+__version__ = "0.1.0"
 __authors__ = ["Andrei Buhaiu", "Joakim Loxdal", "Jakob Nyberg", "Nikolaos Kakouros"]
 __license__ = "Apache 2.0"
 __docformat__ = "restructuredtext en"
