@@ -35,12 +35,6 @@ they are a setup for running a simulation. This is how the format looks like:
 lang_file: <path to .mar-archive>
 model_file: <path to json/yml model>
 
-attacker_agent_class: 'BreadthFirstAttacker' | 'DepthFirstAttacker' | 'KeyboardAgent'
-
-# For defender_agent_class, null and False are treated the same - no defender will be used in the simulation
-defender_agent_class: 'BreadthFirstAttacker' | 'DepthFirstAttacker' | 'KeyboardAgent' | null | False
-
-
 # Optionally add rewards for each attack step
 rewards:
   <full name of attack step>: <reward>
@@ -50,17 +44,19 @@ rewards:
   # Data A:read: 100
   ...
 
+# Add entry points to AttackGraph with attacker names
+# and attack step full_names
+agents:
+  'Attacker1':
+    type: 'attacker'
+    agent_class: BreadthFirstAttacker | DepthFirstAttacker | KeyboardAgent | null
+    entry_points:
+    - 'Credentials:6:attemptCredentialsReuse'
 
-# Optionally add entry points to AttackGraph with attacker name and attack step full_names.
-# NOTE: If attacker entry points defined in both model and scenario,
-#       the scenario overrides the ones in the model.
-attacker_entry_points:
-  <attacker name>:
-    - <attack step full name>
+  'Defender1':
+    type: 'defender'
+    agent_class: BreadthFirstDefender | DepthFirstDefender | KeyboardAgent | null
 
-  # example:
-  # 'Attacker1':
-  #   - 'Credentials:6:attemptCredentialsReuse'
 
 # Optionally add observability rules that are applied to AttackGrapNodes
 # to make only certain steps observable
