@@ -1,7 +1,6 @@
 from os import path
 import pytest
 
-from maltoolbox.language import LanguageGraph
 from maltoolbox.model import Model
 from maltoolbox.attackgraph import create_attack_graph
 from maltoolbox.language import (

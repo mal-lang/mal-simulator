@@ -37,7 +37,6 @@ def test_bfs_vs_bfs_state_and_reward():
     total_reward_defender = 0
     total_reward_attacker = 0
 
-    attacker = sim.attack_graph.attackers[attacker_agent_info["attacker_id"]]
     attacker_actions = []
     defender_actions = []
 
