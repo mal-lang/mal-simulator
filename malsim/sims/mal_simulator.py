@@ -18,6 +18,7 @@ from .mal_sim_agent_state import (
     MalSimDefenderState
 )
 
+
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
 
