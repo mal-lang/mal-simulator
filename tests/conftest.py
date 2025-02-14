@@ -4,6 +4,9 @@ import pytest
 from maltoolbox.language import LanguageGraph
 from maltoolbox.model import Model
 from maltoolbox.attackgraph import create_attack_graph
+from maltoolbox.language import (
+    LanguageGraph, LanguageGraphAttackStep, LanguageGraphAsset
+)
 from malsim.sims import MalSimVectorizedObsEnv, MalSimulator
 
 model_file_name = 'tests/testdata/models/simple_test_model.yml'
@@ -82,3 +85,38 @@ def model(corelang_lang_graph):
     """
     # Init LanguageClassesFactory
     return Model.load_from_file(model_file_name, corelang_lang_graph)
+
+@pytest.fixture
+def dummy_lang_graph(corelang_lang_graph):
+    """Fixture that generates a dummy LanguageGraph with a dummy
+    LanguageGraphAsset and LanguageGraphAttackStep
+    """
+    lang_graph = LanguageGraph()
+    dummy_asset = LanguageGraphAsset(
+        name = 'DummyAsset'
+    )
+    lang_graph.assets['DummyAsset'] = dummy_asset
+    dummy_or_attack_step_node = LanguageGraphAttackStep(
+        name = 'DummyOrAttackStep',
+        type = 'or',
+        asset = dummy_asset
+    )
+    dummy_asset.attack_steps['DummyOrAttackStep'] = dummy_or_attack_step_node
+
+    dummy_and_attack_step_node = LanguageGraphAttackStep(
+        name = 'DummyAndAttackStep',
+        type = 'and',
+        asset = dummy_asset
+    )
+    dummy_asset.attack_steps['DummyAndAttackStep'] =\
+        dummy_and_attack_step_node
+
+    dummy_defense_attack_step_node = LanguageGraphAttackStep(
+        name = 'DummyDefenseAttackStep',
+        type = 'defense',
+        asset = dummy_asset
+    )
+    dummy_asset.attack_steps['DummyDefenseAttackStep'] =\
+        dummy_defense_attack_step_node
+
+    return lang_graph

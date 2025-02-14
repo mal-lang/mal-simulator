@@ -37,24 +37,104 @@ def test_create_blank_observation(corelang_lang_graph, model):
         # Note: offset is decremented from asset_type_index
         expected_type = sim._index_to_asset_type[asset_type_index]
         node = sim.index_to_node(index)
-        assert node.asset.type == expected_type
+        assert node.lg_attack_step.asset.name == expected_type
 
     # asset_id on index X in blank_observation['asset_id']
     # should be the same as the id of the asset of attack step X
     assert len(blank_observation['asset_id']) == num_objects
     for index, expected_asset_id in enumerate(blank_observation['asset_id']):
         node = sim.index_to_node(index)
-        assert node.asset.id == expected_asset_id
+        assert node.model_asset.id == expected_asset_id
 
     assert len(blank_observation['step_name']) == num_objects
 
-    expected_num_edges = sum([1 for step in attack_graph.nodes
+    expected_num_edges = sum([1 for step in attack_graph.nodes.values()
                                 for child in step.children] +
                                 # We expect all defenses again (reversed)
-                             [1 for step in attack_graph.nodes
+                             [1 for step in attack_graph.nodes.values()
                                 for child in step.children
                                 if step.type == "defense"])
     assert len(blank_observation['attack_graph_edges']) == expected_num_edges
+
+
+def test_create_blank_observation_deterministic(
+        corelang_lang_graph, model
+    ):
+    """Make sure blank observation is deterministic with seed given"""
+
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    attack_graph.attach_attackers()
+    all_attackers = list(attack_graph.attackers.values())
+
+    sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
+    sim.register_attacker("test_attacker", all_attackers[0].id)
+    sim.register_defender("test_defender")
+
+    obs1, _ = sim.reset(seed=123)
+    obs2, _ = sim.reset(seed=123)
+
+    assert list(obs1['test_attacker']['is_observable']) == list(obs2['test_attacker']['is_observable'])
+    assert list(obs1['test_attacker']['is_actionable']) == list(obs2['test_attacker']['is_actionable'])
+    assert list(obs1['test_attacker']['observed_state']) == list(obs2['test_attacker']['observed_state'])
+    assert list(obs1['test_attacker']['remaining_ttc']) == list(obs2['test_attacker']['remaining_ttc'])
+    assert list(obs1['test_attacker']['asset_type']) == list(obs2['test_attacker']['asset_type'])
+    assert list(obs1['test_attacker']['asset_id']) == list(obs2['test_attacker']['asset_id'])
+    assert list(obs1['test_attacker']['step_name']) == list(obs2['test_attacker']['step_name'])
+
+    for i, elem in  enumerate(obs1['test_attacker']['attack_graph_edges']):
+        assert list(obs2['test_attacker']['attack_graph_edges'][i]) == list(elem)
+
+    assert list(obs1['test_attacker']['model_asset_id']) == list(obs2['test_attacker']['model_asset_id'])
+    assert list(obs1['test_attacker']['model_asset_type']) == list(obs2['test_attacker']['model_asset_type'])
+
+    for i, elem in  enumerate(obs1['test_attacker']['model_edges_ids']):
+        assert list(obs2['test_attacker']['model_edges_ids'][i]) == list(elem)
+
+    assert list(obs1['test_attacker']['model_edges_type']) == list(obs2['test_attacker']['model_edges_type'])
+
+
+def test_step_deterministic(
+        corelang_lang_graph, model
+    ):
+    """Make sure blank observation is deterministic with seed given"""
+
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    attack_graph.attach_attackers()
+    all_attackers = list(attack_graph.attackers.values())
+
+    sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
+    sim.register_attacker("test_attacker", all_attackers[0].id)
+    sim.register_defender("test_defender")
+
+    obs1 = {}
+    obs2 = {}
+
+    # Run 1
+    sim.reset(seed=123)
+    for _ in range(10):
+        attacker_node = next(
+            n for n in sim.get_agent_state('test_attacker').action_surface
+            if not n.is_compromised()
+        )
+        attacker_action = (1, sim.node_to_index(attacker_node))
+        obs1, _, _, _, _ = sim.step(
+            {'test_defender': (0, None), 'test_attacker': attacker_action}
+        )
+
+    # Run 2 - identical
+    sim.reset(seed=123)
+    for _ in range(10):
+        attacker_node = next(
+            n for n in sim.get_agent_state('test_attacker').action_surface
+            if not n.is_compromised()
+        )
+        attacker_action = (1, sim.node_to_index(attacker_node))
+        obs2, _, _, _, _ = sim.step(
+            {'test_defender': (0, None), 'test_attacker': attacker_action}
+        )
+
+    assert list(obs1['test_attacker']['observed_state']) == list(obs2['test_attacker']['observed_state'])
+    assert list(obs1['test_defender']['observed_state']) == list(obs2['test_defender']['observed_state'])
 
 
 def test_create_blank_observation_observability_given(
@@ -79,17 +159,16 @@ def test_create_blank_observation_observability_given(
 
         # Below are the rules from the traininglang observability scenario
         # made into if statements
-        if node.asset.type == 'Host' and node.name in ('access'):
+        if node.lg_attack_step.asset.name == 'Host' and node.name in ('access'):
             assert observable
-        elif node.asset.type == 'Host' and node.name in ('authenticate'):
+        elif node.lg_attack_step.asset.name == 'Host' and node.name in ('authenticate'):
             assert observable
-        elif node.asset.type == 'Data' and node.name in ('read'):
+        elif node.lg_attack_step.asset.name == 'Data' and node.name in ('read'):
             assert observable
-        elif node.asset.name == 'User:3' and node.name in ('phishing'):
+        elif node.model_asset.name == 'User:3' and node.name in ('phishing'):
             assert observable
         else:
             assert not observable
-
 
 def test_create_blank_observation_actionability_given(
         corelang_lang_graph, model
@@ -112,20 +191,19 @@ def test_create_blank_observation_actionability_given(
 
         # Below are the rules from the traininglang observability scenario
         # made into if statements
-        if node.asset.type == 'Host' and node.name in ('notPresent'):
+        if node.lg_attack_step.asset.name == 'Host' and node.name in ('notPresent'):
             assert actionable
-        elif node.asset.type == 'Data' and node.name in ('notPresent'):
+        elif node.lg_attack_step.asset.name == 'Data' and node.name in ('notPresent'):
             assert actionable
-        elif node.asset.name == 'User:3' and node.name in ('notPresent'):
+        elif node.model_asset.name == 'User:3' and node.name in ('notPresent'):
             assert actionable
         else:
             assert not actionable
 
-
 def test_step(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
 
-    attacker = Attacker('attacker1', id=0)
+    attacker = Attacker('attacker1', set(), set())
     attack_graph.add_attacker(attacker, attacker.id)
     env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
@@ -174,7 +252,10 @@ def test_malsimulator_observe_attacker():
     # Register the agents
     defender_agent_name = 'defender'
     attacker_agent_name = 'attacker'
-    env.register_attacker(attacker_agent_name, attack_graph.attackers[0].id)
+
+    attacker = next(iter(attack_graph.attackers.values()))
+
+    env.register_attacker(attacker_agent_name, attacker.id)
     env.register_defender(defender_agent_name)
 
     # Must reset after registering agents
@@ -182,9 +263,10 @@ def test_malsimulator_observe_attacker():
 
     # Make alteration to the attack graph attacker
     assert len(env.sim.attack_graph.attackers) == 1
-    attacker = env.sim.attack_graph.attackers[0]
+    attacker = next(iter(env.sim.attack_graph.attackers.values()))
+
     assert len(attacker.reached_attack_steps) == 1
-    reached_step = attacker.reached_attack_steps[0]
+    reached_step = next(iter(attacker.reached_attack_steps))
 
     # Select actions for the attacker
     actions_to_take = []
@@ -194,7 +276,6 @@ def test_malsimulator_observe_attacker():
             # where two are children of the first one
             actions_to_take.append(child_node)
 
-    attacker = env.sim.attack_graph.attackers[0]
     num_reached_steps_before = len(attacker.reached_attack_steps)
 
     for attacker_action in actions_to_take:
@@ -264,7 +345,8 @@ def test_malsimulator_observe_and_reward_attacker_defender():
     # Create the simulator
     env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
-    attacker = env.sim.attack_graph.attackers[0]
+    all_attackers = list(attack_graph.attackers.values())
+    attacker = all_attackers[0]
     attacker_agent_name = "Attacker1"
     env.register_attacker(attacker_agent_name, attacker.id)
 
@@ -400,7 +482,7 @@ def test_malsimulator_initial_observation_defender(corelang_lang_graph, model):
     defender_obs_state = obs[defender_agent_name]["observed_state"]
 
     nodes_to_observe = [
-        node for node in env.sim.attack_graph.nodes
+        node for node in env.sim.attack_graph.nodes.values()
         if node.is_enabled_defense() or node.is_compromised()
     ]
 

@@ -17,9 +17,8 @@ def test_bfs_vs_bfs_state_and_reward():
     """
 
     sim, agents = create_simulator_from_scenario(
-        "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml",
+        "tests/testdata/scenarios/bfs_vs_bfs_network_app_data_scenario.yml"
     )
-
     sim.reset()
 
     defender_agent_name = "defender1"
@@ -38,11 +37,9 @@ def test_bfs_vs_bfs_state_and_reward():
     total_reward_defender = 0
     total_reward_attacker = 0
 
-    attacker = sim.attack_graph.get_attacker_by_id(attacker_agent_info["attacker_id"])
-    attacker_actions = [n.full_name for n in attacker.entry_points]
-    defender_actions = [
-        n.full_name for n in sim.attack_graph.nodes if n.is_enabled_defense()
-    ]
+    attacker = sim.attack_graph.attackers[attacker_agent_info["attacker_id"]]
+    attacker_actions = []
+    defender_actions = []
 
     while True:
         # Run the simulation until agents are terminated/truncated
@@ -57,8 +54,8 @@ def test_bfs_vs_bfs_state_and_reward():
 
         # Step
         actions = {
-            defender_agent_name: [defender_node] or [],
-            attacker_agent_name: [attacker_node] or [],
+            defender_agent_name: [defender_node] if defender_node else [],
+            attacker_agent_name: [attacker_node] if attacker_node else []
         }
         performed_actions, _ = sim.step(actions)
 
@@ -80,51 +77,60 @@ def test_bfs_vs_bfs_state_and_reward():
 
     # Make sure the actions performed were as expected
     assert attacker_actions == [
-        "Credentials:6:attemptCredentialsReuse",
-        "Credentials:6:credentialsReuse",
-        "Credentials:7:attemptCredentialsReuse",
-        "Credentials:6:attemptUse",
-        "Credentials:7:credentialsReuse",
-        "Credentials:7:attemptUse",
-        "Credentials:7:use",
-        "Credentials:7:attemptPropagateOneCredentialCompromised",
-        "Credentials:7:propagateOneCredentialCompromised",
-        "User:12:oneCredentialCompromised",
-        "User:12:passwordReuseCompromise",
-        "Credentials:9:attemptCredentialsReuse",
-        "Credentials:10:attemptCredentialsReuse",
-        "Credentials:9:credentialsReuse",
-        "Credentials:9:attemptUse",
-    ]
-    assert defender_actions == [
-        "Program 1:notPresent",
-        "IDPS 1:effectiveness",
-        "Credentials:6:notDisclosed",
-        "Credentials:6:notGuessable",
-        "Credentials:7:notDisclosed",
-        "Credentials:7:notGuessable",
-        "Credentials:9:notDisclosed",
-        "Credentials:9:notGuessable",
-        "Credentials:10:notDisclosed",
-        "Credentials:10:notGuessable",
-        "Credentials:10:unique",
-        "User:12:noRemovableMediaUsage",
-        "OS App:notPresent",
-        "OS App:supplyChainAuditing",
-        "Program 1:supplyChainAuditing",
-        "Program 2:notPresent",
-        "Program 2:supplyChainAuditing",
-        "IDPS 1:notPresent",
-        "IDPS 1:supplyChainAuditing",
-        "SoftwareVulnerability:4:notPresent",
-        "Data:5:notPresent",
-        "Credentials:6:unique",
-        "Credentials:6:notPhishable",
-        "Credentials:7:unique",
-        "Credentials:7:notPhishable",
-        "Identity:8:notPresent",
+        'Internet:attemptReverseReach',
+        'Internet:networkForwardingUninspected',
+        'Internet:deny',
+        'Internet:accessNetworkData',
+        'ConnectionRule Internet->Linux '
+        'System:attemptConnectToApplicationsUninspected',
+        'Internet:reverseReach',
+        'Internet:networkForwardingInspected',
+        'ConnectionRule Internet->Linux System:attemptAccessNetworksUninspected',
+        'ConnectionRule Internet->Linux System:attemptDeny',
+        'Internet:attemptEavesdrop',
+        'Internet:attemptAdversaryInTheMiddle',
+        'ConnectionRule Internet->Linux System:bypassRestricted',
+        'ConnectionRule Internet->Linux System:bypassPayloadInspection',
+        'ConnectionRule Internet->Linux System:connectToApplicationsUninspected',
+        'ConnectionRule Internet->Linux System:attemptReverseReach',
+        'ConnectionRule Internet->Linux System:attemptAccessNetworksInspected',
+        'ConnectionRule Internet->Linux System:attemptConnectToApplicationsInspected',
+        'ConnectionRule Internet->Linux System:successfulAccessNetworksUninspected',
+        'ConnectionRule Internet->Linux System:deny',
+        'Internet:bypassEavesdropDefense',
+        'Internet:successfulEavesdrop',
+        'Internet:bypassAdversaryInTheMiddleDefense',
+        'Internet:successfulAdversaryInTheMiddle',
+        'Linux system:networkConnectUninspected',
+        'Linux system:networkConnectInspected',
+        'ConnectionRule Internet->Linux System:reverseReach',
+        'ConnectionRule Internet->Linux System:successfulAccessNetworksInspected',
+        'ConnectionRule Internet->Linux System:connectToApplicationsInspected',
+        'ConnectionRule Internet->Linux System:accessNetworksUninspected',
+        'Linux system:denyFromNetworkingAsset',
+        'Internet:eavesdrop',
+        'Internet:adversaryInTheMiddle',
+        'Linux system:attemptUseVulnerability',
+        'Linux system:networkConnect',
+        'Linux system:specificAccessNetworkConnect',
+        'Linux system:softwareProductVulnerabilityNetworkAccessAchieved',
+        'Linux system:attemptReverseReach',
+        'ConnectionRule Internet->Linux System:accessNetworksInspected',
+        'Linux system:attemptDeny',
+        'Internet:accessInspected'
     ]
 
+    assert defender_actions == [
+        'Linux system:notPresent',
+        'Linux system:supplyChainAuditing',
+        'Internet:networkAccessControl',
+        'Internet:eavesdropDefense',
+        'Internet:adversaryInTheMiddleDefense',
+        'ConnectionRule Internet->Linux System:restricted',
+        'ConnectionRule Internet->Linux System:payloadInspection',
+        'Secret data:notPresent',
+        'SoftwareVuln:notPresent'
+    ]
     for step_id in attacker_actions:
         # Make sure that all attacker actions led to compromise
         node = sim.attack_graph.get_node_by_full_name(step_id)
@@ -137,7 +143,7 @@ def test_bfs_vs_bfs_state_and_reward():
 
     # Verify rewards in latest run and total rewards
     assert attacker_agent_state.reward == 0
-    assert defender_agent_state.reward == -31
+    assert defender_agent_state.reward == -50
 
     assert total_reward_attacker == 0
-    assert total_reward_defender == -307
+    assert total_reward_defender == -2000

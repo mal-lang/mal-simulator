@@ -1,11 +1,12 @@
 from unittest.mock import MagicMock
 from maltoolbox.attackgraph import AttackGraphNode, Attacker
 from maltoolbox.attackgraph.query import get_attack_surface
+from maltoolbox.language import LanguageGraph
 from malsim.sims import MalSimAgentStateView
 from malsim.agents import BreadthFirstAttacker, DepthFirstAttacker
 
 
-def test_breadth_first_traversal_simple():
+def test_breadth_first_traversal_simple(dummy_lang_graph: LanguageGraph):
     """
                     node1
                       |
@@ -15,23 +16,28 @@ def test_breadth_first_traversal_simple():
                       |
                     node4
     """
+    dummy_or_attack_step = (
+        dummy_lang_graph.assets['DummyAsset']
+        .attack_steps['DummyOrAttackStep']
+    )
+
     # Create nodes
-    node1 = AttackGraphNode(name="Node1", lang_graph_attack_step=None, id=1, type='or')
-    node2 = AttackGraphNode(name="Node2", lang_graph_attack_step=None, id=2, type='or')
-    node3 = AttackGraphNode(name="Node3", lang_graph_attack_step=None, id=3, type='or')
-    node4 = AttackGraphNode(name="Node4", lang_graph_attack_step=None, id=4, type='or')
+    node1 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=1)
+    node2 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=2)
+    node3 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=3)
+    node4 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=4)
 
     # Connect nodes (Node1 -> Node2 -> Node3 -> Node4)
-    node1.children.append(node2)
-    node2.parents.append(node1)
-    node2.children.append(node3)
-    node3.parents.append(node2)
-    node3.children.append(node4)
-    node4.parents.append(node3)
+    node1.children.add(node2)
+    node2.parents.add(node1)
+    node2.children.add(node3)
+    node3.parents.add(node2)
+    node3.children.add(node4)
+    node4.parents.add(node3)
 
     # Set up an attacker
-    attacker = Attacker(name="TestAttacker")
-    attacker.entry_points = [node1]
+    attacker = Attacker("TestAttacker", set(), set())
+    attacker.entry_points = {node1}
 
     # Set up a mock MalSimAgentState
     agent = MagicMock()
@@ -63,7 +69,7 @@ def test_breadth_first_traversal_simple():
     assert actual_order == expected_order, \
         "Traversal order does not match expected breadth-first order"
 
-def test_breadth_first_traversal_complicated():
+def test_breadth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
     r"""
                     node1 ______________
                   /       \             \
@@ -72,37 +78,43 @@ def test_breadth_first_traversal_complicated():
         node4   node5    node6  node7
 
     """
+
+    dummy_or_attack_step = (
+        dummy_lang_graph.assets['DummyAsset']
+        .attack_steps['DummyOrAttackStep']
+    )
+
     # Create nodes
-    node1 = AttackGraphNode(name="Node1", lang_graph_attack_step=None, id=1, type='or')
-    node2 = AttackGraphNode(name="Node2", lang_graph_attack_step=None, id=2, type='or')
-    node3 = AttackGraphNode(name="Node3", lang_graph_attack_step=None, id=3, type='or')
-    node4 = AttackGraphNode(name="Node4", lang_graph_attack_step=None, id=4, type='or')
-    node5 = AttackGraphNode(name="Node5", lang_graph_attack_step=None, id=5, type='or')
-    node6 = AttackGraphNode(name="Node6", lang_graph_attack_step=None, id=6, type='or')
-    node7 = AttackGraphNode(name="Node7", lang_graph_attack_step=None, id=7, type='or')
-    node8 = AttackGraphNode(name="Node8", lang_graph_attack_step=None, id=8, type='or')
+    node1 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=1)
+    node2 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=2)
+    node3 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=3)
+    node4 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=4)
+    node5 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=5)
+    node6 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=6)
+    node7 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=7)
+    node8 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=8)
 
     # Connect nodes (Node1 -> Node2 -> Node3 -> Node4)
-    node1.children.append(node2)
-    node2.parents.append(node1)
-    node1.children.append(node3)
-    node3.parents.append(node1)
-    node1.children.append(node8)
-    node8.children.append(node1)
+    node1.children.add(node2)
+    node2.parents.add(node1)
+    node1.children.add(node3)
+    node3.parents.add(node1)
+    node1.children.add(node8)
+    node8.children.add(node1)
 
-    node2.children.append(node4)
-    node4.parents.append(node2)
-    node2.children.append(node5)
-    node5.parents.append(node5)
+    node2.children.add(node4)
+    node4.parents.add(node2)
+    node2.children.add(node5)
+    node5.parents.add(node5)
 
-    node3.children.append(node6)
-    node6.parents.append(node3)
-    node3.children.append(node7)
-    node7.parents.append(node3)
+    node3.children.add(node6)
+    node6.parents.add(node3)
+    node3.children.add(node7)
+    node7.parents.add(node3)
 
     # Set up an attacker
-    attacker = Attacker(name="TestAttacker")
-    attacker.entry_points = [node1]
+    attacker = Attacker("TestAttacker", set(), set())
+    attacker.entry_points = {node1}
 
     # Set up a mock MalSimAgentState
     agent = MagicMock()
@@ -135,7 +147,7 @@ def test_breadth_first_traversal_complicated():
         "Traversal order does not match expected breadth-first order"
 
 
-def test_depth_first_traversal_complicated():
+def test_depth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
     r"""
                     node1 ______________
                   /       \             \
@@ -144,37 +156,42 @@ def test_depth_first_traversal_complicated():
         node4   node5    node6  node7
 
     """
+    dummy_or_attack_step = (
+        dummy_lang_graph.assets['DummyAsset']
+        .attack_steps['DummyOrAttackStep']
+    )
+
     # Create nodes
-    node1 = AttackGraphNode(name="Node1", lang_graph_attack_step=None, id=1, type='or')
-    node2 = AttackGraphNode(name="Node2", lang_graph_attack_step=None, id=2, type='or')
-    node3 = AttackGraphNode(name="Node3", lang_graph_attack_step=None, id=3, type='or')
-    node4 = AttackGraphNode(name="Node4", lang_graph_attack_step=None, id=4, type='or')
-    node5 = AttackGraphNode(name="Node5", lang_graph_attack_step=None, id=5, type='or')
-    node6 = AttackGraphNode(name="Node6", lang_graph_attack_step=None, id=6, type='or')
-    node7 = AttackGraphNode(name="Node7", lang_graph_attack_step=None, id=7, type='or')
-    node8 = AttackGraphNode(name="Node8", lang_graph_attack_step=None, id=8, type='or')
+    node1 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=1)
+    node2 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=2)
+    node3 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=3)
+    node4 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=4)
+    node5 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=5)
+    node6 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=6)
+    node7 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=7)
+    node8 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=8)
 
     # Connect nodes (Node1 -> Node2 -> Node3 -> Node4)
-    node1.children.append(node2)
-    node2.parents.append(node1)
-    node1.children.append(node3)
-    node3.parents.append(node1)
-    node1.children.append(node8)
-    node8.children.append(node1)
+    node1.children.add(node2)
+    node2.parents.add(node1)
+    node1.children.add(node3)
+    node3.parents.add(node1)
+    node1.children.add(node8)
+    node8.children.add(node1)
 
-    node2.children.append(node4)
-    node4.parents.append(node2)
-    node2.children.append(node5)
-    node5.parents.append(node5)
+    node2.children.add(node4)
+    node4.parents.add(node2)
+    node2.children.add(node5)
+    node5.parents.add(node5)
 
-    node3.children.append(node6)
-    node6.parents.append(node3)
-    node3.children.append(node7)
-    node7.parents.append(node3)
+    node3.children.add(node6)
+    node6.parents.add(node3)
+    node3.children.add(node7)
+    node7.parents.add(node3)
 
     # Set up an attacker
-    attacker = Attacker(name="TestAttacker")
-    attacker.entry_points = [node1]
+    attacker = Attacker("TestAttacker", set(), set())
+    attacker.entry_points = {node1}
 
     # Set up a mock MalSimAgentState
     agent = MagicMock()

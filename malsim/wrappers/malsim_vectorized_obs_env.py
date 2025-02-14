@@ -337,28 +337,28 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
         self.attack_graph = sim.attack_graph
 
         # List mapping from node/asset index to id/name/type
-        self._index_to_id = [n.id for n in self.attack_graph.nodes]
+        self._index_to_id = [n.id for n in self.attack_graph.nodes.values()]
         self._index_to_full_name = (
-            [n.full_name for n in self.attack_graph.nodes]
+            [n.full_name for n in self.attack_graph.nodes.values()]
         )
         self._index_to_asset_type = (
-            [n.name for n in self.sim.lang_graph.assets.values()]
+            [n.name for n in self.attack_graph.lang_graph.assets.values()]
         )
 
         unique_step_type_names = {
             n.full_name
-            for asset in self.sim.lang_graph.assets.values()
+            for asset in self.attack_graph.lang_graph.assets.values()
             for n in asset.attack_steps.values()
         }
         self._index_to_step_name = list(unique_step_type_names)
 
         self._index_to_model_asset_id = (
-            [int(asset.id) for asset in self.attack_graph.model.assets]
+            [int(asset_id) for asset_id in self.attack_graph.model.assets]
         )
 
         unique_assoc_type_names = {
             assoc.full_name
-            for asset in self.sim.lang_graph.assets.values()
+            for asset in self.attack_graph.lang_graph.assets.values()
             for assoc in asset.associations.values()
         }
         self._index_to_model_assoc_type = list(unique_assoc_type_names)
@@ -375,8 +375,8 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
             asset: i for i, asset in enumerate(self._index_to_model_asset_id)
         }
         self._model_assoc_type_to_index = {
-            assoc_type: i for i, assoc_type in \
-                enumerate(self._index_to_model_assoc_type)
+            assoc_type: i for i, assoc_type in
+            enumerate(self._index_to_model_assoc_type)
         }
 
         if logger.isEnabledFor(logging.DEBUG):
@@ -402,39 +402,53 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
         observation = {
             # If no observability set for node, assume observable.
             "is_observable": [step.extras.get('observable', 1)
-                              for step in self.sim.attack_graph.nodes],
+                           for step in self.attack_graph.nodes.values()],
             # Same goes for actionable.
             "is_actionable": [step.extras.get('actionable', 1)
-                              for step in self.sim.attack_graph.nodes],
+                           for step in self.attack_graph.nodes.values()],
             "observed_state": num_steps * [default_obs_state],
             "remaining_ttc": num_steps * [0],
-            "asset_type": [self._asset_type_to_index[step.asset.type]
-                           for step in self.sim.attack_graph.nodes],
-            "asset_id": [step.asset.id
-                         for step in self.sim.attack_graph.nodes],
-            "step_name": [self._step_name_to_index[
-                          str(step.asset.type + ":" + step.name)]
-                          for step in self.sim.attack_graph.nodes],
+            "asset_type": [
+                self._asset_type_to_index[step.lg_attack_step.asset.name]
+                for step in self.attack_graph.nodes.values()],
+            "asset_id": [step.model_asset.id
+                         for step in self.attack_graph.nodes.values()],
+            "step_name": [
+                self._step_name_to_index.get(
+                    str(step.lg_attack_step.asset.name + ":" + step.name)
+                ) for step in self.attack_graph.nodes.values()],
         }
 
         logger.debug(
             'Create blank observation with %d attack steps.', num_steps)
 
         # Add attack graph edges to observation
-        observation["attack_graph_edges"] = [
-            [self._id_to_index[attack_step.id], self._id_to_index[child.id]]
-                for attack_step in self.sim.attack_graph.nodes
-                    for child in attack_step.children
-        ]
+        observation["attack_graph_edges"] = []
+        for attack_step in self.attack_graph.nodes.values():
+            # For determinism we need to order the children
+            ordered_children = list(attack_step.children)
+            ordered_children.sort(key=lambda n: n.id)
+            for child in ordered_children:
+                observation["attack_graph_edges"].append(
+                    [
+                        self._id_to_index[attack_step.id],
+                        self._id_to_index[child.id]
+                    ]
+                )
 
         # Add reverse attack graph edges for defense steps (required by some
         # defender agent logic)
-        for attack_step in self.sim.attack_graph.nodes:
+        for attack_step in self.attack_graph.nodes.values():
             if attack_step.type == "defense":
-                for child in attack_step.children:
+                # For determinism we need to order the children
+                ordered_children = list(attack_step.children)
+                ordered_children.sort(key=lambda n: n.id)
+                for child in ordered_children:
                     observation["attack_graph_edges"].append(
-                        [self._id_to_index[child.id],
-                            self._id_to_index[attack_step.id]]
+                        [
+                            self._id_to_index[child.id],
+                            self._id_to_index[attack_step.id]
+                        ]
                     )
 
         # Add instance model assets
@@ -443,29 +457,23 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
         observation["model_edges_ids"] = []
         observation["model_edges_type"] = []
 
-        for asset in self.sim.attack_graph.model.assets:
+        for asset in self.attack_graph.model.assets.values():
             observation["model_asset_id"].append(asset.id)
             observation["model_asset_type"].append(
                 self._asset_type_to_index[asset.type])
 
-        for assoc in self.sim.attack_graph.model.associations:
-            left_field_name, right_field_name = \
-                self.sim.attack_graph.model.get_association_field_names(assoc)
-            left_field = getattr(assoc, left_field_name)
-            right_field = getattr(assoc, right_field_name)
-            for left_asset in left_field:
-                for right_asset in right_field:
+            for fieldname, other_assets in asset.associated_assets.items():
+                for other_asset in other_assets:
                     observation["model_edges_ids"].append(
                         [
-                            self._model_asset_id_to_index[left_asset.id],
-                            self._model_asset_id_to_index[right_asset.id]
+                            self._model_asset_id_to_index[asset.id],
+                            self._model_asset_id_to_index[other_asset.id]
                         ]
                     )
+
+                    lg_assoc = asset.lg_asset.associations[fieldname]
                     observation["model_edges_type"].append(
-                        self._model_assoc_type_to_index[
-                            # TODO: change this when lang_class factory not used anymore
-                            assoc.__class__.__name__.removeprefix('Association_')
-                        ]
+                        self._model_assoc_type_to_index[lg_assoc.full_name]
                     )
 
         np_obs = {
@@ -525,7 +533,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
             if agent.type == AgentType.ATTACKER:
                 # Attacker can only act on nodes that are not compromised
                 attacker = \
-                    self.sim.attack_graph.get_attacker_by_id(agent.attacker_id)
+                    self.sim.attack_graph.attackers[agent.attacker_id]
                 if not node.is_compromised_by(attacker):
                     index = self._id_to_index[node.id]
                     available_actions[index] = 1
@@ -709,7 +717,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
             )
 
         node_id = self._index_to_id[index]
-        node = self.sim.attack_graph.get_node_by_id(node_id)
+        node = self.sim.attack_graph.nodes[node_id]
         if not node:
             raise LookupError(
                 f'Index {index} (id: {node_id}), does not map to a node'
@@ -785,9 +793,9 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
                 if child_obs == -1:
                     agent_observation['observed_state'][child_index] = 0
 
-        attacker = self.sim.attack_graph\
-            .get_attacker_by_id(attacker_agent.attacker_id)
-
+        attacker = (
+            self.sim.attack_graph.attackers[attacker_agent.attacker_id]
+        )
         attacker_observation = self._agent_observations[attacker_agent.name]
 
         for node in enabled_nodes:
@@ -848,9 +856,13 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
 
         # Enable pre-enabled nodes in observation
         attacker_entry_points = [
-            n for n in self.sim.attack_graph.nodes if n.is_compromised()]
+            n for n in self.sim.attack_graph.nodes.values()
+            if n.is_compromised()
+        ]
         pre_enabled_defenses = [
-            n for n in self.sim.attack_graph.nodes if n.defense_status == 1.0]
+            n for n in self.sim.attack_graph.nodes.values()
+            if n.defense_status == 1.0
+        ]
 
         for node in attacker_entry_points:
             node.extras['entrypoint'] = True
@@ -881,7 +893,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
                     enabled_nodes, disabled_nodes, agent
                 )
 
-    def step(self, actions: dict[str, list[tuple[int, int]]]):
+    def step(self, actions: dict[str, tuple[int, int]]):
         """Perform step with mal simulator and observe in parallel env"""
 
         malsim_actions = {}

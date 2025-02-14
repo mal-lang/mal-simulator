@@ -93,7 +93,7 @@ class MalSimulator():
 
     def _init_agent_rewards(self):
         """Give rewards for pre-enabled attack/defense steps"""
-        for node in self.attack_graph.nodes:
+        for node in self.attack_graph.nodes.values():
             node_reward = node.extras.get('reward', 0)
             if not node_reward:
                 continue
@@ -101,9 +101,7 @@ class MalSimulator():
             for agent in self._agents_dict.values():
 
                 if agent.type == AgentType.ATTACKER:
-                    attacker = self.attack_graph.get_attacker_by_id(
-                        agent.attacker_id
-                    )
+                    attacker = self.attack_graph.attackers[agent.attacker_id]
 
                     if node.is_compromised_by(attacker):
                         # Attacker is rewarded for pre enabled attack steps
@@ -120,7 +118,7 @@ class MalSimulator():
             if agent.type == AgentType.ATTACKER:
                 # Get the Attacker object
                 attacker = \
-                    self.attack_graph.get_attacker_by_id(agent.attacker_id)
+                    self.attack_graph.attackers[agent.attacker_id]
 
                 # Get current action surface
                 agent.action_surface = \
@@ -210,8 +208,7 @@ class MalSimulator():
         observed_state, and remove the rewards.
         """
         for attacker_agent in self._get_attacker_agents():
-            attacker = self.attack_graph.get_attacker_by_id(
-                attacker_agent.attacker_id)
+            attacker = self.attack_graph.attackers[attacker_agent.attacker_id]
 
             for unviable_node in attack_steps_to_disable:
                 if unviable_node.is_compromised_by(attacker):
@@ -240,7 +237,7 @@ class MalSimulator():
         """
 
         enabled_nodes = []
-        attacker = self.attack_graph.get_attacker_by_id(agent.attacker_id)
+        attacker = self.attack_graph.attackers[agent.attacker_id]
 
         for node in nodes:
             logger.info(

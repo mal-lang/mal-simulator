@@ -218,8 +218,7 @@ def apply_attacker_entrypoints(
         for attacker in all_attackers:
             attack_graph.remove_attacker(attacker)
 
-    attacker = Attacker(
-        attacker_name, entry_points=[], reached_attack_steps=[])
+    attacker = Attacker(attacker_name, set(), set())
     attack_graph.add_attacker(attacker)
 
     for entry_point_name in entry_points:
@@ -228,7 +227,7 @@ def apply_attacker_entrypoints(
             raise LookupError(f"Node {entry_point_name} does not exist")
         attacker.compromise(entry_point)
 
-    attacker.entry_points = list(attacker.reached_attack_steps)
+    attacker.entry_points = attacker.reached_attack_steps.copy()
 
     return attacker.id
 

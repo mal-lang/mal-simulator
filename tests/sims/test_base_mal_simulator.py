@@ -21,8 +21,8 @@ def test_reset(corelang_lang_graph, model):
 
     attacker = Attacker(
         attacker_name,
-        entry_points=[agent_entry_point],
-        reached_attack_steps=[agent_entry_point]
+        entry_points={agent_entry_point},
+        reached_attack_steps={agent_entry_point}
     )
 
     attack_graph.add_attacker(attacker, attacker.id)
@@ -43,7 +43,7 @@ def test_reset(corelang_lang_graph, model):
     # Make sure the attack graph is not the same object but identical
     assert id(attack_graph_before) != id(attack_graph_after)
 
-    for node in attack_graph_after.nodes:
+    for node in attack_graph_after.nodes.values():
         # Entry points are added to the nodes after backup is created
         # So they have to be removed for the graphs to be compared as identical
         if 'entrypoint' in node.extras:
@@ -119,7 +119,7 @@ def test_get_agents():
 def test_attacker_step(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
 
-    attacker = Attacker('attacker1', id=0)
+    attacker = Attacker('attacker1', set(), set())
     attack_graph.add_attacker(attacker, attacker.id)
     sim = MalSimulator(attack_graph)
 
@@ -177,7 +177,7 @@ def test_observe_attacker():
 
     # Make alteration to the attack graph attacker
     assert len(sim.attack_graph.attackers) == 1
-    attacker = sim.attack_graph.attackers[0]
+    attacker = next(iter(sim.attack_graph.attackers.values()))
     assert len(attacker.reached_attack_steps) == 1
 
 
@@ -231,7 +231,7 @@ def test_default_simulator_default_settings_eviction():
     sim.register_attacker(attacker_agent_id, 1)
     sim.register_defender(defender_agent_id)
     sim.reset()
-    attacker = sim.attack_graph.attackers[0]
+    attacker = next(iter(sim.attack_graph.attackers.values()))
 
     # Get a step to compromise and its defense parent
     user_3_compromise = sim.attack_graph.get_node_by_full_name('User:3:compromise')
