@@ -64,7 +64,7 @@ class MalSimulator():
         self.agents: dict[str, MalSimAgentState] = {}
 
         # Keep track on all 'living' agents sorted by order to step in
-        self.alive_agents: list[str] = []
+        self.alive_agents: dict[str, MalSimAgentState] = {}
 
     def reset(
             self,
@@ -126,10 +126,10 @@ class MalSimulator():
     def _reset_agents(self):
         """Reset agent rewards and action surfaces"""
 
-        self.alive_agents = sorted(
-            self.agents,
-            key=lambda k: self.agents[k].type == AgentType.ATTACKER,
-        )
+        self.alive_agents = dict(sorted(
+            self.agents.items(),
+            key=lambda agent: agent[1].type == AgentType.ATTACKER,
+        ))
 
         for agent in self.agents.values():
             # Reset agent reward
@@ -149,15 +149,14 @@ class MalSimulator():
         assert agent.name not in self.agents, \
             f"Duplicate agent named {agent.name} not allowed"
 
-        if agent.type == AgentType.DEFENDER:
-            # Defender is first in list so it can pick
-            # actions before attacker when step performed
-            self.alive_agents.insert(0, agent.name)
-        elif agent.type == AgentType.ATTACKER:
-            # Attacker goes last
-            self.alive_agents.append(agent.name)
-
         self.agents[agent.name] = agent
+
+        # Defender is first in list so it can pick
+        # actions before attacker when step performed
+        self.alive_agents = dict(sorted(
+            self.agents.items(),
+            key=lambda agent: agent[1].type == AgentType.ATTACKER,
+        ))
 
     def register_attacker(self, name: str, attacker_id: int):
         """Register a mal sim attacker agent"""
@@ -175,7 +174,6 @@ class MalSimulator():
         assert name in self.agents, (
             f"Agent with name '{name}' does not exist")
         agent = self.agents[name]
-        breakpoint()
         return MalSimAgentStateView(agent)
 
     def get_agents(self) -> list[MalSimAgentStateView]:
@@ -345,22 +343,20 @@ class MalSimulator():
         Returns:
         - (enabled_nodes, disabled_nodes)
         """
-        logger.debug(
-            "Stepping through iteration %d/%d", self.cur_iter, self.max_iter)
+        logger.debug("Stepping through iteration %d/%d", self.cur_iter, self.max_iter)
         logger.debug("Performing actions: %s", actions)
 
         enabled_nodes = []
         disabled_nodes = []
         all_attackers_terminated = True
 
-        # Peform agent actions
+        # Perform agent actions
         # Note: by design, defenders perform actions
         # before attackers (see _register_agent)
-        for agent_name in self.alive_agents:
-            agent = self.agents[agent_name]
-            agent_actions = actions.get(agent_name, [])
-            match agent.type:
+        for agent in self.alive_agents.values():
+            agent_actions = actions.get(agent.name, [])
 
+            match agent.type:
                 case AgentType.ATTACKER:
                     enabled = self._attacker_step(agent, agent_actions)
                     enabled_nodes += enabled
@@ -391,15 +387,10 @@ class MalSimulator():
             for agent in self.agents.values():
                 agent.truncated = True
 
-        agents_to_remove = set()
-        for agent_name in self.alive_agents:
-            agent = self.agents[agent_name]
+        for agent in self.alive_agents.copy().values():
             if agent.terminated or agent.truncated:
                 logger.info("Removing agent %s", agent.name)
-                agents_to_remove.add(agent.name)
-
-        for agent in agents_to_remove:
-            self.alive_agents.remove(agent)
+                del self.alive_agents[agent.name]
 
         self.cur_iter += 1
         return enabled_nodes, disabled_nodes
