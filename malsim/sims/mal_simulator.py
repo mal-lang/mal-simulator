@@ -38,8 +38,6 @@ class MalSimulator():
     ):
         """
         Args:
-            lang_graph                  -   The language graph to use
-            model                       -   The model to use
             attack_graph                -   The attack graph to use
             max_iter                    -   Max iterations in simulation
             prune_unviable_unnecessary  -   Prunes graph if set to true
@@ -57,8 +55,6 @@ class MalSimulator():
 
         # Initialize all values
         self.attack_graph = attack_graph
-        self.lang_graph = attack_graph.lang_graph
-        self.model = attack_graph.model
 
         self.sim_settings = sim_settings
         self.max_iter = max_iter # Max iterations before stopping simulation
