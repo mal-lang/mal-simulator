@@ -105,7 +105,7 @@ def test_simulator_initialize_agents(corelang_lang_graph, model):
     assert set(sim._agents_dict.keys()) == {attacker_name, defender_name}
 
 
-def test_get_agents():
+def test_get_agent_states():
     """Test _get_attacker_agents and _get_defender_agents"""
 
     ag, _ = load_scenario('tests/testdata/scenarios/simple_scenario.yml')

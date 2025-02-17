@@ -176,7 +176,7 @@ class MalSimulator():
         agent = self.agents[name]
         return MalSimAgentStateView(agent)
 
-    def get_agents(self) -> list[MalSimAgentStateView]:
+    def get_agent_states(self) -> list[MalSimAgentStateView]:
         """Return read only agent state for all dead and alive agents"""
         return [self.get_agent_state(agent) for agent in self.agents.keys()]
 

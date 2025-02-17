@@ -392,7 +392,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
     @property
     def agents(self):
         """Required by ParallelEnv"""
-        return self.sim.agents
+        return list(self.sim.agents.keys())
 
     def _create_blank_observation(self, default_obs_state=-1):
         """Create the initial observation"""
@@ -547,7 +547,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
         }
 
     def _update_agent_infos(self):
-        for agent in self.sim.get_agents():
+        for agent in self.sim.get_agent_states():
             self._agent_infos[agent.name] = self.create_action_mask(agent)
 
     def _get_association_full_name(self, association) -> str:
@@ -847,7 +847,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
 
         self.attack_graph = self.sim.attack_graph # new ref
 
-        for agent in self.sim.get_agents():
+        for agent in self.sim.get_agent_states():
             # Reset observation and action mask for agents
             self._agent_observations[agent.name] = \
                 self._create_blank_observation()
@@ -883,7 +883,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
         logger.debug("Enable:\n\t%s", [n.full_name for n in enabled_nodes])
         logger.debug("Disable:\n\t%s", [n.full_name for n in disabled_nodes])
 
-        for agent in self.sim.get_agents():
+        for agent in self.sim.get_agent_states():
             if agent.type == AgentType.ATTACKER:
                 self._update_attacker_obs(
                     enabled_nodes, disabled_nodes, agent
@@ -915,7 +915,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
         truncations = {}
         infos = self._agent_infos
 
-        for agent in self.sim.get_agents():
+        for agent in self.sim.get_agent_states():
             rewards[agent.name] = agent.reward
             terminations[agent.name] = agent.terminated
             truncations[agent.name] = agent.truncated
