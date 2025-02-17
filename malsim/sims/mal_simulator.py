@@ -70,10 +70,6 @@ class MalSimulator():
         # Keep track on all 'living' agents sorted by order to step in
         self.agents: list[str] = []
 
-        # Keep track on all (dead and alive) agents sorted by order to step in
-        # (Used when resetting)
-        self.possible_agents: list[str] = []
-
     def reset(
             self,
             seed: Optional[int] = None,
@@ -134,8 +130,10 @@ class MalSimulator():
     def _reset_agents(self):
         """Reset agent rewards and action surfaces"""
 
-        # Revive dead agents
-        self.agents = copy.deepcopy(self.possible_agents)
+        self.agents = sorted(
+            self._agents_dict,
+            key=lambda k: self._agents_dict[k].type == AgentType.ATTACKER,
+        )
 
         for agent in self._agents_dict.values():
             # Reset agent reward
@@ -159,11 +157,9 @@ class MalSimulator():
             # Defender is first in list so it can pick
             # actions before attacker when step performed
             self.agents.insert(0, agent.name)
-            self.possible_agents.insert(0, agent.name)
         elif agent.type == AgentType.ATTACKER:
             # Attacker goes last
             self.agents.append(agent.name)
-            self.possible_agents.append(agent.name)
 
         self._agents_dict[agent.name] = agent
 
@@ -187,7 +183,7 @@ class MalSimulator():
 
     def get_agents(self) -> list[MalSimAgentStateView]:
         """Return read only agent state for all dead and alive agents"""
-        return [self.get_agent_state(agent) for agent in self.possible_agents]
+        return [self.get_agent_state(agent) for agent in self._agents_dict.keys()]
 
     def _get_attacker_agents(self) -> list[MalSimAttackerState]:
         """Return list of mutable attacker agent states"""
