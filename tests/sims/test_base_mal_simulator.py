@@ -31,7 +31,7 @@ def test_reset(corelang_lang_graph, model):
 
     attack_graph_before = sim.attack_graph
     sim.register_attacker(attacker_name, attacker.id)
-    assert attacker.name in sim._agents_dict
+    assert attacker.name in sim.agents
     assert len(sim.agents) == 1
 
     sim.reset()
@@ -59,7 +59,7 @@ def test_register_agent_attacker(corelang_lang_graph, model):
     agent_name = "attacker1"
     sim.register_attacker(agent_name, attacker)
 
-    assert agent_name in sim._agents_dict
+    assert agent_name in sim.agents
     assert agent_name in sim.agents
 
 
@@ -70,7 +70,7 @@ def test_register_agent_defender(corelang_lang_graph, model):
     agent_name = "defender1"
     sim.register_defender(agent_name)
 
-    assert agent_name in sim._agents_dict
+    assert agent_name in sim.agents
     assert agent_name in sim.agents
 
 
@@ -102,7 +102,7 @@ def test_simulator_initialize_agents(corelang_lang_graph, model):
 
     sim.reset()
 
-    assert set(sim._agents_dict.keys()) == {attacker_name, defender_name}
+    assert set(sim.agents.keys()) == {attacker_name, defender_name}
 
 
 def test_get_agent_states():
@@ -125,7 +125,7 @@ def test_attacker_step(corelang_lang_graph, model):
 
     sim.register_attacker(attacker.name, attacker.id)
     sim.reset()
-    attacker_agent = sim._agents_dict[attacker.name]
+    attacker_agent = sim.agents[attacker.name]
 
     # Can not attack the notPresent step
     defense_step = attack_graph.get_node_by_full_name('OS App:notPresent')
@@ -146,7 +146,7 @@ def test_defender_step(corelang_lang_graph, model):
     sim.register_defender(defender_name)
     sim.reset()
 
-    defender_agent = sim._agents_dict[defender_name]
+    defender_agent = sim.agents[defender_name]
     defense_step = sim.attack_graph.get_node_by_full_name(
         'OS App:notPresent')
     actions, _ = sim._defender_step(defender_agent, [defense_step])

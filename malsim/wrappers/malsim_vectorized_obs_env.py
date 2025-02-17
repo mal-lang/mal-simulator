@@ -611,15 +611,15 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
         # For now, an `object` is an attack step
         num_assets = len(self.attack_graph.model.assets)
         num_steps = len(self.attack_graph.nodes)
-        num_lang_asset_types = len(self.sim.lang_graph.assets)
+        num_lang_asset_types = len(self.sim.attack_graph.lang_graph.assets)
 
         unique_step_types = set()
-        for asset_type in self.sim.lang_graph.assets.values():
+        for asset_type in self.sim.attack_graph.lang_graph.assets.values():
             unique_step_types |= set(asset_type.attack_steps.values())
         num_lang_attack_steps = len(unique_step_types)
 
         unique_assoc_type_names = set()
-        for asset_type in self.sim.lang_graph.assets.values():
+        for asset_type in self.sim.attack_graph.lang_graph.assets.values():
             for assoc_type in asset_type.associations.values():
                 unique_assoc_type_names.add(
                     assoc_type.full_name
@@ -752,12 +752,12 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
 
     def register_attacker(self, attacker_name: str, attacker_id: int):
         super().register_attacker(attacker_name, attacker_id)
-        agent = self.sim._agents_dict[attacker_name]
+        agent = self.sim.agents[attacker_name]
         self._init_agent(agent)
 
     def register_defender(self, defender_name: str):
         super().register_defender(defender_name)
-        agent = self.sim._agents_dict[defender_name]
+        agent = self.sim.agents[defender_name]
         self._init_agent(agent)
 
     def _init_agent(self, agent: MalSimAgentState):

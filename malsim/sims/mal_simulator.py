@@ -182,13 +182,11 @@ class MalSimulator():
 
     def _get_attacker_agents(self) -> list[MalSimAttackerState]:
         """Return list of mutable attacker agent states"""
-        return [a for a in self.agents.values()
-                if a.type == AgentType.ATTACKER]
+        return [a for a in self.agents.values() if a.type == AgentType.ATTACKER]
 
     def _get_defender_agents(self) -> list[MalSimDefenderState]:
         """Return list of mutable defender agent states"""
-        return [a for a in self.agents.values()
-                if a.type == AgentType.DEFENDER]
+        return [a for a in self.agents.values() if a.type == AgentType.DEFENDER]
 
     def _disable_attack_steps(
             self, attack_steps_to_disable: list[AttackGraphNode]
