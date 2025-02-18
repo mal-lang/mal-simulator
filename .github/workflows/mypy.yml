@@ -21,4 +21,4 @@ jobs:
       - name: Type checking with MyPy
         run: |
           pip install mypy
-          mypy maltoolbox tests --install-types --non-interactive
+          mypy malsim tests --install-types --non-interactive
