@@ -24,7 +24,7 @@ class MalSimEnv(ABC):
         self.sim.register_defender(defender_name)
 
     def get_agent_state(self, agent_name: str) -> MalSimAgentStateView:
-        return self.sim.get_agent_state(agent_name)
+        return self.sim.agent_states[agent_name]
 
     def render(self):
         pass

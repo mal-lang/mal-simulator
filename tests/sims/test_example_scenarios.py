@@ -44,11 +44,11 @@ def test_bfs_vs_bfs_state_and_reward():
         # Run the simulation until agents are terminated/truncated
 
         # Select attacker node
-        attacker_agent_state = sim.get_agent_state(attacker_agent_info["name"])
+        attacker_agent_state = sim.agent_states[attacker_agent_info["name"]]
         attacker_node = attacker_agent.get_next_action(attacker_agent_state)
 
         # Select defender node
-        defender_agent_state = sim.get_agent_state(defender_agent_info["name"])
+        defender_agent_state = sim.agent_states[defender_agent_info["name"]]
         defender_node = defender_agent.get_next_action(defender_agent_state)
 
         # Step
@@ -56,13 +56,15 @@ def test_bfs_vs_bfs_state_and_reward():
             defender_agent_name: [defender_node] if defender_node else [],
             attacker_agent_name: [attacker_node] if attacker_node else []
         }
-        performed_actions, _ = sim.step(actions)
+        states = sim.step(actions)
 
         # If actions were performed, add them to respective list
-        if attacker_node and attacker_node in performed_actions:
+        if attacker_node and attacker_node in \
+                states['attacker1'].step_compromised_nodes:
             attacker_actions.append(attacker_node.full_name)
 
-        if defender_node and defender_node in performed_actions:
+        if defender_node and defender_node in \
+                states['defender1'].step_enabled_defenses:
             defender_actions.append(defender_node.full_name)
 
         total_reward_defender += defender_agent_state.reward

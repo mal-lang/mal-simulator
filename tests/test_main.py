@@ -3,8 +3,8 @@
 import os
 from unittest.mock import patch
 
+from malsim.__main__ import run_simulation
 from malsim.scenario import create_simulator_from_scenario
-from malsim.cli import run_simulation
 from malsim.mal_simulator import MalSimulator
 
 

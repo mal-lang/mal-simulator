@@ -4,7 +4,8 @@ import copy
 from dataclasses import dataclass, field
 import logging
 from enum import Enum
-from typing import Optional
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 
 from maltoolbox import neo4j_configs
 from maltoolbox.ingestors import neo4j
@@ -13,6 +14,10 @@ from maltoolbox.attackgraph.analyzers import apriori
 
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
+
+
+if TYPE_CHECKING:
+    from maltoolbox.attackgraph import AttackGraphNode
 
 
 class AgentType(Enum):
@@ -33,21 +38,26 @@ class MalSimAgentState:
     # Attackers get positive rewards, defenders negative
     reward: int = 0
 
-    # Contains possible actions for the agent in the next step
-    action_surface: list[AttackGraphNode] = field(default_factory=list)
+    # Contains possible actions for the agent on the next step
+    action_surface: set[AttackGraphNode] = field(default_factory=set)
+
+    # Contains possible actions that became available on the last step
+    step_action_surface: set[AttackGraphNode] = field(default_factory=set)
+
+    # Contains the steps performed successfully in the last step
+    step_compromised_nodes: set[AttackGraphNode] = field(default_factory=set)
+
+    # Contains nodes that defender actions made unviable in the last step
+    step_disabled_nodes: set[AttackGraphNode] = field(default_factory=set)
 
     # Fields that tell if agent is 'dead' / disabled
     truncated: bool = False
     terminated: bool = False
 
-    # Fields that are not used by 'base' MalSimulator
-    # but can be useful in wrappers/envs
-    observation: dict = field(default_factory=dict)
-    info: dict = field(default_factory=dict)
-
 
 class MalSimAttackerState(MalSimAgentState):
     """Stores the state of an attacker in the simulator"""
+
     def __init__(self, name: str, attacker_id: int):
         super().__init__(name, AgentType.ATTACKER)
         self.attacker_id = attacker_id
@@ -55,44 +65,52 @@ class MalSimAttackerState(MalSimAgentState):
 
 class MalSimDefenderState(MalSimAgentState):
     """Stores the state of a defender in the simulator"""
+
+    # Contains defense steps successfully enabled by the defender in the last step
+    step_enabled_defenses: set[AttackGraphNode] = field(default_factory=set)
+
     def __init__(self, name: str):
         super().__init__(name, AgentType.DEFENDER)
 
 
-class MalSimAgentStateView:
+T = TypeVar("T", bound=MalSimAgentState)
+
+
+class MalSimAgentStateView(Generic[T]):
     """Read-only interface to MalSimAgentState."""
-    def __init__(self, agent: MalSimAgentState):
+
+    _frozen = False
+
+    def __init__(self, agent: T):
         self._agent = agent
+        self._frozen = True
 
-    @property
-    def name(self) -> str:
-        return self._agent.name
+    def __setattr__(self, key, value) -> None:
+        if self._frozen:
+            raise AttributeError("Cannot modify agent state view")
+        self.__dict__[key] = value
 
-    @property
-    def type(self) -> AgentType:
-        return self._agent.type
+    def __delattr__(self, key) -> None:
+        if self._frozen:
+            raise AttributeError("Cannot modify agent state view")
+        super().__delattr__(key)
 
-    @property
-    def reward(self) -> int:
-        return self._agent.reward
+    def __getattr__(self, attr) -> Any:
+        """Return read-only version of proxied agent's properties."""
+        value = getattr(self._agent, attr)
 
-    @property
-    def truncated(self) -> bool:
-        return self._agent.truncated
+        if isinstance(value, dict):
+            return MappingProxyType(value)
+        if isinstance(value, list):
+            return tuple(value)
+        if isinstance(value, set):
+            return frozenset(value)
 
-    @property
-    def terminated(self) -> bool:
-        return self._agent.terminated
+        return value
 
-    @property
-    def action_surface(self) -> list[AttackGraphNode]:
-        return self._agent.action_surface
-
-    @property
-    def attacker_id(self) -> int:
-        assert isinstance(self._agent, MalSimAttackerState), \
-               "Only MalSimAttackers have property attacker_id"
-        return self._agent.attacker_id
+    def __dir__(self):
+        """Dynamically resolve attribute names for REPL autocompletion."""
+        return list(vars(self._agent).keys()) + ["_agent", "_frozen"]
 
 
 @dataclass
@@ -112,6 +130,7 @@ class MalSimulatorSettings():
     # - Defender only sees the status of nodes changed in the current step
     cumulative_defender_obs: bool = True
 
+
 class MalSimulator():
     """A MAL Simulator that works on the AttackGraph
 
@@ -129,8 +148,6 @@ class MalSimulator():
     ):
         """
         Args:
-            lang_graph                  -   The language graph to use
-            model                       -   The model to use
             attack_graph                -   The attack graph to use
             max_iter                    -   Max iterations in simulation
             prune_unviable_unnecessary  -   Prunes graph if set to true
@@ -148,28 +165,22 @@ class MalSimulator():
 
         # Initialize all values
         self.attack_graph = attack_graph
-        self.lang_graph = attack_graph.lang_graph
-        self.model = attack_graph.model
 
         self.sim_settings = sim_settings
-        self.max_iter = max_iter # Max iterations before stopping simulation
+        self.max_iter = max_iter  # Max iterations before stopping simulation
         self.cur_iter = 0        # Keep track on current iteration
 
         # Keep track on all registered agent states
-        self._agents_dict: dict[str, MalSimAgentState] = {}
+        self.agents: dict[str, MalSimAgentState] = {}
 
         # Keep track on all 'living' agents sorted by order to step in
-        self.agents: list[str] = []
-
-        # Keep track on all (dead and alive) agents sorted by order to step in
-        # (Used when resetting)
-        self.possible_agents: list[str] = []
+        self.alive_agents: dict[str, MalSimAgentState] = {}
 
     def reset(
-            self,
-            seed: Optional[int] = None,
-            options: Optional[dict] = None
-        ) -> dict[str, MalSimAgentState]:
+        self,
+        seed: Optional[int] = None,
+        options: Optional[dict] = None
+    ) -> dict[str, MalSimAgentStateView]:
         """Reset attack graph, iteration and reinitialize agents"""
 
         logger.info("Resetting MAL Simulator.")
@@ -180,7 +191,7 @@ class MalSimulator():
         # Reset agents
         self._reset_agents()
 
-        return self._agents_dict
+        return self.agent_states
 
     def _init_agent_rewards(self):
         """Give rewards for pre-enabled attack/defense steps"""
@@ -189,7 +200,7 @@ class MalSimulator():
             if not node_reward:
                 continue
 
-            for agent in self._agents_dict.values():
+            for agent in self.agents.values():
 
                 if agent.type == AgentType.ATTACKER:
                     attacker = self.attack_graph.attackers[agent.attacker_id]
@@ -205,18 +216,12 @@ class MalSimulator():
 
     def _init_agent_action_surfaces(self):
         """Set agent action surfaces according to current state"""
-        for agent in self._agents_dict.values():
+        for agent in self.agents.values():
             if agent.type == AgentType.ATTACKER:
-                # Get the Attacker object
-                attacker = \
-                    self.attack_graph.attackers[agent.attacker_id]
-
-                # Get current action surface
-                agent.action_surface = \
-                    query.get_attack_surface(attacker)
+                attacker = self.attack_graph.attackers[agent.attacker_id]
+                agent.action_surface = query.calculate_attack_surface(attacker)
 
             elif agent.type == AgentType.DEFENDER:
-                # Get current action surface
                 agent.action_surface = \
                     query.get_defense_surface(self.attack_graph)
             else:
@@ -225,10 +230,12 @@ class MalSimulator():
     def _reset_agents(self):
         """Reset agent rewards and action surfaces"""
 
-        # Revive dead agents
-        self.agents = copy.deepcopy(self.possible_agents)
+        self.alive_agents = dict(sorted(
+            self.agents.items(),
+            key=lambda agent: agent[1].type == AgentType.ATTACKER,
+        ))
 
-        for agent in self._agents_dict.values():
+        for agent in self.agents.values():
             # Reset agent reward
             agent.reward = 0
 
@@ -243,20 +250,17 @@ class MalSimulator():
         """Register a mal sim agent"""
 
         logger.info('Registering agent "%s".', agent)
-        assert agent.name not in self._agents_dict, \
+        assert agent.name not in self.agents, \
             f"Duplicate agent named {agent.name} not allowed"
 
-        if agent.type == AgentType.DEFENDER:
-            # Defender is first in list so it can pick
-            # actions before attacker when step performed
-            self.agents.insert(0, agent.name)
-            self.possible_agents.insert(0, agent.name)
-        elif agent.type == AgentType.ATTACKER:
-            # Attacker goes last
-            self.agents.append(agent.name)
-            self.possible_agents.append(agent.name)
+        self.agents[agent.name] = agent
 
-        self._agents_dict[agent.name] = agent
+        # Defender is first in list so it can pick
+        # actions before attacker when step performed
+        self.alive_agents = dict(sorted(
+            self.agents.items(),
+            key=lambda agent: agent[1].type == AgentType.ATTACKER,
+        ))
 
     def register_attacker(self, name: str, attacker_id: int):
         """Register a mal sim attacker agent"""
@@ -268,31 +272,22 @@ class MalSimulator():
         agent_state = MalSimDefenderState(name)
         self._register_agent(agent_state)
 
-    def get_agent_state(self, name: str) -> MalSimAgentStateView:
-        """Return read only agent state for agent with given name"""
-
-        assert name in self._agents_dict, (
-            f"Agent with name '{name}' does not exist")
-        agent = self._agents_dict[name]
-        return MalSimAgentStateView(agent)
-
-    def get_agents(self) -> list[MalSimAgentStateView]:
+    @property
+    def agent_states(self) -> list[MalSimAgentStateView]:
         """Return read only agent state for all dead and alive agents"""
-        return [self.get_agent_state(agent) for agent in self.possible_agents]
+        return {name: MalSimAgentStateView(agent) for name, agent in self.agents.items()}
 
     def _get_attacker_agents(self) -> list[MalSimAttackerState]:
         """Return list of mutable attacker agent states"""
-        return [a for a in self._agents_dict.values()
-                if a.type == AgentType.ATTACKER]
+        return [a for a in self.agents.values() if a.type == AgentType.ATTACKER]
 
     def _get_defender_agents(self) -> list[MalSimDefenderState]:
         """Return list of mutable defender agent states"""
-        return [a for a in self._agents_dict.values()
-                if a.type == AgentType.DEFENDER]
+        return [a for a in self.agents.values() if a.type == AgentType.DEFENDER]
 
     def _disable_attack_steps(
-            self, attack_steps_to_disable: list[AttackGraphNode]
-        ):
+        self, attack_steps_to_disable: set[AttackGraphNode]
+    ):
         """Disable nodes for each attacker agent
 
         For each compromised attack step uncompromise the node, disable its
@@ -316,18 +311,19 @@ class MalSimulator():
                     attacker.undo_compromise(unviable_node)
 
     def _attacker_step(
-            self, agent: MalSimAttackerState, nodes: list[AttackGraphNode]
-        ) -> list[AttackGraphNode]:
+        self, agent: MalSimAttackerState, nodes: list[AttackGraphNode]
+    ) -> tuple[set[AttackGraphNode], set[AttackGraphNode]]:
         """Compromise attack step nodes with attacker
 
         Args:
         agent - the agent to compromise nodes with
         nodes - the nodes to compromise
 
-        Returns: list of attack steps nodes that were compromised
+        Returns: tuple of set of attack steps nodes that were compromised and
+                 the new nodes that became available in the attack surface
         """
 
-        enabled_nodes = []
+        compromised_nodes = set()
         attacker = self.attack_graph.attackers[agent.attacker_id]
 
         for node in nodes:
@@ -349,19 +345,23 @@ class MalSimulator():
                 agent.reward += node_reward
                 for d_agent in self._get_defender_agents():
                     d_agent.reward -= node_reward
-                enabled_nodes.append(node)
+                compromised_nodes.add(node)
 
                 logger.info(
                     'Attacker agent "%s" compromised "%s"(%d).',
                     agent.name, node.full_name, node.id
                 )
-
-                # Update attacker action surface
-                query.update_attack_surface_add_nodes(
-                    attacker, agent.action_surface, [node])
             else:
                 logger.warning("Attacker could not compromise %s",
-                            node.full_name)
+                               node.full_name)
+
+        # Update attacker action surface
+        new_attack_surface = query.calculate_attack_surface(
+            attacker, from_nodes=compromised_nodes, skip_compromised=True
+        )
+
+        # TODO: why extend?
+        agent.action_surface |= new_attack_surface
 
         # Terminate attacker if it has nothing left to do
         terminate = True
@@ -371,22 +371,23 @@ class MalSimulator():
                 break
         agent.terminated = terminate
 
-        return enabled_nodes
+        return compromised_nodes, new_attack_surface
 
     def _defender_step(
-            self, agent: MalSimDefenderState, nodes: list[AttackGraphNode]
-        ) -> tuple[list[AttackGraphNode], list[AttackGraphNode]]:
-        """Enable defense step nodes with defender
+        self, agent: MalSimDefenderState, nodes: list[AttackGraphNode]
+    ) -> tuple[set[AttackGraphNode], set[AttackGraphNode]]:
+        """Enable defense step nodes with defender.
 
         Args:
         agent - the agent to activate defense nodes with
         nodes - the defense step nodes to enable
 
-        Returns: list of defense steps nodes that were enabled
+        Returns: tuple of defense steps that were enabled and attack steps that
+                 became unviable due to enabled defenses
         """
 
-        attack_steps_made_unviable = []
-        enabled_defenses = []
+        enabled_defenses = set()
+        attack_steps_made_unviable = set()
 
         for node in nodes:
             assert node == self.attack_graph.nodes[node.id], (
@@ -411,31 +412,24 @@ class MalSimulator():
             if node.is_available_defense():
                 node.defense_status = 1.0
                 node.is_viable = False
-                attack_steps_made_unviable += \
+                attack_steps_made_unviable |= \
                     apriori.propagate_viability_from_unviable_node(node)
                 agent.reward -= node.extras.get("reward", 0)
-                enabled_defenses.append(node)
+                enabled_defenses.add(node)
                 logger.info(
                     'Defender agent "%s" enabled "%s"(%d).',
                     agent.name, node.full_name, node.id
                 )
 
-
         for node in enabled_defenses:
             # Remove enabled defenses from defender action surfaces
             for defender_agent in self._get_defender_agents():
-                try:
-                    defender_agent.action_surface.remove(node)
-                except ValueError:
-                    pass
+                defender_agent.action_surface.discard(node)
 
         for attack_step in attack_steps_made_unviable:
             # Remove unviable attack steps from attacker action surfaces
             for attacker_agent in self._get_attacker_agents():
-                try:
-                    attacker_agent.action_surface.remove(attack_step)
-                except ValueError:
-                    pass
+                attacker_agent.action_surface.discard(attack_step)
 
         if self.sim_settings.uncompromise_untraversable_steps:
             self._disable_attack_steps(attack_steps_made_unviable)
@@ -443,8 +437,9 @@ class MalSimulator():
         return enabled_defenses, attack_steps_made_unviable
 
     def step(
-            self, actions: dict[str, list[AttackGraphNode]]
-        ) -> tuple[list[AttackGraphNode], list[AttackGraphNode]]:
+        # TODO: Do we care about order of requested actions to have a list?
+        self, actions: dict[str, list[AttackGraphNode]]
+    ) -> dict[str, MalSimAgentStateView]:
         """Take a step in the simulation
 
         Args:
@@ -452,35 +447,41 @@ class MalSimulator():
                   contains the actions for that user.
 
         Returns:
-        - (enabled_nodes, disabled_nodes)
+        - (compromised_nodes, new_attack_surface, disabled_nodes)
         """
-        logger.debug(
-            "Stepping through iteration %d/%d", self.cur_iter, self.max_iter)
+        logger.debug("Stepping through iteration %d/%d", self.cur_iter, self.max_iter)
         logger.debug("Performing actions: %s", actions)
 
-        enabled_nodes = []
-        disabled_nodes = []
+        disabled_nodes = set()
+        all_performed = set()
+
         all_attackers_terminated = True
 
-        # Peform agent actions
+        # Perform agent actions
         # Note: by design, defenders perform actions
         # before attackers (see _register_agent)
-        for agent_name in self.agents:
-            agent = self._agents_dict[agent_name]
-            agent_actions = actions.get(agent_name, [])
-            match agent.type:
+        for agent in self.alive_agents.values():
+            agent_actions = actions.get(agent.name, [])
 
+            agent.step_disabled_nodes = disabled_nodes
+
+            match agent.type:
                 case AgentType.ATTACKER:
-                    enabled = self._attacker_step(agent, agent_actions)
-                    enabled_nodes += enabled
+                    performed_steps, new_surface = self._attacker_step(
+                        agent, agent_actions
+                    )
+                    agent.step_action_surface = new_surface
+                    agent.step_compromised_nodes = performed_steps
+                    all_performed |= performed_steps
                     if not agent.terminated:
                         all_attackers_terminated = False
 
                 case AgentType.DEFENDER:
-                    enabled, disabled = \
+                    enabled_defenses, disabled = \
                         self._defender_step(agent, agent_actions)
-                    enabled_nodes += enabled
-                    disabled_nodes += disabled
+                    agent.step_compromised_nodes = all_performed
+                    agent.step_enabled_defenses = enabled_defenses
+                    disabled_nodes |= disabled
 
                 case _:
                     logger.error(
@@ -489,29 +490,25 @@ class MalSimulator():
                     )
 
         if all_attackers_terminated:
-            # Terminate all agents if all attackers are terminated
+            # Terminate all defenders if all attackers are terminated
             logger.info("All attackers are terminated")
-            for agent in self._agents_dict.values():
+            for agent in self.agents.values():
                 agent.terminated = True
 
         if self.cur_iter >= self.max_iter:
             # Truncate all agents when max iter is reached
             logger.info("Max iteration reached - all agents truncated")
-            for agent in self._agents_dict.values():
+            for agent in self.agents.values():
                 agent.truncated = True
 
-        agents_to_remove = set()
-        for agent_name in self.agents:
-            agent = self._agents_dict[agent_name]
+        for agent in self.alive_agents.copy().values():
             if agent.terminated or agent.truncated:
                 logger.info("Removing agent %s", agent.name)
-                agents_to_remove.add(agent.name)
-
-        for agent in agents_to_remove:
-            self.agents.remove(agent)
+                del self.alive_agents[agent.name]
 
         self.cur_iter += 1
-        return enabled_nodes, disabled_nodes
+
+        return self.agent_states
 
     def render(self):
         """Render attack graph from simulation in Neo4J"""

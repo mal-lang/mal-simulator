@@ -19,6 +19,8 @@ agents:
   'Attacker1':
     type: attacker
     agent_class: BreadthFirstAttacker
+    config:
+      seed: 1
     entry_points:
     - 'Credentials:6:attemptCredentialsReuse'
 

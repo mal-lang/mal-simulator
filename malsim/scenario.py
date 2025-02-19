@@ -137,10 +137,9 @@ def _validate_scenario_property_rules(
                 "observability/actionability rules"
             )
 
-    asset_names = set(a.name for a in graph.model.assets.values())
     for asset_name in rules.get('by_asset_name', []):
         # Make sure each specified asset exist
-        assert asset_name in asset_names, (
+        assert asset_name in graph.model._name_to_asset, (
             f"Failed to find asset name '{asset_name}' in model "
             f"'{graph.model.name}' when applying scenario" 
             "observability/actionability rules")
@@ -201,7 +200,7 @@ def apply_scenario_node_property_rules(
 
 def apply_attacker_entrypoints(
         attack_graph: AttackGraph, attacker_name: str, entry_points: dict
-) -> None:
+) -> int:
     """Apply attacker entrypoints to attackgraph from scenario
 
     Creater attacker, add entrypoints to it and compromise them.
@@ -234,7 +233,7 @@ def apply_attacker_entrypoints(
 
 
 def load_simulator_agents(
-        attack_graph: AttackGraph, scenario: dict, agent_config={}
+        attack_graph: AttackGraph, scenario: dict
     ) -> list[dict[str, Any]]:
     """Load agents to be registered in MALSimulator
 
@@ -250,38 +249,37 @@ def load_simulator_agents(
     # Create list of agents dicts
     agents = []
 
-    if agents_config := scenario.get('agents', {}):
+    for agent_name, agent_info in scenario.get('agents', {}).items():
+        class_name = agent_info.get('agent_class')
+        agent_type = AgentType(agent_info.get('type'))
+        agent_dict = {'name': agent_name, 'type': agent_type}
+        agent_config = agent_info.get('config', {})
 
-        for agent_name, agent_info in agents_config.items():
-            class_name = agent_info.get('agent_class')
-            agent_type = AgentType(agent_info.get('type'))
-            agent_dict = {'name': agent_name, 'type': agent_type}
+        if agent_type == AgentType.ATTACKER:
+            # Attacker has entrypoints
+            entry_points = agent_info.get('entry_points')
+            attacker_id = apply_attacker_entrypoints(
+                attack_graph, agent_name, entry_points
+            )
+            agent_dict['attacker_id'] = attacker_id
 
-            if agent_type == AgentType.ATTACKER:
-                # Attacker has entrypoints
-                entry_points = agent_info.get('entry_points')
-                attacker_id = apply_attacker_entrypoints(
-                    attack_graph, agent_name, entry_points
-                )
-                agent_dict['attacker_id'] = attacker_id
-
-            if class_name is None:
-                # No class name - no agent object created
-                agents.append(agent_dict)
-                continue
-
-            if class_name not in agent_class_name_to_class:
-                # Illegal class agent
-                raise LookupError(
-                    f"Agent class '{class_name}' not supported"
-                )
-
-            # Initialize the agent object
-            agent_class = agent_class_name_to_class[class_name]
-            agent = agent_class(agent_config)
-            agent_dict['agent_class'] = agent_class
-            agent_dict['agent'] = agent
+        if class_name is None:
+            # No class name - no agent object created
             agents.append(agent_dict)
+            continue
+
+        if class_name not in agent_class_name_to_class:
+            # Illegal class agent
+            raise LookupError(
+                f"Agent class '{class_name}' not supported"
+            )
+
+        # Initialize the agent object
+        agent_class = agent_class_name_to_class[class_name]
+        agent = agent_class(agent_config)
+        agent_dict['agent_class'] = agent_class
+        agent_dict['agent'] = agent
+        agents.append(agent_dict)
 
     return agents
 
@@ -312,10 +310,7 @@ def apply_scenario_to_attack_graph(
             attack_graph, node_prop, node_prop_settings)
 
 
-def load_scenario(
-        scenario_file: str,
-        agent_config={}
-    ) -> tuple[AttackGraph, list[dict[str, Any]]]:
+def load_scenario(scenario_file: str) -> tuple[AttackGraph, list[dict[str, Any]]]:
     """Load a scenario from a scenario file to an AttackGraph"""
 
     with open(scenario_file, 'r', encoding='utf-8') as s_file:
@@ -329,11 +324,7 @@ def load_scenario(
         apply_scenario_to_attack_graph(attack_graph, scenario)
 
         # Load the scenario configuration
-        scenario_agents = load_simulator_agents(
-            attack_graph,
-            scenario,
-            agent_config=agent_config
-        )
+        scenario_agents = load_simulator_agents(attack_graph, scenario)
 
         return attack_graph, scenario_agents
 
@@ -341,7 +332,6 @@ def load_scenario(
 def create_simulator_from_scenario(
         scenario_file: str,
         sim_class=MalSimulator,
-        agent_config={},
         **kwargs,
     ) -> tuple[MalSimulator, list[dict[str, Any]]]:
     """Creates and returns a MalSimulator created according to scenario file
@@ -358,12 +348,9 @@ def create_simulator_from_scenario(
     - agents: the agent infos as a list of dicts
     """
 
-    attack_graph, scenario_agents = load_scenario(scenario_file, agent_config=agent_config)
+    attack_graph, scenario_agents = load_scenario(scenario_file)
 
-    sim = sim_class(
-        attack_graph,
-        **kwargs
-    )
+    sim = sim_class(attack_graph, **kwargs)
 
     # Register agents in simulator
     for agent_dict in scenario_agents:

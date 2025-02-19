@@ -13,11 +13,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
   "py2neo>=2021.2.3",
-  "python-jsonschema-objects>=0.4.1",
   "mal-toolbox>=0.3,<0.4",
-  "numpy>=1.21.4",
-  "pettingzoo>=1.24.2",
-  "gymnasium==1.0",
   "PyYAML>=6.0.1"
 ]
 license = {text = "Apache Software License"}
@@ -29,6 +25,18 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering"
+]
+
+[project.optional-dependencies]
+ml = [
+  "numpy>=1.21.4",
+  "pettingzoo>=1.24.2",
+  "gymnasium==1.0",
+]
+dev = [
+  "pytest",
+  "mypy",
+  "ruff",
 ]
 
 [project.urls]

@@ -1,11 +1,11 @@
 from __future__ import annotations
 import logging
+import random
 import re
 
 from collections import deque
+from collections.abc import Iterable
 from typing import Optional, TYPE_CHECKING
-
-import numpy as np
 
 from .decision_agent import DecisionAgent
 from ..mal_simulator import MalSimAgentStateView
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class BreadthFirstAttacker(DecisionAgent):
     """A Breadth-First agent, with possible randomization at each level."""
 
-    _extend_method = "extendleft"
+    _extend_method = 'extendleft'
     # Controls where newly discovered steps will be appended to the list of
     # available actions. Currently used to differentiate between BFS and DFS
     # agents.
@@ -32,7 +32,8 @@ class BreadthFirstAttacker(DecisionAgent):
         # Whether to randomize next target selection, still respecting the
         # policy of the agent (e.g. BFS or DFS).
         'seed': None,
-        # The random seed to initialize the randomness engine with.
+        # The random seed to initialize the randomness engine with. If set, the
+        # simulation will be deterministic.
     }
 
     def __init__(self, agent_config: dict) -> None:
@@ -46,23 +47,23 @@ class BreadthFirstAttacker(DecisionAgent):
 
         self.settings = self.default_settings | agent_config
 
-        self.rng = np.random.default_rng(
-            self.settings['seed'] or np.random.SeedSequence()
-        )
+        self.rng = random.Random(self.settings.get('seed'))
 
     def get_next_action(
-        self, agent: MalSimAgentStateView, **kwargs
+        self, agent_state: MalSimAgentStateView, **kwargs
     ) -> Optional[AttackGraphNode]:
-        self._update_targets(agent.action_surface)
+        self._update_targets(agent_state.action_surface)
         self._select_next_target()
 
         return self.current_target
 
-    def _update_targets(self, action_surface: list[AttackGraphNode]):
-
-        # action surface does not have a guaranteed order,
-        # so for the agent to be deterministic we need to sort
-        action_surface.sort(key=lambda n: n.id)
+    def _update_targets(self, action_surface: Iterable[AttackGraphNode]):
+        if self.settings['seed']:
+            # If a seed is set, we assume the user wants determinism in the
+            # simulation. Thus, we sort to an ordered list to make sure the
+            # non-deterministic ordering of the action_surface set does not
+            # break simulation determinism.
+            action_surface = sorted(list(action_surface), key=lambda n: n.id)
 
         new_targets = [
             step
@@ -95,4 +96,4 @@ class BreadthFirstAttacker(DecisionAgent):
 
 
 class DepthFirstAttacker(BreadthFirstAttacker):
-    _extend_method = "extend"
+    _extend_method = 'extend'
