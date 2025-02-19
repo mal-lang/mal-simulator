@@ -11,7 +11,7 @@ import gymnasium as gym
 from gymnasium.utils import env_checker
 from pettingzoo.test import parallel_api_test
 
-from malsim.sims import MalSimVectorizedObsEnv
+from malsim.wrappers import MalSimVectorizedObsEnv
 from malsim.wrappers.gym_wrapper import AttackerEnv, DefenderEnv, MaskingWrapper
 from malsim.agents.searchers import BreadthFirstAttacker, DepthFirstAttacker
 

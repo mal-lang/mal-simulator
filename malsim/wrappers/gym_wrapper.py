@@ -8,7 +8,8 @@ from gymnasium.core import RenderFrame
 import numpy as np
 
 from ..scenario import load_scenario
-from ..sims import MalSimulator, MalSimVectorizedObsEnv, AgentType
+from ..sims import MalSimulator, AgentType
+from ..wrappers import MalSimVectorizedObsEnv
 from ..agents import DecisionAgent
 
 
