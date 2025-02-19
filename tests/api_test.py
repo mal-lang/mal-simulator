@@ -52,8 +52,6 @@ def test_gym():
     )
     env_checker.check_env(env.unwrapped)
 
-    pass
-
 
 def test_random_defender_actions():
     register_gym_agent('MALDefenderEnv-v0', entry_point=DefenderEnv)
@@ -105,7 +103,7 @@ def test_episode():
 
 
 def test_mask():
-    gym.register('MALDefenderEnv-v0', entry_point=DefenderEnv)
+    register_gym_agent('MALDefenderEnv-v0', entry_point=DefenderEnv)
     env = gym.make(
         'MALDefenderEnv-v0',
         scenario_file='tests/testdata/scenarios/simple_scenario.yml',

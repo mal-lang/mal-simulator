@@ -10,9 +10,13 @@ agents:
   'attacker1':
     agent_class: BreadthFirstAttacker
     type: attacker
+    config:
+      seed: 1
     entry_points:
       - 'Internet:accessUninspected'
 
   'defender1':
     agent_class: BreadthFirstAttacker
     type: defender
+    config:
+      seed: 1

@@ -13,7 +13,7 @@ class DecisionAgent(ABC):
     @abstractmethod
     def get_next_action(
         self,
-        agent: MalSimAgentStateView,
+        agent_state: MalSimAgentStateView,
         **kwargs
     ) -> Optional[AttackGraphNode]:
         """
@@ -33,7 +33,7 @@ class PassiveAgent(DecisionAgent):
 
     def get_next_action(
         self,
-        agent: MalSimAgentStateView,
+        agent_state: MalSimAgentStateView,
         **kwargs
     ) -> Optional[AttackGraphNode]:
         ...

@@ -38,7 +38,7 @@ def run_simulation(sim: MalSimulator, agents: list[dict]):
                 )
                 continue
 
-            sim_agent_state = sim.get_agent_state(agent_name)
+            sim_agent_state = sim.agent_states[agent_name]
             agent_action = decision_agent.get_next_action(sim_agent_state)
             if agent_action:
                 actions[agent_name] = [agent_action]
@@ -52,7 +52,7 @@ def run_simulation(sim: MalSimulator, agents: list[dict]):
 
         for agent_dict in agents:
             agent_name = agent_dict['name']
-            agent_state = sim.get_agent_state(agent_name)
+            agent_state = sim.agent_states[agent_name]
             total_rewards[agent_name] += agent_state.reward
             if not agent_state.terminated and not agent_state.truncated:
                 all_agents_term_or_trunc = False
@@ -80,10 +80,7 @@ def main():
     )
     args = parser.parse_args()
 
-    sim, agents = \
-        create_simulator_from_scenario(
-            args.scenario_file,
-        )
+    sim, agents = create_simulator_from_scenario(args.scenario_file)
 
     if args.output_attack_graph:
         sim.attack_graph.save_to_file(args.output_attack_graph)
