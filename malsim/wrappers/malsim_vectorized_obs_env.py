@@ -16,7 +16,7 @@ from gymnasium.spaces import MultiDiscrete, Box, Dict
 from pettingzoo import ParallelEnv
 from maltoolbox.attackgraph import AttackGraphNode
 
-from ..sims.mal_simulator import (
+from ..mal_simulator import (
     MalSimulator,
     AgentType,
     MalSimAgentState,

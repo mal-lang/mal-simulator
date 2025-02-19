@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from malsim.scenario import create_simulator_from_scenario
 from malsim.cli import run_simulation
-from malsim.sims import MalSimulator
+from malsim.mal_simulator import MalSimulator
 
 
 def path_relative_to_tests(filename):

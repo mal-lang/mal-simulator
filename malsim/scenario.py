@@ -25,7 +25,7 @@ from .agents import (
     PassiveAgent
 )
 
-from .sims.mal_simulator import AgentType, MalSimulator
+from .mal_simulator import AgentType, MalSimulator
 
 agent_class_name_to_class = {
     'DepthFirstAttacker': DepthFirstAttacker,

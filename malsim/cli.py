@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import logging
 
-from .sims import MalSimulator
+from .mal_simulator import MalSimulator
 from .agents import DecisionAgent
 from .scenario import create_simulator_from_scenario
 

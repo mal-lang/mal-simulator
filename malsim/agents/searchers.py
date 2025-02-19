@@ -8,7 +8,7 @@ from typing import Optional, TYPE_CHECKING
 import numpy as np
 
 from .decision_agent import DecisionAgent
-from ..sims import MalSimAgentStateView
+from ..mal_simulator import MalSimAgentStateView
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode

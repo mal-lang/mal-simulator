@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from ..sims import MalSimulator, MalSimAgentStateView
+from ..mal_simulator import MalSimulator, MalSimAgentStateView
 
 class MalSimEnv(ABC):
 

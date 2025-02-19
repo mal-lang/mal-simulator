@@ -6,7 +6,7 @@ from maltoolbox.attackgraph import create_attack_graph
 from maltoolbox.language import (
     LanguageGraph, LanguageGraphAttackStep, LanguageGraphAsset
 )
-from malsim.sims import MalSimulator
+from malsim.mal_simulator import MalSimulator
 from malsim.wrappers import MalSimVectorizedObsEnv
 
 model_file_name = 'tests/testdata/models/simple_test_model.yml'

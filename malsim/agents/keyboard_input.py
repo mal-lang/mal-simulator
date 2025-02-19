@@ -3,7 +3,7 @@ import logging
 from typing import TYPE_CHECKING, Optional
 
 from .decision_agent import DecisionAgent
-from ..sims import MalSimAgentStateView
+from ..mal_simulator import MalSimAgentStateView
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode

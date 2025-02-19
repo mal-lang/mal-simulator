@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional
 from abc import ABC, abstractmethod
 
 if TYPE_CHECKING:
-    from ..sims import MalSimAgentStateView
+    from ..mal_simulator import MalSimAgentStateView
     from maltoolbox.attackgraph import AttackGraphNode
 
 class DecisionAgent(ABC):
