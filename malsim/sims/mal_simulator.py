@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import copy
+from dataclasses import dataclass, field
 import logging
+from enum import Enum
 from typing import Optional
 
 from maltoolbox import neo4j_configs
@@ -9,17 +11,106 @@ from maltoolbox.ingestors import neo4j
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode, query
 from maltoolbox.attackgraph.analyzers import apriori
 
-from .mal_sim_settings import MalSimulatorSettings
-from .mal_sim_agent_state import (
-    AgentType,
-    MalSimAgentState,
-    MalSimAgentStateView,
-    MalSimAttackerState,
-    MalSimDefenderState
-)
-
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
+
+
+class AgentType(Enum):
+    """Enum for agent types"""
+    ATTACKER = 'attacker'
+    DEFENDER = 'defender'
+
+
+@dataclass
+class MalSimAgentState:
+    """Stores the state of an agent in the simulator"""
+
+    # Identifier of the agent, used in MalSimulator for lookup
+    name: str
+    type: AgentType
+
+    # Contains current agent reward in the simulation
+    # Attackers get positive rewards, defenders negative
+    reward: int = 0
+
+    # Contains possible actions for the agent in the next step
+    action_surface: list[AttackGraphNode] = field(default_factory=list)
+
+    # Fields that tell if agent is 'dead' / disabled
+    truncated: bool = False
+    terminated: bool = False
+
+    # Fields that are not used by 'base' MalSimulator
+    # but can be useful in wrappers/envs
+    observation: dict = field(default_factory=dict)
+    info: dict = field(default_factory=dict)
+
+
+class MalSimAttackerState(MalSimAgentState):
+    """Stores the state of an attacker in the simulator"""
+    def __init__(self, name: str, attacker_id: int):
+        super().__init__(name, AgentType.ATTACKER)
+        self.attacker_id = attacker_id
+
+
+class MalSimDefenderState(MalSimAgentState):
+    """Stores the state of a defender in the simulator"""
+    def __init__(self, name: str):
+        super().__init__(name, AgentType.DEFENDER)
+
+
+class MalSimAgentStateView:
+    """Read-only interface to MalSimAgentState."""
+    def __init__(self, agent: MalSimAgentState):
+        self._agent = agent
+
+    @property
+    def name(self) -> str:
+        return self._agent.name
+
+    @property
+    def type(self) -> AgentType:
+        return self._agent.type
+
+    @property
+    def reward(self) -> int:
+        return self._agent.reward
+
+    @property
+    def truncated(self) -> bool:
+        return self._agent.truncated
+
+    @property
+    def terminated(self) -> bool:
+        return self._agent.terminated
+
+    @property
+    def action_surface(self) -> list[AttackGraphNode]:
+        return self._agent.action_surface
+
+    @property
+    def attacker_id(self) -> int:
+        assert isinstance(self._agent, MalSimAttackerState), \
+               "Only MalSimAttackers have property attacker_id"
+        return self._agent.attacker_id
+
+
+@dataclass
+class MalSimulatorSettings():
+    """Contains settings used in MalSimulator"""
+
+    # uncompromise_untraversable_steps
+    # - Uncompromise (evict attacker) from nodes/steps that are no longer
+    #   traversable (often because a defense kicked in) if set to True
+    # otherwise:
+    # - Leave the node/step compromised even after it becomes untraversable
+    uncompromise_untraversable_steps: bool = False
+
+    # cumulative_defender_obs
+    # - Defender sees the status of the whole attack graph if set to True
+    # otherwise:
+    # - Defender only sees the status of nodes changed in the current step
+    cumulative_defender_obs: bool = True
 
 class MalSimulator():
     """A MAL Simulator that works on the AttackGraph
