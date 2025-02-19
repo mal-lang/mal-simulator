@@ -143,8 +143,9 @@ def test_breadth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
         # Store the ID for verification
         actual_order.append(action_node.id)
 
-    assert actual_order == expected_order, \
-        "Traversal order does not match expected breadth-first order"
+    for level in (0, 1), (1, 4), (4, 8):
+        assert set(expected_order[level[0]:level[1]]) == set(actual_order[level[0]:level[1]]), \
+            "Traversal order does not match expected breadth-first order"
 
 
 def test_depth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):

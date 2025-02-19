@@ -19,7 +19,7 @@ class KeyboardAgent(DecisionAgent):
 
     def get_next_action(
             self,
-            agent: MalSimAgentStateView,
+            agent_state: MalSimAgentStateView,
             **kwargs
         ) -> Optional[AttackGraphNode]:
         """Compute action from action_surface"""
@@ -33,17 +33,17 @@ class KeyboardAgent(DecisionAgent):
             except ValueError:
                 return False
 
-            return 0 <= node <= len(agent.action_surface)
+            return 0 <= node <= len(agent_state.action_surface)
 
         def get_action_object(user_input: str) -> tuple:
             node = int(user_input) if user_input != "" else None
             return node
 
-        if not agent.action_surface:
+        if not agent_state.action_surface:
             print("No actions to pick for defender")
             return []
 
-        index_to_node = dict(enumerate(agent.action_surface))
+        index_to_node = dict(enumerate(agent_state.action_surface))
         user_input = "xxx"
         while not valid_action(user_input):
             print("Available actions:")
