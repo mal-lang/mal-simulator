@@ -219,7 +219,7 @@ class MalSimulator():
         for agent in self.agents.values():
             if agent.type == AgentType.ATTACKER:
                 attacker = self.attack_graph.attackers[agent.attacker_id]
-                agent.action_surface = query.get_attack_surface(attacker)
+                agent.action_surface = query.calculate_attack_surface(attacker)
 
             elif agent.type == AgentType.DEFENDER:
                 agent.action_surface = \
@@ -319,7 +319,8 @@ class MalSimulator():
         agent - the agent to compromise nodes with
         nodes - the nodes to compromise
 
-        Returns: list of attack steps nodes that were compromised
+        Returns: tuple of set of attack steps nodes that were compromised and
+                 the new nodes that became available in the attack surface
         """
 
         compromised_nodes = set()
@@ -349,8 +350,10 @@ class MalSimulator():
                                node.full_name)
 
         # Update attacker action surface
-        new_attack_surface = query.get_attack_surface(attacker,
-                                                      compromised_nodes)
+        new_attack_surface = query.calculate_attack_surface(
+            attacker, from_nodes=compromised_nodes, skip_compromised=True
+        )
+
         # TODO: why extend?
         agent.action_surface |= new_attack_surface
 

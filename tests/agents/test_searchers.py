@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 from maltoolbox.attackgraph import AttackGraphNode, Attacker
-from maltoolbox.attackgraph.query import get_attack_surface
+from maltoolbox.attackgraph.query import calculate_attack_surface
 from maltoolbox.language import LanguageGraph
 from malsim.mal_simulator import MalSimAgentStateView
 from malsim.agents import BreadthFirstAttacker, DepthFirstAttacker
@@ -61,7 +61,7 @@ def test_breadth_first_traversal_simple(dummy_lang_graph: LanguageGraph):
 
         # Mark node as compromised
         attacker.compromise(action_node)
-        agent.action_surface = get_attack_surface(attacker)
+        agent.action_surface = calculate_attack_surface(attacker)
 
         # Store the ID for verification
         actual_order.append(action_node.id)
@@ -138,7 +138,7 @@ def test_breadth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
 
         # Mark node as compromised
         attacker.compromise(action_node)
-        agent.action_surface = get_attack_surface(attacker)
+        agent.action_surface = calculate_attack_surface(attacker)
 
         # Store the ID for verification
         actual_order.append(action_node.id)
@@ -216,7 +216,7 @@ def test_depth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
 
         # Mark node as compromised
         attacker.compromise(action_node)
-        agent.action_surface = get_attack_surface(attacker)
+        agent.action_surface = calculate_attack_surface(attacker)
 
         # Store the ID for verification
         actual_order.append(action_node.id)
