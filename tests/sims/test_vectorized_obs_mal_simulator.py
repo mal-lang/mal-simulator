@@ -202,10 +202,18 @@ def test_create_blank_observation_actionability_given(
 
 def test_step(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
+    entry_point = attack_graph.get_node_by_full_name('OS App:fullAccess')
 
-    attacker = Attacker('attacker1', set(), set())
+    attacker = Attacker(
+        'attacker1',
+        reached_attack_steps = {entry_point},
+        entry_points = {entry_point},
+        attacker_id = 100)
     attack_graph.add_attacker(attacker, attacker.id)
     env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
+
+    # Refresh attack graph reference to the one deepcopied during the reset
+    attack_graph = env.sim.attack_graph
 
     agent_info = MalSimAttackerState(attacker.name, attacker.id)
 
@@ -215,9 +223,8 @@ def test_step(corelang_lang_graph, model):
     actions = env.sim._attacker_step(agent_info, [defense_step])
     assert not actions
 
-    # Can attack the attemptUseVulnerability step!
-    attack_step = attack_graph\
-        .get_node_by_full_name('OS App:attemptUseVulnerability')
+    # Can attack the attemptRead step
+    attack_step = attack_graph.get_node_by_full_name('OS App:attemptRead')
     actions = env.sim._attacker_step(agent_info, [attack_step])
     assert actions == [attack_step]
 

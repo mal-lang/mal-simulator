@@ -21,8 +21,9 @@ def test_reset(corelang_lang_graph, model):
 
     attacker = Attacker(
         attacker_name,
-        entry_points={agent_entry_point},
-        reached_attack_steps={agent_entry_point}
+        entry_points = {agent_entry_point},
+        reached_attack_steps = {agent_entry_point},
+        attacker_id = 100
     )
 
     attack_graph.add_attacker(attacker, attacker.id)
@@ -118,13 +119,21 @@ def test_get_agents():
 
 def test_attacker_step(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
+    entry_point = attack_graph.get_node_by_full_name('OS App:fullAccess')
 
-    attacker = Attacker('attacker1', set(), set())
+    attacker = Attacker(
+        'attacker1',
+        reached_attack_steps = {entry_point},
+        entry_points = {entry_point},
+        attacker_id = 100
+    )
     attack_graph.add_attacker(attacker, attacker.id)
     sim = MalSimulator(attack_graph)
 
     sim.register_attacker(attacker.name, attacker.id)
     sim.reset()
+    # Refresh attack graph reference to the one deepcopied during the reset
+    attack_graph = sim.attack_graph
     attacker_agent = sim._agents_dict[attacker.name]
 
     # Can not attack the notPresent step
@@ -132,8 +141,8 @@ def test_attacker_step(corelang_lang_graph, model):
     actions = sim._attacker_step(attacker_agent, [defense_step])
     assert not actions
 
-    # Can attack the attemptUseVulnerability step!
-    attack_step = sim.attack_graph.get_node_by_full_name('OS App:attemptUseVulnerability')
+    # Can attack the attemptRead step
+    attack_step = sim.attack_graph.get_node_by_full_name('OS App:attemptRead')
     actions = sim._attacker_step(attacker_agent, [attack_step])
     assert actions == [attack_step]
 

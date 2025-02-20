@@ -36,8 +36,11 @@ def test_breadth_first_traversal_simple(dummy_lang_graph: LanguageGraph):
     node4.parents.add(node3)
 
     # Set up an attacker
-    attacker = Attacker("TestAttacker", set(), set())
-    attacker.entry_points = {node1}
+    attacker = Attacker(
+        name = "TestAttacker",
+        entry_points = {node1},
+        reached_attack_steps = set(),
+        attacker_id = 100)
 
     # Set up a mock MalSimAgentState
     agent = MagicMock()
@@ -100,12 +103,12 @@ def test_breadth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
     node1.children.add(node3)
     node3.parents.add(node1)
     node1.children.add(node8)
-    node8.children.add(node1)
+    node8.parents.add(node1)
 
     node2.children.add(node4)
     node4.parents.add(node2)
     node2.children.add(node5)
-    node5.parents.add(node5)
+    node5.parents.add(node2)
 
     node3.children.add(node6)
     node6.parents.add(node3)
@@ -113,8 +116,11 @@ def test_breadth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
     node7.parents.add(node3)
 
     # Set up an attacker
-    attacker = Attacker("TestAttacker", set(), set())
-    attacker.entry_points = {node1}
+    attacker = Attacker(
+        name = "TestAttacker",
+        entry_points = {node1},
+        reached_attack_steps = set(),
+        attacker_id = 100)
 
     # Set up a mock MalSimAgentState
     agent = MagicMock()
@@ -177,12 +183,12 @@ def test_depth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
     node1.children.add(node3)
     node3.parents.add(node1)
     node1.children.add(node8)
-    node8.children.add(node1)
+    node8.parents.add(node1)
 
     node2.children.add(node4)
     node4.parents.add(node2)
     node2.children.add(node5)
-    node5.parents.add(node5)
+    node5.parents.add(node2)
 
     node3.children.add(node6)
     node6.parents.add(node3)
@@ -190,8 +196,11 @@ def test_depth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
     node7.parents.add(node3)
 
     # Set up an attacker
-    attacker = Attacker("TestAttacker", set(), set())
-    attacker.entry_points = {node1}
+    attacker = Attacker(
+        name = "TestAttacker",
+        entry_points = {node1},
+        reached_attack_steps = set(),
+        attacker_id = 100)
 
     # Set up a mock MalSimAgentState
     agent = MagicMock()
