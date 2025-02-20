@@ -331,6 +331,12 @@ class MalSimulator():
         attacker = self.attack_graph.attackers[agent.attacker_id]
 
         for node in nodes:
+            assert node == self.attack_graph.nodes[node.id], (
+                f"{agent.name} tried to enable a node that is not part "
+                "of this simulators attack_graph. Make sure the node "
+                "comes from the agents action surface."
+            )
+
             logger.info(
                 'Attacker agent "%s" stepping through "%s"(%d).',
                 agent.name, node.full_name, node.id
@@ -383,6 +389,11 @@ class MalSimulator():
         enabled_defenses = []
 
         for node in nodes:
+            assert node == self.attack_graph.nodes[node.id], (
+                f"{agent.name} tried to enable a node that is not part "
+                "of this simulators attack_graph. Make sure the node "
+                "comes from the agents action surface."
+            )
             logger.info(
                 'Defender agent "%s" stepping through "%s"(%d).',
                 agent.name, node.full_name, node.id
