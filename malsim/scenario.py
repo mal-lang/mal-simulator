@@ -137,9 +137,10 @@ def _validate_scenario_property_rules(
                 "observability/actionability rules"
             )
 
+    asset_names = set(a.name for a in graph.model.assets.values())
     for asset_name in rules.get('by_asset_name', []):
         # Make sure each specified asset exist
-        assert asset_name in graph.model.asset_names, (
+        assert asset_name in asset_names, (
             f"Failed to find asset name '{asset_name}' in model "
             f"'{graph.model.name}' when applying scenario" 
             "observability/actionability rules")
