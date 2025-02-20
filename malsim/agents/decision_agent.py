@@ -13,7 +13,7 @@ class DecisionAgent(ABC):
     @abstractmethod
     def get_next_action(
         self,
-        agent: MalSimAgentStateView,
+        agent_state: MalSimAgentStateView,
         **kwargs
     ) -> Optional[AttackGraphNode]:
         """
@@ -25,15 +25,4 @@ class DecisionAgent(ABC):
         Returns:
             The selected action or None if there are no actions to select from.
         """
-        ...
-
-class PassiveAgent(DecisionAgent):
-    def __init__(self, *args, **kwargs):
-        ...
-
-    def get_next_action(
-        self,
-        agent: MalSimAgentStateView,
-        **kwargs
-    ) -> Optional[AttackGraphNode]:
         ...
