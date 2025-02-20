@@ -4,110 +4,67 @@ from __future__ import annotations
 import argparse
 import logging
 
-from .sims.mal_simulator import MalSimulator
-from .agents.keyboard_input import KeyboardAgent
+from .mal_simulator import MalSimulator
+from .agents import DecisionAgent
 from .scenario import create_simulator_from_scenario
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
 
+def run_simulation(sim: MalSimulator, agents: list[dict]):
+    """Run a simulation with agents"""
 
-def run_simulation(sim: MalSimulator, sim_config: dict):
-    """Run a simulation on an attack graph with given config"""
+    sim.reset()
+    total_rewards = {agent_dict['name']: 0 for agent_dict in agents}
+    all_agents_term_or_trunc = False
 
-    # Constants
-    NULL_ACTION = (0, None)
+    logger.info("Starting CLI env simulator.")
 
-    attacker_agent_id = next(iter(sim.get_attacker_agents()))
-    defender_agent_id = next(iter(sim.get_defender_agents()), None)
+    i = 1
+    while not all_agents_term_or_trunc:
+        logger.info("Iteration %s", i)
+        all_agents_term_or_trunc = True
+        actions = {}
 
-    reverse_vocab = sim._index_to_full_name
+        # Select actions for each agent
+        for agent_dict in agents:
+            decision_agent: DecisionAgent = agent_dict.get('agent')
+            agent_name = agent_dict['name']
+            if decision_agent is None:
+                logger.warning(
+                    'Agent "%s" has no decision agent class '
+                    'specified in scenario. Waiting.', agent_name,
+                )
+                continue
 
-    # Initialize defender and attacker according to classes
-    defender_class = sim_config['agents'][defender_agent_id]['agent_class']\
-                     if defender_agent_id else None
-    defender_agent = (defender_class(reverse_vocab)
-                          if defender_class == KeyboardAgent
-                          else defender_class({})
-                      if defender_class
-                      else None)
-
-    attacker_class = sim_config['agents'][attacker_agent_id]['agent_class']
-    attacker_agent = (attacker_class(reverse_vocab)
-                      if attacker_class == KeyboardAgent
-                      else attacker_class({}))
-
-    obs, infos = sim.reset()
-    done = False
-
-    logger.info("Starting game.")
-
-    total_reward_defender = 0
-    total_reward_attacker = 0
-
-    while not done:
-
-        defender_action = NULL_ACTION
-        if defender_agent:
-            defender_action = defender_agent.compute_action_from_dict(
-                obs[defender_agent_id],
-                infos[defender_agent_id]["action_mask"]
-            )
-
-        attacker_action = attacker_agent.compute_action_from_dict(
-            obs[attacker_agent_id],
-            infos[attacker_agent_id]["action_mask"]
-        )
-
-        if attacker_action[1] is not None:
-            logger.info(
-                "Attacker Action: %s", reverse_vocab[attacker_action[1]])
-        else:
-            logger.info("Attacker Action: None")
-            # Stop the attacker if it has run out of things to do since
-            # the experiment cannot progress any further.
-            done = True
-
-        action_dict = {
-            attacker_agent_id: attacker_action,
-            defender_agent_id: defender_action
-        }
+            sim_agent_state = sim.get_agent_state(agent_name)
+            agent_action = decision_agent.get_next_action(sim_agent_state)
+            if agent_action:
+                actions[agent_name] = [agent_action]
+                logger.info(
+                    'Agent "%s" chose action: %s',
+                    agent_name, agent_action.full_name
+                )
 
         # Perform next step of simulation
-        obs, rewards, terminated, truncated, infos = sim.step(action_dict)
+        sim.step(actions)
 
-        logger.debug(
-            "Attacker has compromised the following attack steps so far:"
-        )
-        attacker_obj = sim.attack_graph.attackers[
-            sim.agents_dict[attacker_agent_id]["attacker"]
-        ]
-        for step in attacker_obj.reached_attack_steps:
-            logger.debug(step.id)
-
-        logger.info("Attacker Reward: %s", rewards.get(attacker_agent_id))
-
-        if defender_agent:
-            logger.info("Defender Reward: %s", rewards.get(defender_agent_id))
-
-        total_reward_defender += rewards.get(defender_agent_id, 0) if defender_agent else 0
-        total_reward_attacker += rewards.get(attacker_agent_id, 0)
-
-        done |= terminated.get(attacker_agent_id, True) or truncated.get(attacker_agent_id, True)
-
+        for agent_dict in agents:
+            agent_name = agent_dict['name']
+            agent_state = sim.get_agent_state(agent_name)
+            total_rewards[agent_name] += agent_state.reward
+            if not agent_state.terminated and not agent_state.truncated:
+                all_agents_term_or_trunc = False
         print("---\n")
+        i += 1
 
     logger.info("Game Over.")
 
-    if defender_agent:
-        logger.info("Total Defender Reward: %s", total_reward_defender)
-    logger.info("Total Attacker Reward: %s", total_reward_attacker)
-
-    print("Press Enter to exit.")
-    input()
-    sim.close()
-
+    # Print total rewards
+    for agent_dict in agents:
+        agent_name = agent_dict['name']
+        print(f'Total reward "{agent_name}"', total_rewards[agent_name])
 
 def main():
     """Entrypoint function of the MAL Toolbox CLI"""
@@ -123,11 +80,15 @@ def main():
     )
     args = parser.parse_args()
 
-    # Create simulator from scenario
-    simulator, sim_config = create_simulator_from_scenario(args.scenario_file)
+    sim, agents = \
+        create_simulator_from_scenario(
+            args.scenario_file,
+        )
+
     if args.output_attack_graph:
-        simulator.attack_graph.save_to_file(args.output_attack_graph)
-    run_simulation(simulator, sim_config)
+        sim.attack_graph.save_to_file(args.output_attack_graph)
+
+    run_simulation(sim, agents)
 
 
 if __name__ == '__main__':
