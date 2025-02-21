@@ -137,9 +137,11 @@ def _validate_scenario_property_rules(
                 "observability/actionability rules"
             )
 
+    # TODO: revisit this variable once LookupDicts are merged
+    asset_names = set(a.name for a in graph.model.assets.values())
     for asset_name in rules.get('by_asset_name', []):
         # Make sure each specified asset exist
-        assert asset_name in graph.model._name_to_asset, (
+        assert asset_name in asset_names, (
             f"Failed to find asset name '{asset_name}' in model "
             f"'{graph.model.name}' when applying scenario" 
             "observability/actionability rules")
@@ -218,7 +220,7 @@ def apply_attacker_entrypoints(
         for attacker in all_attackers:
             attack_graph.remove_attacker(attacker)
 
-    attacker = Attacker(attacker_name, set(), set())
+    attacker = Attacker(attacker_name)
     attack_graph.add_attacker(attacker)
 
     for entry_point_name in entry_points:
@@ -241,6 +243,7 @@ def load_simulator_agents(
     register entrypoints for attackers.
 
     Args:
+    - attack_graph: the attack graph
     - scenario: the scenario in question as a dict
     Return:
     - agents: a dict containing agents and their settings

@@ -73,6 +73,8 @@ class MalSimDefenderState(MalSimAgentState):
         super().__init__(name, AgentType.DEFENDER)
 
 
+# Generic T is used here to allow IDEs to provide autocompletions from
+# MalSimAgentState.
 T = TypeVar("T", bound=MalSimAgentState)
 
 
@@ -360,7 +362,6 @@ class MalSimulator():
             attacker, from_nodes=compromised_nodes, skip_compromised=True
         )
 
-        # TODO: why extend?
         agent.action_surface |= new_attack_surface
 
         # Terminate attacker if it has nothing left to do
@@ -437,7 +438,6 @@ class MalSimulator():
         return enabled_defenses, attack_steps_made_unviable
 
     def step(
-        # TODO: Do we care about order of requested actions to have a list?
         self, actions: dict[str, list[AttackGraphNode]]
     ) -> dict[str, MalSimAgentStateView]:
         """Take a step in the simulation
