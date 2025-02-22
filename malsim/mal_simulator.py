@@ -341,7 +341,8 @@ class MalSimulator():
             )
 
             # Compromise node if possible
-            if query.is_node_traversable_by_attacker(node, attacker):
+            if query.is_node_traversable_by_attacker(node, attacker) \
+                    and node in agent.action_surface:
                 attacker.compromise(node)
                 node_reward = node.extras.get("reward", 0)
                 agent.reward += node_reward
