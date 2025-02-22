@@ -2,7 +2,7 @@
 
 from maltoolbox.attackgraph import AttackGraph, Attacker
 from malsim.mal_simulator import MalSimulator, MalSimAttackerState
-from malsim.wrappers import MalSimVectorizedObsEnv
+from malsim.envs import MalSimVectorizedObsEnv
 from malsim.scenario import load_scenario
 
 def test_create_blank_observation(corelang_lang_graph, model):

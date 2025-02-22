@@ -7,7 +7,7 @@ from maltoolbox.language import (
     LanguageGraph, LanguageGraphAttackStep, LanguageGraphAsset
 )
 from malsim.mal_simulator import MalSimulator
-from malsim.wrappers import MalSimVectorizedObsEnv
+from malsim.envs import MalSimVectorizedObsEnv
 
 model_file_name = 'tests/testdata/models/simple_test_model.yml'
 attack_graph_file_name = path.join('/tmp','attack_graph.json')
