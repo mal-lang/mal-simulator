@@ -18,6 +18,8 @@ rewards:
 agents:
   'attacker1':
     type: attacker
-    agent_class: BreadthFirstAttacker 
+    agent_class: BreadthFirstAttacker
+    config:
+      seed: 1
     entry_points:
       - 'Credentials:6:attemptCredentialsReuse'

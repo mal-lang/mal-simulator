@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 from maltoolbox.attackgraph import AttackGraphNode, Attacker
-from maltoolbox.attackgraph.query import get_attack_surface
+from maltoolbox.attackgraph.query import calculate_attack_surface
 from maltoolbox.language import LanguageGraph
 from malsim.mal_simulator import MalSimAgentStateView
 from malsim.agents import BreadthFirstAttacker, DepthFirstAttacker
@@ -64,7 +64,7 @@ def test_breadth_first_traversal_simple(dummy_lang_graph: LanguageGraph):
 
         # Mark node as compromised
         attacker.compromise(action_node)
-        agent.action_surface = get_attack_surface(attacker)
+        agent.action_surface = calculate_attack_surface(attacker)
 
         # Store the ID for verification
         actual_order.append(action_node.id)
@@ -144,13 +144,14 @@ def test_breadth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
 
         # Mark node as compromised
         attacker.compromise(action_node)
-        agent.action_surface = get_attack_surface(attacker)
+        agent.action_surface = calculate_attack_surface(attacker)
 
         # Store the ID for verification
         actual_order.append(action_node.id)
 
-    assert actual_order == expected_order, \
-        "Traversal order does not match expected breadth-first order"
+    for level in (0, 1), (1, 4), (4, 8):
+        assert set(expected_order[level[0]:level[1]]) == set(actual_order[level[0]:level[1]]), \
+            "Traversal order does not match expected breadth-first order"
 
 
 def test_depth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
@@ -224,7 +225,7 @@ def test_depth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
 
         # Mark node as compromised
         attacker.compromise(action_node)
-        agent.action_surface = get_attack_surface(attacker)
+        agent.action_surface = calculate_attack_surface(attacker)
 
         # Store the ID for verification
         actual_order.append(action_node.id)

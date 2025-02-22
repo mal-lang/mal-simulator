@@ -9,7 +9,7 @@ import numpy as np
 
 from ..scenario import load_scenario
 from ..mal_simulator import MalSimulator, AgentType
-from ..wrappers import MalSimVectorizedObsEnv
+from ..envs import MalSimVectorizedObsEnv
 from ..agents import DecisionAgent
 
 
