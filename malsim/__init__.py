@@ -17,7 +17,6 @@
 
 import logging
 
-from malsim.wrappers.gym_wrapper import AttackerEnv, DefenderEnv, register_envs
 from malsim.mal_simulator import MalSimulator
 
 """
@@ -30,7 +29,7 @@ __authors__ = ["Andrei Buhaiu", "Joakim Loxdal", "Jakob Nyberg", "Nikolaos Kakou
 __license__ = "Apache 2.0"
 __docformat__ = "restructuredtext en"
 
-__all__ = ("AttackerEnv", "DefenderEnv", "register_envs", "MalSimulator")
+__all__ = ["MalSimulator"]
 
 
 # TODO: Make sure logging dir exists and make it configurable (or use same as maltoolbox)
