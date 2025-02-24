@@ -9,7 +9,7 @@ from .decision_agent import DecisionAgent
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
-    from ..sims.mal_sim_agent_state import MalSimAgentStateView
+    from ..mal_simulator import MalSimAgentStateView
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +39,10 @@ class DefendCompromisedDefender(DecisionAgent):
         selected_node = None
 
         # To make it deterministic
-        agent.action_surface.sort(key=lambda n: n.id)
+        possible_choices = list(agent.action_surface)
+        possible_choices.sort(key=lambda n: n.id)
 
-        for node in agent.action_surface:
+        for node in possible_choices:
 
             if node.is_enabled_defense():
                 continue
@@ -93,9 +94,10 @@ class DefendFutureCompromisedDefender(DecisionAgent):
         selected_node = None
 
         # To make it deterministic
-        agent.action_surface.sort(key=lambda n: n.id)
+        possible_choices = list(agent.action_surface)
+        possible_choices.sort(key=lambda n: n.id)
 
-        for node in agent.action_surface:
+        for node in possible_choices:
 
             if node.is_enabled_defense():
                 continue
