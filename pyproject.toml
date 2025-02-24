@@ -46,7 +46,7 @@ dev = [
 
 
 [project.scripts]
-malsim = "malsim.cli:main"
+malsim = "malsim.__main__:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]
