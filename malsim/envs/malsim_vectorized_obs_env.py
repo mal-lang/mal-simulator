@@ -392,7 +392,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
     @property
     def agents(self):
         """Required by ParallelEnv"""
-        return list(self.sim.agents.keys())
+        return list(self.sim.alive_agents.keys())
 
     @property
     def possible_agents(self):

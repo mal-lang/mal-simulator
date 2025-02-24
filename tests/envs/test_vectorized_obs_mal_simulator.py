@@ -225,6 +225,12 @@ def test_step(corelang_lang_graph, model):
     assert not new_surface
 
     attack_step = attack_graph.get_node_by_full_name('OS App:attemptRead')
+
+    # Action needs to be in action surface to be an allowed action
+    agent_info.action_surface = {attack_step}
+
+    # Since action is in attack surface and since it is traversable,
+    # action will be performed.
     actions, new_surface = env.sim._attacker_step(agent_info, {attack_step})
     assert actions == {attack_step}
     assert new_surface == attack_step.children
