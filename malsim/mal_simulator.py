@@ -490,7 +490,7 @@ class MalSimulator():
                         agent.name, agent.type
                     )
 
-        if all_attackers_terminated:
+        if self.alive_agents and all_attackers_terminated:
             # Terminate all defenders if all attackers are terminated
             logger.info("All attackers are terminated")
             for agent in self.agents.values():
