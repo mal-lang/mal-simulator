@@ -275,7 +275,7 @@ class MalSimulator():
         self._register_agent(agent_state)
 
     @property
-    def agent_states(self) -> list[MalSimAgentStateView]:
+    def agent_states(self) -> dict[str, MalSimAgentStateView]:
         """Return read only agent state for all dead and alive agents"""
         return {name: MalSimAgentStateView(agent) for name, agent in self.agents.items()}
 
