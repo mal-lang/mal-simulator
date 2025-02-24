@@ -200,9 +200,9 @@ def apply_scenario_node_property_rules(
                 step.extras[node_prop] = 0
 
 
-def apply_attacker_entrypoints(
+def add_attacker_entrypoints(
         attack_graph: AttackGraph, attacker_name: str, entry_points: dict
-) -> int:
+) -> Attacker:
     """Apply attacker entrypoints to attackgraph from scenario
 
     Creater attacker, add entrypoints to it and compromise them.
@@ -211,6 +211,9 @@ def apply_attacker_entrypoints(
     - attack_graph: the attack graph to apply entry points to
     - attacker_name: the name to give the attacker
     - entry_points: the entry points to apply for the attacker
+
+    Returns:
+    - the Attacker with the relevant entrypoints
     """
 
     if entry_points:
@@ -231,7 +234,7 @@ def apply_attacker_entrypoints(
 
     attacker.entry_points = attacker.reached_attack_steps.copy()
 
-    return attacker.id
+    return attacker
 
 
 def load_simulator_agents(
@@ -261,10 +264,10 @@ def load_simulator_agents(
         if agent_type == AgentType.ATTACKER:
             # Attacker has entrypoints
             entry_points = agent_info.get('entry_points')
-            attacker_id = apply_attacker_entrypoints(
+            attacker = add_attacker_entrypoints(
                 attack_graph, agent_name, entry_points
             )
-            agent_dict['attacker_id'] = attacker_id
+            agent_dict['attacker_id'] = attacker.id
 
         if class_name is None:
             # No class name - no agent object created
