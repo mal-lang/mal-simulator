@@ -189,24 +189,21 @@ class MalSimulator():
 
     def _init_agent_rewards(self):
         """Give rewards for pre-enabled attack/defense steps"""
-        for node in self.attack_graph.nodes.values():
-            node_reward = node.extras.get('reward', 0)
-            if not node_reward:
-                continue
 
-            for agent in self.agents.values():
+        for agent in self._get_attacker_agents():
+            attacker = self.attack_graph.attackers[agent.attacker_id]
+            agent.reward = sum(
+                n.extras.get("reward", 0) for n in attacker.reached_attack_steps
+            )
 
-                if agent.type == AgentType.ATTACKER:
-                    attacker = self.attack_graph.attackers[agent.attacker_id]
+        lost_reward = sum(
+            node.extras.get("reward", 0)
+            for node in self.attack_graph.nodes.values()
+            if node.is_compromised() or node.is_enabled_defense()
+        )
 
-                    if node.is_compromised_by(attacker):
-                        # Attacker is rewarded for pre enabled attack steps
-                        agent.reward += node_reward
-
-                elif agent.type == AgentType.DEFENDER:
-                    # Defender is penalized for all pre-enabled steps
-                    if node.is_compromised() or node.is_enabled_defense():
-                        agent.reward -= node_reward
+        for agent in self._get_defender_agents():
+            agent.reward = lost_reward
 
     def _init_agent_action_surfaces(self):
         """Set agent action surfaces according to current state"""
