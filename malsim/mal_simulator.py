@@ -335,10 +335,7 @@ class MalSimulator():
             if query.is_node_traversable_by_attacker(node, attacker) \
                     and node in agent.action_surface:
                 attacker.compromise(node)
-                node_reward = node.extras.get("reward", 0)
-                agent.reward += node_reward
-                for d_agent in self._get_defender_agents():
-                    d_agent.reward -= node_reward
+                agent.reward += node.extras.get('reward', 0)
                 compromised_nodes.add(node)
 
                 logger.info(
@@ -475,6 +472,10 @@ class MalSimulator():
                         'Agent %s has unknown type: %s',
                         agent.name, agent.type
                     )
+
+        lost_rewards = sum(n.extras.get("reward", 0) for n in all_compromised)
+        for defender in self._get_defender_agents():
+            defender.reward -= lost_rewards
 
         if self.alive_agents and all_attackers_terminated:
             # Terminate all defenders if all attackers are terminated
