@@ -141,8 +141,8 @@ def test_attacker_step(corelang_lang_graph, model):
     assert not attacker_agent.step_action_surface_additions
 
     attack_step = sim.attack_graph.get_node_by_full_name('OS App:attemptRead')
-    actions = sim._attacker_step(attacker_agent, {attack_step})
-    assert actions == {attack_step}
+    sim._attacker_step(attacker_agent, {attack_step})
+    assert attacker_agent.step_performed_nodes  == {attack_step}
     assert attacker_agent.step_action_surface_additions == attack_step.children
 
 

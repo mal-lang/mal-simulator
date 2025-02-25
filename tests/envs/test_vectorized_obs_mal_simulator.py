@@ -231,8 +231,8 @@ def test_step(corelang_lang_graph, model):
 
     # Since action is in attack surface and since it is traversable,
     # action will be performed.
-    actions = env.sim._attacker_step(agent_info, {attack_step})
-    assert actions == {attack_step}
+    env.sim._attacker_step(agent_info, {attack_step})
+    assert agent_info.step_performed_nodes == {attack_step}
     assert agent_info.step_action_surface_additions == attack_step.children
 
 
