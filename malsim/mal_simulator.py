@@ -38,19 +38,25 @@ class MalSimAgentState:
     # Attackers get positive rewards, defenders negative
     reward: int = 0
 
-    # Contains possible actions for the agent on the next step
+    # Contains the steps performed successfully in the last step
+    step_performed_nodes: set[AttackGraphNode] = field(default_factory=set)
+
+    # Contains possible actions for the agent in the next step
     action_surface: set[AttackGraphNode] = field(default_factory=set)
 
-    # Contains possible actions that became available on the last step
-    step_action_surface: set[AttackGraphNode] = field(default_factory=set)
+    # Contains possible actions that became available in the last step
+    step_action_surface_additions: set[AttackGraphNode] = (
+        field(default_factory = set))
 
-    # Contains the steps performed successfully in the last step
-    step_compromised_nodes: set[AttackGraphNode] = field(default_factory=set)
+    # Contains previously possible actions that became unavailable in the last
+    # step
+    step_action_surface_removals: set[AttackGraphNode] = (
+        field(default_factory = set))
 
     # Contains nodes that defender actions made unviable in the last step
-    step_disabled_nodes: set[AttackGraphNode] = field(default_factory=set)
+    step_unviable_nodes: set[AttackGraphNode] = field(default_factory=set)
 
-    # Fields that tell if agent is 'dead' / disabled
+    # Fields that tell if the agent is done or stopped
     truncated: bool = False
     terminated: bool = False
 
@@ -66,8 +72,10 @@ class MalSimAttackerState(MalSimAgentState):
 class MalSimDefenderState(MalSimAgentState):
     """Stores the state of a defender in the simulator"""
 
-    # Contains defense steps successfully enabled by the defender in the last step
-    step_enabled_defenses: set[AttackGraphNode] = field(default_factory=set)
+    # Contains the steps performed successfully by all of the attacker agents
+    # in the last step
+    step_all_compromised_nodes: set[AttackGraphNode] = (
+        field(default_factory=set))
 
     def __init__(self, name: str):
         super().__init__(name, AgentType.DEFENDER)
@@ -314,15 +322,14 @@ class MalSimulator():
 
     def _attacker_step(
         self, agent: MalSimAttackerState, nodes: list[AttackGraphNode]
-    ) -> tuple[set[AttackGraphNode], set[AttackGraphNode]]:
+    ) -> set[AttackGraphNode]:
         """Compromise attack step nodes with attacker
 
         Args:
         agent - the agent to compromise nodes with
         nodes - the nodes to compromise
 
-        Returns: tuple of set of attack steps nodes that were compromised and
-                 the new nodes that became available in the attack surface
+        Returns: A set of attack steps nodes that were compromised
         """
 
         compromised_nodes = set()
@@ -359,11 +366,13 @@ class MalSimulator():
                                node.full_name)
 
         # Update attacker action surface
-        new_attack_surface = query.calculate_attack_surface(
+        attack_surface_additions = query.calculate_attack_surface(
             attacker, from_nodes=compromised_nodes, skip_compromised=True
         )
 
-        agent.action_surface |= new_attack_surface
+        agent.step_action_surface_additions = attack_surface_additions
+        agent.action_surface |= attack_surface_additions
+        agent.step_performed_nodes = compromised_nodes
 
         # Terminate attacker if it has nothing left to do
         terminate = True
@@ -373,19 +382,17 @@ class MalSimulator():
                 break
         agent.terminated = terminate
 
-        return compromised_nodes, new_attack_surface
+        return compromised_nodes
 
     def _defender_step(
         self, agent: MalSimDefenderState, nodes: list[AttackGraphNode]
-    ) -> tuple[set[AttackGraphNode], set[AttackGraphNode]]:
+    ):
         """Enable defense step nodes with defender.
 
         Args:
         agent - the agent to activate defense nodes with
         nodes - the defense step nodes to enable
 
-        Returns: tuple of defense steps that were enabled and attack steps that
-                 became unviable due to enabled defenses
         """
 
         enabled_defenses = set()
@@ -423,20 +430,21 @@ class MalSimulator():
                     agent.name, node.full_name, node.id
                 )
 
-        for node in enabled_defenses:
-            # Remove enabled defenses from defender action surfaces
-            for defender_agent in self._get_defender_agents():
-                defender_agent.action_surface.discard(node)
+        agent.step_performed_nodes = enabled_defenses
+        agent.step_unviable_nodes |= attack_steps_made_unviable
 
-        for attack_step in attack_steps_made_unviable:
-            # Remove unviable attack steps from attacker action surfaces
-            for attacker_agent in self._get_attacker_agents():
-                attacker_agent.action_surface.discard(attack_step)
+        for defender_agent in self._get_defender_agents():
+            defender_agent.step_action_surface_removals |= enabled_defenses
+            defender_agent.action_surface -= enabled_defenses
+
+        for attacker_agent in self._get_attacker_agents():
+            defender_agent.step_action_surface_removals |= (
+                attacker_agent.action_surface & attack_steps_made_unviable
+            )
+            attacker_agent.action_surface -= attack_steps_made_unviable
 
         if self.sim_settings.uncompromise_untraversable_steps:
             self._disable_attack_steps(attack_steps_made_unviable)
-
-        return enabled_defenses, attack_steps_made_unviable
 
     def step(
         self, actions: dict[str, list[AttackGraphNode]]
@@ -448,15 +456,18 @@ class MalSimulator():
                   contains the actions for that user.
 
         Returns:
-        - (compromised_nodes, new_attack_surface, disabled_nodes)
+        - A dictionary containing the agent state views keyed by agent names
         """
         logger.debug("Stepping through iteration %d/%d", self.cur_iter, self.max_iter)
         logger.debug("Performing actions: %s", actions)
 
-        disabled_nodes = set()
-        all_performed = set()
+        all_compromised = set()
+        unviable_nodes = set()
 
         all_attackers_terminated = True
+
+        for agent in self.alive_agents.values():
+            agent.step_action_surface_removals = set()
 
         # Perform agent actions
         # Note: by design, defenders perform actions
@@ -464,25 +475,20 @@ class MalSimulator():
         for agent in self.alive_agents.values():
             agent_actions = actions.get(agent.name, [])
 
-            agent.step_disabled_nodes = disabled_nodes
+            agent.step_unviable_nodes = unviable_nodes
 
             match agent.type:
                 case AgentType.ATTACKER:
-                    performed_steps, new_surface = self._attacker_step(
+                    compromised_steps = self._attacker_step(
                         agent, agent_actions
                     )
-                    agent.step_action_surface = new_surface
-                    agent.step_compromised_nodes = performed_steps
-                    all_performed |= performed_steps
+                    all_compromised |= compromised_steps
                     if not agent.terminated:
                         all_attackers_terminated = False
 
                 case AgentType.DEFENDER:
-                    enabled_defenses, disabled = \
-                        self._defender_step(agent, agent_actions)
-                    agent.step_compromised_nodes = all_performed
-                    agent.step_enabled_defenses = enabled_defenses
-                    disabled_nodes |= disabled
+                    self._defender_step(agent, agent_actions)
+                    agent.step_all_compromised_nodes = all_compromised
 
                 case _:
                     logger.error(

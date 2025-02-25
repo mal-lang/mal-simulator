@@ -220,9 +220,9 @@ def test_step(corelang_lang_graph, model):
     # Can not attack the notPresent step
     defense_step = attack_graph\
         .get_node_by_full_name('OS App:notPresent')
-    actions, new_surface = env.sim._attacker_step(agent_info, {defense_step})
+    actions = env.sim._attacker_step(agent_info, {defense_step})
     assert not actions
-    assert not new_surface
+    assert not agent_info.step_action_surface_additions
 
     attack_step = attack_graph.get_node_by_full_name('OS App:attemptRead')
 
@@ -231,9 +231,9 @@ def test_step(corelang_lang_graph, model):
 
     # Since action is in attack surface and since it is traversable,
     # action will be performed.
-    actions, new_surface = env.sim._attacker_step(agent_info, {attack_step})
+    actions = env.sim._attacker_step(agent_info, {attack_step})
     assert actions == {attack_step}
-    assert new_surface == attack_step.children
+    assert agent_info.step_action_surface_additions == attack_step.children
 
 
 def test_malsimulator_defender_step(corelang_lang_graph, model):
@@ -244,16 +244,17 @@ def test_malsimulator_defender_step(corelang_lang_graph, model):
     env.register_defender(agent_name)
     env.reset()
 
+    defender_agent = env.sim.agents[agent_name]
     defense_step = env.sim.attack_graph.get_node_by_full_name(
         'OS App:notPresent')
-    enabled, _ = env.sim._defender_step(env.sim.agents[agent_name], {defense_step})
-    assert enabled == {defense_step}
+    env.sim._defender_step(env.sim.agents[agent_name], {defense_step})
+    assert defender_agent.step_performed_nodes == {defense_step}
 
     # Can not defend attack_step
     attack_step = env.sim.attack_graph.get_node_by_full_name(
         'OS App:attemptUseVulnerability')
-    actions, _ = env.sim._defender_step(env.sim.agents[agent_name], {attack_step})
-    assert not actions
+    env.sim._defender_step(env.sim.agents[agent_name], {attack_step})
+    assert not defender_agent.step_performed_nodes
 
 
 def test_malsimulator_observe_attacker():

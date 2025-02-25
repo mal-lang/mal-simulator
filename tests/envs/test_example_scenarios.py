@@ -60,11 +60,11 @@ def test_bfs_vs_bfs_state_and_reward():
 
         # If actions were performed, add them to respective list
         if attacker_node and attacker_node in \
-                states['attacker1'].step_compromised_nodes:
+                states['attacker1'].step_performed_nodes:
             attacker_actions.append(attacker_node.full_name)
 
         if defender_node and defender_node in \
-                states['defender1'].step_enabled_defenses:
+                states['defender1'].step_performed_nodes:
             defender_actions.append(defender_node.full_name)
 
         total_reward_defender += defender_agent_state.reward

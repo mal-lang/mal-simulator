@@ -916,9 +916,9 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
         all_actioned = [
             n
             for state in states.values()
-            for n in state.step_compromised_nodes
+            for n in state.step_performed_nodes
         ]
-        disabled_nodes = next(iter(states.values())).step_disabled_nodes
+        disabled_nodes = next(iter(states.values())).step_unviable_nodes
 
         self._update_agent_infos() # Update action masks
         self._update_observations(all_actioned, disabled_nodes)

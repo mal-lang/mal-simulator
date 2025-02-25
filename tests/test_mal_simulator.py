@@ -136,14 +136,14 @@ def test_attacker_step(corelang_lang_graph, model):
 
     # Can not attack the notPresent step
     defense_step = sim.attack_graph.get_node_by_full_name('OS App:notPresent')
-    actions, new_surface = sim._attacker_step(attacker_agent, {defense_step})
+    actions = sim._attacker_step(attacker_agent, {defense_step})
     assert not actions
-    assert not new_surface
+    assert not attacker_agent.step_action_surface_additions
 
     attack_step = sim.attack_graph.get_node_by_full_name('OS App:attemptRead')
-    actions, new_surface = sim._attacker_step(attacker_agent, {attack_step})
+    actions = sim._attacker_step(attacker_agent, {attack_step})
     assert actions == {attack_step}
-    assert new_surface == attack_step.children
+    assert attacker_agent.step_action_surface_additions == attack_step.children
 
 
 def test_defender_step(corelang_lang_graph, model):
@@ -157,14 +157,14 @@ def test_defender_step(corelang_lang_graph, model):
     defender_agent = sim.agents[defender_name]
     defense_step = sim.attack_graph.get_node_by_full_name(
         'OS App:notPresent')
-    actions, _ = sim._defender_step(defender_agent, {defense_step})
-    assert actions == {defense_step}
+    sim._defender_step(defender_agent, {defense_step})
+    assert defender_agent.step_performed_nodes == {defense_step}
 
     # Can not defend attack_step
     attack_step = sim.attack_graph.get_node_by_full_name(
         'OS App:attemptUseVulnerability')
-    actions, _ = sim._defender_step(defender_agent, {attack_step})
-    assert not actions
+    sim._defender_step(defender_agent, {attack_step})
+    assert not defender_agent.step_performed_nodes
 
 
 def test_observe_attacker():
