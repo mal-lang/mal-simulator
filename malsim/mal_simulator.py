@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import logging
 from enum import Enum
 from types import MappingProxyType
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, Optional
 
 from maltoolbox import neo4j_configs
 from maltoolbox.ingestors import neo4j
@@ -76,17 +76,12 @@ class MalSimDefenderState(MalSimAgentState):
         super().__init__(name, AgentType.DEFENDER)
 
 
-# Generic T is used here to allow IDEs to provide autocompletions from
-# MalSimAgentState.
-T = TypeVar("T", bound=MalSimAgentState)
-
-
-class MalSimAgentStateView(Generic[T]):
+class MalSimAgentStateView:
     """Read-only interface to MalSimAgentState."""
 
     _frozen = False
 
-    def __init__(self, agent: T):
+    def __init__(self, agent):
         self._agent = agent
         self._frozen = True
 
