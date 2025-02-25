@@ -62,6 +62,7 @@ def test_bfs_vs_bfs_state_and_reward():
         if attacker_node and attacker_node in \
                 states['attacker1'].step_performed_nodes:
             attacker_actions.append(attacker_node.full_name)
+            assert attacker_node in states['defender1'].step_all_compromised_nodes
 
         if defender_node and defender_node in \
                 states['defender1'].step_performed_nodes:
