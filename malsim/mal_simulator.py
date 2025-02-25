@@ -366,8 +366,6 @@ class MalSimulator():
                 break
         agent.terminated = terminate
 
-        return compromised_nodes
-
     def _defender_step(
         self, agent: MalSimDefenderState, nodes: list[AttackGraphNode]
     ):
@@ -418,11 +416,11 @@ class MalSimulator():
         agent.step_unviable_nodes |= attack_steps_made_unviable
 
         for defender_agent in self._get_defender_agents():
-            defender_agent.step_action_surface_removals |= enabled_defenses
+            defender_agent.step_action_surface_removals = enabled_defenses
             defender_agent.action_surface -= enabled_defenses
 
         for attacker_agent in self._get_attacker_agents():
-            defender_agent.step_action_surface_removals |= (
+            defender_agent.step_action_surface_removals = (
                 attacker_agent.action_surface & attack_steps_made_unviable
             )
             attacker_agent.action_surface -= attack_steps_made_unviable
@@ -445,13 +443,11 @@ class MalSimulator():
         logger.debug("Stepping through iteration %d/%d", self.cur_iter, self.max_iter)
         logger.debug("Performing actions: %s", actions)
 
+        # Populate these from the results for all agents' actions.
         all_compromised = set()
         unviable_nodes = set()
 
         all_attackers_terminated = True
-
-        for agent in self.alive_agents.values():
-            agent.step_action_surface_removals = set()
 
         # Perform agent actions
         # Note: by design, defenders perform actions
@@ -463,16 +459,16 @@ class MalSimulator():
 
             match agent.type:
                 case AgentType.ATTACKER:
-                    compromised_steps = self._attacker_step(
+                    self._attacker_step(
                         agent, agent_actions
                     )
-                    all_compromised |= compromised_steps
+                    all_compromised |= agent.step_performed_nodes
                     if not agent.terminated:
                         all_attackers_terminated = False
 
                 case AgentType.DEFENDER:
-                    self._defender_step(agent, agent_actions)
                     agent.step_all_compromised_nodes = all_compromised
+                    self._defender_step(agent, agent_actions)
 
                 case _:
                     logger.error(
