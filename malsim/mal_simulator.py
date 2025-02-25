@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import logging
 from enum import Enum
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
+from typing import Any, Generic, Optional, TypeVar
 
 from maltoolbox import neo4j_configs
 from maltoolbox.ingestors import neo4j
@@ -14,10 +14,6 @@ from maltoolbox.attackgraph.analyzers import apriori
 
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
-
-
-if TYPE_CHECKING:
-    from maltoolbox.attackgraph import AttackGraphNode
 
 
 class AgentType(Enum):
@@ -74,8 +70,7 @@ class MalSimDefenderState(MalSimAgentState):
 
     # Contains the steps performed successfully by all of the attacker agents
     # in the last step
-    step_all_compromised_nodes: set[AttackGraphNode] = (
-        field(default_factory=set))
+    step_all_compromised_nodes: set[AttackGraphNode] = set()
 
     def __init__(self, name: str):
         super().__init__(name, AgentType.DEFENDER)
