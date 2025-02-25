@@ -30,7 +30,7 @@ class DefendCompromisedDefender(DecisionAgent):
         )
 
     def get_next_action(
-        self, agent: MalSimAgentStateView, **kwargs
+        self, agent_state: MalSimAgentStateView, **kwargs
     ) -> Optional[AttackGraphNode]:
 
         """Return an action that disables a compromised node"""
@@ -39,7 +39,7 @@ class DefendCompromisedDefender(DecisionAgent):
         selected_node = None
 
         # To make it deterministic
-        possible_choices = list(agent.action_surface)
+        possible_choices = list(agent_state.action_surface)
         possible_choices.sort(key=lambda n: n.id)
 
         for node in possible_choices:
@@ -85,7 +85,7 @@ class DefendFutureCompromisedDefender(DecisionAgent):
         )
 
     def get_next_action(
-        self, agent: MalSimAgentStateView, **kwargs
+        self, agent_state: MalSimAgentStateView, **kwargs
     ) -> Optional[AttackGraphNode]:
 
         """Return an action that disables a compromised node"""
@@ -94,7 +94,7 @@ class DefendFutureCompromisedDefender(DecisionAgent):
         selected_node = None
 
         # To make it deterministic
-        possible_choices = list(agent.action_surface)
+        possible_choices = list(agent_state.action_surface)
         possible_choices.sort(key=lambda n: n.id)
 
         for node in possible_choices:
