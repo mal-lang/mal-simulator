@@ -244,16 +244,16 @@ def test_malsimulator_defender_step(corelang_lang_graph, model):
     env.register_defender(agent_name)
     env.reset()
 
-    defender_agent = env.sim.agents[agent_name]
+    defender_agent = env.sim._agents[agent_name]
     defense_step = env.sim.attack_graph.get_node_by_full_name(
         'OS App:notPresent')
-    env.sim._defender_step(env.sim.agents[agent_name], {defense_step})
+    env.sim._defender_step(defender_agent, {defense_step})
     assert defender_agent.step_performed_nodes == {defense_step}
 
     # Can not defend attack_step
     attack_step = env.sim.attack_graph.get_node_by_full_name(
         'OS App:attemptUseVulnerability')
-    env.sim._defender_step(env.sim.agents[agent_name], {attack_step})
+    env.sim._defender_step(defender_agent, {attack_step})
     assert not defender_agent.step_performed_nodes
 
 

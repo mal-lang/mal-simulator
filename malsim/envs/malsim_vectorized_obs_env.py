@@ -19,7 +19,7 @@ from maltoolbox.attackgraph import AttackGraphNode
 from ..mal_simulator import (
     MalSimulator,
     AgentType,
-    MalSimAgentState,
+    MalSimAgentStateView,
     MalSimAttackerState,
     MalSimDefenderState
 )
@@ -392,12 +392,12 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
     @property
     def agents(self):
         """Required by ParallelEnv"""
-        return list(self.sim.alive_agents.keys())
+        return list(self.sim._alive_agents.keys())
 
     @property
     def possible_agents(self):
         """Required by ParallelEnv"""
-        return self.agents
+        return list(self.sim.agent_states.keys())
 
     def _create_blank_observation(self, default_obs_state=-1):
         """Create the initial observation"""
@@ -757,15 +757,15 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
 
     def register_attacker(self, attacker_name: str, attacker_id: int):
         super().register_attacker(attacker_name, attacker_id)
-        agent = self.sim.agents[attacker_name]
+        agent = self.sim.agent_states[attacker_name]
         self._init_agent(agent)
 
     def register_defender(self, defender_name: str):
         super().register_defender(defender_name)
-        agent = self.sim.agents[defender_name]
+        agent = self.sim.agent_states[defender_name]
         self._init_agent(agent)
 
-    def _init_agent(self, agent: MalSimAgentState):
+    def _init_agent(self, agent: MalSimAgentStateView):
         # Fill dicts with env specific agent obs/infos
         self._agent_observations[agent.name] = \
             self._create_blank_observation()

@@ -165,10 +165,10 @@ class MalSimulator():
         self.cur_iter = 0        # Keep track on current iteration
 
         # Keep track on all registered agent states
-        self.agents: dict[str, MalSimAgentState] = {}
+        self._agents: dict[str, MalSimAgentState] = {}
 
         # Keep track on all 'living' agents sorted by order to step in
-        self.alive_agents: dict[str, MalSimAgentState] = {}
+        self._alive_agents: dict[str, MalSimAgentState] = {}
 
     def reset(
         self,
@@ -207,7 +207,7 @@ class MalSimulator():
 
     def _init_agent_action_surfaces(self):
         """Set agent action surfaces according to current state"""
-        for agent in self.agents.values():
+        for agent in self._agents.values():
             if agent.type == AgentType.ATTACKER:
                 attacker = self.attack_graph.attackers[agent.attacker_id]
                 agent.action_surface = query.calculate_attack_surface(attacker)
@@ -221,12 +221,12 @@ class MalSimulator():
     def _reset_agents(self):
         """Reset agent rewards and action surfaces"""
 
-        self.alive_agents = dict(sorted(
-            self.agents.items(),
+        self._alive_agents = dict(sorted(
+            self._agents.items(),
             key=lambda agent: agent[1].type == AgentType.ATTACKER,
         ))
 
-        for agent in self.agents.values():
+        for agent in self._agents.values():
             # Reset agent reward
             agent.reward = 0
 
@@ -241,15 +241,15 @@ class MalSimulator():
         """Register a mal sim agent"""
 
         logger.info('Registering agent "%s".', agent)
-        assert agent.name not in self.agents, \
+        assert agent.name not in self._agents, \
             f"Duplicate agent named {agent.name} not allowed"
 
-        self.agents[agent.name] = agent
+        self._agents[agent.name] = agent
 
         # Defender is first in list so it can pick
         # actions before attacker when step performed
-        self.alive_agents = dict(sorted(
-            self.agents.items(),
+        self._alive_agents = dict(sorted(
+            self._agents.items(),
             key=lambda agent: agent[1].type == AgentType.ATTACKER,
         ))
 
@@ -266,15 +266,21 @@ class MalSimulator():
     @property
     def agent_states(self) -> dict[str, MalSimAgentStateView]:
         """Return read only agent state for all dead and alive agents"""
-        return {name: MalSimAgentStateView(agent) for name, agent in self.agents.items()}
+        return {name: MalSimAgentStateView(agent) for name, agent in self._agents.items()}
 
     def _get_attacker_agents(self) -> list[MalSimAttackerState]:
-        """Return list of mutable attacker agent states"""
-        return [a for a in self.agents.values() if a.type == AgentType.ATTACKER]
+        """Return list of mutable attacker agent states of living attackers"""
+        return [
+            a for a in self._alive_agents.values()
+            if a.type == AgentType.ATTACKER
+        ]
 
     def _get_defender_agents(self) -> list[MalSimDefenderState]:
-        """Return list of mutable defender agent states"""
-        return [a for a in self.agents.values() if a.type == AgentType.DEFENDER]
+        """Return list of mutable defender agent states of living defenders"""
+        return [
+            a for a in self._alive_agents.values()
+            if a.type == AgentType.DEFENDER
+        ]
 
     def _uncompromise_attack_steps(
         self, attack_steps_to_uncompromise: set[AttackGraphNode]
@@ -450,7 +456,7 @@ class MalSimulator():
         # Perform agent actions
         # Note: by design, defenders perform actions
         # before attackers (see _register_agent)
-        for agent in self.alive_agents.values():
+        for agent in self._alive_agents.values():
             agent_actions = actions.get(agent.name, [])
 
             agent.step_unviable_nodes = unviable_nodes
@@ -478,22 +484,22 @@ class MalSimulator():
         for defender in self._get_defender_agents():
             defender.reward -= lost_rewards
 
-        if self.alive_agents and all_attackers_terminated:
+        if self._alive_agents and all_attackers_terminated:
             # Terminate all defenders if all attackers are terminated
             logger.info("All attackers are terminated")
-            for agent in self.agents.values():
+            for agent in self._agents.values():
                 agent.terminated = True
 
         if self.cur_iter >= self.max_iter:
             # Truncate all agents when max iter is reached
             logger.info("Max iteration reached - all agents truncated")
-            for agent in self.agents.values():
+            for agent in self._agents.values():
                 agent.truncated = True
 
-        for agent in self.alive_agents.copy().values():
+        for agent in self._alive_agents.copy().values():
             if agent.terminated or agent.truncated:
                 logger.info("Removing agent %s", agent.name)
-                del self.alive_agents[agent.name]
+                del self._alive_agents[agent.name]
 
         self.cur_iter += 1
 
