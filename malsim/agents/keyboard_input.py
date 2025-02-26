@@ -33,23 +33,26 @@ class KeyboardAgent(DecisionAgent):
             except ValueError:
                 return False
 
-            return 0 <= node <= len(agent_state.action_surface)
+            return 0 <= node < len(agent_state.action_surface)
 
-        def get_action_object(user_input: str) -> tuple:
-            node = int(user_input) if user_input != "" else None
-            return node
+        def get_action_object(user_input: str) -> Optional[int]:
+            node_index = int(user_input) if user_input != "" else None
+            return node_index
 
         if not agent_state.action_surface:
             print("No actions to pick for defender")
-            return []
+            return None
 
-        index_to_node = dict(enumerate(agent_state.action_surface))
+        index_to_node = [
+            n for n in agent_state.action_surface
+            if not n.is_compromised()
+        ]
         user_input = "xxx"
         while not valid_action(user_input):
             print("Available actions:")
             print(
                 "\n".join(
-                    [f"{i}. {n.full_name}" for i, n in index_to_node.items()]
+                    [f"{i}. {n.full_name}" for i, n in enumerate(index_to_node)]
                 )
             )
             print("Enter action or leave empty to wait:")
