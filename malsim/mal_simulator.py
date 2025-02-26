@@ -276,18 +276,19 @@ class MalSimulator():
         """Return list of mutable defender agent states"""
         return [a for a in self.agents.values() if a.type == AgentType.DEFENDER]
 
-    def _disable_attack_steps(
-        self, attack_steps_to_disable: set[AttackGraphNode]
+    def _uncompromise_attack_steps(
+        self, attack_steps_to_uncompromise: set[AttackGraphNode]
     ):
-        """Disable nodes for each attacker agent
+        """Uncompromise nodes for each attacker agent
 
-        For each compromised attack step uncompromise the node, disable its
-        observed_state, and remove the rewards.
+        Goo through the nodes in `attack_steps_to_uncompromise` for each
+        attacker agent. If a node is compromised by the attacker agent:
+            - Uncompromise the node and remove rewards for it.
         """
         for attacker_agent in self._get_attacker_agents():
             attacker = self.attack_graph.attackers[attacker_agent.attacker_id]
 
-            for unviable_node in attack_steps_to_disable:
+            for unviable_node in attack_steps_to_uncompromise:
                 if unviable_node.is_compromised_by(attacker):
 
                     # Reward is no longer present for attacker
@@ -423,7 +424,7 @@ class MalSimulator():
             attacker_agent.action_surface -= attack_steps_made_unviable
 
         if self.sim_settings.uncompromise_untraversable_steps:
-            self._disable_attack_steps(attack_steps_made_unviable)
+            self._uncompromise_attack_steps(attack_steps_made_unviable)
 
     def step(
         self, actions: dict[str, list[AttackGraphNode]]
