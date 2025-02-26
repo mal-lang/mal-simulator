@@ -296,7 +296,7 @@ class MalSimulator():
     ):
         """Uncompromise nodes for each attacker agent
 
-        Goo through the nodes in `attack_steps_to_uncompromise` for each
+        Go through the nodes in `attack_steps_to_uncompromise` for each
         attacker agent. If a node is compromised by the attacker agent:
             - Uncompromise the node and remove rewards for it.
         """
@@ -461,6 +461,13 @@ class MalSimulator():
         unviable_nodes = set()
 
         all_attackers_terminated = True
+
+        # Clear all of action surface removals in the last step to make sure
+        # the old values do not carry over. Removals are only ever extended
+        # they are never cleared during the actual step.
+        for agent_name in self._alive_agents:
+            agent = self._agent_states[agent_name]
+            agent.step_action_surface_removals = set()
 
         # Perform agent actions
         # Note: by design, defenders perform actions
