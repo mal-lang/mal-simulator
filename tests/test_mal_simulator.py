@@ -132,7 +132,7 @@ def test_attacker_step(corelang_lang_graph, model):
 
     sim.register_attacker(attacker.name, attacker.id)
     sim.reset()
-    attacker_agent = sim._agents[attacker.name]
+    attacker_agent = sim._agent_states[attacker.name]
 
     # Can not attack the notPresent step
     defense_step = sim.attack_graph.get_node_by_full_name('OS App:notPresent')
@@ -154,7 +154,7 @@ def test_defender_step(corelang_lang_graph, model):
     sim.register_defender(defender_name)
     sim.reset()
 
-    defender_agent = sim._agents[defender_name]
+    defender_agent = sim._agent_states[defender_name]
     defense_step = sim.attack_graph.get_node_by_full_name(
         'OS App:notPresent')
     sim._defender_step(defender_agent, {defense_step})
@@ -201,10 +201,10 @@ def test_step_attacker_defender_action_surface_updates():
     sim.register_attacker(attacker_agent_id, 1)
     sim.register_defender(defender_agent_id)
 
-    attacker_agent = next(iter(sim._get_attacker_agents()))
-    defender_agent = next(iter(sim._get_defender_agents()))
-
     sim.reset()
+
+    attacker_agent = sim.agent_states[attacker_agent_id]
+    defender_agent = sim.agent_states[defender_agent_id]
 
     # Run step() with action crafted in test
     attacker_step = sim.attack_graph.get_node_by_full_name('User:3:compromise')
