@@ -330,7 +330,7 @@ class MalSimulator():
                 "comes from the agents action surface."
             )
 
-            logger.info(
+            logger.debug(
                 'Attacker agent "%s" stepping through "%s"(%d).',
                 agent.name, node.full_name, node.id
             )
@@ -342,12 +342,12 @@ class MalSimulator():
                 agent.reward += node.extras.get('reward', 0)
                 compromised_nodes.add(node)
 
-                logger.info(
+                logger.debug(
                     'Attacker agent "%s" compromised "%s"(%d).',
                     agent.name, node.full_name, node.id
                 )
             else:
-                logger.warning("Attacker could not compromise %s",
+                logger.debug("Attacker could not compromise %s",
                                node.full_name)
 
         # Update attacker action surface
