@@ -4,8 +4,7 @@ import copy
 from dataclasses import dataclass, field
 import logging
 from enum import Enum
-from types import MappingProxyType
-from typing import Any, Optional
+from typing import Optional
 
 from maltoolbox import neo4j_configs
 from maltoolbox.ingestors import neo4j
@@ -77,40 +76,73 @@ class MalSimDefenderState(MalSimAgentState):
 
 
 class MalSimAgentStateView:
-    """Read-only interface to MalSimAgentState."""
+    """Read-only interface for MalSimAgentState"""
 
-    _frozen = False
-
-    def __init__(self, agent):
+    def __init__(self, agent: MalSimAgentState) -> None:
         self._agent = agent
-        self._frozen = True
 
-    def __setattr__(self, key, value) -> None:
-        if self._frozen:
-            raise AttributeError("Cannot modify agent state view")
-        self.__dict__[key] = value
+    # Explicit properties to support static type checking
+    @property
+    def name(self) -> str:
+        return self._agent.name
 
-    def __delattr__(self, key) -> None:
-        if self._frozen:
-            raise AttributeError("Cannot modify agent state view")
-        super().__delattr__(key)
+    @property
+    def type(self) -> AgentType:
+        return self._agent.type
 
-    def __getattr__(self, attr) -> Any:
-        """Return read-only version of proxied agent's properties."""
-        value = getattr(self._agent, attr)
+    @property
+    def reward(self) -> int:
+        return self._agent.reward
 
-        if isinstance(value, dict):
-            return MappingProxyType(value)
-        if isinstance(value, list):
-            return tuple(value)
-        if isinstance(value, set):
-            return frozenset(value)
+    @property
+    def step_performed_nodes(self) -> frozenset[AttackGraphNode]:
+        return frozenset(self._agent.step_performed_nodes)
 
-        return value
+    @property
+    def action_surface(self) -> frozenset[AttackGraphNode]:
+        return frozenset(self._agent.action_surface)
 
-    def __dir__(self):
-        """Dynamically resolve attribute names for REPL autocompletion."""
-        return list(vars(self._agent).keys()) + ["_agent", "_frozen"]
+    @property
+    def step_action_surface_additions(self) -> frozenset[AttackGraphNode]:
+        return frozenset(self._agent.step_action_surface_additions)
+
+    @property
+    def step_action_surface_removals(self) -> frozenset[AttackGraphNode]:
+        return frozenset(self._agent.step_action_surface_removals)
+
+    @property
+    def step_unviable_nodes(self) -> frozenset[AttackGraphNode]:
+        return frozenset(self._agent.step_unviable_nodes)
+
+    @property
+    def truncated(self) -> bool:
+        return self._agent.truncated
+
+    @property
+    def terminated(self) -> bool:
+        return self._agent.terminated
+
+
+class MalSimDefenderStateView(MalSimAgentStateView):
+    """Read-only interface for MalSimDefender"""
+
+    @property
+    def step_all_compromised_nodes(self) -> frozenset[AttackGraphNode]:
+        assert isinstance(self._agent, MalSimDefenderState), (
+            "Only defender has .step_all_compromised_nodes"
+        )
+        return frozenset(self._agent.step_all_compromised_nodes)
+
+
+class MalSimAttackerStateView(MalSimAgentStateView):
+    """Read-only interface for MalSimAttacker"""
+
+    @property
+    def attacker_id(self) -> int:
+        assert isinstance(self._agent, MalSimAttackerState), (
+            "Only attacker has .attacker_id"
+        )
+        return self._agent.attacker_id
 
 
 @dataclass
@@ -261,10 +293,15 @@ class MalSimulator():
     @property
     def agent_states(self) -> dict[str, MalSimAgentStateView]:
         """Return read only agent state for all dead and alive agents"""
-        return {
-            name: MalSimAgentStateView(agent)
-            for name, agent in self._agent_states.items()
-        }
+
+        agent_state_views = {}
+        for agent in self._agent_states.values():
+            if isinstance(agent, MalSimAttackerState):
+                agent_state_views[agent.name] = MalSimAttackerStateView(agent)
+            elif isinstance(agent, MalSimDefenderState):
+                agent_state_views[agent.name] = MalSimDefenderStateView(agent)
+
+        return agent_state_views
 
     def _get_attacker_agents(self) -> list[MalSimAttackerState]:
         """Return list of mutable attacker agent states of alive attackers"""
