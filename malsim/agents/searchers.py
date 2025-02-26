@@ -41,7 +41,6 @@ class BreadthFirstAttacker(DecisionAgent):
         Args:
             agent_config: Dict with settings to override defaults
         """
-        self.actions = 0
         self.targets: deque[AttackGraphNode] = deque()
         self.current_target: Optional[AttackGraphNode] = None
 
@@ -49,6 +48,7 @@ class BreadthFirstAttacker(DecisionAgent):
 
         self.rng = random.Random(self.settings.get('seed'))
         self.started = False
+        self.actions = []
 
     def get_next_action(
         self, agent_state: MalSimAgentStateView, **kwargs
@@ -102,11 +102,17 @@ class BreadthFirstAttacker(DecisionAgent):
         """
         try:
             self.current_target = self.targets.pop()
+            self.actions.append(self.current_target)
         except IndexError:
             self.current_target = None
 
-        if self.current_target:
-            self.actions += 1
+    def terminate(self):
+        with open('steps.json', 'w') as f:
+            import json
+
+            json.dump([n.full_name for n in self.actions if n], f)
+            print(len(self.actions))
+            self.actions = []
 
 
 class DepthFirstAttacker(BreadthFirstAttacker):
