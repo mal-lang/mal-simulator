@@ -1,8 +1,10 @@
 """Test MalSimulator class"""
 
 from maltoolbox.attackgraph import AttackGraph, Attacker
-from malsim.mal_simulator import MalSimulator
 
+import pytest
+
+from malsim.mal_simulator import MalSimulator
 from malsim.scenario import load_scenario
 
 def test_init(corelang_lang_graph, model):
@@ -360,3 +362,47 @@ def test_default_simulator_default_settings_eviction():
     # Verify defense was performed and attacker NOT kicked out
     assert user_3_compromise_defense.is_enabled_defense()
     assert attacker in user_3_compromise.compromised_by
+
+
+def test_malsim_agent_state():
+    ag, _ = load_scenario(
+    'tests/testdata/scenarios/traininglang_scenario.yml')
+
+    sim = MalSimulator(ag)
+    # Register the agents
+    attacker_agent_id = "attacker"
+    defender_agent_id = "defender"
+
+    sim.register_attacker(attacker_agent_id, 1)
+    sim.register_defender(defender_agent_id)
+
+    sim.reset()
+
+    attacker_agent = sim.agent_states[attacker_agent_id]
+    defender_agent = sim.agent_states[defender_agent_id]
+
+    with pytest.raises(AttributeError):
+        attacker_agent.name = "Changed name"
+    with pytest.raises(AttributeError):
+        attacker_agent.action_surface = {}
+
+    # Make sure all attributes exist in both view and state
+    attacker_state_public_attrs = set(
+        attr for attr in dir(attacker_agent)
+        if '__' not in attr and attr != '_agent'
+    )
+    attacker_state_view_public_attrs = set(
+        attr for attr in dir(attacker_agent._agent)
+        if '__' not in attr
+    )
+    assert attacker_state_public_attrs == attacker_state_view_public_attrs
+
+    defender_state_public_attrs = set(
+        attr for attr in dir(defender_agent)
+        if '__' not in attr and attr != '_agent'
+    )
+    defender_state_view_public_attrs = set(
+        attr for attr in dir(defender_agent._agent)
+        if '__' not in attr
+    )
+    assert defender_state_public_attrs == defender_state_view_public_attrs
