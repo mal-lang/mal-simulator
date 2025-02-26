@@ -410,11 +410,14 @@ class MalSimulator():
         agent.step_unviable_nodes |= attack_steps_made_unviable
 
         for defender_agent in self._get_defender_agents():
+            # Remove enabled defenses from all defenders action surface
             defender_agent.step_action_surface_removals = enabled_defenses
             defender_agent.action_surface -= enabled_defenses
 
         for attacker_agent in self._get_attacker_agents():
-            defender_agent.step_action_surface_removals = (
+            # Remove attack steps made unviable from all attackers
+            # action surfaces if they were part of it
+            attacker_agent.step_action_surface_removals = (
                 attacker_agent.action_surface & attack_steps_made_unviable
             )
             attacker_agent.action_surface -= attack_steps_made_unviable
