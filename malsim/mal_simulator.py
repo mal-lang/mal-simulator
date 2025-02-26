@@ -444,7 +444,7 @@ class MalSimulator():
         Returns:
         - A dictionary containing the agent state views keyed by agent names
         """
-        logger.info(
+        logger.debug(
             "Stepping through iteration %d/%d", self.cur_iter, self.max_iter
         )
         logger.debug("Performing actions: %s", actions)
