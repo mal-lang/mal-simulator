@@ -512,7 +512,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
 
         return np_obs
 
-    def create_action_mask(self, agent: MalSimAgentState):
+    def create_action_mask(self, agent: MalSimAgentStateView):
         """
         Create an action mask for an agent based on its action_surface.
 
