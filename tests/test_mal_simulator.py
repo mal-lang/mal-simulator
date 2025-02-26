@@ -167,6 +167,89 @@ def test_defender_step(corelang_lang_graph, model):
     assert not defender_agent.step_performed_nodes
 
 
+def test_agent_state_views_simple(corelang_lang_graph, model):
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    entry_point = attack_graph.get_node_by_full_name('OS App:fullAccess')
+
+    attacker = Attacker(
+        'attacker1',
+        reached_attack_steps = {entry_point},
+        entry_points = set(),
+        attacker_id = 100
+    )
+    attack_graph.add_attacker(attacker, attacker.id)
+    sim = MalSimulator(attack_graph)
+    attacker_name = 'attacker'
+    defender_name = 'defender'
+    sim.register_attacker(attacker_name, attacker.id)
+
+    sim.register_defender(defender_name)
+
+    # Evaluate the agent state views after reset
+    state_views = sim.reset()
+    asv = state_views['attacker']
+    dsv = state_views['defender']
+    assert asv.step_performed_nodes == set()
+    assert dsv.step_performed_nodes == set()
+    assert len(asv.action_surface) == 6
+    assert len(dsv.action_surface) == 21
+    assert dsv.step_action_surface_additions == set()
+    assert asv.step_action_surface_removals == set()
+    assert dsv.step_action_surface_removals == set()
+
+    # Evaluate the agent state views after stepping through an attack step and
+    # a defense that will not impact it in any way
+    state_views = sim.step({
+        'defender': {sim.attack_graph.get_node_by_full_name(
+            'Program 2:notPresent')},
+        'attacker': {sim.attack_graph.get_node_by_full_name(
+            'OS App:attemptDeny')}
+    })
+    asv = state_views['attacker']
+    dsv = state_views['defender']
+    assert asv.step_performed_nodes == {
+        sim.attack_graph.get_node_by_full_name('OS App:attemptDeny')}
+    assert dsv.step_performed_nodes == {
+        sim.attack_graph.get_node_by_full_name('Program 2:notPresent')}
+    assert asv.step_action_surface_additions == {
+        sim.attack_graph.get_node_by_full_name('OS App:successfulDeny')}
+    assert dsv.step_action_surface_additions == set()
+    assert asv.step_action_surface_removals == set()
+    assert dsv.step_action_surface_removals == {
+        sim.attack_graph.get_node_by_full_name('Program 2:notPresent')}
+    assert dsv.step_all_compromised_nodes == {
+        sim.attack_graph.get_node_by_full_name('OS App:attemptDeny')}
+    assert len(dsv.step_unviable_nodes) == 49
+
+    # Evaluate the agent state views after stepping through an attack step and
+    # a defense that would prevent it from occurring
+    state_views = sim.step({
+        'defender': {sim.attack_graph.get_node_by_full_name(
+            'OS App:notPresent')},
+        'attacker': {sim.attack_graph.get_node_by_full_name(
+            'OS App:successfulDeny')}
+    })
+    asv = state_views['attacker']
+    dsv = state_views['defender']
+    assert asv.step_performed_nodes == set()
+    assert dsv.step_performed_nodes == {
+        sim.attack_graph.get_node_by_full_name('OS App:notPresent')}
+    assert asv.step_action_surface_additions == set()
+    assert dsv.step_action_surface_additions == set()
+    assert asv.step_action_surface_removals == {
+        sim.attack_graph.get_node_by_full_name('OS App:accessNetworkAndConnections'),
+        sim.attack_graph.get_node_by_full_name('OS App:specificAccess'),
+        sim.attack_graph.get_node_by_full_name('OS App:attemptApplicationRespondConnectThroughData'),
+        sim.attack_graph.get_node_by_full_name('OS App:attemptRead'),
+        sim.attack_graph.get_node_by_full_name('OS App:attemptModify'),
+        sim.attack_graph.get_node_by_full_name('OS App:successfulDeny'),
+    }
+    assert dsv.step_action_surface_removals == {
+        sim.attack_graph.get_node_by_full_name('OS App:notPresent')}
+    assert dsv.step_all_compromised_nodes == set()
+    assert len(dsv.step_unviable_nodes) == 55
+
+
 def test_observe_attacker():
     attack_graph, _ = load_scenario(
         'tests/testdata/scenarios/simple_scenario.yml'
