@@ -4,7 +4,7 @@ import random
 import re
 
 from collections import deque
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Any
 
 from .decision_agent import DecisionAgent
 from ..mal_simulator import MalSimAgentStateView
@@ -26,7 +26,7 @@ class BreadthFirstAttacker(DecisionAgent):
     name = ' '.join(re.findall(r'[A-Z][^A-Z]*', __qualname__))
     # A human-friendly name for the agent.
 
-    default_settings = {
+    default_settings: dict[str, Any] = {
         'randomize': False,
         # Whether to randomize next target selection, still respecting the
         # policy of the agent (e.g. BFS or DFS).
@@ -58,8 +58,9 @@ class BreadthFirstAttacker(DecisionAgent):
             if self.started
             else agent_state.action_surface,
             agent_state.step_action_surface_removals,
+            **kwargs,
         )
-        self._select_next_target()
+        self._select_next_target(**kwargs)
 
         self.started = True
         return self.current_target
@@ -68,6 +69,7 @@ class BreadthFirstAttacker(DecisionAgent):
         self,
         new_targets_set: set[AttackGraphNode],
         disabled_nodes_set: set[AttackGraphNode],
+        **kwargs: Any,
     ):
         if self.settings['seed']:
             # If a seed is set, we assume the user wants determinism in the
@@ -94,7 +96,7 @@ class BreadthFirstAttacker(DecisionAgent):
 
         getattr(self.targets, self._extend_method)(new_targets)
 
-    def _select_next_target(self) -> None:
+    def _select_next_target(self, **kwargs: Any) -> None:
         """
         Implement the actual next target selection logic.
         """
