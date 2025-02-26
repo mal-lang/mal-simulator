@@ -13,11 +13,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
   "py2neo>=2021.2.3",
-  "python-jsonschema-objects>=0.4.1",
-  "mal-toolbox==0.3.3",
-  "numpy>=1.21.4",
-  "pettingzoo>=1.24.2",
-  "gymnasium==1.0",
+  "mal-toolbox>=0.3,<0.4",
   "PyYAML>=6.0.1"
 ]
 license = {text = "Apache Software License"}
@@ -31,6 +27,18 @@ classifiers = [
     "Topic :: Scientific/Engineering"
 ]
 
+[project.optional-dependencies]
+ml = [
+  "numpy>=1.21.4",
+  "pettingzoo>=1.24.2",
+  "gymnasium==1.0",
+]
+dev = [
+  "pytest",
+  "mypy",
+  "ruff",
+]
+
 [project.urls]
 "Homepage" = "https://github.com/mal-lang/mal-simulator"
 "Bug Tracker" = "https://github.com/mal-lang/mal-simulator/issues"
@@ -38,7 +46,7 @@ classifiers = [
 
 
 [project.scripts]
-malsim = "malsim.cli:main"
+malsim = "malsim.__main__:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]

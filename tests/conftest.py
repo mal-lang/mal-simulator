@@ -1,10 +1,13 @@
 from os import path
 import pytest
 
-from maltoolbox.language import LanguageGraph
 from maltoolbox.model import Model
 from maltoolbox.attackgraph import create_attack_graph
-from malsim.sims.mal_simulator import MalSimulator
+from maltoolbox.language import (
+    LanguageGraph, LanguageGraphAttackStep, LanguageGraphAsset
+)
+from malsim.mal_simulator import MalSimulator
+from malsim.envs import MalSimVectorizedObsEnv
 
 model_file_name = 'tests/testdata/models/simple_test_model.yml'
 attack_graph_file_name = path.join('/tmp','attack_graph.json')
@@ -34,18 +37,15 @@ def empty_model(name, lang_classes_factory):
 ## Fixtures
 
 @pytest.fixture(scope="session", name="env")
-def fixture_env()-> MalSimulator:
+def fixture_env()-> MalSimVectorizedObsEnv:
 
     attack_graph = create_attack_graph(lang_file_name, model_file_name)
-    lang_graph = attack_graph.lang_graph
-    model = attack_graph.model
-
     attack_graph.save_to_file(attack_graph_file_name)
+    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph, max_iter=1000))
+    env.register_defender('defender')
 
-    env = MalSimulator(lang_graph, model, attack_graph, max_iter=1000)
-
-    env.register_attacker("attacker", 0)
-    env.register_defender("defender")
+    attacker_id = env.sim.attack_graph.attackers[0].id
+    env.register_attacker('attacker', attacker_id)
 
     return env
 
@@ -85,3 +85,38 @@ def model(corelang_lang_graph):
     """
     # Init LanguageClassesFactory
     return Model.load_from_file(model_file_name, corelang_lang_graph)
+
+@pytest.fixture
+def dummy_lang_graph(corelang_lang_graph):
+    """Fixture that generates a dummy LanguageGraph with a dummy
+    LanguageGraphAsset and LanguageGraphAttackStep
+    """
+    lang_graph = LanguageGraph()
+    dummy_asset = LanguageGraphAsset(
+        name = 'DummyAsset'
+    )
+    lang_graph.assets['DummyAsset'] = dummy_asset
+    dummy_or_attack_step_node = LanguageGraphAttackStep(
+        name = 'DummyOrAttackStep',
+        type = 'or',
+        asset = dummy_asset
+    )
+    dummy_asset.attack_steps['DummyOrAttackStep'] = dummy_or_attack_step_node
+
+    dummy_and_attack_step_node = LanguageGraphAttackStep(
+        name = 'DummyAndAttackStep',
+        type = 'and',
+        asset = dummy_asset
+    )
+    dummy_asset.attack_steps['DummyAndAttackStep'] =\
+        dummy_and_attack_step_node
+
+    dummy_defense_attack_step_node = LanguageGraphAttackStep(
+        name = 'DummyDefenseAttackStep',
+        type = 'defense',
+        asset = dummy_asset
+    )
+    dummy_asset.attack_steps['DummyDefenseAttackStep'] =\
+        dummy_defense_attack_step_node
+
+    return lang_graph

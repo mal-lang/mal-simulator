@@ -1,137 +1,99 @@
+from __future__ import annotations
 import logging
+import random
+import re
 
 from collections import deque
-from typing import Any, Deque, Dict, List, Set, Union
+from collections.abc import Iterable
+from typing import Optional, TYPE_CHECKING
 
-import numpy as np
+from .decision_agent import DecisionAgent
+from ..mal_simulator import MalSimAgentStateView
+
+if TYPE_CHECKING:
+    from maltoolbox.attackgraph import AttackGraphNode
 
 logger = logging.getLogger(__name__)
 
 
-def get_new_targets(
-    observation: dict, discovered_targets: Set[int], mask: tuple
-) -> List[int]:
-    attack_surface = mask[1]
-    surface_indexes = list(np.flatnonzero(attack_surface))
-    new_targets = [idx for idx in surface_indexes if idx not in discovered_targets]
-    return new_targets, surface_indexes
+class BreadthFirstAttacker(DecisionAgent):
+    """A Breadth-First agent, with possible randomization at each level."""
 
+    _extend_method = 'extendleft'
+    # Controls where newly discovered steps will be appended to the list of
+    # available actions. Currently used to differentiate between BFS and DFS
+    # agents.
 
-class PassiveAttacker:
-    def compute_action_from_dict(self, observation, mask):
-        return (0, None)
+    name = ' '.join(re.findall(r'[A-Z][^A-Z]*', __qualname__))
+    # A human-friendly name for the agent.
 
-class BreadthFirstAttacker:
+    default_settings = {
+        'randomize': False,
+        # Whether to randomize next target selection, still respecting the
+        # policy of the agent (e.g. BFS or DFS).
+        'seed': None,
+        # The random seed to initialize the randomness engine with. If set, the
+        # simulation will be deterministic.
+    }
+
     def __init__(self, agent_config: dict) -> None:
-        self.targets: Deque[int] = deque([])
-        self.current_target: int = None
-        seed = (
-            agent_config["seed"]
-            if agent_config.get("seed", None)
-            else np.random.SeedSequence().entropy
-        )
-        self.rng = (
-            np.random.default_rng(seed)
-            if agent_config.get("randomize", False)
-            else None
-        )
+        """Initialize a BFS agent.
 
-    def compute_action_from_dict(self, observation: Dict[str, Any], mask: tuple):
-        new_targets, surface_indexes = get_new_targets(observation, self.targets, mask)
+        Args:
+            agent_config: Dict with settings to override defaults
+        """
+        self.targets: deque[AttackGraphNode] = deque()
+        self.current_target: Optional[AttackGraphNode] = None
 
-        # Add new targets to the back of the queue
-        # if desired, shuffle the new targets to make the attacker more unpredictable
-        if self.rng:
+        self.settings = self.default_settings | agent_config
+
+        self.rng = random.Random(self.settings.get('seed'))
+
+    def get_next_action(
+        self, agent_state: MalSimAgentStateView, **kwargs
+    ) -> Optional[AttackGraphNode]:
+        self._update_targets(agent_state.action_surface)
+        self._select_next_target()
+
+        return self.current_target
+
+    def _update_targets(self, action_surface: Iterable[AttackGraphNode]):
+        if self.settings['seed']:
+            # If a seed is set, we assume the user wants determinism in the
+            # simulation. Thus, we sort to an ordered list to make sure the
+            # non-deterministic ordering of the action_surface set does not
+            # break simulation determinism.
+            action_surface = sorted(list(action_surface), key=lambda n: n.id)
+
+        new_targets = [
+            step
+            for step in action_surface
+            if step not in self.targets and not step.is_compromised()
+        ]
+
+        if self.settings['randomize']:
             self.rng.shuffle(new_targets)
-        for c in new_targets:
-            self.targets.appendleft(c)
 
-        self.current_target, done = self.select_next_target(
-            self.current_target, self.targets, surface_indexes
-        )
+        if self.current_target in new_targets:
+            # If self.current_target is not yet compromised, e.g. due to TTCs,
+            # keep using that as the target.
+            new_targets.remove(self.current_target)
+            new_targets.append(self.current_target)
 
-        self.current_target = None if done else self.current_target
-        action = 0 if done else 1
-        if action == 0:
-            logger.debug(
-                "Attacker Breadth First agent does not have "
-                "any valid targets it will terminate"
-            )
+        # Enabled defenses may remove previously possible attack steps.
+        self.targets = deque(filter(lambda n: n.is_viable, self.targets))
 
-        return (action, self.current_target)
+        getattr(self.targets, self._extend_method)(new_targets)
 
-    @staticmethod
-    def select_next_target(
-        current_target: int,
-        targets: Union[List[int], Deque[int]],
-        attack_surface: Set[int],
-    ) -> int:
-        # If the current target was not compromised, put it
-        # back, but on the bottom of the stack.
-        if current_target in attack_surface:
-            targets.appendleft(current_target)
-            current_target = targets.pop()
-
-        while current_target not in attack_surface:
-            if len(targets) == 0:
-                return None, True
-
-            current_target = targets.pop()
-
-        return current_target, False
+    def _select_next_target(self) -> None:
+        """
+        Implement the actual next target selection logic.
+        """
+        try:
+            self.current_target = self.targets.pop()
+        except IndexError:
+            self.current_target = None
 
 
-class DepthFirstAttacker:
-    def __init__(self, agent_config: dict) -> None:
-        self.current_target = -1
-        self.targets: List[int] = []
-        seed = (
-            agent_config["seed"]
-            if agent_config.get("seed", None)
-            else np.random.SeedSequence().entropy
-        )
-        self.rng = (
-            np.random.default_rng(seed)
-            if agent_config.get("randomize", False)
-            else None
-        )
-
-    def compute_action_from_dict(self, observation: Dict[str, Any], mask: tuple):
-        new_targets, surface_indexes = get_new_targets(observation, self.targets, mask)
-
-        # Add new targets to the top of the stack
-        if self.rng:
-            self.rng.shuffle(new_targets)
-        for c in new_targets:
-            self.targets.append(c)
-
-        self.current_target, done = self.select_next_target(
-            self.current_target, self.targets, surface_indexes
-        )
-
-        self.current_target = None if done else self.current_target
-        action = 0 if done else 1
-        return (action, self.current_target)
-
-    @staticmethod
-    def select_next_target(
-        current_target: int,
-        targets: Union[List[int], Deque[int]],
-        attack_surface: Set[int],
-    ) -> int:
-        if current_target in attack_surface:
-            return current_target, False
-
-        while current_target not in attack_surface:
-            if len(targets) == 0:
-                return None, True
-
-            current_target = targets.pop()
-
-        return current_target, False
-
-
-AGENTS = {
-    BreadthFirstAttacker.__name__: BreadthFirstAttacker,
-    DepthFirstAttacker.__name__: DepthFirstAttacker,
-}
+class DepthFirstAttacker(BreadthFirstAttacker):
+    _extend_method = 'extend'

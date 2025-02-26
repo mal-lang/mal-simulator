@@ -7,7 +7,10 @@ from gymnasium import spaces
 from gymnasium.core import RenderFrame
 import numpy as np
 
-from ..scenario import create_simulator_from_scenario
+from ..scenario import load_scenario
+from ..mal_simulator import MalSimulator, AgentType
+from ..envs import MalSimVectorizedObsEnv
+from ..agents import DecisionAgent
 
 
 class AttackerEnv(gym.Env):
@@ -23,13 +26,28 @@ class AttackerEnv(gym.Env):
         self.render_mode = kwargs.pop('render_mode', None)
 
         # Create a simulator from the scenario given
-        self.sim, _ = create_simulator_from_scenario(scenario_file, **kwargs)
+        attack_graph, agents = load_scenario(scenario_file, **kwargs)
+        self.sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
-        # Use first attacker as attacker agent in simulation
-        # since only single agent is currently supported
-        self.attacker_agent_id = list(self.sim.get_attacker_agents().keys())[0]
-        self.observation_space = self.sim.observation_space(self.attacker_agent_id)
-        self.action_space = self.sim.action_space(self.attacker_agent_id)
+        attacker_agents = [
+            agent for agent in agents if agent['type'] == AgentType.ATTACKER]
+
+        assert len(attacker_agents) == 1, (
+            "More than one attacker in scenario,"
+            "can not decide which one to use in AttackerEnv")
+
+        attacker_agent = attacker_agents[0]
+        self.attacker_agent_name = attacker_agent['name']
+        self.sim.register_attacker(
+            self.attacker_agent_name,
+            attacker_agent['attacker_id']
+        )
+        self.sim.reset()
+
+        self.observation_space = \
+            self.sim.observation_space(self.attacker_agent_name)
+        self.action_space = \
+            self.sim.action_space(self.attacker_agent_name)
         super().__init__()
 
     def reset(
@@ -38,8 +56,8 @@ class AttackerEnv(gym.Env):
         super().reset(seed=seed, options=options)
 
         # TODO: params not used by method, find out if we need to send them
-        obs, info = self.sim.reset(seed=seed, options=options)
-        return obs[self.attacker_agent_id], info[self.attacker_agent_id]
+        obs, infos = self.sim.reset(seed=seed, options=options)
+        return obs[self.attacker_agent_name], infos[self.attacker_agent_name]
 
     def step(
         self, action: Any
@@ -48,15 +66,17 @@ class AttackerEnv(gym.Env):
 
         # TODO: Add potential defender and give defender action if it exists
         actions = {
-            self.attacker_agent_id: action,
+            self.attacker_agent_name: action,
         }
-        obs, rewards, terminated, truncated, infos = self.sim.step(actions)
+
+        obs, rew, term, trunc, infos = self.sim.step(actions)
+
         return (
-            obs[self.attacker_agent_id],
-            rewards[self.attacker_agent_id],
-            terminated[self.attacker_agent_id],
-            truncated[self.attacker_agent_id],
-            infos[self.attacker_agent_id],
+            obs[self.attacker_agent_name],
+            rew[self.attacker_agent_name],
+            term[self.attacker_agent_name],
+            trunc[self.attacker_agent_name],
+            infos[self.attacker_agent_name]
         )
 
     def render(self):
@@ -64,12 +84,11 @@ class AttackerEnv(gym.Env):
 
     @property
     def num_assets(self):
-        return self.sim.num_assets
+        return len(self.sim._index_to_asset_type)
 
     @property
     def num_step_names(self):
-        return self.sim.num_step_names
-
+        return len(self.sim._index_to_step_name)
 
 class DefenderEnv(gym.Env):
     metadata = {'render_modes': []}
@@ -78,59 +97,94 @@ class DefenderEnv(gym.Env):
         self.randomize = kwargs.pop('randomize_attacker_behavior', False)
         self.render_mode = kwargs.pop('render_mode', None)
 
-        self.sim, conf = create_simulator_from_scenario(scenario_file, **kwargs)
+        ag, agents = load_scenario(scenario_file)
 
-        # Select first attacker and first defender for the simulation
-        # currently only one of each agent is supported
-        self.attacker_agent_id = list(self.sim.get_attacker_agents().keys())[0]
-        self.defender_agent_id = list(self.sim.get_defender_agents().keys())[0]
+        self.scenario_agents = agents
+        self.sim = MalSimVectorizedObsEnv(MalSimulator(ag), **kwargs)
 
-        self.attacker_class = conf['agents'][self.attacker_agent_id]['agent_class']
-        self.attacker = self.attacker_class({})
+        # Register attacker agents from scenario
+        self._register_attacker_agents(self.scenario_agents)
+        self.attacker_decision_agents = {}
 
-        self.observation_space = self.sim.observation_space(self.defender_agent_id)
-        self.action_space = self.sim.action_space(self.defender_agent_id)
+        # Register defender agent
+        self.defender_agent_name = "DefenderEnvAgent"
+        self.sim.register_defender(self.defender_agent_name)
+        self.sim.reset()
 
-        self.attacker_obs = None
-        self.attacker_mask = None
+        self.observation_space = \
+            self.sim.observation_space(self.defender_agent_name)
+        self.action_space = \
+            self.sim.action_space(self.defender_agent_name)
+
+    def _register_attacker_agents(self, agents: list[dict]):
+        """Register attackers in simulator"""
+        for agent_info in agents:
+            if agent_info['type'] == AgentType.ATTACKER:
+                agent_name = agent_info['name']
+                attacker_id = agent_info['attacker_id']
+                self.sim.register_attacker(agent_name, attacker_id)
+
+    def _create_attacker_decision_agents(
+            self, agents: list[dict], seed=None
+        ) -> dict[str, DecisionAgent]:
+        """Create decision agents for each attacker"""
+
+        attacker_agents = {}
+
+        for agent_info in agents:
+            if agent_info['type'] == AgentType.ATTACKER:
+                agent_name = agent_info['name']
+                agent_class = agent_info.get('agent_class')
+                if agent_class:
+                    attacker_agents[agent_name] = (
+                        agent_class(
+                            {'seed': seed, 'randomize': self.randomize}
+                        )
+                    )
+        return attacker_agents
 
     def reset(
-        self, *, seed: int | None = None, options: dict[str, Any] | None = None
+        self, *,
+        seed: int | None = None,
+        options: dict[str, Any] | None = None
     ) -> tuple[Any, dict[str, Any]]:
+
         super().reset(seed=seed, options=options)
-
-        self.attacker = self.attacker_class({'seed': seed, 'randomize': self.randomize})
-
-        # TODO: params not used by method, find out if we need to send them
-        obs, info = self.sim.reset(seed=seed, options=options)
-
-        self.attacker_obs = obs[self.attacker_agent_id]
-        self.attacker_mask = info[self.attacker_agent_id]['action_mask']
-
-        return obs[self.defender_agent_id], info[self.defender_agent_id]
-
-    def step(
-        self, action: Any
-    ) -> tuple[Any, SupportsFloat, bool, bool, dict[str, Any]]:
-        attacker_action = self.attacker.compute_action_from_dict(
-            self.attacker_obs, self.attacker_mask
+        self.attacker_decision_agents = self._create_attacker_decision_agents(
+            self.scenario_agents, seed=seed
+        )
+        obs, infos = self.sim.reset(seed=seed, options=options)
+        return (
+            obs[self.defender_agent_name],
+            infos[self.defender_agent_name]
         )
 
-        actions = {
-            self.defender_agent_id: action,
-            self.attacker_agent_id: attacker_action,
-        }
-        obs, rewards, terminated, truncated, infos = self.sim.step(actions)
+    def step(
+        self, action: tuple[int, int]
+    ) -> tuple[Any, SupportsFloat, bool, bool, dict[str, Any]]:
 
-        self.attacker_obs = obs[self.attacker_agent_id]
-        self.attacker_mask = infos[self.attacker_agent_id]['action_mask']
+        actions = {}
+        actions[self.defender_agent_name] = action
+
+        # Get actions from scenario attackers
+        for agent_name, decision_agent in self.attacker_decision_agents.items():
+            # get next action from decision agent and put it in actions dict
+            attacker_state = self.sim.get_agent_state(agent_name)
+            attacker_action_node = decision_agent.get_next_action(attacker_state)
+            if attacker_action_node:
+                node_index = self.sim.node_to_index(attacker_action_node)
+                actions[agent_name] = (1, node_index)
+
+        # Perform step
+        obs, rewards, terminated, truncated, infos = \
+            self.sim.step(actions)
 
         return (
-            obs[self.defender_agent_id],
-            rewards[self.defender_agent_id],
-            terminated[self.defender_agent_id],
-            truncated[self.defender_agent_id],
-            infos[self.defender_agent_id],
+            obs[self.defender_agent_name],
+            rewards[self.defender_agent_name],
+            terminated[self.defender_agent_name],
+            truncated[self.defender_agent_name],
+            infos[self.defender_agent_name],
         )
 
     def render(self):
@@ -149,11 +203,11 @@ class DefenderEnv(gym.Env):
 
     @property
     def num_assets(self):
-        return len(self.sim.unwrapped._index_to_asset_type)
+        return len(self.sim._index_to_asset_type)
 
     @property
     def num_step_names(self):
-        return len(self.sim.unwrapped._index_to_step_name)
+        return len(self.sim._index_to_step_name)
 
 
 def _to_binary(val, max_val):

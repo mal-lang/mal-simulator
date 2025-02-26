@@ -1,26 +1,22 @@
 lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
 model_file: ../models/network_app_data_model.yml
 
-attacker_agent_class: 'BreadthFirstAttacker'
-defender_agent_class: 'BreadthFirstAttacker'
-
-attacker_entry_points:
-  'attacker1':
-    - 'Internet:accessUninspected'
-
 # Rewards for each attack step
 rewards:
   Linux system:notPresent: 50
   Secret data:read: 100
 
-# This is for new base mal simulator:
-# agents:
-#   'attacker1':
-#     agent_class: KeyboardAgent
-#     type: attacker
-#     entry_points:
-#       - 'Internet:accessUninspected'
+agents:
+  'attacker1':
+    agent_class: BreadthFirstAttacker
+    type: attacker
+    config:
+      seed: 1
+    entry_points:
+      - 'Internet:accessUninspected'
 
-#   'defender1':
-#     agent_class: BreadthFirstAttacker
-#     type: defender
+  'defender1':
+    agent_class: BreadthFirstAttacker
+    type: defender
+    config:
+      seed: 1
