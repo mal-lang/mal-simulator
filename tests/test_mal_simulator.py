@@ -219,6 +219,15 @@ def test_step_attacker_defender_action_surface_updates():
     }
 
     sim.step(actions)
+
+    # Make sure no nodes added to action surface
+    assert not attacker_agent.step_action_surface_additions
+    assert not defender_agent.step_action_surface_additions
+
+    # Make sure the steps are removed from the action surfaces
+    assert attacker_step in attacker_agent.step_action_surface_removals
+    assert defender_step in defender_agent.step_action_surface_removals
+
     assert attacker_step not in attacker_agent.action_surface
     assert defender_step not in defender_agent.action_surface
 
