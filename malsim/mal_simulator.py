@@ -310,14 +310,12 @@ class MalSimulator():
 
     def _attacker_step(
         self, agent: MalSimAttackerState, nodes: list[AttackGraphNode]
-    ) -> set[AttackGraphNode]:
+    ):
         """Compromise attack step nodes with attacker
 
         Args:
         agent - the agent to compromise nodes with
         nodes - the nodes to compromise
-
-        Returns: A set of attack steps nodes that were compromised
         """
 
         compromised_nodes = set()
