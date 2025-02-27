@@ -211,7 +211,9 @@ class MalSimulator():
 
             if isinstance(agent, MalSimAttackerState):
                 attacker = self.attack_graph.attackers[agent.attacker_id]
-                agent.action_surface = query.calculate_attack_surface(attacker)
+                agent.action_surface = query.calculate_attack_surface(
+                    attacker, skip_compromised = True
+                )
 
             elif isinstance(agent, MalSimDefenderState):
                 agent.action_surface = \
@@ -350,11 +352,15 @@ class MalSimulator():
 
         # Update attacker action surface
         attack_surface_additions = query.calculate_attack_surface(
-            attacker, from_nodes=compromised_nodes, skip_compromised=True
+            attacker, from_nodes = compromised_nodes, skip_compromised = True
         )
 
         # Filter out nodes already in action surface, these are not additions.
         attack_surface_additions -= agent.action_surface
+        # Also filter out nodes already compromised from the attack surface.
+        # TODO: Make this configurable in the future
+        agent.action_surface -= compromised_nodes
+        agent.step_action_surface_removals |= compromised_nodes
 
         agent.step_action_surface_additions = attack_surface_additions
         agent.action_surface |= attack_surface_additions

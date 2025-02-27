@@ -211,11 +211,6 @@ def test_agent_state_views_simple(corelang_lang_graph, model):
     os_app_not_present = get_node('OS App:notPresent')
     os_app_access_netcon = get_node('OS App:accessNetworkAndConnections')
     os_app_spec_access = get_node('OS App:specificAccess')
-    os_app_attempt_app_resp_con_data = (
-        get_node('OS App:attemptApplicationRespondConnectThroughData')
-    )
-    os_app_attempt_read = get_node('OS App:attemptRead')
-    os_app_attempt_modify = get_node('OS App:attemptModify')
 
     # Evaluate the agent state views after stepping through an attack step and
     # a defense that will not impact it in any way
@@ -230,27 +225,31 @@ def test_agent_state_views_simple(corelang_lang_graph, model):
     assert dsv.step_performed_nodes == {program2_not_present}
     assert asv.step_action_surface_additions == {os_app_success_deny}
     assert dsv.step_action_surface_additions == set()
-    assert asv.step_action_surface_removals == set()
+    assert asv.step_action_surface_removals == {os_app_attempt_deny}
+    assert os_app_attempt_deny not in asv.action_surface
     assert dsv.step_action_surface_removals == {program2_not_present}
     assert dsv.step_all_compromised_nodes == {os_app_attempt_deny}
     assert len(dsv.step_unviable_nodes) == 49
 
-    # Attacker takes same step again, should not get any additions
-    # to the attack surface. Defender does nothing.
+    # Go through an attack step that already has some children in the attack
+    # surface(OS App:accessNetworkAndConnections in this case)
+    assert os_app_access_netcon in asv.action_surface
     state_views = sim.step({
         'defender': [],
-        'attacker': [os_app_attempt_deny]
+        'attacker': [os_app_spec_access]
     })
     asv = state_views['attacker']
     dsv = state_views['defender']
-    assert asv.step_performed_nodes == {os_app_attempt_deny}
+    assert asv.step_performed_nodes == {os_app_spec_access}
     assert dsv.step_performed_nodes == set()
-    assert asv.step_action_surface_additions == set()
+    assert os_app_access_netcon in asv.action_surface
+    assert os_app_access_netcon not in asv.step_action_surface_additions
     assert dsv.step_action_surface_additions == set()
-    assert asv.step_action_surface_removals == set()
+    assert asv.step_action_surface_removals == {os_app_spec_access}
+    assert os_app_spec_access not in asv.action_surface
     assert dsv.step_action_surface_removals == set()
-    assert dsv.step_all_compromised_nodes == {os_app_attempt_deny}
-    assert len(dsv.step_unviable_nodes) == 0 # No new unviable
+    assert dsv.step_all_compromised_nodes == {os_app_spec_access}
+    assert len(dsv.step_unviable_nodes) == 0
 
     # Evaluate the agent state views after stepping through an attack step and
     # a defense that would prevent it from occurring
@@ -264,14 +263,7 @@ def test_agent_state_views_simple(corelang_lang_graph, model):
     assert dsv.step_performed_nodes == {os_app_not_present}
     assert asv.step_action_surface_additions == set()
     assert dsv.step_action_surface_additions == set()
-    assert asv.step_action_surface_removals == {
-        os_app_access_netcon,
-        os_app_spec_access,
-        os_app_attempt_app_resp_con_data,
-        os_app_attempt_read,
-        os_app_attempt_modify,
-        os_app_success_deny,
-    }
+    assert len(asv.step_action_surface_removals) == 12
     assert dsv.step_action_surface_removals == {os_app_not_present}
     assert dsv.step_all_compromised_nodes == set()
     assert len(dsv.step_unviable_nodes) == 55
