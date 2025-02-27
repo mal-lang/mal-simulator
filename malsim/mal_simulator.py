@@ -353,6 +353,9 @@ class MalSimulator():
             attacker, from_nodes=compromised_nodes, skip_compromised=True
         )
 
+        # Filter out nodes already in action surface, these are not additions.
+        attack_surface_additions -= agent.action_surface
+
         agent.step_action_surface_additions = attack_surface_additions
         agent.action_surface |= attack_surface_additions
         agent.step_performed_nodes = compromised_nodes
