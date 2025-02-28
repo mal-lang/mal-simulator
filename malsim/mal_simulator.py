@@ -76,8 +76,13 @@ class MalSimDefenderState(MalSimAgentState):
         super().__init__(name, AgentType.DEFENDER)
 
 
-class MalSimAgentStateView:
-    """Read-only interface to MalSimAgentState."""
+class MalSimAgentStateView(MalSimAttackerState, MalSimDefenderState):
+    """Read-only interface to MalSimAgentState.
+
+    Subclassing from State classes only to satisfy static analysis and support
+    autocompletion that would otherwise be unavailable due to the dynamic
+    __getattr(ibute)__ method.
+    """
 
     _frozen = False
 
@@ -88,16 +93,33 @@ class MalSimAgentStateView:
     def __setattr__(self, key, value) -> None:
         if self._frozen:
             raise AttributeError("Cannot modify agent state view")
-        self.__dict__[key] = value
+        super().__setattr__(key, value)
 
     def __delattr__(self, key) -> None:
         if self._frozen:
             raise AttributeError("Cannot modify agent state view")
         super().__delattr__(key)
 
-    def __getattr__(self, attr) -> Any:
-        """Return read-only version of proxied agent's properties."""
-        value = getattr(self._agent, attr)
+    def __getattribute__(self, attr) -> Any:
+        """Return read-only version of proxied agent's properties.
+
+        If the attribute exists in the View only return it from there. Using
+        __getattribute__ instead of __getattr__ as the latter is called only for
+        missing properties; since this class is a subclass of State, it will
+        have all state properties and those would be returned from self, not
+        self._agent. Using __getattribute__ allows use to filter which
+        properties to return from self and which from self._agent.
+        """
+        if attr in ("_agent", "_frozen"):
+            return super().__getattribute__(attr)
+
+        agent = super().__getattribute__('_agent')
+        value = getattr(agent, attr)
+
+        if attr == '_agent':
+            return agent
+
+        value = getattr(agent, attr)
 
         if isinstance(value, dict):
             return MappingProxyType(value)
