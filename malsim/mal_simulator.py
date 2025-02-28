@@ -330,7 +330,7 @@ class MalSimulator():
                 "comes from the agents action surface."
             )
 
-            logger.info(
+            logger.debug(
                 'Attacker agent "%s" stepping through "%s"(%d).',
                 agent.name, node.full_name, node.id
             )
@@ -342,7 +342,7 @@ class MalSimulator():
                 agent.reward += node.extras.get('reward', 0)
                 compromised_nodes.add(node)
 
-                logger.info(
+                logger.debug(
                     'Attacker agent "%s" compromised "%s"(%d).',
                     agent.name, node.full_name, node.id
                 )
@@ -394,7 +394,7 @@ class MalSimulator():
                 "of this simulators attack_graph. Make sure the node "
                 "comes from the agents action surface."
             )
-            logger.info(
+            logger.debug(
                 'Defender agent "%s" stepping through "%s"(%d).',
                 agent.name, node.full_name, node.id
             )
@@ -415,7 +415,7 @@ class MalSimulator():
                     apriori.propagate_viability_from_unviable_node(node)
                 agent.reward -= node.extras.get("reward", 0)
                 enabled_defenses.add(node)
-                logger.info(
+                logger.debug(
                     'Defender agent "%s" enabled "%s"(%d).',
                     agent.name, node.full_name, node.id
                 )
@@ -451,10 +451,9 @@ class MalSimulator():
         Returns:
         - A dictionary containing the agent state views keyed by agent names
         """
-        logger.info(
+        logger.debug(
             "Stepping through iteration %d/%d", self.cur_iter, self.max_iter
         )
-        logger.debug("Performing actions: %s", actions)
 
         # Populate these from the results for all agents' actions.
         all_compromised = set()

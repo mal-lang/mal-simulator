@@ -12,6 +12,18 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
 
+
+def debug_to_info(record):
+    record.levelname = 'INFO'
+    record.levelno = logging.DEBUG
+    return True
+
+
+module_logger = logging.getLogger('malsim.mal_simulator')
+module_logger.setLevel(logging.DEBUG)
+module_logger.filters.append(debug_to_info)
+
+
 def run_simulation(sim: MalSimulator, agents: list[dict]):
     """Run a simulation with agents"""
 
