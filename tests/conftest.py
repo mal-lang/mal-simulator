@@ -87,7 +87,7 @@ def model(corelang_lang_graph):
     return Model.load_from_file(model_file_name, corelang_lang_graph)
 
 @pytest.fixture
-def dummy_lang_graph(corelang_lang_graph):
+def dummy_lang_graph():
     """Fixture that generates a dummy LanguageGraph with a dummy
     LanguageGraphAsset and LanguageGraphAttackStep
     """
@@ -118,5 +118,21 @@ def dummy_lang_graph(corelang_lang_graph):
     )
     dummy_asset.attack_steps['DummyDefenseAttackStep'] =\
         dummy_defense_attack_step_node
+
+    dummy_exist_attack_step_node = LanguageGraphAttackStep(
+        name = 'DummyExistAttackStep',
+        type = 'exist',
+        asset = dummy_asset
+    )
+    dummy_asset.attack_steps['DummyExistAttackStep'] =\
+        dummy_exist_attack_step_node
+
+    dummy_exist_attack_step_node = LanguageGraphAttackStep(
+        name = 'DummyNotExistAttackStep',
+        type = 'notExist',
+        asset = dummy_asset
+    )
+    dummy_asset.attack_steps['DummyNotExistAttackStep'] =\
+        dummy_exist_attack_step_node
 
     return lang_graph
