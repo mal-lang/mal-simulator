@@ -88,7 +88,7 @@ def model(corelang_lang_graph: LanguageGraph) -> Model:
 
 
 @pytest.fixture
-def dummy_lang_graph(corelang_lang_graph: LanguageGraph) -> LanguageGraph:
+def dummy_lang_graph() -> LanguageGraph:
     """Fixture that generates a dummy LanguageGraph with a dummy
     LanguageGraphAsset and LanguageGraphAttackStep
     """
