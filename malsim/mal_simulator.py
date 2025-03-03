@@ -110,7 +110,8 @@ class MalSimAgentStateView(MalSimAttackerState, MalSimDefenderState):
         self._agent. Using __getattribute__ allows use to filter which
         properties to return from self and which from self._agent.
         """
-        if attr in ("_agent", "_frozen"):
+        if attr in ("_agent", "_frozen") or \
+                attr.startswith("__") and attr.endswith("__"):
             return super().__getattribute__(attr)
 
         agent = super().__getattribute__('_agent')
@@ -132,7 +133,15 @@ class MalSimAgentStateView(MalSimAttackerState, MalSimDefenderState):
 
     def __dir__(self):
         """Dynamically resolve attribute names for REPL autocompletion."""
-        return list(vars(self._agent).keys()) + ["_agent", "_frozen"]
+        dunder_attrs = [
+            attr
+            for attr in dir(self.__class__)
+            if attr.startswith("__") and attr.endswith("__")
+        ]
+
+        props = list(vars(self._agent).keys()) + ["_agent", "_frozen"]
+
+        return dunder_attrs + props
 
 
 @dataclass
