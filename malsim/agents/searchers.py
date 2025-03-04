@@ -4,8 +4,7 @@ import random
 import re
 
 from collections import deque
-from collections.abc import Iterable
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Any
 
 from .decision_agent import DecisionAgent
 from ..mal_simulator import MalSimAgentStateView
@@ -27,7 +26,7 @@ class BreadthFirstAttacker(DecisionAgent):
     name = ' '.join(re.findall(r'[A-Z][^A-Z]*', __qualname__))
     # A human-friendly name for the agent.
 
-    default_settings = {
+    default_settings: dict[str, Any] = {
         'randomize': False,
         # Whether to randomize next target selection, still respecting the
         # policy of the agent (e.g. BFS or DFS).
@@ -48,28 +47,38 @@ class BreadthFirstAttacker(DecisionAgent):
         self.settings = self.default_settings | agent_config
 
         self.rng = random.Random(self.settings.get('seed'))
+        self.started = False
 
     def get_next_action(
         self, agent_state: MalSimAgentStateView, **kwargs
     ) -> Optional[AttackGraphNode]:
-        self._update_targets(agent_state.action_surface)
-        self._select_next_target()
+        self._update_targets(
+            agent_state.step_action_surface_additions
+            if self.started
+            else agent_state.action_surface,
+            agent_state.step_action_surface_removals,
+            **kwargs,
+        )
+        self._select_next_target(**kwargs)
 
+        self.started = True
         return self.current_target
 
-    def _update_targets(self, action_surface: Iterable[AttackGraphNode]):
+    def _update_targets(
+        self,
+        new_targets_set: set[AttackGraphNode],
+        disabled_nodes_set: set[AttackGraphNode],
+        **kwargs: Any,
+    ):
         if self.settings['seed']:
             # If a seed is set, we assume the user wants determinism in the
             # simulation. Thus, we sort to an ordered list to make sure the
             # non-deterministic ordering of the action_surface set does not
             # break simulation determinism.
-            action_surface = sorted(list(action_surface), key=lambda n: n.id)
-
-        new_targets = [
-            step
-            for step in action_surface
-            if step not in self.targets and not step.is_compromised()
-        ]
+            new_targets = sorted(new_targets_set, key=lambda n: n.id)
+        else:
+            # sorted above returns a list already
+            new_targets = list(new_targets_set)
 
         if self.settings['randomize']:
             self.rng.shuffle(new_targets)
@@ -81,11 +90,12 @@ class BreadthFirstAttacker(DecisionAgent):
             new_targets.append(self.current_target)
 
         # Enabled defenses may remove previously possible attack steps.
-        self.targets = deque(filter(lambda n: n.is_viable, self.targets))
+        if disabled_nodes_set:
+            self.targets = deque(n for n in self.targets if n.is_viable)
 
         getattr(self.targets, self._extend_method)(new_targets)
 
-    def _select_next_target(self) -> None:
+    def _select_next_target(self, **kwargs: Any) -> None:
         """
         Implement the actual next target selection logic.
         """
