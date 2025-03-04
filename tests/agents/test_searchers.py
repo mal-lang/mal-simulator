@@ -64,7 +64,9 @@ def test_breadth_first_traversal_simple(dummy_lang_graph: LanguageGraph):
 
         # Mark node as compromised
         attacker.compromise(action_node)
-        agent.action_surface = calculate_attack_surface(attacker)
+        agent.step_action_surface_additions = calculate_attack_surface(
+            attacker, from_nodes=[action_node]
+        )
 
         # Store the ID for verification
         actual_order.append(action_node.id)
@@ -144,7 +146,9 @@ def test_breadth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
 
         # Mark node as compromised
         attacker.compromise(action_node)
-        agent.action_surface = calculate_attack_surface(attacker)
+        agent.step_action_surface_additions = calculate_attack_surface(
+            attacker, from_nodes=[action_node]
+        )
 
         # Store the ID for verification
         actual_order.append(action_node.id)
@@ -225,7 +229,9 @@ def test_depth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
 
         # Mark node as compromised
         attacker.compromise(action_node)
-        agent.action_surface = calculate_attack_surface(attacker)
+        agent.step_action_surface_additions = calculate_attack_surface(
+            attacker, from_nodes=[action_node]
+        )
 
         # Store the ID for verification
         actual_order.append(action_node.id)
