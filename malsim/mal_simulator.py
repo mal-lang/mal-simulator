@@ -345,6 +345,7 @@ class MalSimulator():
             np.random.seed(seed)
 
         self._init_agent_action_surfaces()
+        self._init_agent_ttcs()
 
         if self.sim_settings.use_ttcs:
             self._init_agent_ttcs()
