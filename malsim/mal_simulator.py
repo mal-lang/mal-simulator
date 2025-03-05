@@ -163,6 +163,9 @@ class MalSimulatorSettings():
     # - Leave the node/step compromised even after it becomes untraversable
     uncompromise_untraversable_steps: bool = False
 
+    # Sample TTCs and only let attackers compromise when ttc is 0
+    use_ttcs: bool = False
+
 
 class MalSimulator():
     """A MAL Simulator that works on the AttackGraph
@@ -342,7 +345,9 @@ class MalSimulator():
             np.random.seed(seed)
 
         self._init_agent_action_surfaces()
-        self._init_agent_ttcs()
+
+        if self.sim_settings.use_ttcs:
+            self._init_agent_ttcs()
 
     def register_attacker(self, name: str, attacker_id: int):
         """Register a mal sim attacker agent"""
@@ -447,7 +452,9 @@ class MalSimulator():
             if query.is_node_traversable_by_attacker(node, attacker) \
                     and node in agent.action_surface:
 
-                if node in agent.ttc_values:
+                if self.sim_settings.use_ttcs and node in agent.ttc_values:
+                    # If TTCs are enabled, decrease TTC for node and see if
+                    # it can be compromised (if ttc <= 0)
                     logger.info(
                         'Attacker decreased ttc value of '
                         'step %s from %d to %d', node.full_name,

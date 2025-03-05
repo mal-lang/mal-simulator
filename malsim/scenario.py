@@ -424,7 +424,6 @@ def create_simulator_from_scenario(
     """
 
     attack_graph, scenario_agents = load_scenario(scenario_file)
-
     sim = sim_class(attack_graph, **kwargs)
 
     # Register agents in simulator

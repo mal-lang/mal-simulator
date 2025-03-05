@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import logging
 
-from .mal_simulator import MalSimulator
+from .mal_simulator import MalSimulator, MalSimulatorSettings
 from .agents import DecisionAgent
 from .scenario import create_simulator_from_scenario
 
@@ -81,9 +81,18 @@ def main():
         '-s', '--seed', type=int,
         help="If set to a seed, it will be used in simulator reset",
     )
+    parser.add_argument(
+        '-t', '--ttcs', action="store_true",
+        help="If set, use ttcs in simulation",
+    )
     args = parser.parse_args()
 
-    sim, agents = create_simulator_from_scenario(args.scenario_file)
+    sim, agents = create_simulator_from_scenario(
+        args.scenario_file,
+        sim_settings=MalSimulatorSettings(
+            use_ttcs=args.ttcs
+        )
+    )
 
     if args.output_attack_graph:
         sim.attack_graph.save_to_file(args.output_attack_graph)
