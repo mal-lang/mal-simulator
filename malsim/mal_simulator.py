@@ -7,6 +7,7 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Any, Optional
 
+import numpy as np
 from maltoolbox import neo4j_configs
 from maltoolbox.ingestors import neo4j
 from maltoolbox.attackgraph import (AttackGraph, AttackGraphNode,
@@ -55,6 +56,9 @@ class MalSimAgentState:
 
     # Contains nodes that defender actions made unviable in the last step
     step_unviable_nodes: set[AttackGraphNode] = field(default_factory=set)
+
+    # Current ttc value of each node that had ttc functions defined
+    ttc_values: dict[AttackGraphNode, int] = field(default_factory=dict)
 
     # Fields that tell if the agent is done or stopped
     truncated: bool = False
@@ -218,7 +222,7 @@ class MalSimulator():
         # Reset current iteration
         self.cur_iter = 0
         # Reset agents
-        self._reset_agents()
+        self._reset_agents(seed=seed)
 
         return self.agent_states
 
@@ -238,7 +242,66 @@ class MalSimulator():
             else:
                 raise LookupError(f"Agent type {agent.type} not supported")
 
-    def _reset_agents(self):
+    def _sample_ttc(self, node: AttackGraphNode):
+        """Sample a value from ttc distribution for a node"""
+
+        def process_sample(distribution):
+            max_cost = 500
+            # Generate a random sample for the given distribution
+            if 'Bernoulli' in distribution:
+                # Mixture of exponential and constant distribution
+                prob = distribution['Bernoulli']
+                scale = distribution['Exponential']
+                scale = 1/scale
+                sample = (
+                    np.random.exponential(scale=scale)
+                    if np.random.choice([0, 1], p=[prob, 1 - prob])
+                    else max_cost
+                )
+            else:
+                # Pure exponential distribution
+                scale = distribution['Exponential']
+                scale = 1/scale
+                sample = np.random.exponential(scale=scale)
+
+            return sample
+
+        distribution = node.ttc['name']
+        sample = 0
+        if distribution == "EasyAndCertain":
+            # Generate sample for EasyAndCertain distribution.
+            sample = process_sample({'Exponential': 1})
+        elif distribution == "EasyAndUncertain":
+            # Generate sample for EasyAndUncertain distribution.
+            sample = process_sample({'Exponential': 1, 'Bernoulli': 0.5})
+        elif distribution == "HardAndCertain":
+            # Generate sample for HardAndCertain distribution.
+            sample = process_sample({'Exponential': 0.1})
+        elif distribution == "HardAndUncertain":
+            # Generate sample for HardAndUncertain distribution.
+            sample = process_sample({'Exponential': 0.1, 'Bernoulli': 0.5})
+        elif distribution == "VeryHardAndCertain":
+            # Generate sample for VeryHardAndCertain distribution.
+            sample = process_sample({'Exponential': 0.01})
+        elif distribution == "VeryHardAndUncertain":
+            # Generate sample for VeryHardAndUncertain distribution.
+            sample = process_sample({'Exponential': 0.01, 'Bernoulli': 0.5})
+        elif distribution == "Exponential":
+            # Generate sample for custom Exponential distribution.
+            scale = float(node.ttc['arguments'][0])
+            sample = process_sample({'Exponential': scale})
+
+        return sample
+
+    def _init_agent_ttcs(self):
+        """Sample ttcs for all attacker agents"""
+        for node in self.attack_graph.nodes.values():
+            if node.ttc is None:
+                continue
+            for agent in self._get_attacker_agents():
+                agent.ttc_values[node] = self._sample_ttc(node)
+
+    def _reset_agents(self, seed=None):
         """Reset agent rewards and action surfaces"""
 
         # Revive all agents
@@ -275,7 +338,11 @@ class MalSimulator():
 
             self._agent_states[agent_state.name] = agent_state
 
+        if seed:
+            np.random.seed(seed)
+
         self._init_agent_action_surfaces()
+        self._init_agent_ttcs()
 
     def register_attacker(self, name: str, attacker_id: int):
         """Register a mal sim attacker agent"""
@@ -379,6 +446,19 @@ class MalSimulator():
             # Compromise node if possible
             if query.is_node_traversable_by_attacker(node, attacker) \
                     and node in agent.action_surface:
+
+                if node in agent.ttc_values:
+                    logger.info(
+                        'Attacker decreased ttc value of '
+                        'step %s from %d to %d', node.full_name,
+                        agent.ttc_values[node], agent.ttc_values[node] - 1
+                    )
+                    agent.ttc_values[node] -= 1
+                    if agent.ttc_values[node] > 0:
+                        # Attacker can not compromise before
+                        # ttc is 0 or lower
+                        continue
+
                 attacker.compromise(node)
                 agent.performed_nodes.add(node)
                 compromised_nodes.add(node)
