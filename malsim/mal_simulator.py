@@ -34,11 +34,14 @@ class MalSimAgentState:
     # Attackers get positive rewards, defenders negative
     reward: int = 0
 
-    # Contains the steps performed successfully in the last step
-    step_performed_nodes: set[AttackGraphNode] = field(default_factory=set)
-
     # Contains possible actions for the agent in the next step
     action_surface: set[AttackGraphNode] = field(default_factory=set)
+
+    # Contains all nodes that this agent has performed successfully
+    performed_nodes: set[AttackGraphNode] = field(default_factory=set)
+
+    # Contains the steps performed successfully in the last step
+    step_performed_nodes: set[AttackGraphNode] = field(default_factory=set)
 
     # Contains possible actions that became available in the last step
     step_action_surface_additions: set[AttackGraphNode] = (
@@ -370,6 +373,7 @@ class MalSimulator():
             if query.is_node_traversable_by_attacker(node, attacker) \
                     and node in agent.action_surface:
                 attacker.compromise(node)
+                agent.performed_nodes.add(node)
                 agent.reward += node.extras.get('reward', 0)
                 compromised_nodes.add(node)
 
@@ -446,6 +450,7 @@ class MalSimulator():
                     apriori.propagate_viability_from_unviable_node(node)
                 agent.reward -= node.extras.get("reward", 0)
                 enabled_defenses.add(node)
+                agent.performed_nodes.add(node)
                 logger.info(
                     'Defender agent "%s" enabled "%s"(%d).',
                     agent.name, node.full_name, node.id
