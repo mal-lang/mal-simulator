@@ -7,7 +7,7 @@ from collections import deque
 from typing import Optional, TYPE_CHECKING, Any
 
 from .decision_agent import DecisionAgent
-from ..mal_simulator import AgentState
+from ..mal_simulator import MalSimAgentStateView
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
@@ -50,7 +50,7 @@ class BreadthFirstAttacker(DecisionAgent):
         self.started = False
 
     def get_next_action(
-        self, agent_state: AgentState, **kwargs
+        self, agent_state: MalSimAgentStateView, **kwargs
     ) -> Optional[AttackGraphNode]:
         self._update_targets(
             agent_state.step_action_surface_additions

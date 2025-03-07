@@ -3,7 +3,7 @@
 from maltoolbox.attackgraph import AttackGraphNode, AttackGraph, Attacker
 from malsim.mal_simulator import MalSimulator
 
-from malsim.scenario import load_scenario, create_simulator_from_scenario
+from malsim.scenario import load_scenario
 
 def test_init(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
@@ -54,12 +54,11 @@ def test_reset(corelang_lang_graph, model):
 
 def test_register_agent_attacker(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    attack_graph.attach_attackers()
     sim = MalSimulator(attack_graph)
 
-    attacker_id = next(iter(attack_graph.attackers))
+    attacker = 1
     agent_name = "attacker1"
-    sim.register_attacker(agent_name, attacker_id)
+    sim.register_attacker(agent_name, attacker)
 
     assert agent_name in sim.agent_states
     assert agent_name in sim.agent_states
@@ -81,10 +80,11 @@ def test_register_agent_action_surface(corelang_lang_graph, model):
     sim = MalSimulator(attack_graph)
 
     agent_name = "defender1"
-    agent_state = sim.register_defender(agent_name)
-    sim.reset()
+    sim.register_defender(agent_name)
 
-    for node in agent_state.action_surface:
+    sim._init_agent_action_surfaces()
+    action_surface = sim.agent_states[agent_name].action_surface
+    for node in action_surface:
         assert node.is_available_defense()
 
 
@@ -107,15 +107,14 @@ def test_simulator_initialize_agents(corelang_lang_graph, model):
 
 
 def test_get_agents():
-    """Test get_attacker_states and get_defender_states"""
+    """Test _get_attacker_agents and _get_defender_agents"""
 
-    # Scenario defines defender and attacker agent named Defender1/Attacker1
-    sim, _ = create_simulator_from_scenario(
-        'tests/testdata/scenarios/simple_scenario.yml'
-    )
+    ag, _ = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
+    sim = MalSimulator(ag)
     sim.reset()
-    assert [s.name for s in sim._get_attacker_states()] == ['Attacker1']
-    assert [s.name for s in sim._get_defender_states()] == ['Defender1']
+
+    sim._get_attacker_agents() == ['attacker']
+    sim._get_defender_agents() == ['defender']
 
 
 def test_attacker_step(corelang_lang_graph, model):
@@ -133,16 +132,18 @@ def test_attacker_step(corelang_lang_graph, model):
 
     sim.register_attacker(attacker.name, attacker.id)
     sim.reset()
-    attacker_agent = sim.agent_states[attacker.name]
+    attacker_agent = sim._agent_states[attacker.name]
 
     # Can not attack the notPresent step
     defense_step = sim.attack_graph.get_node_by_full_name('OS App:notPresent')
-    compromised = sim._attacker_step(attacker_agent, {defense_step})
-    assert not compromised
+    actions = sim._attacker_step(attacker_agent, {defense_step})
+    assert not actions
+    assert not attacker_agent.step_action_surface_additions
 
     attack_step = sim.attack_graph.get_node_by_full_name('OS App:attemptRead')
-    compromised = sim._attacker_step(attacker_agent, {attack_step})
-    assert compromised  == {attack_step}
+    sim._attacker_step(attacker_agent, {attack_step})
+    assert attacker_agent.step_performed_nodes  == {attack_step}
+    assert attacker_agent.step_action_surface_additions == attack_step.children
 
 
 def test_defender_step(corelang_lang_graph, model):
@@ -153,17 +154,17 @@ def test_defender_step(corelang_lang_graph, model):
     sim.register_defender(defender_name)
     sim.reset()
 
-    defender_agent = sim.agent_states[defender_name]
+    defender_agent = sim._agent_states[defender_name]
     defense_step = sim.attack_graph.get_node_by_full_name(
         'OS App:notPresent')
-    performed, _, _ = sim._defender_step(defender_agent, [defense_step])
-    assert performed == {defense_step}
+    sim._defender_step(defender_agent, {defense_step})
+    assert defender_agent.step_performed_nodes == {defense_step}
 
     # Can not defend attack_step
     attack_step = sim.attack_graph.get_node_by_full_name(
         'OS App:attemptUseVulnerability')
-    performed, _, _ = sim._defender_step(defender_agent, [attack_step])
-    assert not performed
+    sim._defender_step(defender_agent, {attack_step})
+    assert not defender_agent.step_performed_nodes
 
 
 def test_agent_state_views_simple(corelang_lang_graph, model):
@@ -302,32 +303,35 @@ def test_step_attacker_defender_action_surface_updates():
     sim.register_attacker(attacker_agent_id, 1)
     sim.register_defender(defender_agent_id)
 
-    states = sim.reset()
+    sim.reset()
+
+    attacker_agent = sim.agent_states[attacker_agent_id]
+    defender_agent = sim.agent_states[defender_agent_id]
 
     # Run step() with action crafted in test
     attacker_step = sim.attack_graph.get_node_by_full_name('User:3:compromise')
-    assert attacker_step in states[attacker_agent_id].action_surface
+    assert attacker_step in attacker_agent.action_surface
 
     defender_step = sim.attack_graph.get_node_by_full_name('User:3:notPresent')
-    assert defender_step in states[defender_agent_id].action_surface
+    assert defender_step in defender_agent.action_surface
 
     actions = {
-        attacker_agent_id: [attacker_step],
-        defender_agent_id: [defender_step]
+        attacker_agent.name: [attacker_step],
+        defender_agent.name: [defender_step]
     }
 
-    state = sim.step(actions)
+    sim.step(actions)
 
     # Make sure no nodes added to action surface
-    assert not state[attacker_agent_id].step_action_surface_additions
-    assert not state[defender_agent_id].step_action_surface_additions
+    assert not attacker_agent.step_action_surface_additions
+    assert not defender_agent.step_action_surface_additions
 
     # Make sure the steps are removed from the action surfaces
-    assert attacker_step in state[attacker_agent_id].step_action_surface_removals
-    assert defender_step in state[defender_agent_id].step_action_surface_removals
+    assert attacker_step in attacker_agent.step_action_surface_removals
+    assert defender_step in defender_agent.step_action_surface_removals
 
-    assert attacker_step not in state[attacker_agent_id].action_surface
-    assert defender_step not in state[defender_agent_id].action_surface
+    assert attacker_step not in attacker_agent.action_surface
+    assert defender_step not in defender_agent.action_surface
 
 
 def test_default_simulator_default_settings_eviction():
