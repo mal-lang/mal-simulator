@@ -31,8 +31,8 @@ class BreadthFirstAttacker(DecisionAgent):
         # Whether to randomize next target selection, still respecting the
         # policy of the agent (e.g. BFS or DFS).
         'seed': None,
-        # The random seed to initialize the randomness engine with. If set, the
-        # simulation will be deterministic.
+        # The random seed to initialize the randomness engine with.
+        # If set, the simulation will be deterministic.
     }
 
     def __init__(self, agent_config: dict) -> None:
@@ -41,9 +41,14 @@ class BreadthFirstAttacker(DecisionAgent):
         Args:
             agent_config: Dict with settings to override defaults
         """
+
+        # A deque with target nodes in bfs order
         self.targets: deque[AttackGraphNode] = deque()
+
+        # The last target chosen
         self.current_target: Optional[AttackGraphNode] = None
 
+        # Agent random/seed settings
         self.settings = self.default_settings | agent_config
 
         self.rng = random.Random(self.settings.get('seed'))
@@ -52,50 +57,52 @@ class BreadthFirstAttacker(DecisionAgent):
     def get_next_action(
         self, agent_state: MalSimAgentStateView, **kwargs
     ) -> Optional[AttackGraphNode]:
+
+        # Add and remove nodes from self.targets
         self._update_targets(
-            agent_state.step_action_surface_additions
-            if self.started
-            else agent_state.action_surface,
-            agent_state.step_action_surface_removals,
-            **kwargs,
+            new_targets=(
+                agent_state.step_action_surface_additions
+                if self.started else agent_state.action_surface
+            ),
+            disabled_nodes=agent_state.step_action_surface_removals,
         )
-        self._select_next_target(**kwargs)
+        self._select_next_target()
 
         self.started = True
         return self.current_target
 
     def _update_targets(
         self,
-        new_targets_set: set[AttackGraphNode],
-        disabled_nodes_set: set[AttackGraphNode],
-        **kwargs: Any,
+        new_targets: set[AttackGraphNode],
+        disabled_nodes: set[AttackGraphNode],
     ):
+        sorted_new_targets: list = []
         if self.settings['seed']:
             # If a seed is set, we assume the user wants determinism in the
             # simulation. Thus, we sort to an ordered list to make sure the
             # non-deterministic ordering of the action_surface set does not
             # break simulation determinism.
-            new_targets = sorted(new_targets_set, key=lambda n: n.id)
+            sorted_new_targets = sorted(new_targets, key=lambda n: n.id)
         else:
             # sorted above returns a list already
-            new_targets = list(new_targets_set)
+            sorted_new_targets = list(new_targets)
 
         if self.settings['randomize']:
-            self.rng.shuffle(new_targets)
+            self.rng.shuffle(sorted_new_targets)
 
-        if self.current_target in new_targets:
+        if self.current_target and not self.current_target.is_compromised():
             # If self.current_target is not yet compromised, e.g. due to TTCs,
             # keep using that as the target.
-            new_targets.remove(self.current_target)
-            new_targets.append(self.current_target)
+            sorted_new_targets.append(self.current_target)
 
         # Enabled defenses may remove previously possible attack steps.
-        if disabled_nodes_set:
-            self.targets = deque(n for n in self.targets if n.is_viable)
+        for node in disabled_nodes:
+            if node in self.targets:
+                self.targets.remove(node)
 
-        getattr(self.targets, self._extend_method)(new_targets)
+        getattr(self.targets, self._extend_method)(sorted_new_targets)
 
-    def _select_next_target(self, **kwargs: Any) -> None:
+    def _select_next_target(self) -> None:
         """
         Implement the actual next target selection logic.
         """
