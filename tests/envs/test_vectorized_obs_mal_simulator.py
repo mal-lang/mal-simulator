@@ -1,7 +1,7 @@
 """Test MalSimulator class"""
 
 from maltoolbox.attackgraph import AttackGraph, Attacker
-from malsim.mal_simulator import MalSimulator, AttackerState
+from malsim.mal_simulator import MalSimulator
 from malsim.envs import MalSimVectorizedObsEnv
 from malsim.scenario import load_scenario
 

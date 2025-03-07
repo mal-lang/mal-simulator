@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 from maltoolbox.attackgraph import AttackGraphNode, Attacker
 from maltoolbox.attackgraph.query import calculate_attack_surface
 from maltoolbox.language import LanguageGraph
-from malsim.mal_simulator import AttackerState
 from malsim.agents import BreadthFirstAttacker, DepthFirstAttacker
 
 
