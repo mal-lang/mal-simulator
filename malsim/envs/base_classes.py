@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from ..mal_simulator import MalSimulator, MalSimAgentStateView
+from ..mal_simulator import AgentState, MalSimulator
 
 class MalSimEnv(ABC):
 
@@ -11,19 +11,19 @@ class MalSimEnv(ABC):
         ...
 
     def reset(self, seed=None, options=None):
-        self.sim.reset(seed=seed, options=options)
+        return self.sim.reset(seed=seed, options=options)
 
     def register_attacker(
             self, attacker_name: str, attacker_id: int
         ):
-        self.sim.register_attacker(attacker_name, attacker_id)
+        return self.sim.register_attacker(attacker_name, attacker_id)
 
     def register_defender(
             self, defender_name: str
         ):
-        self.sim.register_defender(defender_name)
+        return self.sim.register_defender(defender_name)
 
-    def get_agent_state(self, agent_name: str) -> MalSimAgentStateView:
+    def get_agent_state(self, agent_name: str) -> AgentState:
         return self.sim.agent_states[agent_name]
 
     def render(self):

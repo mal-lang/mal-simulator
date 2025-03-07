@@ -15,7 +15,7 @@ logging.getLogger().setLevel(logging.INFO)
 def run_simulation(sim: MalSimulator, agents: list[dict]):
     """Run a simulation with agents"""
 
-    sim.reset()
+    agent_states = sim.reset()
     total_rewards = {agent_dict['name']: 0 for agent_dict in agents}
     all_agents_term_or_trunc = False
 
@@ -38,7 +38,7 @@ def run_simulation(sim: MalSimulator, agents: list[dict]):
                 )
                 continue
 
-            sim_agent_state = sim.agent_states[agent_name]
+            sim_agent_state = agent_states[agent_name]
             agent_action = decision_agent.get_next_action(sim_agent_state)
             if agent_action:
                 actions[agent_name] = [agent_action]
@@ -48,11 +48,11 @@ def run_simulation(sim: MalSimulator, agents: list[dict]):
                 )
 
         # Perform next step of simulation
-        sim.step(actions)
+        agent_states = sim.step(actions)
 
         for agent_dict in agents:
             agent_name = agent_dict['name']
-            agent_state = sim.agent_states[agent_name]
+            agent_state = agent_states[agent_name]
             total_rewards[agent_name] += agent_state.reward
             if not agent_state.terminated and not agent_state.truncated:
                 all_agents_term_or_trunc = False

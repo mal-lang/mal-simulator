@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional
 from abc import ABC, abstractmethod
 
 if TYPE_CHECKING:
-    from ..mal_simulator import MalSimAgentStateView
+    from ..mal_simulator import AgentState
     from maltoolbox.attackgraph import AttackGraphNode
 
 class DecisionAgent(ABC):
@@ -13,7 +13,7 @@ class DecisionAgent(ABC):
     @abstractmethod
     def get_next_action(
         self,
-        agent_state: MalSimAgentStateView,
+        agent_state: AgentState,
         **kwargs
     ) -> Optional[AttackGraphNode]:
         """
