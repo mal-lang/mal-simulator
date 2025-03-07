@@ -4,10 +4,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 from .decision_agent import DecisionAgent
-from ..mal_simulator import MalSimAgentStateView
+from ..mal_simulator import AgentState
 
 if TYPE_CHECKING:
-    from ..mal_simulator import MalSimAgentStateView
+    from ..mal_simulator import AgentState
     from maltoolbox.attackgraph import AttackGraphNode
 
 class PassiveAgent(DecisionAgent):
@@ -16,7 +16,7 @@ class PassiveAgent(DecisionAgent):
 
     def get_next_action(
         self,
-        agent_state: MalSimAgentStateView,
+        agent_state: AgentState,
         **kwargs
     ) -> Optional[AttackGraphNode]:
         # A passive agent never does anything

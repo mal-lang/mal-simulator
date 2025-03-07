@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 from maltoolbox.attackgraph import AttackGraphNode, Attacker
 from maltoolbox.attackgraph.query import calculate_attack_surface
 from maltoolbox.language import LanguageGraph
-from malsim.mal_simulator import MalSimAgentStateView
+from malsim.mal_simulator import AttackerState
 from malsim.agents import BreadthFirstAttacker, DepthFirstAttacker
 
 
@@ -42,12 +42,9 @@ def test_breadth_first_traversal_simple(dummy_lang_graph: LanguageGraph):
         reached_attack_steps = set(),
         attacker_id = 100)
 
-    # Set up a mock MalSimAgentState
-    agent = MagicMock()
-    agent.action_surface = [node1]
-
-    # Set up MalSimAgentStateView
-    agent_view = MalSimAgentStateView(agent)
+    # Set up AgentState
+    agent_state = MagicMock()
+    agent_state.action_surface = [node1]
 
     # Configure BreadthFirstAttacker
     agent_config = {"seed": 42, "randomize": False}
@@ -59,12 +56,12 @@ def test_breadth_first_traversal_simple(dummy_lang_graph: LanguageGraph):
     actual_order = []
     for _ in expected_order:
         # Get next action
-        action_node = attacker_ai.get_next_action(agent_view)
+        action_node = attacker_ai.get_next_action(agent_state)
         assert action_node is not None, "Action node shouldn't be None"
 
         # Mark node as compromised
         attacker.compromise(action_node)
-        agent.step_action_surface_additions = calculate_attack_surface(
+        agent_state.step_action_surface_additions = calculate_attack_surface(
             attacker, from_nodes=[action_node]
         )
 
@@ -124,12 +121,9 @@ def test_breadth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
         reached_attack_steps = set(),
         attacker_id = 100)
 
-    # Set up a mock MalSimAgentState
-    agent = MagicMock()
-    agent.action_surface = [node1]
-
-    # Set up MalSimAgentStateView
-    agent_view = MalSimAgentStateView(agent)
+    # Set up AgentState
+    agent_state = MagicMock()
+    agent_state.action_surface = [node1]
 
     # Configure BreadthFirstAttacker
     agent_config = {"seed": 42, "randomize": False}
@@ -141,12 +135,12 @@ def test_breadth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
     actual_order = []
     for _ in expected_order:
         # Get next action
-        action_node = attacker_ai.get_next_action(agent_view)
+        action_node = attacker_ai.get_next_action(agent_state)
         assert action_node is not None, "Action node shouldn't be None"
 
         # Mark node as compromised
         attacker.compromise(action_node)
-        agent.step_action_surface_additions = calculate_attack_surface(
+        agent_state.step_action_surface_additions = calculate_attack_surface(
             attacker, from_nodes=[action_node]
         )
 
@@ -207,12 +201,9 @@ def test_depth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
         reached_attack_steps = set(),
         attacker_id = 100)
 
-    # Set up a mock MalSimAgentState
-    agent = MagicMock()
-    agent.action_surface = [node1]
-
-    # Set up MalSimAgentStateView
-    agent_view = MalSimAgentStateView(agent)
+    # Set up AgentState
+    agent_state = MagicMock()
+    agent_state.action_surface = [node1]
 
     # Configure BreadthFirstAttacker
     agent_config = {"seed": 42, "randomize": False}
@@ -224,12 +215,12 @@ def test_depth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
     actual_order = []
     for _ in expected_order:
         # Get next action
-        action_node = attacker_ai.get_next_action(agent_view)
+        action_node = attacker_ai.get_next_action(agent_state)
         assert action_node is not None, "Action node shouldn't be None"
 
         # Mark node as compromised
         attacker.compromise(action_node)
-        agent.step_action_surface_additions = calculate_attack_surface(
+        agent_state.step_action_surface_additions = calculate_attack_surface(
             attacker, from_nodes=[action_node]
         )
 
