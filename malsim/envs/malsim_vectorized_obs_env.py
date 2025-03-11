@@ -397,7 +397,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
     @property
     def possible_agents(self):
         """Required by ParallelEnv"""
-        return list(self.sim._agents)
+        return list(self.sim._agent_states.keys())
 
     def _create_blank_observation(self, default_obs_state=-1):
         """Create the initial observation"""
