@@ -43,7 +43,7 @@ class BreadthFirstAttacker(DecisionAgent):
         self._current_target: Optional[AttackGraphNode] = None
         self._settings = self._default_settings | agent_config
 
-        self.rng = random.Random(self._settings.get('seed'))
+        self._rng = random.Random(self._settings.get('seed'))
         self._started = False
 
     def get_next_action(
@@ -82,7 +82,7 @@ class BreadthFirstAttacker(DecisionAgent):
             new_targets = list(new_nodes)
 
         if self._settings['randomize']:
-            self.rng.shuffle(new_targets)
+            self._rng.shuffle(new_targets)
 
         if (
             self._current_target
@@ -94,9 +94,10 @@ class BreadthFirstAttacker(DecisionAgent):
             self._targets.append(self._current_target)
 
         # Enabled defenses may remove previously possible attack steps.
-        for node in disabled_nodes:
-            if node in self._targets:
-                self._targets.remove(node)
+        if disabled_nodes:
+            self._targets = deque(
+                n for n in self._targets if n not in disabled_nodes
+            )
 
         # Use the extend method to add new targets
         getattr(self._targets, self._extend_method)(new_targets)
