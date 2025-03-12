@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import logging
 
-from .mal_simulator import MalSimulator
+from .mal_simulator import MalSimulator, MalSimulatorSettings
 from .agents import DecisionAgent
 from .scenario import create_simulator_from_scenario
 
@@ -12,10 +12,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
 
-def run_simulation(sim: MalSimulator, agents: list[dict]):
+def run_simulation(sim: MalSimulator, agents: list[dict], seed=None):
     """Run a simulation with agents"""
 
-    sim.reset()
+    sim.reset(seed=seed)
     total_rewards = {agent_dict['name']: 0 for agent_dict in agents}
     all_agents_term_or_trunc = False
 
@@ -23,7 +23,6 @@ def run_simulation(sim: MalSimulator, agents: list[dict]):
 
     i = 1
     while not all_agents_term_or_trunc:
-        logger.info("Iteration %s", i)
         all_agents_term_or_trunc = True
         actions = {}
 
@@ -78,14 +77,27 @@ def main():
         '-o', '--output-attack-graph', type=str,
         help="If set to a path, attack graph will be dumped there",
     )
+    parser.add_argument(
+        '-s', '--seed', type=int,
+        help="If set to a seed, it will be used in simulator reset",
+    )
+    parser.add_argument(
+        '-t', '--ttcs', action="store_true",
+        help="If set, use ttcs in simulation",
+    )
     args = parser.parse_args()
 
-    sim, agents = create_simulator_from_scenario(args.scenario_file)
+    sim, agents = create_simulator_from_scenario(
+        args.scenario_file,
+        sim_settings=MalSimulatorSettings(
+            use_ttcs=args.ttcs
+        )
+    )
 
     if args.output_attack_graph:
         sim.attack_graph.save_to_file(args.output_attack_graph)
 
-    run_simulation(sim, agents)
+    run_simulation(sim, agents, seed=args.seed)
 
 
 if __name__ == '__main__':
