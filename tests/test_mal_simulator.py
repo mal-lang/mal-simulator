@@ -31,7 +31,8 @@ def test_reset(corelang_lang_graph, model):
     sim = MalSimulator(attack_graph)
 
     attack_graph_before = sim.attack_graph
-    sim.register_attacker(attacker_name, attacker.id)
+    sim.register_attacker(attacker_name,
+        sim.attack_graph.attackers[attacker.id])
     assert attacker.name in sim.agent_states
     assert len(sim.agent_states) == 1
 
@@ -54,9 +55,10 @@ def test_reset(corelang_lang_graph, model):
 
 def test_register_agent_attacker(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
+    attack_graph.attach_attackers()
     sim = MalSimulator(attack_graph)
 
-    attacker = 1
+    attacker = attack_graph.attackers[0]
     agent_name = "attacker1"
     sim.register_attacker(agent_name, attacker)
 
@@ -98,7 +100,8 @@ def test_simulator_initialize_agents(corelang_lang_graph, model):
     attacker_name = "attacker"
     attacker_id = 1
     defender_name = "defender"
-    sim.register_attacker(attacker_name, attacker_id)
+    sim.register_attacker(attacker_name,
+        sim.attack_graph.attackers[attacker_id])
     sim.register_defender(defender_name)
 
     sim.reset()
@@ -130,7 +133,8 @@ def test_attacker_step(corelang_lang_graph, model):
     attack_graph.add_attacker(attacker, attacker.id)
     sim = MalSimulator(attack_graph)
 
-    sim.register_attacker(attacker.name, attacker.id)
+    sim.register_attacker(attacker.name,
+        attacker)
     sim.reset()
     attacker_agent = sim._agent_states[attacker.name]
 
@@ -189,7 +193,7 @@ def test_agent_state_views_simple(corelang_lang_graph, model):
     sim = MalSimulator(attack_graph)
     attacker_name = 'attacker'
     defender_name = 'defender'
-    sim.register_attacker(attacker_name, attacker.id)
+    sim.register_attacker(attacker_name, attacker)
     sim.register_defender(defender_name)
 
     # Evaluate the agent state views after reset
@@ -281,7 +285,7 @@ def test_observe_attacker():
     attacker_agent_id = "attacker"
     defender_agent_id = "defender"
 
-    sim.register_attacker(attacker_agent_id, 1)
+    sim.register_attacker(attacker_agent_id, sim.attack_graph.attackers[1])
     sim.register_defender(defender_agent_id)
     sim.reset()
 
@@ -300,7 +304,7 @@ def test_step_attacker_defender_action_surface_updates():
     attacker_agent_id = "attacker"
     defender_agent_id = "defender"
 
-    sim.register_attacker(attacker_agent_id, 1)
+    sim.register_attacker(attacker_agent_id, sim.attack_graph.attackers[1])
     sim.register_defender(defender_agent_id)
 
     sim.reset()
@@ -347,7 +351,7 @@ def test_default_simulator_default_settings_eviction():
     attacker_agent_id = "attacker"
     defender_agent_id = "defender"
 
-    sim.register_attacker(attacker_agent_id, 1)
+    sim.register_attacker(attacker_agent_id, sim.attack_graph.attackers[1])
     sim.register_defender(defender_agent_id)
     sim.reset()
     attacker = next(iter(sim.attack_graph.attackers.values()))

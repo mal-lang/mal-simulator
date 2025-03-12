@@ -67,7 +67,7 @@ def test_create_blank_observation_deterministic(
     attacker = next(iter(attack_graph.attackers.values()))
 
     sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
-    sim.register_attacker("test_attacker", attacker.id)
+    sim.register_attacker("test_attacker", attacker)
     sim.register_defender("test_defender")
 
     obs1, _ = sim.reset(seed=123)
@@ -103,7 +103,7 @@ def test_step_deterministic(
     attacker = next(iter(attack_graph.attackers.values()))
 
     sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
-    sim.register_attacker("test_attacker", attacker.id)
+    sim.register_attacker("test_attacker", attacker)
     sim.register_defender("test_defender")
 
     obs1 = {}
@@ -215,7 +215,7 @@ def test_step(corelang_lang_graph, model):
     # Refresh attack graph reference to the one deepcopied during the reset
     attack_graph = env.sim.attack_graph
 
-    agent_info = MalSimAttackerState(attacker.name, attacker.id)
+    agent_info = MalSimAttackerState(attacker.name, attack_graph.attackers[100])
 
     # Can not attack the notPresent step
     defense_step = attack_graph\
@@ -270,7 +270,7 @@ def test_malsimulator_observe_attacker():
 
     attacker = next(iter(attack_graph.attackers.values()))
 
-    env.register_attacker(attacker_agent_name, attacker.id)
+    env.register_attacker(attacker_agent_name, attacker)
     env.register_defender(defender_agent_name)
 
     # Must reset after registering agents
@@ -362,7 +362,7 @@ def test_malsimulator_observe_and_reward_attacker_defender():
 
     attacker = next(iter(attack_graph.attackers.values()))
     attacker_agent_name = "Attacker1"
-    env.register_attacker(attacker_agent_name, attacker.id)
+    env.register_attacker(attacker_agent_name, attacker)
 
     defender_agent_name = "Defender1"
     env.register_defender(defender_agent_name)
@@ -517,7 +517,7 @@ def test_malsimulator_observe_and_reward_attacker_no_entrypoints(
     sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
     # Register an attacker
-    sim.register_attacker(attacker.name, attacker.id)
+    sim.register_attacker(attacker.name, attacker)
     sim.reset()
 
     obs, rew, _, _, _ = sim.step({})
@@ -541,7 +541,7 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
 
     # Register an attacker
     attacker = env.sim.attack_graph.attackers[0]
-    env.register_attacker(attacker.name, attacker.id)
+    env.register_attacker(attacker.name, attacker)
 
     # We need to reinitialize to initialize agent
     obs, _ = env.reset()
