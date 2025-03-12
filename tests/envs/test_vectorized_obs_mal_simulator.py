@@ -215,7 +215,7 @@ def test_step(corelang_lang_graph, model):
     # Refresh attack graph reference to the one deepcopied during the reset
     attack_graph = env.sim.attack_graph
 
-    agent_info = MalSimAttackerState(attacker.name, attacker.id)
+    agent_info = MalSimAttackerState(attacker.name, attack_graph.attackers[100])
 
     # Can not attack the notPresent step
     defense_step = attack_graph\

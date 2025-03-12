@@ -9,7 +9,8 @@ from typing import Any, Optional
 
 from maltoolbox import neo4j_configs
 from maltoolbox.ingestors import neo4j
-from maltoolbox.attackgraph import AttackGraph, AttackGraphNode, query
+from maltoolbox.attackgraph import (AttackGraph, AttackGraphNode,
+    Attacker, query)
 from maltoolbox.attackgraph.analyzers import apriori
 
 ITERATIONS_LIMIT = int(1e9)
@@ -63,9 +64,9 @@ class MalSimAgentState:
 class MalSimAttackerState(MalSimAgentState):
     """Stores the state of an attacker in the simulator"""
 
-    def __init__(self, name: str, attacker_id: int):
+    def __init__(self, name: str, attacker: Attacker):
         super().__init__(name, AgentType.ATTACKER)
-        self.attacker_id = attacker_id
+        self.attacker = attacker
 
 
 class MalSimDefenderState(MalSimAgentState):
@@ -225,7 +226,7 @@ class MalSimulator():
         """Give rewards for pre-enabled attack/defense steps"""
 
         for agent in self._get_attacker_agents():
-            attacker = self.attack_graph.attackers[agent.attacker_id]
+            attacker = agent.attacker
             agent.reward = sum(
                 n.extras.get("reward", 0) for n in attacker.reached_attack_steps
             )
@@ -244,7 +245,7 @@ class MalSimulator():
         for agent in self._agent_states.values():
 
             if isinstance(agent, MalSimAttackerState):
-                attacker = self.attack_graph.attackers[agent.attacker_id]
+                attacker = agent.attacker
                 agent.action_surface = query.calculate_attack_surface(
                     attacker, skip_compromised = True
                 )
@@ -264,7 +265,10 @@ class MalSimulator():
         for agent_state in self._get_attacker_agents():
             # Create a new agent state for the attacker
             self._agent_states[agent_state.name] = (
-                MalSimAttackerState(agent_state.name, agent_state.attacker_id)
+                MalSimAttackerState(
+                    agent_state.name,
+                    self.attack_graph.attackers[agent_state.attacker.id]
+                )
             )
 
         for agent_state in self._get_defender_agents():
@@ -281,7 +285,12 @@ class MalSimulator():
         assert name not in self._agent_states, \
             f"Duplicate agent named {name} not allowed"
 
-        agent_state = MalSimAttackerState(name, attacker_id)
+        attacker = self.attack_graph.attackers.get(attacker_id, None)
+        if attacker is None:
+            logger.error('Failed to register Attacker agent because no '
+                f'attacker with id {attacker_id} was found in the attack '
+                'graph!')
+        agent_state = MalSimAttackerState(name, attacker)
         self._agent_states[name] = agent_state
         self._alive_agents.add(name)
 
@@ -328,7 +337,7 @@ class MalSimulator():
             - Uncompromise the node and remove rewards for it.
         """
         for attacker_agent in self._get_attacker_agents():
-            attacker = self.attack_graph.attackers[attacker_agent.attacker_id]
+            attacker = attacker_agent.attacker
 
             for unviable_node in attack_steps_to_uncompromise:
                 if unviable_node.is_compromised_by(attacker):
@@ -355,7 +364,7 @@ class MalSimulator():
         """
 
         compromised_nodes = set()
-        attacker = self.attack_graph.attackers[agent.attacker_id]
+        attacker = agent.attacker
 
         for node in nodes:
             assert node == self.attack_graph.nodes[node.id], (

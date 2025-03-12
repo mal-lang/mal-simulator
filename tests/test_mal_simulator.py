@@ -56,9 +56,8 @@ def test_register_agent_attacker(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(attack_graph)
 
-    attacker = 1
     agent_name = "attacker1"
-    sim.register_attacker(agent_name, attacker)
+    sim.register_attacker(agent_name, 1)
 
     assert agent_name in sim.agent_states
     assert agent_name in sim.agent_states
@@ -96,9 +95,8 @@ def test_simulator_initialize_agents(corelang_lang_graph, model):
 
     # Register the agents
     attacker_name = "attacker"
-    attacker_id = 1
     defender_name = "defender"
-    sim.register_attacker(attacker_name, attacker_id)
+    sim.register_attacker(attacker_name, 1)
     sim.register_defender(defender_name)
 
     sim.reset()
@@ -130,7 +128,8 @@ def test_attacker_step(corelang_lang_graph, model):
     attack_graph.add_attacker(attacker, attacker.id)
     sim = MalSimulator(attack_graph)
 
-    sim.register_attacker(attacker.name, attacker.id)
+    sim.register_attacker(attacker.name,
+        attacker.id)
     sim.reset()
     attacker_agent = sim._agent_states[attacker.name]
 
@@ -189,7 +188,8 @@ def test_agent_state_views_simple(corelang_lang_graph, model):
     sim = MalSimulator(attack_graph)
     attacker_name = 'attacker'
     defender_name = 'defender'
-    sim.register_attacker(attacker_name, attacker.id)
+    sim.register_attacker(attacker_name,
+        attacker.id)
     sim.register_defender(defender_name)
 
     # Evaluate the agent state views after reset

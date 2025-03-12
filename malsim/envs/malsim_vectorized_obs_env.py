@@ -537,8 +537,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
 
             if agent.type == AgentType.ATTACKER:
                 # Attacker can only act on nodes that are not compromised
-                attacker = \
-                    self.sim.attack_graph.attackers[agent.attacker_id]
+                attacker = agent.attacker
                 if not node.is_compromised_by(attacker):
                     index = self._id_to_index[node.id]
                     available_actions[index] = 1
@@ -798,9 +797,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
                 if child_obs == -1:
                     agent_observation['observed_state'][child_index] = 0
 
-        attacker = (
-            self.sim.attack_graph.attackers[attacker_agent.attacker_id]
-        )
+        attacker = attacker_agent.attacker
         attacker_observation = self._agent_observations[attacker_agent.name]
 
         for node in compromised_nodes:

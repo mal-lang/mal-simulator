@@ -120,9 +120,9 @@ class DefenderEnv(gym.Env):
         """Register attackers in simulator"""
         for agent_info in agents:
             if agent_info['type'] == AgentType.ATTACKER:
-                agent_name = agent_info['name']
-                attacker_id = agent_info['attacker_id']
-                self.sim.register_attacker(agent_name, attacker_id)
+                self.sim.register_attacker(
+                    agent_info['name'],
+                    agent_info['attacker_id'])
 
     def _create_attacker_decision_agents(
             self, agents: list[dict], seed=None

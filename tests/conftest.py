@@ -44,8 +44,7 @@ def fixture_env()-> MalSimVectorizedObsEnv:
     env = MalSimVectorizedObsEnv(MalSimulator(attack_graph, max_iter=1000))
     env.register_defender('defender')
 
-    attacker_id = env.sim.attack_graph.attackers[0].id
-    env.register_attacker('attacker', attacker_id)
+    env.register_attacker('attacker', 0)
 
     return env
 
