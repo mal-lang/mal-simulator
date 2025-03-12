@@ -285,6 +285,11 @@ class MalSimulator():
         assert name not in self._agent_states, \
             f"Duplicate agent named {name} not allowed"
 
+        if (attacker.id not in self.attack_graph.attackers or
+                self.attack_graph.attackers[attacker.id] != attacker):
+            raise ValueError('Attacker object provided is not part of the '
+                'attack graph.')
+
         agent_state = MalSimAttackerState(name, attacker)
         self._agent_states[name] = agent_state
         self._alive_agents.add(name)
