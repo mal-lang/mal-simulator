@@ -387,8 +387,6 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
         self._agent_observations = {}
         self._agent_infos = {}
 
-        self.reset()
-
     @property
     def agents(self):
         """Required by ParallelEnv"""
