@@ -54,10 +54,11 @@ def test_reset(corelang_lang_graph, model):
 
 def test_register_agent_attacker(corelang_lang_graph, model):
     attack_graph = AttackGraph(corelang_lang_graph, model)
+    attack_graph.attach_attackers()
     sim = MalSimulator(attack_graph)
 
     agent_name = "attacker1"
-    sim.register_attacker(agent_name, 1)
+    sim.register_attacker(agent_name, 0)
 
     assert agent_name in sim.agent_states
     assert agent_name in sim.agent_states

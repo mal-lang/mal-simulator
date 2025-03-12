@@ -287,9 +287,10 @@ class MalSimulator():
 
         attacker = self.attack_graph.attackers.get(attacker_id, None)
         if attacker is None:
-            logger.error('Failed to register Attacker agent because no '
-                f'attacker with id {attacker_id} was found in the attack '
-                'graph!')
+            msg = ('Failed to register Attacker agent because no attacker '
+                f'with id {attacker_id} was found in the attack ' 'graph!')
+            logger.error(msg)
+            raise ValueError(msg)
         agent_state = MalSimAttackerState(name, attacker)
         self._agent_states[name] = agent_state
         self._alive_agents.add(name)
