@@ -367,7 +367,7 @@ def create_simulator_from_scenario(
         if agent_dict['type'] == AgentType.ATTACKER:
             sim.register_attacker(
                 agent_dict['name'],
-                agent_dict['attacker_id']
+                attack_graph.attackers[agent_dict['attacker_id']]
             )
         elif agent_dict['type'] == AgentType.DEFENDER:
             sim.register_defender(
