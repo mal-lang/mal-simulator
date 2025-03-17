@@ -228,7 +228,8 @@ class MalSimulator():
         for agent in self._get_attacker_agents():
             attacker = agent.attacker
             agent.reward = sum(
-                n.extras.get("reward", 0) for n in attacker.reached_attack_steps
+                n.extras.get("reward", 0)
+                for n in attacker.reached_attack_steps
             )
 
         lost_reward = sum(
@@ -238,7 +239,8 @@ class MalSimulator():
         )
 
         for agent in self._get_defender_agents():
-            agent.reward = lost_reward
+            # Defenders get negative reward for pre-enabled nodes
+            agent.reward = -lost_reward
 
     def _init_agent_action_surfaces(self):
         """Set agent action surfaces according to current state"""
