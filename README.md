@@ -5,7 +5,16 @@
 A MAL compliant simulator.
 
 ## Installation
+
 ```pip install mal-simulator```
+
+To also get ML dependencies (numpy, pettingzoo, gymnasium):
+
+```pip install mal-simulator[ml]```
+
+For additional dev tools:
+
+```pip install mal-simulator[dev]```
 
 ## MalSimulator
 
