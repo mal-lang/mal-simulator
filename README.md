@@ -113,6 +113,24 @@ actionable_steps:
   #       - phishing
   #     ...
 
+
+# Optionally add false positive/negative rates to observations.
+#
+# False positive/negative `rate` is a number between 0.0 and 1.0.
+#  - A false positive rate of x for means that an inactive attack step
+#    will be observed as active at a rate of x in each observation
+#  - A false negative rate of x for means that an active attack step
+#    will be observed as inactive at a rate of x in each observation
+# Default false positive/negative rate is 0, which is assumed if none are given.
+
+# Applies false positive rates per attack step (default 0)
+false_positive_rates:
+  <attack step full name>: <rate>
+
+# Applies false negative rates per attack step (default 0)
+false_negative_rates:
+  <attack step full name>: <rate>
+
 ```
 
 ### Loading a scenario from a python script

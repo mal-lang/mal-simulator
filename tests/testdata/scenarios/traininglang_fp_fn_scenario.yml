@@ -1,0 +1,34 @@
+lang_file: ../langs/org.mal-lang.trainingLang-1.0.0.mar
+model_file: ../models/traininglang_model.yml
+
+# Rewards for each attack step
+rewards:
+  Host:0:notPresent: 2
+  Host:0:access: 4
+  Host:1:notPresent: 7
+  Host:1:access: 5
+  Data:2:notPresent: 8
+  Data:2:read: 5
+  Data:2:modify: 10
+
+# Specific fpr/fnr for some specific steps
+false_positive_rates:
+  'Host:0:access': 0.2
+  'Host:1:access': 0.3
+
+false_negative_rates:
+  'Host:0:access': 0.4
+  'Host:1:access': 0.5
+  'User:3:compromise': 1.0 # Always false negative
+
+
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: 'BreadthFirstAttacker'
+    entry_points:
+      - 'User:3:phishing'
+      - 'Host:0:connect'
+  defender:
+    type: defender
+    agent_class: 'KeyboardAgent'
