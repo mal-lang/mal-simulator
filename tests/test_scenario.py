@@ -273,3 +273,36 @@ def test_apply_scenario_observability_faulty():
             'observable',
             {'by_asset_name': {'OS App': ['nonExistingAttackStep']}}
         )
+
+
+def test_load_scenario_false_positive_negative_rate():
+    """Load a scenario with observability settings given and
+    make sure observability is applied correctly"""
+
+    # Load scenario with observability specifed
+    attack_graph, _ = load_scenario(
+        path_relative_to_tests(
+            './testdata/scenarios/traininglang_fp_fn_scenario.yml')
+    )
+
+    # Defined in scenario file
+    host_0_access_fp_rate = 0.2
+    host_1_access_fp_rate = 0.3
+    host_0_access_fn_rate = 0.4
+    host_1_access_fn_rate = 0.5
+    user_3_compromise_fn_rate = 1.0
+
+    for node in attack_graph.nodes.values():
+        if node.full_name == "Host:0:access":
+            assert node.extras['false_positive_rate'] == host_0_access_fp_rate
+            assert node.extras['false_negative_rate'] == host_0_access_fn_rate
+        elif node.full_name == "Host:1:access":
+            assert node.extras['false_positive_rate'] == host_1_access_fp_rate
+            assert node.extras['false_negative_rate'] == host_1_access_fn_rate
+        elif node.full_name == "User:3:compromise":
+            assert 'false_positive_rate' not in node.extras
+            assert node.extras['false_negative_rate'] \
+                == user_3_compromise_fn_rate
+        else:
+            assert 'false_positive_rate' not in node.extras
+            assert 'false_negative_rate' not in node.extras
