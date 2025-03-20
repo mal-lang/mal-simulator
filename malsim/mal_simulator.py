@@ -488,7 +488,7 @@ class MalSimulator():
             attacker_state: MalSimAttackerState,
             step_agent_compromised_nodes: set[AttackGraphNode],
         ):
-        """Defender is rewarded for each compromised node"""
+        """Attacker is rewarded for each compromised node"""
         return attacker_state.reward + sum(
             n.extras.get("reward", 0)
             for n in step_agent_compromised_nodes
@@ -559,7 +559,7 @@ class MalSimulator():
             )
             step_compromised_nodes |= compromised
 
-            # Calculate attackers rewards, truncation and terminations
+            # Calculate attacker reward and termination
             attacker_state.reward = self._attacker_step_reward(
                 attacker_state, attacker_state.step_performed_nodes,
             )
