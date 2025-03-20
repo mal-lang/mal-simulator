@@ -138,12 +138,10 @@ def test_attacker_step(corelang_lang_graph, model):
     defense_step = sim.attack_graph.get_node_by_full_name('OS App:notPresent')
     actions = sim._attacker_step(attacker_agent, {defense_step})
     assert not actions
-    assert not attacker_agent.step_action_surface_additions
 
     attack_step = sim.attack_graph.get_node_by_full_name('OS App:attemptRead')
-    sim._attacker_step(attacker_agent, {attack_step})
-    assert attacker_agent.step_performed_nodes  == {attack_step}
-    assert attacker_agent.step_action_surface_additions == attack_step.children
+    actions = sim._attacker_step(attacker_agent, {attack_step})
+    assert actions  == {attack_step}
 
 
 def test_defender_step(corelang_lang_graph, model):
@@ -157,15 +155,16 @@ def test_defender_step(corelang_lang_graph, model):
     defender_agent = sim._agent_states[defender_name]
     defense_step = sim.attack_graph.get_node_by_full_name(
         'OS App:notPresent')
-    sim._defender_step(defender_agent, {defense_step})
-    assert defender_agent.step_performed_nodes == {defense_step}
+    enabled, made_unviable = sim._defender_step(defender_agent, {defense_step})
+    assert enabled ==  {defense_step}
+    assert made_unviable
 
     # Can not defend attack_step
     attack_step = sim.attack_graph.get_node_by_full_name(
         'OS App:attemptUseVulnerability')
-    sim._defender_step(defender_agent, {attack_step})
-    assert not defender_agent.step_performed_nodes
-
+    enabled, made_unviable = sim._defender_step(defender_agent, {attack_step})
+    assert enabled == set()
+    assert not made_unviable
 
 def test_agent_state_views_simple(corelang_lang_graph, model):
 
