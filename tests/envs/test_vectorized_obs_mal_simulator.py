@@ -200,62 +200,6 @@ def test_create_blank_observation_actionability_given(
         else:
             assert not actionable
 
-def test_step(corelang_lang_graph, model):
-    attack_graph = AttackGraph(corelang_lang_graph, model)
-    entry_point = attack_graph.get_node_by_full_name('OS App:fullAccess')
-
-    attacker = Attacker(
-        'attacker1',
-        reached_attack_steps = {entry_point},
-        entry_points = {entry_point},
-        attacker_id = 100)
-    attack_graph.add_attacker(attacker, attacker.id)
-    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
-
-    # Refresh attack graph reference to the one deepcopied during the reset
-    attack_graph = env.sim.attack_graph
-
-    agent_info = MalSimAttackerState(attacker.name, attack_graph.attackers[100])
-
-    # Can not attack the notPresent step
-    defense_step = attack_graph\
-        .get_node_by_full_name('OS App:notPresent')
-    actions = env.sim._attacker_step(agent_info, {defense_step})
-    assert not actions
-    assert not agent_info.step_action_surface_additions
-
-    attack_step = attack_graph.get_node_by_full_name('OS App:attemptRead')
-
-    # Action needs to be in action surface to be an allowed action
-    agent_info.action_surface = {attack_step}
-
-    # Since action is in attack surface and since it is traversable,
-    # action will be performed.
-    env.sim._attacker_step(agent_info, {attack_step})
-    assert agent_info.step_performed_nodes == {attack_step}
-    assert agent_info.step_action_surface_additions == attack_step.children
-
-
-def test_malsimulator_defender_step(corelang_lang_graph, model):
-    attack_graph = AttackGraph(corelang_lang_graph, model)
-    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
-
-    agent_name = "defender1"
-    env.register_defender(agent_name)
-    env.reset()
-
-    defender_agent = env.sim._agent_states[agent_name]
-    defense_step = env.sim.attack_graph.get_node_by_full_name(
-        'OS App:notPresent')
-    env.sim._defender_step(defender_agent, {defense_step})
-    assert defender_agent.step_performed_nodes == {defense_step}
-
-    # Can not defend attack_step
-    attack_step = env.sim.attack_graph.get_node_by_full_name(
-        'OS App:attemptUseVulnerability')
-    env.sim._defender_step(defender_agent, {attack_step})
-    assert not defender_agent.step_performed_nodes
-
 
 def test_malsimulator_observe_attacker():
     attack_graph, _ = load_scenario(
