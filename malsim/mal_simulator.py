@@ -225,22 +225,24 @@ class MalSimulator():
     def _init_agent_rewards(self):
         """Give rewards for pre-enabled attack/defense steps"""
 
-        for agent in self._get_attacker_agents():
-            attacker = agent.attacker
-            agent.reward = sum(
-                n.extras.get("reward", 0)
-                for n in attacker.reached_attack_steps
+        pre_enabled_attack_steps = set()
+        for attacker_state in self._get_attacker_agents():
+            # Attackers get positive reward for pre-compromised nodes
+            attacker = attacker_state.attacker
+            attacker_state.reward = self._attacker_reward(
+                attacker_state, attacker.reached_attack_steps,
             )
+            pre_enabled_attack_steps |= attacker.reached_attack_steps
 
-        lost_reward = sum(
-            node.extras.get("reward", 0)
-            for node in self.attack_graph.nodes.values()
-            if node.is_compromised() or node.is_enabled_defense()
+        pre_enabled_defenses = set(
+            node for node in self.attack_graph.nodes.values()
+            if node.is_enabled_defense()
         )
-
-        for agent in self._get_defender_agents():
-            # Defenders get negative reward for pre-enabled nodes
-            agent.reward = -lost_reward
+        for defender_state in self._get_defender_agents():
+            # Defenders get negative reward for pre-enabled/compromised nodes
+            defender_state.reward = self._defender_reward(
+                defender_state, pre_enabled_defenses, pre_enabled_attack_steps
+            )
 
     def _init_agent_action_surfaces(self):
         """Set agent action surfaces according to current state"""
@@ -386,7 +388,6 @@ class MalSimulator():
                     and node in agent.action_surface:
                 attacker.compromise(node)
                 agent.performed_nodes.add(node)
-                agent.reward += node.extras.get('reward', 0)
                 compromised_nodes.add(node)
 
                 logger.info(
@@ -413,13 +414,7 @@ class MalSimulator():
         agent.action_surface |= attack_surface_additions
         agent.step_performed_nodes = compromised_nodes
 
-        # Terminate attacker if it has nothing left to do
-        terminate = True
-        for node in agent.action_surface:
-            if not node.is_compromised_by(attacker):
-                terminate = False
-                break
-        agent.terminated = terminate
+        return compromised_nodes
 
     def _defender_step(
         self, agent: MalSimDefenderState, nodes: list[AttackGraphNode]
@@ -460,7 +455,6 @@ class MalSimulator():
                 node.is_viable = False
                 attack_steps_made_unviable |= \
                     apriori.propagate_viability_from_unviable_node(node)
-                agent.reward -= node.extras.get("reward", 0)
                 enabled_defenses.add(node)
                 agent.performed_nodes.add(node)
                 logger.info(
@@ -487,6 +481,75 @@ class MalSimulator():
         if self.sim_settings.uncompromise_untraversable_steps:
             self._uncompromise_attack_steps(attack_steps_made_unviable)
 
+        return enabled_defenses, attack_steps_made_unviable
+
+    @staticmethod
+    def _attacker_reward(
+            attacker_state: MalSimAttackerState,
+            step_agent_compromised_nodes: set[AttackGraphNode],
+        ):
+        """
+        Calculate current attacker reward by adding this steps
+        compromised node rewards to the previous attacker reward.
+        Can be overriden by subclass to implement custom reward function.
+
+        Args:
+        - attacker_state: the attacker state before nodes were compromised
+        - step_agent_compromised_nodes: set of nodes compromised
+          since last reward was calculated
+        """
+        # Attacker is rewarded for compromised nodes
+        return attacker_state.reward + sum(
+            n.extras.get("reward", 0)
+            for n in step_agent_compromised_nodes
+        )
+
+    @staticmethod
+    def _defender_reward(
+            defender_state: MalSimDefenderState,
+            step_enabled_defenses: set[AttackGraphNode],
+            step_compromised_nodes: set[AttackGraphNode]
+        ):
+        """
+        Calculate current defender reward by subtracting this steps
+        compromised/enabled node rewards from the previous defender reward.
+        Can be overriden by subclass to implement custom reward function.
+
+        Args:
+        - defender_state: the defender state before defenses were enabled
+        - step_enabled_defenses: set of defenses enabled since last reward was
+          calculated
+        """
+        # Defender is penalized for compromised nodes and enabled defenses
+        return defender_state.reward - sum(
+            n.extras.get("reward", 0)
+            for n in step_enabled_defenses | step_compromised_nodes
+        )
+
+    @staticmethod
+    def _attacker_is_terminated(attacker_state: MalSimAttackerState) -> bool:
+        """Check if attacker is terminated
+        Can be overriden by subclass for custom termination condition.
+
+        Args:
+        - attacker_state: the attacker state to check for termination
+        """
+        # Attacker is terminated if it has no more actions to take
+        return len(attacker_state.action_surface) == 0
+
+    @staticmethod
+    def _defender_is_terminated(
+        attacker_agent_states: list[MalSimAttackerState]
+    ) -> bool:
+        """Check if defender is terminated
+        Can be overriden by subclass for custom termination condition.
+
+        Args:
+        - defender_state: the defender state to check for termination
+        """
+        # Defender is terminated if all attackers are terminated
+        return all(a.terminated for a in attacker_agent_states)
+
     def step(
         self, actions: dict[str, list[AttackGraphNode]]
     ) -> dict[str, MalSimAgentStateView]:
@@ -505,9 +568,9 @@ class MalSimulator():
         logger.debug("Performing actions: %s", actions)
 
         # Populate these from the results for all agents' actions.
-        all_compromised = set()
-        unviable_nodes = set()
-        all_attackers_terminated = True
+        step_compromised_nodes = set()
+        step_enabled_defenses = set()
+        step_unviable_nodes = set()
 
         # Prepare agent states for new step
         for agent_name in self._alive_agents:
@@ -515,51 +578,53 @@ class MalSimulator():
             # Clear action surface removals from previous step to
             # make sure the old values do not carry over.
             agent.step_action_surface_removals = set()
-            # All agents share same set of unviable_nodes
-            agent.step_unviable_nodes = unviable_nodes
+            agent.step_unviable_nodes = step_unviable_nodes
 
         # Perform defender actions first
-        for agent in self._get_defender_agents():
-            agent_actions = actions.get(agent.name, [])
-            self._defender_step(agent, agent_actions)
-            # All defenders share the same set of compromised nodes
-            # Which is built from what the attackers do this step
-            agent.step_all_compromised_nodes = all_compromised
+        for defender_state in self._get_defender_agents():
+            enabled, unviable = self._defender_step(
+                defender_state, actions.get(defender_state.name, [])
+            )
+            step_enabled_defenses |= enabled
+            step_unviable_nodes |= unviable
 
         # Perform attacker actions afterwards
-        for agent in self._get_attacker_agents():
-            agent_actions = actions.get(agent.name, [])
-            self._attacker_step(agent, agent_actions)
-            all_compromised |= agent.step_performed_nodes
+        for attacker_state in self._get_attacker_agents():
+            compromised = self._attacker_step(
+                attacker_state, actions.get(attacker_state.name, [])
+            )
+            step_compromised_nodes |= compromised
 
-            if not agent.terminated:
-                all_attackers_terminated = False
+            # Calculate attacker reward and termination
+            attacker_state.reward = self._attacker_reward(
+                attacker_state, attacker_state.step_performed_nodes,
+            )
+            attacker_state.truncated = self.cur_iter >= self.max_iter
+            attacker_state.terminated = (
+                self._attacker_is_terminated(attacker_state)
+            )
 
-        # Apply defenders negative rewards from compromises this step
-        lost_rewards = sum(n.extras.get("reward", 0) for n in all_compromised)
-        for defender in self._get_defender_agents():
-            defender.reward -= lost_rewards
+        # Calculate defender rewards and terminations
+        # (depends on attackers, so must be done after all steps)
+        for defender_state in self._get_defender_agents():
+            defender_state.step_all_compromised_nodes = step_compromised_nodes
+            defender_state.reward = self._defender_reward(
+                defender_state, step_enabled_defenses, step_compromised_nodes
+            )
+            defender_state.truncated = self.cur_iter >= self.max_iter
+            defender_state.terminated = self._defender_is_terminated(
+                self._get_attacker_agents()
+            )
 
-        if self._alive_agents and all_attackers_terminated:
-            # Terminate all defenders if all attackers are terminated
-            logger.info("All attackers are terminated")
-            for agent in self._agent_states.values():
-                agent.terminated = True
-
-        if self.cur_iter >= self.max_iter:
-            # Truncate all agents when max iter is reached
-            logger.info("Max iteration reached - all agents truncated")
-            for agent in self._agent_states.values():
-                agent.truncated = True
-
+        # Remove agents that are terminated or truncated
         for agent_name in self._alive_agents.copy():
-            agent = self._agent_states[agent_name]
-            if agent.terminated or agent.truncated:
-                logger.info("Removing agent %s", agent.name)
+            agent_state = self._agent_states[agent_name]
+            agent_state.truncated = self.cur_iter >= self.max_iter
+            if agent_state.terminated or agent_state.truncated:
+                logger.info("Removing agent %s", agent_name)
                 self._alive_agents.remove(agent_name)
 
         self.cur_iter += 1
-
         return self.agent_states
 
     def render(self):
