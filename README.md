@@ -53,29 +53,34 @@ rewards:
   # Data A:read: 100
   ...
 
-# Add entry points to AttackGraph with attacker names
-# and attack step full_names
+# Add agents / entry points to simulator / attack graph
+# Note: When defining attackers and entrypoints in a scenario,
+#       these override attackers in the model.
 agents:
-  'Attacker1':
+  '<agent_name>':
     type: 'attacker'
-    agent_class: BreadthFirstAttacker | DepthFirstAttacker | KeyboardAgent | null
+    agent_class: <AGENT_CLASS>
     entry_points:
     - 'Credentials:6:attemptCredentialsReuse'
 
-  'Defender1':
+  '<agent_name>':
     type: 'defender'
-    agent_class: BreadthFirstDefender | DepthFirstDefender | KeyboardAgent | null
+    agent_class: <AGENT_CLASS>
 
+# Possible values for AGENT_CLASS:
+# PassiveAgent | DecisionAgent | KeyboardAgent | BreadthFirstAttacker |
+# DepthFirstAttacker | DefendCompromisedDefender | DefendFutureCompromisedDefender
 
 # Optionally add observability rules that are applied to AttackGrapNodes
-# to make only certain steps observable
+# to make only certain steps observable.
+# Note: These do not change the behavior of the simulator.
+#       Instead, they just add the value to each nodes '.extras' field.
 #
 # If 'observable_steps' are set:
 # - Nodes that match any rule will be marked as observable
 # - Nodes that don't match any rules will be marked as non-observable
 # If 'observable_steps' are not set:
 # - All nodes will be marked as observable
-#
 observable_steps:
   by_asset_type:
     <asset_type>:
@@ -87,7 +92,6 @@ observable_steps:
 # Optionally add actionability rules that are applied to AttackGrapNodes
 # to make only certain steps actionable
 # Works exactly as observability
-#
 actionable_steps:
   by_asset_type:
     <asset_type>:
@@ -111,8 +115,6 @@ actionable_steps:
 
 ```
 
-Note: When defining attackers and entrypoints in a scenario, these override potential attackers in the model.
-
 ### Loading a scenario from a python script
 
 #### Load attack graph and config
@@ -135,13 +137,13 @@ If you instead want to load a simulator, use `malsim.scenarios.create_simulator_
 from malsim.scenarios import create_simulator_from_scenario
 
 scenario_file = "scenario.yml"
-mal_simulator, sim_config = create_simulator_from_scenario(scenario_file)
+mal_simulator, agents = create_simulator_from_scenario(scenario_file)
 
 ```
 The returned MalSimulator contains the attackgraph created from
 the scenario, as well as registered agents. At this point, simulator and sim_config
-(which contains the agent classes) can be used for running a simulation
-(refer to malsim.cli.run_simulation or wrappers.gym_wrappers to see example of this).
+(which contains the decision agents) can be used for running a simulation
+(refer to `malsim.__main__.run_simulation` to see example of this).
 
 
 ## CLI
