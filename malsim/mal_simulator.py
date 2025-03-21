@@ -226,21 +226,21 @@ class MalSimulator():
         """Give rewards for pre-enabled attack/defense steps"""
 
         pre_enabled_attack_steps = set()
-        pre_enabled_defenses = set(
-            node for node in self.attack_graph.nodes.values()
-            if node.is_enabled_defense()
-        )
-
         for attacker_state in self._get_attacker_agents():
+            # Attackers get positive reward for pre-compromised nodes
             attacker = attacker_state.attacker
-            attacker_state.reward = self._attacker_step_reward(
+            attacker_state.reward = self._attacker_reward(
                 attacker_state, attacker.reached_attack_steps,
             )
             pre_enabled_attack_steps |= attacker.reached_attack_steps
 
+        pre_enabled_defenses = set(
+            node for node in self.attack_graph.nodes.values()
+            if node.is_enabled_defense()
+        )
         for defender_state in self._get_defender_agents():
-            # Defenders get negative reward for pre-enabled nodes
-            defender_state.reward = self._defender_step_reward(
+            # Defenders get negative reward for pre-enabled/compromised nodes
+            defender_state.reward = self._defender_reward(
                 defender_state, pre_enabled_defenses, pre_enabled_attack_steps
             )
 
@@ -483,36 +483,72 @@ class MalSimulator():
 
         return enabled_defenses, attack_steps_made_unviable
 
-    def _attacker_step_reward(
-            self,
+    @staticmethod
+    def _attacker_reward(
             attacker_state: MalSimAttackerState,
             step_agent_compromised_nodes: set[AttackGraphNode],
         ):
-        """Attacker is rewarded for each compromised node"""
+        """
+        Calculate current attacker reward by adding this steps
+        compromised node rewards to the previous attacker reward.
+        Can be overriden by subclass to implement custom reward function.
+
+        Args:
+        - attacker_state: the attacker state before nodes were compromised
+        - step_agent_compromised_nodes: set of nodes compromised
+          since last reward was calculated
+        """
+        # Attacker is rewarded for compromised nodes
         return attacker_state.reward + sum(
             n.extras.get("reward", 0)
             for n in step_agent_compromised_nodes
         )
 
-    def _defender_step_reward(
-            self,
+    @staticmethod
+    def _defender_reward(
             defender_state: MalSimDefenderState,
             step_enabled_defenses: set[AttackGraphNode],
-            step__compromised_nodes: set[AttackGraphNode]
+            step_compromised_nodes: set[AttackGraphNode]
         ):
-        """Defender is penalized for compromised nodes and enabled defense"""
+        """
+        Calculate current defender reward by subtracting this steps
+        compromised/enabled node rewards from the previous defender reward.
+        Can be overriden by subclass to implement custom reward function.
+
+        Args:
+        - defender_state: the defender state before defenses were enabled
+        - step_enabled_defenses: set of defenses enabled since last reward was
+          calculated
+        """
+        # Defender is penalized for compromised nodes and enabled defenses
         return defender_state.reward - sum(
             n.extras.get("reward", 0)
-            for n in step_enabled_defenses | step__compromised_nodes
+            for n in step_enabled_defenses | step_compromised_nodes
         )
 
-    def _attacker_is_terminated(self, attacker_state: MalSimAttackerState):
-        """Attacker is terminated if it has no more actions to take"""
+    @staticmethod
+    def _attacker_is_terminated(attacker_state: MalSimAttackerState) -> bool:
+        """Check if attacker is terminated
+        Can be overriden by subclass for custom termination condition.
+
+        Args:
+        - attacker_state: the attacker state to check for termination
+        """
+        # Attacker is terminated if it has no more actions to take
         return len(attacker_state.action_surface) == 0
 
-    def _defender_is_terminated(self):
-        """Defender is terminated if all attackers are terminated"""
-        return all(a.terminated for a in self._get_attacker_agents())
+    @staticmethod
+    def _defender_is_terminated(
+        attacker_agent_states: list[MalSimAttackerState]
+    ) -> bool:
+        """Check if defender is terminated
+        Can be overriden by subclass for custom termination condition.
+
+        Args:
+        - defender_state: the defender state to check for termination
+        """
+        # Defender is terminated if all attackers are terminated
+        return all(a.terminated for a in attacker_agent_states)
 
     def step(
         self, actions: dict[str, list[AttackGraphNode]]
@@ -560,7 +596,7 @@ class MalSimulator():
             step_compromised_nodes |= compromised
 
             # Calculate attacker reward and termination
-            attacker_state.reward = self._attacker_step_reward(
+            attacker_state.reward = self._attacker_reward(
                 attacker_state, attacker_state.step_performed_nodes,
             )
             attacker_state.truncated = self.cur_iter >= self.max_iter
@@ -572,11 +608,13 @@ class MalSimulator():
         # (depends on attackers, so must be done after all steps)
         for defender_state in self._get_defender_agents():
             defender_state.step_all_compromised_nodes = step_compromised_nodes
-            defender_state.reward = self._defender_step_reward(
+            defender_state.reward = self._defender_reward(
                 defender_state, step_enabled_defenses, step_compromised_nodes
             )
             defender_state.truncated = self.cur_iter >= self.max_iter
-            defender_state.terminated = self._defender_is_terminated()
+            defender_state.terminated = self._defender_is_terminated(
+                self._get_attacker_agents()
+            )
 
         # Remove agents that are terminated or truncated
         for agent_name in self._alive_agents.copy():
