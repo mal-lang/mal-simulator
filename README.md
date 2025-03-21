@@ -18,10 +18,10 @@ For additional dev tools:
 
 ## MalSimulator
 
-A `sims.mal_simulator.MalSimulator` can be created to be able to run simulations.
+A `mal_simulator.MalSimulator` can be created to be able to run simulations.
 
 ### MalSimulatorSettings
-The constructor of MalSimulator can be given a settings object (`sims.mal_simulator.MalSimulatorSettings`)
+The constructor of MalSimulator can be given a settings object (`mal_simulator.MalSimulatorSettings`)
 through the parameter 'sim_settings'. Giving sim_settings is optional, otherwise default settings are used.
 
 ```python
