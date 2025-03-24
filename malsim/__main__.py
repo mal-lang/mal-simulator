@@ -82,7 +82,7 @@ def main():
         help="If set to a seed, it will be used in simulator reset",
     )
     parser.add_argument(
-        '-t', '--ttcs', action="store_true",
+        '-t', '--ttcs', action="store_false",
         help="If set, use ttcs in simulation",
     )
     args = parser.parse_args()

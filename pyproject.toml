@@ -12,7 +12,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
   "py2neo>=2021.2.3",
-  "mal-toolbox~=0.3.0",
+  "mal-toolbox @ git+https://github.com/mal-lang/mal-toolbox.git@ttc-calculations",
   "PyYAML>=6.0.1"
 ]
 license = {text = "Apache Software License"}

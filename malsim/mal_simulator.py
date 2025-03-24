@@ -58,7 +58,7 @@ class MalSimAgentState:
     step_unviable_nodes: set[AttackGraphNode] = field(default_factory=set)
 
     # Current ttc value of each node that had ttc functions defined
-    ttc_values: dict[AttackGraphNode, int] = field(default_factory=dict)
+    ttc_values: dict[AttackGraphNode, float] = field(default_factory=dict)
 
     # Fields that tell if the agent is done or stopped
     truncated: bool = False
@@ -152,6 +152,7 @@ class MalSimAgentStateView(MalSimAttackerState, MalSimDefenderState):
         return dunder_attrs + props
 
 
+TTCMode = Enum('TTCMode', ['disabled', 'sample_values', 'expected_values'])
 @dataclass
 class MalSimulatorSettings():
     """Contains settings used in MalSimulator"""
@@ -163,8 +164,11 @@ class MalSimulatorSettings():
     # - Leave the node/step compromised even after it becomes untraversable
     uncompromise_untraversable_steps: bool = False
 
-    # Sample TTCs and only let attackers compromise when ttc is 0
-    use_ttcs: bool = False
+    # TTC mode - either disabled or sample or expected values
+    # If not disabled, nodes will only be compromised if their
+    # ttc value is 0, otherwise they will decrement each step they
+    # are selected as action.
+    ttc_mode: TTCMode = TTCMode.disabled
 
 
 class MalSimulator():
@@ -245,64 +249,16 @@ class MalSimulator():
             else:
                 raise LookupError(f"Agent type {agent.type} not supported")
 
-    def _sample_ttc(self, node: AttackGraphNode):
-        """Sample a value from ttc distribution for a node"""
-
-        def process_sample(distribution):
-            max_cost = 500
-            # Generate a random sample for the given distribution
-            if 'Bernoulli' in distribution:
-                # Mixture of exponential and constant distribution
-                prob = distribution['Bernoulli']
-                scale = distribution['Exponential']
-                scale = 1/scale
-                sample = (
-                    np.random.exponential(scale=scale)
-                    if np.random.choice([0, 1], p=[prob, 1 - prob])
-                    else max_cost
-                )
-            else:
-                # Pure exponential distribution
-                scale = distribution['Exponential']
-                scale = 1/scale
-                sample = np.random.exponential(scale=scale)
-
-            return sample
-
-        distribution = node.ttc['name']
-        sample = 0
-        if distribution == "EasyAndCertain":
-            # Generate sample for EasyAndCertain distribution.
-            sample = process_sample({'Exponential': 1})
-        elif distribution == "EasyAndUncertain":
-            # Generate sample for EasyAndUncertain distribution.
-            sample = process_sample({'Exponential': 1, 'Bernoulli': 0.5})
-        elif distribution == "HardAndCertain":
-            # Generate sample for HardAndCertain distribution.
-            sample = process_sample({'Exponential': 0.1})
-        elif distribution == "HardAndUncertain":
-            # Generate sample for HardAndUncertain distribution.
-            sample = process_sample({'Exponential': 0.1, 'Bernoulli': 0.5})
-        elif distribution == "VeryHardAndCertain":
-            # Generate sample for VeryHardAndCertain distribution.
-            sample = process_sample({'Exponential': 0.01})
-        elif distribution == "VeryHardAndUncertain":
-            # Generate sample for VeryHardAndUncertain distribution.
-            sample = process_sample({'Exponential': 0.01, 'Bernoulli': 0.5})
-        elif distribution == "Exponential":
-            # Generate sample for custom Exponential distribution.
-            scale = float(node.ttc['arguments'][0])
-            sample = process_sample({'Exponential': scale})
-
-        return sample
-
     def _init_agent_ttcs(self):
-        """Sample ttcs for all attacker agents"""
-        for node in self.attack_graph.nodes.values():
-            if node.ttc is None:
-                continue
-            for agent in self._get_attacker_agents():
-                agent.ttc_values[node] = self._sample_ttc(node)
+        """Set node ttcs for all attacker agents"""
+        for agent in self._get_attacker_agents():
+            for node in self.attack_graph.nodes.values():
+                if self.sim_settings.ttc_mode == TTCMode.expected_values:
+                    # Use TTC expected value
+                    agent.ttc_values[node] = node.ttc_expected_value()
+                elif self.sim_settings.ttc_mode == TTCMode.sample_values:
+                    # Or sample TTC from distribution
+                    agent.ttc_values[node] = node.ttc_sample()
 
     def _reset_agents(self, seed=None):
         """Reset agent rewards and action surfaces"""
@@ -347,7 +303,7 @@ class MalSimulator():
         self._init_agent_action_surfaces()
         self._init_agent_ttcs()
 
-        if self.sim_settings.use_ttcs:
+        if self.sim_settings.ttc_mode != TTCMode.disabled:
             self._init_agent_ttcs()
 
     def register_attacker(self, name: str, attacker_id: int):
@@ -453,7 +409,7 @@ class MalSimulator():
             if query.is_node_traversable_by_attacker(node, attacker) \
                     and node in agent.action_surface:
 
-                if self.sim_settings.use_ttcs and node in agent.ttc_values:
+                if node in agent.ttc_values:
                     # If TTCs are enabled, decrease TTC for node and see if
                     # it can be compromised (if ttc <= 0)
                     logger.info(
