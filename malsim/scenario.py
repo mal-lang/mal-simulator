@@ -12,7 +12,7 @@ A scenario is a combination of:
 """
 
 import os
-from typing import Optional, Any
+from typing import Any
 
 import yaml
 
