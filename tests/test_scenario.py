@@ -5,6 +5,7 @@ import pytest
 
 from malsim.scenario import (
     apply_scenario_node_property_rules,
+    apply_scenario_node_property_values,
     load_scenario
 )
 from malsim.agents import PassiveAgent, BreadthFirstAttacker

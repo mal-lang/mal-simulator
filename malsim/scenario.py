@@ -121,7 +121,7 @@ def _validate_scenario_property_rules(
         for asset_type_name, asset_type in graph.lang_graph.assets.items()
     }
 
-    if rules is None:
+    if not rules:
         # Rules are allowed to be empty
         return
 
@@ -151,7 +151,7 @@ def _validate_scenario_property_rules(
         # Make sure each specified asset exist
         assert asset_name in asset_names, (
             f"Failed to find asset name '{asset_name}' in model "
-            f"'{graph.model.name}' when applying scenario" 
+            f"'{graph.model.name}' when applying scenario"
             "observability/actionability rules")
 
         for step_name in rules['by_asset_name'][asset_name]:
@@ -166,22 +166,17 @@ def _validate_scenario_property_rules(
 
 
 def apply_scenario_node_property_rules(
-        attack_graph: AttackGraph,
-        node_prop: str,
-        rules: Optional[dict]
+        attack_graph: AttackGraph, node_prop: str, rules: dict
     ):
-    """Apply the observability/actionability rules from a scenario
-    configuration.
+    """Apply boolean node property rules from a scenario configuration.
 
-    If no rules are given in the scenarios file, make all steps
-    observable/actionable
-
-    If rules are given, make all specified steps observable/actionable,
-    and all other steps unobservable/unactinable
+    If no rules are given, make all node.extras[node_prop] = 1 (True).
+    If rules are given, set steps with matching rules to 1 (True),
+    and all other steps to 0 (False).
 
     Arguments:
     - attack_graph: The attack graph to apply the settings to
-    - node_prop: property name in string format('actionable' or 'observable')
+    - node_prop: property name in string format ('actionable' or 'observable')
     - rules: settings from scenario file with keys `by_asset_name`
              and/or `by_asset_type`
     """
@@ -197,43 +192,70 @@ def apply_scenario_node_property_rules(
         # make the matching steps observable/actionable,
         # and all other unobservable/unactionable
         for step in attack_graph.nodes.values():
+            # Get all attack step names that are applicable
+            # for this attack steps asset type and asset name
             node_prop_rule_step_names = (
-                rules.get('by_asset_type', {}).get(step.lg_attack_step.asset.name, []) +
-                rules.get('by_asset_name', {}).get(step.model_asset.name, [])
+                rules.get('by_asset_type', {})
+                    .get(step.lg_attack_step.asset.name, []) +
+                rules.get('by_asset_name', {})
+                    .get(step.model_asset.name, [])
             )
 
+            # If any rules apply to this attack step
+            # set value of `node_prop` to 1, else 0.
             if step.name in node_prop_rule_step_names:
                 step.extras[node_prop] = 1
             else:
                 step.extras[node_prop] = 0
 
 
-def apply_scenario_false_positive_and_negative_rates(
-        attack_graph: AttackGraph, scenario_conf: dict
+def apply_scenario_node_property_values(
+        attack_graph: AttackGraph, node_prop: str, values: dict,
 ):
-    """Apply false positive/negative rates to all nodes in the
-    AttackGraph either to the default value, from the base rate
-    or from the specifically set rates per attack step"""
+    """Apply node property rules from scenario configuration.
 
-    # Apply false positive rates to specified attack nodes
-    fp_rates_per_attackstep = scenario_conf.get('false_positive_rates')
-    if fp_rates_per_attackstep:
-        for step_full_name, rate in fp_rates_per_attackstep.items():
-            step = attack_graph.get_node_by_full_name(step_full_name)
-            assert step, (
-                f"Attack step {step_full_name} not found in attack graph"
-            )
-            step.extras['false_positive_rate'] = rate
+    Sets node.extras[node_prop] to value defined by rules for nodes
+    that match rule in the AttackGraph. Values defined per asset has
+    precedence over nodes defined per asset type.
 
-    # Apply false negative rates to specified attack nodes
-    fn_rates_per_attackstep = scenario_conf.get('false_negative_rates')
-    if fn_rates_per_attackstep:
-        for step_full_name, rate in fn_rates_per_attackstep.items():
-            step = attack_graph.get_node_by_full_name(step_full_name)
-            assert step, (
-                f"Attack step {step_full_name} not found in attack graph"
-            )
-            step.extras['false_negative_rate'] = rate
+    Arguments:
+    - attack_graph: The attack graph to apply the settings to
+    - node_prop: property name in string format (i.e. 'false_positive_rate')
+    - values: settings from scenario file with keys `by_asset_name`
+              and/or `by_asset_type`
+    """
+
+    _validate_scenario_property_rules(attack_graph, values)
+
+    if not values:
+        # If no rules defined, do not set the values at all
+        return
+
+    for step in attack_graph.nodes.values():
+        # See if user defined rule that sets the specified
+        # property value for attack steps of this name
+        # of a specific asset type
+        prop_value_from_asset_type = (
+            values.get('by_asset_type', {})
+            .get(step.lg_attack_step.asset.name, {})
+            .get(step.name)
+        )
+        # See if user defeined rule that sets the specified
+        # property value for attack steps of this name
+        # of a specific asset
+        prop_value_from_asset_name = (
+            values.get('by_asset_name', {})
+            .get(step.model_asset.name, {})
+            .get(step.name)
+        )
+
+        # Asset type rules are applied first
+        if prop_value_from_asset_type:
+            step.extras[node_prop] = prop_value_from_asset_type
+
+        # Specific asset defined rules override asset type rules
+        if prop_value_from_asset_name:
+            step.extras[node_prop] = prop_value_from_asset_name
 
 
 def add_attacker_entrypoints(
@@ -346,13 +368,24 @@ def apply_scenario_to_attack_graph(
     apply_scenario_rewards(attack_graph, rewards)
 
     # Apply observability and actionability settings to attack graph
-    for node_prop in ['observable', 'actionable']:
-        node_prop_settings = scenario.get(node_prop + '_steps')
-        apply_scenario_node_property_rules(
-            attack_graph, node_prop, node_prop_settings)
+    apply_scenario_node_property_rules(
+        attack_graph, 'observable', scenario.get('observable_steps', {})
+    )
+    apply_scenario_node_property_rules(
+        attack_graph, 'actionable', scenario.get('actionable_steps', {})
+    )
 
     # Apply false positive and negative rates to attack graph
-    apply_scenario_false_positive_and_negative_rates(attack_graph, scenario)
+    apply_scenario_node_property_values(
+        attack_graph,
+        'false_positive_rate',
+        scenario.get('false_positive_rates', {})
+    )
+    apply_scenario_node_property_values(
+        attack_graph,
+        'false_negative_rate',
+        scenario.get('false_negative_rates', {})
+    )
 
 
 def load_scenario(scenario_file: str) -> tuple[AttackGraph, list[dict[str, Any]]]:
