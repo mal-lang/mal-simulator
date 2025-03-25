@@ -129,8 +129,7 @@ def test_attacker_step(corelang_lang_graph, model):
     attack_graph.add_attacker(attacker, attacker.id)
     sim = MalSimulator(attack_graph)
 
-    sim.register_attacker(attacker.name,
-        attacker.id)
+    sim.register_attacker(attacker.name, attacker.id)
     sim.reset()
     attacker_agent = sim._agent_states[attacker.name]
 
@@ -188,16 +187,21 @@ def test_agent_state_views_simple(corelang_lang_graph, model):
     sim = MalSimulator(attack_graph)
     attacker_name = 'attacker'
     defender_name = 'defender'
-    sim.register_attacker(attacker_name,
-        attacker.id)
+    sim.register_attacker(attacker_name, attacker.id)
     sim.register_defender(defender_name)
 
     # Evaluate the agent state views after reset
     state_views = sim.reset()
     asv = state_views['attacker']
     dsv = state_views['defender']
-    assert asv.step_performed_nodes == set()
-    assert dsv.step_performed_nodes == set()
+    assert asv.step_performed_nodes == set(
+        # Will contain all pre compromised attack steps
+        asv.attacker.reached_attack_steps
+    )
+    assert dsv.step_performed_nodes == set(
+        # Will contain all pre enabled defenses
+        n for n in sim.attack_graph.nodes.values() if n.is_enabled_defense()
+    )
     assert len(asv.action_surface) == 6
     assert len(dsv.action_surface) == 21
     assert dsv.step_action_surface_additions == set()
