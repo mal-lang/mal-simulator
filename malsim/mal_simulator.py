@@ -251,6 +251,8 @@ class MalSimulator():
                 agent.action_surface = query.calculate_attack_surface(
                     attacker, skip_compromised = True
                 )
+                # Also add reached attack steps as performed nodes
+                agent.performed_nodes = set(attacker.reached_attack_steps)
 
             elif isinstance(agent, MalSimDefenderState):
                 agent.action_surface = \
@@ -377,7 +379,7 @@ class MalSimulator():
             )
 
             logger.info(
-                'Attacker agent "%s" stepping through "%s"(%d).',
+                'Attacker agent "%s" stepping through %s (id: %d).',
                 agent.name, node.full_name, node.id
             )
 
@@ -390,7 +392,7 @@ class MalSimulator():
                 compromised_nodes.add(node)
 
                 logger.info(
-                    'Attacker agent "%s" compromised "%s"(%d).',
+                    'Attacker agent "%s" compromised "%s" (id: %d)',
                     agent.name, node.full_name, node.id
                 )
             else:
@@ -554,6 +556,7 @@ class MalSimulator():
 
         for agent_name in self._alive_agents.copy():
             agent = self._agent_states[agent_name]
+            logger.info('Agent "%s" reward: %d', agent.name, agent.reward)
             if agent.terminated or agent.truncated:
                 logger.info("Removing agent %s", agent.name)
                 self._alive_agents.remove(agent_name)
