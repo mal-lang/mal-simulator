@@ -5,6 +5,7 @@ from .searchers import BreadthFirstAttacker, DepthFirstAttacker
 from .heuristic_agent import (
     DefendCompromisedDefender, DefendFutureCompromisedDefender
 )
+from .path_finder import PathFindingAttacker
 
 __all__ = [
     'PassiveAgent',
@@ -13,5 +14,6 @@ __all__ = [
     'BreadthFirstAttacker',
     'DepthFirstAttacker',
     'DefendCompromisedDefender',
-    'DefendFutureCompromisedDefender'
+    'DefendFutureCompromisedDefender',
+    'PathFindingAttacker'
 ]

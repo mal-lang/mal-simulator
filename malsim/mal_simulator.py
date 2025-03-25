@@ -459,7 +459,7 @@ class MalSimulator():
             )
 
             logger.info(
-                'Attacker agent "%s" stepping through "%s"(%d).',
+                'Attacker agent "%s" stepping through %s (id: %d).',
                 agent.name, node.full_name, node.id
             )
 
@@ -470,7 +470,7 @@ class MalSimulator():
                 compromised_nodes.add(node)
 
                 logger.info(
-                    'Attacker agent "%s" compromised "%s"(%d).',
+                    'Attacker agent "%s" compromised "%s" (id: %d)',
                     agent.name, node.full_name, node.id
                 )
             else:
