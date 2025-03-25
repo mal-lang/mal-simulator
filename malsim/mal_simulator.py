@@ -222,28 +222,6 @@ class MalSimulator():
 
         return self.agent_states
 
-    def _init_agent_rewards(self):
-        """Give rewards for pre-enabled attack/defense steps"""
-
-        pre_enabled_attack_steps = set()
-        for attacker_state in self._get_attacker_agents():
-            # Attackers get positive reward for pre-compromised nodes
-            attacker = attacker_state.attacker
-            attacker_state.reward = self._attacker_reward(
-                attacker_state, attacker.reached_attack_steps,
-            )
-            pre_enabled_attack_steps |= attacker.reached_attack_steps
-
-        pre_enabled_defenses = set(
-            node for node in self.attack_graph.nodes.values()
-            if node.is_enabled_defense()
-        )
-        for defender_state in self._get_defender_agents():
-            # Defenders get negative reward for pre-enabled/compromised nodes
-            defender_state.reward = self._defender_reward(
-                defender_state, pre_enabled_defenses, pre_enabled_attack_steps
-            )
-
     def _init_agent_action_surfaces(self):
         """Set agent action surfaces according to current state"""
         for agent in self._agent_states.values():
@@ -265,23 +243,38 @@ class MalSimulator():
 
         # Revive all agents
         self._alive_agents = set(self._agent_states.keys())
+        pre_enabled_attack_steps = set()
 
         for agent_state in self._get_attacker_agents():
             # Create a new agent state for the attacker
-            self._agent_states[agent_state.name] = (
-                MalSimAttackerState(
-                    agent_state.name,
-                    self.attack_graph.attackers[agent_state.attacker.id]
-                )
-            )
+            attacker = self.attack_graph.attackers[agent_state.attacker.id]
+            agent_state = MalSimAttackerState(agent_state.name, attacker)
+
+            # Initial sets with pre enabled nodes
+            agent_state.step_performed_nodes = attacker.reached_attack_steps
+            agent_state.performed_nodes = attacker.reached_attack_steps
+            pre_enabled_attack_steps |= attacker.reached_attack_steps
+            agent_state.reward = self._attacker_reward(agent_state)
+
+            self._agent_states[agent_state.name] = agent_state
+
+        pre_enabled_defenses = set(
+            node for node in self.attack_graph.nodes.values()
+            if node.is_enabled_defense()
+        )
 
         for agent_state in self._get_defender_agents():
-            # Create a new agent state for the attacker
-            self._agent_states[agent_state.name] = (
-                MalSimDefenderState(agent_state.name)
-            )
+            # Create a new agent state for the defender
+            agent_state = MalSimDefenderState(agent_state.name)
 
-        self._init_agent_rewards()
+            # Initial sets with pre enabled nodes
+            agent_state.step_performed_nodes = pre_enabled_defenses
+            agent_state.performed_nodes = pre_enabled_defenses
+            agent_state.step_all_compromised_nodes = pre_enabled_attack_steps
+            agent_state.reward = self._defender_reward(agent_state)
+
+            self._agent_states[agent_state.name] = agent_state
+
         self._init_agent_action_surfaces()
 
     def register_attacker(self, name: str, attacker_id: int):
@@ -484,10 +477,7 @@ class MalSimulator():
         return enabled_defenses, attack_steps_made_unviable
 
     @staticmethod
-    def _attacker_reward(
-            attacker_state: MalSimAttackerState,
-            step_agent_compromised_nodes: set[AttackGraphNode],
-        ):
+    def _attacker_reward(attacker_state: MalSimAttackerState):
         """
         Calculate current attacker reward by adding this steps
         compromised node rewards to the previous attacker reward.
@@ -501,15 +491,11 @@ class MalSimulator():
         # Attacker is rewarded for compromised nodes
         return attacker_state.reward + sum(
             n.extras.get("reward", 0)
-            for n in step_agent_compromised_nodes
+            for n in attacker_state.step_performed_nodes
         )
 
     @staticmethod
-    def _defender_reward(
-            defender_state: MalSimDefenderState,
-            step_enabled_defenses: set[AttackGraphNode],
-            step_compromised_nodes: set[AttackGraphNode]
-        ):
+    def _defender_reward(defender_state: MalSimDefenderState):
         """
         Calculate current defender reward by subtracting this steps
         compromised/enabled node rewards from the previous defender reward.
@@ -521,6 +507,8 @@ class MalSimulator():
           calculated
         """
         # Defender is penalized for compromised nodes and enabled defenses
+        step_enabled_defenses = defender_state.step_performed_nodes
+        step_compromised_nodes = defender_state.step_all_compromised_nodes
         return defender_state.reward - sum(
             n.extras.get("reward", 0)
             for n in step_enabled_defenses | step_compromised_nodes
@@ -596,9 +584,7 @@ class MalSimulator():
             step_compromised_nodes |= compromised
 
             # Calculate attacker reward and termination
-            attacker_state.reward = self._attacker_reward(
-                attacker_state, attacker_state.step_performed_nodes,
-            )
+            attacker_state.reward = self._attacker_reward(attacker_state)
             attacker_state.truncated = self.cur_iter >= self.max_iter
             attacker_state.terminated = (
                 self._attacker_is_terminated(attacker_state)
@@ -608,9 +594,7 @@ class MalSimulator():
         # (depends on attackers, so must be done after all steps)
         for defender_state in self._get_defender_agents():
             defender_state.step_all_compromised_nodes = step_compromised_nodes
-            defender_state.reward = self._defender_reward(
-                defender_state, step_enabled_defenses, step_compromised_nodes
-            )
+            defender_state.reward = self._defender_reward(defender_state)
             defender_state.truncated = self.cur_iter >= self.max_iter
             defender_state.terminated = self._defender_is_terminated(
                 self._get_attacker_agents()
