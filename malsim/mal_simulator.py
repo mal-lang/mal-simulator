@@ -152,7 +152,11 @@ class MalSimAgentStateView(MalSimAttackerState, MalSimDefenderState):
         return dunder_attrs + props
 
 
-TTCMode = Enum('TTCMode', ['disabled', 'sample_values', 'expected_values'])
+class TTCMode(Enum):
+    DISABLED = 'disabled'
+    SAMPLE_VALUES = 'sample_values'
+    EXPECTED_VALUES = 'expected_values'
+
 @dataclass
 class MalSimulatorSettings():
     """Contains settings used in MalSimulator"""
@@ -168,7 +172,7 @@ class MalSimulatorSettings():
     # If not disabled, nodes will only be compromised if their
     # ttc value is 0, otherwise they will decrement each step they
     # are selected as action.
-    ttc_mode: TTCMode = TTCMode.disabled
+    ttc_mode: TTCMode = TTCMode.DISABLED
 
 
 class MalSimulator():
@@ -253,10 +257,12 @@ class MalSimulator():
         """Set node ttcs for all attacker agents"""
         for agent in self._get_attacker_agents():
             for node in self.attack_graph.nodes.values():
-                if self.sim_settings.ttc_mode == TTCMode.expected_values:
+                if not node.ttc:
+                    continue
+                if self.sim_settings.ttc_mode == TTCMode.EXPECTED_VALUES:
                     # Use TTC expected value
                     agent.ttc_values[node] = node.ttc_expected_value()
-                elif self.sim_settings.ttc_mode == TTCMode.sample_values:
+                elif self.sim_settings.ttc_mode == TTCMode.SAMPLE_VALUES:
                     # Or sample TTC from distribution
                     agent.ttc_values[node] = node.ttc_sample()
 
@@ -303,7 +309,7 @@ class MalSimulator():
         self._init_agent_action_surfaces()
         self._init_agent_ttcs()
 
-        if self.sim_settings.ttc_mode != TTCMode.disabled:
+        if self.sim_settings.ttc_mode != TTCMode.DISABLED:
             self._init_agent_ttcs()
 
     def register_attacker(self, name: str, attacker_id: int):
@@ -414,8 +420,9 @@ class MalSimulator():
                     # it can be compromised (if ttc <= 0)
                     logger.info(
                         'Attacker decreased ttc value of '
-                        'step %s from %d to %d', node.full_name,
-                        agent.ttc_values[node], agent.ttc_values[node] - 1
+                        'step %s from %s to %s',
+                        node.full_name, agent.ttc_values[node],
+                        agent.ttc_values[node] - 1
                     )
                     agent.ttc_values[node] -= 1
                     if agent.ttc_values[node] > 0:

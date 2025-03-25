@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import logging
 
-from .mal_simulator import MalSimulator, MalSimulatorSettings
+from .mal_simulator import MalSimulator, MalSimulatorSettings, TTCMode
 from .agents import DecisionAgent
 from .scenario import create_simulator_from_scenario
 
@@ -82,15 +82,16 @@ def main():
         help="If set to a seed, it will be used in simulator reset",
     )
     parser.add_argument(
-        '-t', '--ttcs', action="store_false",
-        help="If set, use ttcs in simulation",
+        '-t', '--ttc_mode',
+        help="set to either sample_values or expected_values",
+        default="disabled"
     )
-    args = parser.parse_args()
 
+    args = parser.parse_args()
     sim, agents = create_simulator_from_scenario(
         args.scenario_file,
         sim_settings=MalSimulatorSettings(
-            use_ttcs=args.ttcs
+            ttc_mode=TTCMode(args.ttc_mode)
         )
     )
 
