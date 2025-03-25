@@ -13,13 +13,20 @@ rewards:
 
 # Specific fpr/fnr for some specific steps
 false_positive_rates:
-  'Host:0:access': 0.2
-  'Host:1:access': 0.3
+  by_asset_name:
+    Host:0:
+      access: 0.2
+    Host:1:
+      access: 0.3
 
 false_negative_rates:
-  'Host:0:access': 0.4
-  'Host:1:access': 0.5
-  'User:3:compromise': 1.0 # Always false negative
+  by_asset_name:
+    Host:0:
+      access: 0.4
+    Host:1:
+      access: 0.5
+    User:3:
+      compromise: 1.0
 
 
 agents:
