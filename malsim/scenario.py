@@ -109,8 +109,8 @@ def apply_scenario_rewards(
 
 
 def _validate_scenario_node_property_config(
-        graph: AttackGraph, rules: dict):
-    """Verify that observability/actionability rules in a scenario contains
+        graph: AttackGraph, prop_conf: dict):
+    """Verify that node property config in a scenario contains
     only valid assets, asset types and step names"""
 
     # a way to lookup attack steps for asset types
@@ -119,47 +119,46 @@ def _validate_scenario_node_property_config(
         for asset_type_name, asset_type in graph.lang_graph.assets.items()
     }
 
-    if not rules:
-        # Rules are allowed to be empty
+    if not prop_conf:
+        # Property configs are allowed to be empty
         return
 
-    assert 'by_asset_type' in rules or 'by_asset_name' in rules, (
-        "Observability/Actionability rules in scenario file must "
-        "contain either 'by_asset_type' or 'by_asset_name' as keys"
+    assert 'by_asset_type' in prop_conf or 'by_asset_name' in prop_conf, (
+        "Node property config in scenario file must  contain"
+        "either 'by_asset_type' or 'by_asset_name' as keys"
     )
 
-    for asset_type in rules.get('by_asset_type', []):
+    for asset_type in prop_conf.get('by_asset_type', []):
         # Make sure each specified asset type exists
         assert asset_type in asset_type_step_names.keys(), (
             f"Failed to find asset type '{asset_type}' in language "
-            "when applying scenario observability/actionability rules")
+            "when applying node property config")
 
-        for step_name in rules['by_asset_type'][asset_type]:
+        for step_name in prop_conf['by_asset_type'][asset_type]:
             # Make sure each specified attack step name
             # exists for the specified asset type
             assert step_name in asset_type_step_names[asset_type], (
                 f"Step '{step_name}' not found for asset type "
-                f"'{asset_type}' in language when applying scenario "
-                "observability/actionability rules"
+                f"'{asset_type}' in language when applying "
+                "node property config"
             )
 
     # TODO: revisit this variable once LookupDicts are merged
     asset_names = set(a.name for a in graph.model.assets.values())
-    for asset_name in rules.get('by_asset_name', []):
+    for asset_name in prop_conf.get('by_asset_name', []):
         # Make sure each specified asset exist
         assert asset_name in asset_names, (
             f"Failed to find asset name '{asset_name}' in model "
-            f"'{graph.model.name}' when applying scenario"
-            "observability/actionability rules")
+            f"'{graph.model.name}' when applying node property configs"
+        )
 
-        for step_name in rules['by_asset_name'][asset_name]:
+        for step_name in prop_conf['by_asset_name'][asset_name]:
             # Make sure each specified attack step name exists
             # for the specified asset
             expected_full_name = f"{asset_name}:{step_name}"
             assert graph.get_node_by_full_name(expected_full_name), (
                 f"Attack step '{step_name}' not found for asset "
-                f"'{asset_name}' when applying scenario"
-                "observability/actionability rules"
+                f"'{asset_name}' when applying node property config"
             )
 
 
