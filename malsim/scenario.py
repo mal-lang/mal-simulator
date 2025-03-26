@@ -108,7 +108,7 @@ def apply_scenario_rewards(
         node.extras['reward'] = reward
 
 
-def _validate_scenario_property_rules(
+def _validate_scenario_node_property_config(
         graph: AttackGraph, rules: dict):
     """Verify that observability/actionability rules in a scenario contains
     only valid assets, asset types and step names"""
@@ -179,7 +179,7 @@ def apply_scenario_node_property_rules(
              and/or `by_asset_type`
     """
 
-    _validate_scenario_property_rules(attack_graph, rules)
+    _validate_scenario_node_property_config(attack_graph, rules)
 
     if not rules:
         # If no rules are given, make all steps as observable/actionable
@@ -210,7 +210,7 @@ def apply_scenario_node_property_rules(
 def apply_scenario_node_property_values(
         attack_graph: AttackGraph, node_prop: str, values: dict,
 ):
-    """Apply node property rules from scenario configuration.
+    """Apply node property values from scenario configuration.
 
     Sets node.extras[node_prop] to value defined by rules for nodes
     that match rule in the AttackGraph. Values defined per asset has
@@ -223,7 +223,7 @@ def apply_scenario_node_property_values(
               and/or `by_asset_type`
     """
 
-    _validate_scenario_property_rules(attack_graph, values)
+    _validate_scenario_node_property_config(attack_graph, values)
 
     if not values:
         # If no rules defined, do not set the values at all
