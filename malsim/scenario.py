@@ -92,22 +92,6 @@ def path_relative_to_file_dir(rel_path, file):
     return os.path.join(file_dir_path, rel_path)
 
 
-def apply_scenario_rewards(
-        attack_graph: AttackGraph, rewards: dict[str, float]
-    ) -> None:
-    """Go through rewards, add them to referenced nodes in the AttackGraph"""
-
-    # Set the rewards according to scenario rewards
-    for attack_step_full_name, reward in rewards.items():
-        node = attack_graph.get_node_by_full_name(attack_step_full_name)
-        if node is None:
-            raise LookupError(
-                f"Could not set reward to node {attack_step_full_name}"
-                " since it was not found in the attack graph"
-            )
-        node.extras['reward'] = reward
-
-
 def _validate_scenario_node_property_config(
         graph: AttackGraph, prop_conf: dict):
     """Verify that node property config in a scenario contains
@@ -360,10 +344,6 @@ def apply_scenario_to_attack_graph(
     # Validate that all necessary keys are in there
     validate_scenario(scenario)
 
-    # Apply rewards to attack graph
-    rewards = scenario.get('rewards', {})
-    apply_scenario_rewards(attack_graph, rewards)
-
     # Apply observability and actionability settings to attack graph
     apply_scenario_node_property_rules(
         attack_graph, 'observable', scenario.get('observable_steps', {})
@@ -372,7 +352,7 @@ def apply_scenario_to_attack_graph(
         attack_graph, 'actionable', scenario.get('actionable_steps', {})
     )
 
-    # Apply false positive and negative rates to attack graph
+    # Apply false positive, negative rates, and rewards to attack graph
     apply_scenario_node_property_values(
         attack_graph,
         'false_positive_rate',
@@ -382,6 +362,11 @@ def apply_scenario_to_attack_graph(
         attack_graph,
         'false_negative_rate',
         scenario.get('false_negative_rates', {})
+    )
+    apply_scenario_node_property_values(
+        attack_graph,
+        'reward',
+        scenario.get('rewards', {})
     )
 
 
