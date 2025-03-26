@@ -56,8 +56,6 @@ allowed_fields = required_fields + [
     'rewards',
     'observable_steps',
     'actionable_steps',
-    'attacker_entry_points',
-    'observable_attack_steps',
     'false_positive_rates',
     'false_negative_rates',
 ]

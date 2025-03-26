@@ -125,11 +125,21 @@ actionable_steps:
 
 # Applies false positive rates per attack step (default 0)
 false_positive_rates:
-  <attack step full name>: <rate>
+  by_asset_type:
+    <asset_type>:
+      <step name>: rate (float)
+  by_asset_name:
+    <asset_name>:
+      <step name>: rate (float)
 
 # Applies false negative rates per attack step (default 0)
 false_negative_rates:
-  <attack step full name>: <rate>
+  by_asset_type:
+    <asset_type>:
+      <step name>: rate (float)
+  by_asset_name:
+    <asset_name>:
+      <step name>: rate (float)
 
 ```
 
