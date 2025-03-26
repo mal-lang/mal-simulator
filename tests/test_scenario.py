@@ -5,6 +5,7 @@ import pytest
 
 from malsim.scenario import (
     apply_scenario_node_property_rules,
+    apply_scenario_node_property_values,
     load_scenario
 )
 from malsim.agents import PassiveAgent, BreadthFirstAttacker
@@ -273,3 +274,95 @@ def test_apply_scenario_observability_faulty():
             'observable',
             {'by_asset_name': {'OS App': ['nonExistingAttackStep']}}
         )
+
+
+def test_load_scenario_false_positive_negative_rate():
+    """Load a scenario with observability settings given and
+    make sure observability is applied correctly"""
+
+    # Load scenario with observability specifed
+    attack_graph, _ = load_scenario(
+        path_relative_to_tests(
+            './testdata/scenarios/traininglang_fp_fn_scenario.yml')
+    )
+
+    # Defined in scenario file
+    host_0_access_fp_rate = 0.2
+    host_1_access_fp_rate = 0.3
+    host_0_access_fn_rate = 0.4
+    host_1_access_fn_rate = 0.5
+    user_3_compromise_fn_rate = 1.0
+
+    for node in attack_graph.nodes.values():
+
+        if node.full_name == "Host:0:access":
+            # According to scenario file
+            assert node.extras['false_positive_rate'] == host_0_access_fp_rate
+            assert node.extras['false_negative_rate'] == host_0_access_fn_rate
+
+        elif node.full_name == "Host:1:access":
+            # According to scenario file
+            assert node.extras['false_positive_rate'] == host_1_access_fp_rate
+            assert node.extras['false_negative_rate'] == host_1_access_fn_rate
+
+        elif node.full_name == "User:3:compromise":
+            # According to scenario file
+            assert 'false_positive_rate' not in node.extras
+            assert node.extras['false_negative_rate'] \
+                == user_3_compromise_fn_rate
+
+        else:
+            # If no rules - don't set fpr/fnr
+            assert 'false_positive_rate' not in node.extras
+            assert 'false_negative_rate' not in node.extras
+
+def test_apply_scenario_fpr_fnr():
+    """Try different cases for false positives/negatives rates"""
+
+    # Load scenario with no specified
+    attack_graph, _ = load_scenario(
+        path_relative_to_tests(
+            'testdata/scenarios/simple_scenario.yml')
+    )
+
+    property_values = {
+        'by_asset_type': {
+            'Data': {
+                'read': 0.5,
+                'write': 0.6,
+                'delete': 0.7
+            },
+            'Application': {
+                'fullAccess': 0.8,
+                'read': 1.0
+            }
+        },
+        'by_asset_name': {
+            'OS App': {
+                'read': 0.9 # Has precedence
+            }
+        }
+    }
+
+    # Apply false negative rate rules
+    apply_scenario_node_property_values(
+        attack_graph, 'false_negative_rate', property_values
+    )
+
+    # Make sure all attack steps are observable
+    # if no observability settings are given
+    for node in attack_graph.nodes.values():
+        if node.lg_attack_step.asset.name == 'Data' and node.name == 'read':
+            assert node.extras['false_negative_rate'] == 0.5
+        elif node.lg_attack_step.asset.name == 'Data' and node.name == 'write':
+            assert node.extras['false_negative_rate'] == 0.6
+        elif node.lg_attack_step.asset.name == 'Data' and node.name == 'delete':
+            assert node.extras['false_negative_rate'] == 0.7
+        elif node.model_asset.name == 'OS App' and node.name == 'read':
+            assert node.extras['false_negative_rate'] == 0.9
+        elif node.lg_attack_step.asset.name == 'Application' and node.name == 'read':
+            assert node.extras['false_negative_rate'] == 1.0
+        elif node.lg_attack_step.asset.name == 'Application' and node.name == 'fullAccess':
+            assert node.extras['false_negative_rate'] == 0.8
+        else:
+            assert 'false_negative_rate' not in node.extras
