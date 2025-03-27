@@ -12,7 +12,7 @@ A scenario is a combination of:
 """
 
 import os
-from typing import Any
+from typing import Any, Optional
 
 import yaml
 
@@ -93,9 +93,9 @@ def path_relative_to_file_dir(rel_path, file):
 
 
 def _validate_scenario_node_property_config(
-        graph: AttackGraph, prop_conf: dict):
-    """Verify that node property config in a scenario contains
-    only valid assets, asset types and step names"""
+        graph: AttackGraph, prop_config: dict):
+    """Verify that node property configurations in a scenario contains only
+    valid assets, asset types and step names"""
 
     # a way to lookup attack steps for asset types
     asset_type_step_names = {
@@ -103,140 +103,144 @@ def _validate_scenario_node_property_config(
         for asset_type_name, asset_type in graph.lang_graph.assets.items()
     }
 
-    if not prop_conf:
-        # Property configs are allowed to be empty
+    if not prop_config:
+        # Property configurations can be empty
         return
 
-    assert 'by_asset_type' in prop_conf or 'by_asset_name' in prop_conf, (
+    assert 'by_asset_type' in prop_config or 'by_asset_name' in prop_config, (
         "Node property config in scenario file must  contain"
         "either 'by_asset_type' or 'by_asset_name' as keys"
     )
 
-    for asset_type in prop_conf.get('by_asset_type', []):
+    for asset_type in prop_config.get('by_asset_type', []):
         # Make sure each specified asset type exists
         assert asset_type in asset_type_step_names.keys(), (
             f"Failed to find asset type '{asset_type}' in language "
-            "when applying node property config")
+            "when applying node property configuration")
 
-        for step_name in prop_conf['by_asset_type'][asset_type]:
+        for step_name in prop_config['by_asset_type'][asset_type]:
             # Make sure each specified attack step name
             # exists for the specified asset type
             assert step_name in asset_type_step_names[asset_type], (
                 f"Step '{step_name}' not found for asset type "
                 f"'{asset_type}' in language when applying "
-                "node property config"
+                "node property configuration"
             )
 
     # TODO: revisit this variable once LookupDicts are merged
     asset_names = set(a.name for a in graph.model.assets.values())
-    for asset_name in prop_conf.get('by_asset_name', []):
+    for asset_name in prop_config.get('by_asset_name', []):
         # Make sure each specified asset exist
         assert asset_name in asset_names, (
             f"Failed to find asset name '{asset_name}' in model "
-            f"'{graph.model.name}' when applying node property configs"
+            f"'{graph.model.name}' when applying node property "
+            "configurations"
         )
 
-        for step_name in prop_conf['by_asset_name'][asset_name]:
+        for step_name in prop_config['by_asset_name'][asset_name]:
             # Make sure each specified attack step name exists
             # for the specified asset
             expected_full_name = f"{asset_name}:{step_name}"
             assert graph.get_node_by_full_name(expected_full_name), (
                 f"Attack step '{step_name}' not found for asset "
-                f"'{asset_name}' when applying node property config"
+                f"'{asset_name}' when applying node property configurations"
             )
 
 
-def apply_scenario_node_property_rules(
-        attack_graph: AttackGraph, node_prop: str, rules: dict
-    ):
-    """Apply boolean node property rules from a scenario configuration.
-
-    If no rules are given, make all node.extras[node_prop] = 1 (True).
-    If rules are given, set steps with matching rules to 1 (True),
-    and all other steps to 0 (False).
-
-    Arguments:
-    - attack_graph: The attack graph to apply the settings to
-    - node_prop: property name in string format ('actionable' or 'observable')
-    - rules: settings from scenario file with keys `by_asset_name`
-             and/or `by_asset_type`
-    """
-
-    _validate_scenario_node_property_config(attack_graph, rules)
-
-    if not rules:
-        # If no rules are given, make all steps as observable/actionable
-        for step in attack_graph.nodes.values():
-            step.extras[node_prop] = 1
-    else:
-        # If observability/actionability rules are given
-        # make the matching steps observable/actionable,
-        # and all other unobservable/unactionable
-        for step in attack_graph.nodes.values():
-            # Get all attack step names that are applicable
-            # for this attack steps asset type and asset name
-            node_prop_rule_step_names = (
-                rules.get('by_asset_type', {})
-                    .get(step.lg_attack_step.asset.name, []) +
-                rules.get('by_asset_name', {})
-                    .get(step.model_asset.name, [])
-            )
-
-            # If any rules apply to this attack step
-            # set value of `node_prop` to 1, else 0.
-            if step.name in node_prop_rule_step_names:
-                step.extras[node_prop] = 1
-            else:
-                step.extras[node_prop] = 0
-
-
-def apply_scenario_node_property_values(
-        attack_graph: AttackGraph, node_prop: str, values: dict,
+def apply_scenario_node_property(
+        attack_graph: AttackGraph,
+        node_prop: str,
+        prop_config: dict,
+        assumed_value: Optional[Any] = None,
+        value_default: Optional[Any] = None
 ):
     """Apply node property values from scenario configuration.
 
-    Sets node.extras[node_prop] to value defined by rules for nodes
-    that match rule in the AttackGraph. Values defined per asset has
-    precedence over nodes defined per asset type.
+    Note: Property values provided 'by_asset_name' will take precedence over
+    those provided 'by_asset_type' as they are more specific.
 
     Arguments:
-    - attack_graph: The attack graph to apply the settings to
-    - node_prop: property name in string format (i.e. 'false_positive_rate')
-    - values: settings from scenario file with keys `by_asset_name`
-              and/or `by_asset_type`
+    - attack_graph:     The attack graph to apply the settings to
+    - node_prop:        Property name in string format (i.e. 'false_positive_rate')
+    - prop_config:      Settings from scenario file with keys `by_asset_name`
+                        and/or `by_asset_type`
+    - assumed_value:    The assumed value to set for the property for all
+                        nodes if property is entirely omitted in the
+                        configuration. If None no values will be set.
+    - value_default:    The default value to set for the property for nodes
+                        where no value is given in the configuration. If None
+                        no values will be set. This is only relevant if the
+                        property is included in the scenario configuration.
     """
 
-    _validate_scenario_node_property_config(attack_graph, values)
+    def _extract_value_from_entries(entries: dict|list, step_name: str) -> Any:
+        """
+        Return the property value matching the step name in the provided
+        entries.
 
-    if not values:
-        # If no rules defined, do not set the values at all
+        Arguments:
+        - entries:      A list or dictionary representing the property entries
+        - step_name:    The attack step name to look up
+
+        Returns:
+        - The value of the matching property or None if no match is found
+        """
+        if isinstance(entries, dict):
+            # If a value is provided in a dictionary we assign it to the node
+            return entries.get(step_name)
+        elif isinstance(entries, list):
+            # If a list of attack steps is provided we interpret it as a
+            # binary property and set it to 1 if the attack step is in the
+            # list
+            value = 1 if step_name in entries else None
+            return value
+        else:
+            raise ValueError('Error! Scenario node property configuration '
+                'is neither dictionary, nor list!')
+
+    _validate_scenario_node_property_config(attack_graph, prop_config)
+
+    if not prop_config:
+        # If the property is not present in the configuration at all apply the
+        # default to all nodes if provided.
+        if assumed_value is not None:
+            for step in attack_graph.nodes.values():
+                step.extras[node_prop] = assumed_value
         return
+    else:
+        if value_default is not None:
+            for step in attack_graph.nodes.values():
+                step.extras[node_prop] = value_default
 
     for step in attack_graph.nodes.values():
-        # See if user defined rule that sets the specified
-        # property value for attack steps of this name
-        # of a specific asset type
-        prop_value_from_asset_type = (
-            values.get('by_asset_type', {})
+        # Check for matching asset type property configuration entry
+        prop_asset_type_entries = (
+            prop_config.get('by_asset_type', {})
             .get(step.lg_attack_step.asset.name, {})
-            .get(step.name)
         )
-        # See if user defeined rule that sets the specified
-        # property value for attack steps of this name
-        # of a specific asset
-        prop_value_from_asset_name = (
-            values.get('by_asset_name', {})
-            .get(step.model_asset.name, {})
-            .get(step.name)
+        prop_value_from_asset_type = _extract_value_from_entries(
+            prop_asset_type_entries,
+            step.name
         )
 
-        # Asset type rules are applied first
+        # Check for matching specific asset(given by name) property
+        # configuration entry
+        prop_specific_asset_entries = (
+            prop_config.get('by_asset_name', {})
+            .get(step.model_asset.name, {})
+        )
+        prop_value_from_specific_asset = _extract_value_from_entries(
+            prop_specific_asset_entries,
+            step.name
+        )
+
+        # Asset type values are applied first
         if prop_value_from_asset_type:
             step.extras[node_prop] = prop_value_from_asset_type
 
-        # Specific asset defined rules override asset type rules
-        if prop_value_from_asset_name:
-            step.extras[node_prop] = prop_value_from_asset_name
+        # Specific asset defined values override asset type values
+        if prop_value_from_specific_asset:
+            step.extras[node_prop] = prop_value_from_specific_asset
 
 
 def add_attacker_entrypoints(
@@ -330,11 +334,11 @@ def load_simulator_agents(
 
 
 def apply_scenario_to_attack_graph(
-        attack_graph: AttackGraph, scenario: dict) -> AttackGraph:
-    """Update attack graph according to scenario
+        attack_graph: AttackGraph, scenario: dict):
+    """Update attack graph according to scenario configuration
 
     Apply scenario configurations from a loaded scenario file
-    to an attack graph and return the attack graph + config dict
+    to an attack graph
 
     Arguments:
     - attack_graph: The attack graph to apply scenario to
@@ -344,26 +348,32 @@ def apply_scenario_to_attack_graph(
     # Validate that all necessary keys are in there
     validate_scenario(scenario)
 
-    # Apply observability and actionability settings to attack graph
-    apply_scenario_node_property_rules(
-        attack_graph, 'observable', scenario.get('observable_steps', {})
+    # Apply properties to attack graph nodes
+    apply_scenario_node_property(
+        attack_graph,
+        'observable',
+        scenario.get('observable_steps', {}),
+        assumed_value = 1,
+        value_default = 0
     )
-    apply_scenario_node_property_rules(
-        attack_graph, 'actionable', scenario.get('actionable_steps', {})
+    apply_scenario_node_property(
+        attack_graph,
+        'actionable',
+        scenario.get('actionable_steps', {}),
+        assumed_value = 1,
+        value_default = 0
     )
-
-    # Apply false positive, negative rates, and rewards to attack graph
-    apply_scenario_node_property_values(
+    apply_scenario_node_property(
         attack_graph,
         'false_positive_rate',
         scenario.get('false_positive_rates', {})
     )
-    apply_scenario_node_property_values(
+    apply_scenario_node_property(
         attack_graph,
         'false_negative_rate',
         scenario.get('false_negative_rates', {})
     )
-    apply_scenario_node_property_values(
+    apply_scenario_node_property(
         attack_graph,
         'reward',
         scenario.get('rewards', {})
@@ -396,9 +406,9 @@ def create_simulator_from_scenario(
     ) -> tuple[MalSimulator, list[dict[str, Any]]]:
     """Creates and returns a MalSimulator created according to scenario file
 
-    A wrapper that loads the graph and config from the scenario file
-    and returns a MalSimulator object with registered agents according
-    to the configuration.
+    A wrapper that loads the graph and configuration from the scenario file
+    and returns a MalSimulator object with registered agents according to the
+    configuration.
 
     Args:
     - scenario_file: the file name of the scenario
