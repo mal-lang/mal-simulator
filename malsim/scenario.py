@@ -16,7 +16,12 @@ from typing import Any, Optional
 
 import yaml
 
-from maltoolbox.attackgraph import AttackGraph, Attacker, create_attack_graph
+from maltoolbox.attackgraph import (
+    AttackGraph,
+    AttackGraphNode,
+    Attacker,
+    create_attack_graph
+)
 
 from .agents import (
     BreadthFirstAttacker,
@@ -152,7 +157,8 @@ def apply_scenario_node_property(
         node_prop: str,
         prop_config: dict,
         assumed_value: Optional[Any] = None,
-        value_default: Optional[Any] = None
+        value_default: Optional[Any] = None,
+        set_as_extras: bool = True
 ):
     """Apply node property values from scenario configuration.
 
@@ -171,6 +177,9 @@ def apply_scenario_node_property(
                         where no value is given in the configuration. If None
                         no values will be set. This is only relevant if the
                         property is included in the scenario configuration.
+    - set_as_extras:    Whether or not to save the property values in the
+                        extras field or set them as a property of the nodes
+                        themselves.
     """
 
     def _extract_value_from_entries(entries: dict|list, step_name: str) -> Any:
@@ -198,6 +207,26 @@ def apply_scenario_node_property(
             raise ValueError('Error! Scenario node property configuration '
                 'is neither dictionary, nor list!')
 
+    def _set_value(step: AttackGraphNode, node_prop: str, value: Any,
+        set_as_extras:bool):
+        """
+        Set the value of the node property to the value provided
+
+        Arguments:
+        - step:             The attack graph step to set the property for
+        - node_prop:        Property name in string format
+        - value:            The value to set the property to
+        - set_as_extras:    Whether or not to save the property value in the
+                            extras field or set it as a property of the node
+                            itself.
+
+        """
+        if set_as_extras:
+            step.extras[node_prop] = value
+        else:
+            setattr(step, node_prop, value)
+
+
     _validate_scenario_node_property_config(attack_graph, prop_config)
 
     if not prop_config:
@@ -205,12 +234,12 @@ def apply_scenario_node_property(
         # default to all nodes if provided.
         if assumed_value is not None:
             for step in attack_graph.nodes.values():
-                step.extras[node_prop] = assumed_value
+                _set_value(step, node_prop, assumed_value, set_as_extras)
         return
     else:
         if value_default is not None:
             for step in attack_graph.nodes.values():
-                step.extras[node_prop] = value_default
+                _set_value(step, node_prop, value_default, set_as_extras)
 
     for step in attack_graph.nodes.values():
         # Check for matching asset type property configuration entry
@@ -236,11 +265,13 @@ def apply_scenario_node_property(
 
         # Asset type values are applied first
         if prop_value_from_asset_type:
-            step.extras[node_prop] = prop_value_from_asset_type
+            _set_value(step, node_prop, prop_value_from_asset_type,
+                set_as_extras)
 
         # Specific asset defined values override asset type values
         if prop_value_from_specific_asset:
-            step.extras[node_prop] = prop_value_from_specific_asset
+            _set_value(step, node_prop, prop_value_from_specific_asset,
+                set_as_extras)
 
 
 def add_attacker_entrypoints(
