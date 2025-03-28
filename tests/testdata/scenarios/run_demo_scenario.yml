@@ -6,22 +6,31 @@ model_file: ../models/run_demo_model.json
 
 # Rewards for each attack step (same as in run_demo.py)
 rewards:
-  OS App:notPresent: 50
-  OS App:supplyChainAuditing: 1000000000
-  Program 1:notPresent: 30
-  Program 1:supplyChainAuditing: 1000000000
-  SoftwareVulnerability:2:notPresent: 40
-  Data:3:notPresent: 20
-  Credentials:4:notPhishable: 1000000000
-  Identity:5:notPresent: 35
-  ConnectionRule:6:restricted: 40
-  ConnectionRule:6:payloadInspection: 30
-  Other OS App:notPresent: 50
-  Other OS App:supplyChainAuditing: 1000000000
-  OS App:fullAccess: 100
-  Program 1:fullAccess: 50
-  Identity:5:assume: 50
-  Other OS App:fullAccess: 200
+  by_asset_name:
+    OS App:
+      notPresent: 50
+      supplyChainAuditing: 1000000000
+      fullAccess: 100
+    Program 1:
+      notPresent: 30
+      supplyChainAuditing: 1000000000
+      fullAccess: 50
+    SoftwareVulnerability:2:
+      notPresent: 40
+    Data:3:
+      notPresent: 20
+    Credentials:4:
+      notPhishable: 1000000000
+    Identity:5:
+      notPresent: 35
+      assume: 50
+    ConnectionRule:6:
+      restricted: 40
+      payloadInspection: 30
+    Other OS App:
+      notPresent: 50
+      supplyChainAuditing: 1000000000
+      fullAccess: 200
 
 agents:
   'Attacker1':

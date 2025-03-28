@@ -21,16 +21,6 @@ rewards:
     Identity:8:
       assume: 50
 
-observable_steps:
-  by_asset_type:
-    Application:
-      - fullAccess
-      - supplyChainAuditing
-
-  by_asset_name:
-    Identity:8:
-      - assume
-
 # Add entry points to AttackGraph with attacker names
 # and attack step full_names
 agents:

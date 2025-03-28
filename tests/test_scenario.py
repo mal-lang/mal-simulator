@@ -4,8 +4,7 @@ import os
 import pytest
 
 from malsim.scenario import (
-    apply_scenario_node_property_rules,
-    apply_scenario_node_property_values,
+    apply_scenario_node_property,
     load_scenario
 )
 from malsim.agents import PassiveAgent, BreadthFirstAttacker
@@ -198,7 +197,13 @@ def test_apply_scenario_observability():
     }
 
     # Apply observability rules
-    apply_scenario_node_property_rules(attack_graph, 'observable', observability_rules)
+    apply_scenario_node_property(
+        attack_graph,
+        'observable',
+        observability_rules,
+        assumed_value = 1,
+        value_default = 0
+    )
 
     # Make sure all attack steps are observable
     # if no observability settings are given
@@ -223,56 +228,70 @@ def test_apply_scenario_observability_faulty():
 
     # Wrong key in rule dict
     with pytest.raises(AssertionError):
-        apply_scenario_node_property_rules(
+        apply_scenario_node_property(
             attack_graph,
             'observable',
-            {'NotAllowedKey': {'Data': ['read', 'write', 'delete']}}
+            {'NotAllowedKey': {'Data': ['read', 'write', 'delete']}},
+            assumed_value = 1,
+            value_default = 0
         )
 
     # Correct asset type and attack step
-    apply_scenario_node_property_rules(
+    apply_scenario_node_property(
         attack_graph,
         'observable',
-        {'by_asset_type': { 'Application': ['read']},
-    })
+        {'by_asset_type': { 'Application': ['read']}},
+        assumed_value = 1,
+        value_default = 0
+    )
 
     # Wrong asset type in rule asset type to step dict
     with pytest.raises(AssertionError):
-        apply_scenario_node_property_rules(
+        apply_scenario_node_property(
             attack_graph,
             'observable',
-            {'by_asset_type': {'NonExistingType': ['read']}}
+            {'by_asset_type': {'NonExistingType': ['read']}},
+            assumed_value = 1,
+            value_default = 0
         )
 
     # Wrong attack step name in rule asset type to step dict
     with pytest.raises(AssertionError):
-        apply_scenario_node_property_rules(
+        apply_scenario_node_property(
             attack_graph,
             'observable',
-            {'by_asset_type': {'Data': ['nonExistingAttackStep']},
-        })
+            {'by_asset_type': {'Data': ['nonExistingAttackStep']}},
+            assumed_value = 1,
+            value_default = 0
+        )
 
     # Correct asset name and attack step
-    apply_scenario_node_property_rules(
+    apply_scenario_node_property(
         attack_graph,
         'observable',
-        {'by_asset_name': { 'OS App': ['read']},
-    })
+        {'by_asset_name': { 'OS App': ['read']}},
+        assumed_value = 1,
+        value_default = 0
+    )
 
     # Wrong asset name in rule asset name to step dict
     with pytest.raises(AssertionError):
-        apply_scenario_node_property_rules(
+        apply_scenario_node_property(
              attack_graph,
             'observable',
-            {'by_asset_name': { 'NonExistingName': ['read']},
-        })
+            {'by_asset_name': { 'NonExistingName': ['read']}},
+            assumed_value = 1,
+            value_default = 0
+        )
 
     # Wrong attack step name in rule asset name to step dict
     with pytest.raises(AssertionError):
-        apply_scenario_node_property_rules(
+        apply_scenario_node_property(
             attack_graph,
             'observable',
-            {'by_asset_name': {'OS App': ['nonExistingAttackStep']}}
+            {'by_asset_name': {'OS App': ['nonExistingAttackStep']}},
+            assumed_value = 1,
+            value_default = 0
         )
 
 
@@ -345,7 +364,7 @@ def test_apply_scenario_fpr_fnr():
     }
 
     # Apply false negative rate rules
-    apply_scenario_node_property_values(
+    apply_scenario_node_property(
         attack_graph, 'false_negative_rate', property_values
     )
 

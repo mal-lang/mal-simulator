@@ -3,8 +3,11 @@ model_file: ../models/network_app_data_model.yml
 
 # Rewards for each attack step
 rewards:
-  Linux system:notPresent: 50
-  Secret data:read: 100
+  by_asset_name:
+    Linux system:
+      notPresent: 50
+    Secret data:
+      read: 100
 
 agents:
   'attacker1':
