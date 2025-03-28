@@ -202,7 +202,7 @@ def test_apply_scenario_observability():
         'observable',
         observability_rules,
         assumed_value = 1,
-        value_default = 0
+        default_value = 0
     )
 
     # Make sure all attack steps are observable
@@ -233,7 +233,7 @@ def test_apply_scenario_observability_faulty():
             'observable',
             {'NotAllowedKey': {'Data': ['read', 'write', 'delete']}},
             assumed_value = 1,
-            value_default = 0
+            default_value = 0
         )
 
     # Correct asset type and attack step
@@ -242,7 +242,7 @@ def test_apply_scenario_observability_faulty():
         'observable',
         {'by_asset_type': { 'Application': ['read']}},
         assumed_value = 1,
-        value_default = 0
+        default_value = 0
     )
 
     # Wrong asset type in rule asset type to step dict
@@ -252,7 +252,7 @@ def test_apply_scenario_observability_faulty():
             'observable',
             {'by_asset_type': {'NonExistingType': ['read']}},
             assumed_value = 1,
-            value_default = 0
+            default_value = 0
         )
 
     # Wrong attack step name in rule asset type to step dict
@@ -262,7 +262,7 @@ def test_apply_scenario_observability_faulty():
             'observable',
             {'by_asset_type': {'Data': ['nonExistingAttackStep']}},
             assumed_value = 1,
-            value_default = 0
+            default_value = 0
         )
 
     # Correct asset name and attack step
@@ -271,7 +271,7 @@ def test_apply_scenario_observability_faulty():
         'observable',
         {'by_asset_name': { 'OS App': ['read']}},
         assumed_value = 1,
-        value_default = 0
+        default_value = 0
     )
 
     # Wrong asset name in rule asset name to step dict
@@ -281,7 +281,7 @@ def test_apply_scenario_observability_faulty():
             'observable',
             {'by_asset_name': { 'NonExistingName': ['read']}},
             assumed_value = 1,
-            value_default = 0
+            default_value = 0
         )
 
     # Wrong attack step name in rule asset name to step dict
@@ -291,7 +291,7 @@ def test_apply_scenario_observability_faulty():
             'observable',
             {'by_asset_name': {'OS App': ['nonExistingAttackStep']}},
             assumed_value = 1,
-            value_default = 0
+            default_value = 0
         )
 
 

@@ -157,7 +157,7 @@ def apply_scenario_node_property(
         node_prop: str,
         prop_config: dict,
         assumed_value: Optional[Any] = None,
-        value_default: Optional[Any] = None,
+        default_value: Optional[Any] = None,
         set_as_extras: bool = True
 ):
     """Apply node property values from scenario configuration.
@@ -173,7 +173,7 @@ def apply_scenario_node_property(
     - assumed_value:    The assumed value to set for the property for all
                         nodes if property is entirely omitted in the
                         configuration. If None no values will be set.
-    - value_default:    The default value to set for the property for nodes
+    - default_value:    The default value to set for the property for nodes
                         where no value is given in the configuration. If None
                         no values will be set. This is only relevant if the
                         property is included in the scenario configuration.
@@ -237,9 +237,9 @@ def apply_scenario_node_property(
                 _set_value(step, node_prop, assumed_value, set_as_extras)
         return
     else:
-        if value_default is not None:
+        if default_value is not None:
             for step in attack_graph.nodes.values():
-                _set_value(step, node_prop, value_default, set_as_extras)
+                _set_value(step, node_prop, default_value, set_as_extras)
 
     for step in attack_graph.nodes.values():
         # Check for matching asset type property configuration entry
@@ -385,14 +385,14 @@ def apply_scenario_to_attack_graph(
         'observable',
         scenario.get('observable_steps', {}),
         assumed_value = 1,
-        value_default = 0
+        default_value = 0
     )
     apply_scenario_node_property(
         attack_graph,
         'actionable',
         scenario.get('actionable_steps', {}),
         assumed_value = 1,
-        value_default = 0
+        default_value = 0
     )
     apply_scenario_node_property(
         attack_graph,
