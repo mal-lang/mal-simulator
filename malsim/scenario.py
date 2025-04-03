@@ -333,8 +333,8 @@ def load_simulator_agents(
     # attacker entry points are defined in scenario
     all_attacker_entry_points = [
         entry_point
-        for entry_point in agent_info.get('entry_points', [])
         for agent_info in scenario_agents.values()
+        for entry_point in agent_info.get('entry_points', [])
         if AgentType(agent_info.get('type')) == AgentType.ATTACKER
     ]
     if len(all_attacker_entry_points) > 0:
