@@ -46,7 +46,7 @@ agent_class_name_to_class = {
 deprecated_fields = [
     'attacker_agent_class',
     'defender_agent_class',
-    'attacker_entry_points',
+    'attacker_entry_points'
 ]
 
 # All required fields in scenario yml file
@@ -62,7 +62,7 @@ allowed_fields = required_fields + [
     'observable_steps',
     'actionable_steps',
     'false_positive_rates',
-    'false_negative_rates'
+    'false_negative_rates',
 ]
 
 
@@ -121,8 +121,7 @@ def _validate_scenario_node_property_config(
         # Make sure each specified asset type exists
         assert asset_type in asset_type_step_names.keys(), (
             f"Failed to find asset type '{asset_type}' in language "
-            "when applying node property configuration"
-        )
+            "when applying node property configuration")
 
         for step_name in prop_config['by_asset_type'][asset_type]:
             # Make sure each specified attack step name
@@ -205,7 +204,7 @@ def apply_scenario_node_property(
             value = 1 if step_name in entries else None
             return value
         else:
-           raise ValueError('Error! Scenario node property configuration '
+            raise ValueError('Error! Scenario node property configuration '
                 'is neither dictionary, nor list!')
 
     def _set_value(step: AttackGraphNode, node_prop: str, value: Any,
@@ -249,7 +248,8 @@ def apply_scenario_node_property(
             .get(step.lg_attack_step.asset.name, {})
         )
         prop_value_from_asset_type = _extract_value_from_entries(
-            prop_asset_type_entries, step.name
+            prop_asset_type_entries,
+            step.name
         )
 
         # Check for matching specific asset(given by name) property
@@ -259,7 +259,7 @@ def apply_scenario_node_property(
             .get(step.model_asset.name, {})
         )
         prop_value_from_specific_asset = _extract_value_from_entries(
-            prop_asset_type_entries,
+            prop_specific_asset_entries,
             step.name
         )
 
@@ -400,14 +400,14 @@ def apply_scenario_to_attack_graph(
         'observable',
         scenario.get('observable_steps', {}),
         assumed_value = 1,
-        default_value = 0,
+        default_value = 0
     )
     apply_scenario_node_property(
         attack_graph,
         'actionable',
         scenario.get('actionable_steps', {}),
         assumed_value = 1,
-        default_value = 0,
+        default_value = 0
     )
     apply_scenario_node_property(
         attack_graph,
@@ -419,8 +419,6 @@ def apply_scenario_to_attack_graph(
         'reward',
         scenario.get('rewards', {})
     )
-    apply_scenario_node_property(attack_graph, 'reward', scenario.get('rewards', {}))
-
 
 def load_scenario(scenario_file: str) -> tuple[AttackGraph, list[dict[str, Any]]]:
     """Load a scenario from a scenario file to an AttackGraph"""
