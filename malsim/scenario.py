@@ -411,6 +411,11 @@ def apply_scenario_to_attack_graph(
     )
     apply_scenario_node_property(
         attack_graph,
+        'false_positive_rate',
+        scenario.get('false_positive_rates', {})
+    )
+    apply_scenario_node_property(
+        attack_graph,
         'false_negative_rate',
         scenario.get('false_negative_rates', {})
     )
@@ -419,6 +424,7 @@ def apply_scenario_to_attack_graph(
         'reward',
         scenario.get('rewards', {})
     )
+
 
 def load_scenario(scenario_file: str) -> tuple[AttackGraph, list[dict[str, Any]]]:
     """Load a scenario from a scenario file to an AttackGraph"""
