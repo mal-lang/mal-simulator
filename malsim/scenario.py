@@ -12,7 +12,7 @@ A scenario is a combination of:
 """
 
 import os
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 import yaml
 
@@ -275,7 +275,7 @@ def apply_scenario_node_property(
 
 
 def create_scenario_attacker(
-    attack_graph: AttackGraph, attacker_name: str, entry_point_names: List[str]
+    attack_graph: AttackGraph, attacker_name: str, entry_point_names: list[str]
 ) -> Attacker:
     """Apply attacker entrypoints to attackgraph from scenario
 
