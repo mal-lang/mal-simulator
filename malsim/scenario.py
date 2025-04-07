@@ -345,7 +345,7 @@ def load_simulator_agents(
         for attacker in all_attackers:
             attack_graph.remove_attacker(attacker)
 
-    for agent_name, agent_info in scenario.get('agents', {}).items():
+    for agent_name, agent_info in scenario_agents.items():
         class_name = agent_info.get('agent_class')
         agent_type = AgentType(agent_info.get('type'))
         agent_dict = {'name': agent_name, 'type': agent_type}
