@@ -335,13 +335,12 @@ def load_simulator_agents(
 
     # Override attackers in attack graph / model if
     # attacker entry points are defined in scenario
-    all_attacker_entry_points = [
-        entry_point
+    entry_points_defined_in_scenario = any(
+        agent_info.get('entry_points')
         for agent_info in scenario_agents.values()
-        for entry_point in agent_info.get('entry_points', [])
         if AgentType(agent_info.get('type')) == AgentType.ATTACKER
-    ]
-    if len(all_attacker_entry_points) > 0:
+    )
+    if entry_points_defined_in_scenario:
         all_attackers = list(attack_graph.attackers.values())
         for attacker in all_attackers:
             attack_graph.remove_attacker(attacker)
