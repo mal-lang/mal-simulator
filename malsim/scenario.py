@@ -302,8 +302,8 @@ def create_scenario_attacker(
 
     attacker = Attacker(
         name=attacker_name,
-        entry_points=entry_points,
-        reached_attack_steps=reached_attack_steps,
+        entry_points=set(entry_points),
+        reached_attack_steps=set(reached_attack_steps),
     )
     attack_graph.add_attacker(attacker)
 
