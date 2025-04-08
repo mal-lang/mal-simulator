@@ -274,8 +274,8 @@ def apply_scenario_node_property(
                 set_as_extras)
 
 
-def add_attacker_entrypoints(
-        attack_graph: AttackGraph, attacker_name: str, entry_points: dict
+def create_scenario_attacker(
+    attack_graph: AttackGraph, attacker_name: str, entry_point_names: list[str]
 ) -> Attacker:
     """Apply attacker entrypoints to attackgraph from scenario
 
@@ -290,23 +290,26 @@ def add_attacker_entrypoints(
     - the Attacker with the relevant entrypoints
     """
 
-    if entry_points:
-        # Override attackers in attack graph / model if
-        # entry points are defined in scenario
-        all_attackers = list(attack_graph.attackers.values())
-        for attacker in all_attackers:
-            attack_graph.remove_attacker(attacker)
+    entry_points = []
+    reached_attack_steps = []
 
-    attacker = Attacker(attacker_name)
-    attack_graph.add_attacker(attacker)
-
-    for entry_point_name in entry_points:
+    for entry_point_name in entry_point_names:
         entry_point = attack_graph.get_node_by_full_name(entry_point_name)
         if not entry_point:
-            raise LookupError(f"Node {entry_point_name} does not exist")
-        attacker.compromise(entry_point)
+            raise LookupError(f'Node {entry_point_name} does not exist')
+        entry_points.append(entry_point)
+        reached_attack_steps.append(entry_point)
 
-    attacker.entry_points = attacker.reached_attack_steps.copy()
+    attacker = Attacker(
+        name=attacker_name,
+        entry_points=set(entry_points),
+        reached_attack_steps=set(reached_attack_steps),
+    )
+    attack_graph.add_attacker(attacker)
+
+    # Compromise the entry points
+    for entry_point in entry_points:
+        attacker.compromise(entry_point)
 
     return attacker
 
@@ -328,8 +331,21 @@ def load_simulator_agents(
 
     # Create list of agents dicts
     agents = []
+    scenario_agents = scenario.get('agents', {})
 
-    for agent_name, agent_info in scenario.get('agents', {}).items():
+    # Override attackers in attack graph / model if
+    # attacker entry points are defined in scenario
+    entry_points_defined_in_scenario = any(
+        agent_info.get('entry_points')
+        for agent_info in scenario_agents.values()
+        if AgentType(agent_info.get('type')) == AgentType.ATTACKER
+    )
+    if entry_points_defined_in_scenario:
+        all_attackers = list(attack_graph.attackers.values())
+        for attacker in all_attackers:
+            attack_graph.remove_attacker(attacker)
+
+    for agent_name, agent_info in scenario_agents.items():
         class_name = agent_info.get('agent_class')
         agent_type = AgentType(agent_info.get('type'))
         agent_dict = {'name': agent_name, 'type': agent_type}
@@ -338,9 +354,7 @@ def load_simulator_agents(
         if agent_type == AgentType.ATTACKER:
             # Attacker has entrypoints
             entry_points = agent_info.get('entry_points')
-            attacker = add_attacker_entrypoints(
-                attack_graph, agent_name, entry_points
-            )
+            attacker = create_scenario_attacker(attack_graph, agent_name, entry_points)
             agent_dict['attacker_id'] = attacker.id
 
         if class_name is None:
