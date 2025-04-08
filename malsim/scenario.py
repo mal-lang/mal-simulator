@@ -404,11 +404,16 @@ def apply_scenario_to_attack_graph(
         'false_negative_rate',
         scenario.get('false_negative_rates', {})
     )
-    apply_scenario_node_property(
-        attack_graph,
-        'reward',
-        scenario.get('rewards', {})
-    )
+
+    try:
+        apply_scenario_node_property(
+            attack_graph, 'reward', scenario.get('rewards', {})
+        )
+    except AssertionError as e:
+        raise RuntimeError(
+            "Error! Scenario file contains invalid reward configuration. "
+            "See README or ./tests/testdata/scenarios for more information."
+        ) from e
 
 
 def load_scenario(scenario_file: str) -> tuple[AttackGraph, list[dict[str, Any]]]:

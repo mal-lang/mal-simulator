@@ -3,9 +3,11 @@
 import os
 import pytest
 
+from maltoolbox.attackgraph import create_attack_graph
 from malsim.scenario import (
     apply_scenario_node_property,
-    load_scenario
+    load_scenario,
+    apply_scenario_to_attack_graph
 )
 from malsim.agents import PassiveAgent, BreadthFirstAttacker
 
@@ -385,3 +387,37 @@ def test_apply_scenario_fpr_fnr():
             assert node.extras['false_negative_rate'] == 0.8
         else:
             assert 'false_negative_rate' not in node.extras
+
+
+def test_apply_scenario_rewards_old_format():
+    """Try different cases for rewards"""
+
+    # Load scenario with no specified
+    lang_file = 'tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar'
+    model_file = 'tests/testdata/models/simple_test_model.yml'
+    scenario = {
+        'lang_file': lang_file,
+        'model_file': model_file,
+
+        # Rewards for each attack step (DEPRECATED format)
+        'rewards': {
+            'OS App:notPresent': 2,
+            'OS App:supplyChainAuditing': 7,
+            'Program 1:notPresent': 3,
+            'Program 1:supplyChainAuditing': 7,
+            'Data:5:notPresent': 1,
+            'Credentials:6:notPhishable': 7,
+            'Identity:11:notPresent': 3.5,
+            'Identity:8:assume': 50
+        },
+
+        # Add entry points to AttackGraph with attacker names
+        # and attack step full_names
+        'agents': {}
+    }
+
+    attack_graph = create_attack_graph(lang_file, model_file)
+
+    with pytest.raises(RuntimeError):
+        # Make sure we get error when loading with wrong rewards format
+        apply_scenario_to_attack_graph(attack_graph, scenario)

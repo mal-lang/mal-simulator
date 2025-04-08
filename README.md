@@ -44,14 +44,15 @@ they are a setup for running a simulation. This is how the format looks like:
 lang_file: <path to .mar-archive>
 model_file: <path to json/yml model>
 
-# Optionally add rewards for each attack step
+# Optionally add rewards to attack graph nodes.
+# Applies reward per attack step (default 0)
 rewards:
-  <full name of attack step>: <reward>
-
-  # example:
-  # Program 1:notPresent: 3
-  # Data A:read: 100
-  ...
+  by_asset_type:
+    <asset_type>:
+      <step name>: reward (float)
+  by_asset_name:
+    <asset_name>:
+      <step name>: reward (float)
 
 # Add agents / entry points to simulator / attack graph
 # Note: When defining attackers and entrypoints in a scenario,
