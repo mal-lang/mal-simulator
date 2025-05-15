@@ -30,7 +30,8 @@ from .agents import (
     KeyboardAgent,
     PassiveAgent,
     DefendCompromisedDefender,
-    DefendFutureCompromisedDefender
+    DefendFutureCompromisedDefender,
+    RandomAgent
 )
 
 from .mal_simulator import AgentType, MalSimulator
@@ -41,7 +42,8 @@ agent_class_name_to_class = {
     'KeyboardAgent': KeyboardAgent,
     'PassiveAgent': PassiveAgent,
     'DefendCompromisedDefender': DefendCompromisedDefender,
-    'DefendFutureCompromisedDefender': DefendFutureCompromisedDefender
+    'DefendFutureCompromisedDefender': DefendFutureCompromisedDefender,
+    'RandomAgent': RandomAgent
 }
 
 deprecated_fields = [

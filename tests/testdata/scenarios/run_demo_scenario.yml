@@ -34,7 +34,7 @@ rewards:
 
 agents:
   'Attacker1':
-    agent_class: BreadthFirstAttacker
+    agent_class: RandomAgent
     type: attacker
     entry_points:
       - 'OS App:networkConnectUninspected'
