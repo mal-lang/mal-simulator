@@ -481,7 +481,7 @@ class MalSimulator():
         """
         Calculate current attacker reward by adding this steps
         compromised node rewards to the previous attacker reward.
-        Can be overriden by subclass to implement custom reward function.
+        Can be overridden by subclass to implement custom reward function.
 
         Args:
         - attacker_state: the attacker state before nodes were compromised
@@ -499,7 +499,7 @@ class MalSimulator():
         """
         Calculate current defender reward by subtracting this steps
         compromised/enabled node rewards from the previous defender reward.
-        Can be overriden by subclass to implement custom reward function.
+        Can be overridden by subclass to implement custom reward function.
 
         Args:
         - defender_state: the defender state before defenses were enabled
@@ -517,7 +517,7 @@ class MalSimulator():
     @staticmethod
     def _attacker_is_terminated(attacker_state: MalSimAttackerState) -> bool:
         """Check if attacker is terminated
-        Can be overriden by subclass for custom termination condition.
+        Can be overridden by subclass for custom termination condition.
 
         Args:
         - attacker_state: the attacker state to check for termination
@@ -530,7 +530,7 @@ class MalSimulator():
         attacker_agent_states: list[MalSimAttackerState]
     ) -> bool:
         """Check if defender is terminated
-        Can be overriden by subclass for custom termination condition.
+        Can be overridden by subclass for custom termination condition.
 
         Args:
         - defender_state: the defender state to check for termination
