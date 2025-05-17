@@ -142,7 +142,7 @@ def test_load_scenario_observability_given():
     """Load a scenario with observability settings given and
     make sure observability is applied correctly"""
 
-    # Load scenario with observability specifed
+    # Load scenario with observability specified
     attack_graph, _ = load_scenario(
         path_relative_to_tests(
             './testdata/scenarios/simple_filtered_observability_scenario.yml')
