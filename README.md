@@ -44,19 +44,12 @@ they are a setup for running a simulation. This is how the format looks like:
 lang_file: <path to .mar-archive>
 model_file: <path to json/yml model>
 
-# Optionally add rewards to attack graph nodes.
-# Applies reward per attack step (default 0)
-rewards:
-  by_asset_type:
-    <asset_type>:
-      <step name>: reward (float)
-  by_asset_name:
-    <asset_name>:
-      <step name>: reward (float)
-
 # Add agents / entry points to simulator / attack graph
 # Note: When defining attackers and entrypoints in a scenario,
 #       these override attackers in the model.
+# Possible values for AGENT_CLASS:
+# PassiveAgent | DecisionAgent | KeyboardAgent | BreadthFirstAttacker |
+# DepthFirstAttacker | DefendCompromisedDefender | DefendFutureCompromisedDefender
 agents:
   '<agent_name>':
     type: 'attacker'
@@ -68,9 +61,29 @@ agents:
     type: 'defender'
     agent_class: <AGENT_CLASS>
 
-# Possible values for AGENT_CLASS:
-# PassiveAgent | DecisionAgent | KeyboardAgent | BreadthFirstAttacker |
-# DepthFirstAttacker | DefendCompromisedDefender | DefendFutureCompromisedDefender
+
+# Optionally add rewards to attack graph nodes.
+# Applies reward per attack step (default 0)
+rewards:
+  by_asset_type:
+    <asset_type>:
+      <step name>: reward (float)
+  by_asset_name:
+    <asset_name>:
+      <step name>: reward (float)
+
+# Example:
+#   by_asset_type:
+#     Host:
+#       access: 10
+#       authenticate: 15
+#     Data:
+#       read: 1
+
+#   by_asset_name:
+#     User_3:
+#       phishing: 10
+#     ...
 
 # Optionally add observability rules that are applied to AttackGrapNodes
 # to make only certain steps observable.
@@ -101,18 +114,18 @@ actionable_steps:
     <asset_name>:
       - <step name>
 
-  # Example:
-  #   by_asset_type:
-  #     Host:
-  #       - access
-  #       - authenticate
-  #     Data:
-  #       - read
+# Example:
+#   by_asset_type:
+#     Host:
+#       - access
+#       - authenticate
+#     Data:
+#       - read
 
-  #   by_asset_name:
-  #     User:3:
-  #       - phishing
-  #     ...
+#   by_asset_name:
+#     User_3:
+#       - phishing
+#     ...
 
 
 # Optionally add false positive/negative rates to observations.
@@ -141,6 +154,19 @@ false_negative_rates:
   by_asset_name:
     <asset_name>:
       <step name>: rate (float)
+
+# Example:
+#   by_asset_type:
+#     Host:
+#       access: 0.1
+#       authenticate: 0.4
+#     Data:
+#       read: 0.1
+
+#   by_asset_name:
+#     User_3:
+#       phishing: 0.3
+#     ...
 
 ```
 
@@ -191,5 +217,5 @@ options:
                         If set to a path, attack graph will be dumped there
 ```
 
-This will create an attack using the configuration in the scenarios file, apply the rewards, add the attacker and run the simulation with the attacker.
+This will create an attack graph using the configuration in the scenarios file, apply the rewards, add the attacker and run the simulation with the attacker.
 Currently having more than one attacker in the scenario file will have no effect to how the simulation is run, it will only run the first one as an agent.
