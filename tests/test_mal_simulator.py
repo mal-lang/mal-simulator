@@ -82,7 +82,6 @@ def test_register_agent_action_surface(corelang_lang_graph, model):
     agent_name = "defender1"
     sim.register_defender(agent_name)
 
-    sim._init_agent_action_surfaces()
     action_surface = sim.agent_states[agent_name].action_surface
     for node in action_surface:
         assert node.is_available_defense()
@@ -204,7 +203,8 @@ def test_agent_state_views_simple(corelang_lang_graph, model):
     )
     assert len(asv.action_surface) == 6
     assert len(dsv.action_surface) == 21
-    assert dsv.step_action_surface_additions == set()
+    assert len(dsv.step_action_surface_additions) == len(dsv.action_surface)
+    assert len(asv.step_action_surface_additions) == len(asv.action_surface)
     assert asv.step_action_surface_removals == set()
     assert dsv.step_action_surface_removals == set()
 
