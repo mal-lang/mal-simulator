@@ -82,7 +82,6 @@ def test_register_agent_action_surface(corelang_lang_graph, model):
     agent_name = "defender1"
     sim.register_defender(agent_name)
 
-    sim._init_agent_action_surfaces()
     action_surface = sim.agent_states[agent_name].action_surface
     for node in action_surface:
         assert node.is_available_defense()
@@ -192,19 +191,26 @@ def test_agent_state_views_simple(corelang_lang_graph, model):
 
     # Evaluate the agent state views after reset
     state_views = sim.reset()
-    asv = state_views['attacker']
-    dsv = state_views['defender']
-    assert asv.step_performed_nodes == set(
-        # Will contain all pre compromised attack steps
-        asv.attacker.reached_attack_steps
-    )
-    assert dsv.step_performed_nodes == set(
-        # Will contain all pre enabled defenses
+
+    pre_enabled_defenses = set(
         n for n in sim.attack_graph.nodes.values() if n.is_enabled_defense()
     )
+
+    asv = state_views['attacker']
+    dsv = state_views['defender']
+
+    assert asv.step_performed_nodes == asv.attacker.reached_attack_steps
+    assert dsv.step_performed_nodes == pre_enabled_defenses
+
+    assert asv.performed_nodes == asv.attacker.reached_attack_steps
+    assert dsv.performed_nodes == pre_enabled_defenses
+
     assert len(asv.action_surface) == 6
     assert len(dsv.action_surface) == 21
-    assert dsv.step_action_surface_additions == set()
+
+    assert len(dsv.step_action_surface_additions) == len(dsv.action_surface)
+    assert len(asv.step_action_surface_additions) == len(asv.action_surface)
+
     assert asv.step_action_surface_removals == set()
     assert dsv.step_action_surface_removals == set()
 
@@ -227,6 +233,10 @@ def test_agent_state_views_simple(corelang_lang_graph, model):
     dsv = state_views['defender']
     assert asv.step_performed_nodes == {os_app_attempt_deny}
     assert dsv.step_performed_nodes == {program2_not_present}
+
+    assert asv.performed_nodes == asv.attacker.reached_attack_steps
+    assert dsv.performed_nodes == pre_enabled_defenses | {program2_not_present}
+
     assert asv.step_action_surface_additions == {os_app_success_deny}
     assert dsv.step_action_surface_additions == set()
     assert asv.step_action_surface_removals == {os_app_attempt_deny}
