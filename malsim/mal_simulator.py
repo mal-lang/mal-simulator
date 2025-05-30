@@ -7,6 +7,7 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Any, Optional
 
+import numpy as np
 from maltoolbox import neo4j_configs
 from maltoolbox.ingestors import neo4j
 from maltoolbox.attackgraph import (AttackGraph, AttackGraphNode,
@@ -55,6 +56,9 @@ class MalSimAgentState:
 
     # Contains nodes that defender actions made unviable in the last step
     step_unviable_nodes: set[AttackGraphNode] = field(default_factory=set)
+
+    # Current ttc value of each node that had ttc functions defined
+    ttc_values: dict[AttackGraphNode, float] = field(default_factory=dict)
 
     # Fields that tell if the agent is done or stopped
     truncated: bool = False
@@ -148,6 +152,11 @@ class MalSimAgentStateView(MalSimAttackerState, MalSimDefenderState):
         return dunder_attrs + props
 
 
+class TTCMode(Enum):
+    DISABLED = 'disabled'
+    SAMPLE_VALUES = 'sample_values'
+    EXPECTED_VALUES = 'expected_values'
+
 @dataclass
 class MalSimulatorSettings():
     """Contains settings used in MalSimulator"""
@@ -158,6 +167,12 @@ class MalSimulatorSettings():
     # otherwise:
     # - Leave the node/step compromised even after it becomes untraversable
     uncompromise_untraversable_steps: bool = False
+
+    # TTC mode - either disabled or sample or expected values
+    # If not disabled, nodes will only be compromised if their
+    # ttc value is 0, otherwise they will decrement each step they
+    # are selected as action.
+    ttc_mode: TTCMode = TTCMode.DISABLED
 
 
 class MalSimulator():
@@ -218,7 +233,7 @@ class MalSimulator():
         # Reset current iteration
         self.cur_iter = 0
         # Reset agents
-        self._reset_agents()
+        self._reset_agents(seed=seed)
 
         return self.agent_states
 
@@ -238,7 +253,20 @@ class MalSimulator():
             else:
                 raise LookupError(f"Agent type {agent.type} not supported")
 
-    def _reset_agents(self):
+    def _init_agent_ttcs(self):
+        """Set node ttcs for all attacker agents"""
+        for agent in self._get_attacker_agents():
+            for node in self.attack_graph.nodes.values():
+                if not node.ttc:
+                    continue
+                if self.sim_settings.ttc_mode == TTCMode.EXPECTED_VALUES:
+                    # Use TTC expected value
+                    agent.ttc_values[node] = node.ttc_expected_value()
+                elif self.sim_settings.ttc_mode == TTCMode.SAMPLE_VALUES:
+                    # Or sample TTC from distribution
+                    agent.ttc_values[node] = node.ttc_sample()
+
+    def _reset_agents(self, seed=None):
         """Reset agent rewards and action surfaces"""
 
         # Revive all agents
@@ -275,7 +303,14 @@ class MalSimulator():
 
             self._agent_states[agent_state.name] = agent_state
 
+        if seed:
+            np.random.seed(seed)
+
         self._init_agent_action_surfaces()
+        self._init_agent_ttcs()
+
+        if self.sim_settings.ttc_mode != TTCMode.DISABLED:
+            self._init_agent_ttcs()
 
     def register_attacker(self, name: str, attacker_id: int):
         """Register a mal sim attacker agent"""
@@ -379,6 +414,22 @@ class MalSimulator():
             # Compromise node if possible
             if query.is_node_traversable_by_attacker(node, attacker) \
                     and node in agent.action_surface:
+
+                if node in agent.ttc_values:
+                    # If TTCs are enabled, decrease TTC for node and see if
+                    # it can be compromised (if ttc <= 0)
+                    logger.info(
+                        'Attacker decreased ttc value of '
+                        'step %s from %s to %s',
+                        node.full_name, agent.ttc_values[node],
+                        agent.ttc_values[node] - 1
+                    )
+                    agent.ttc_values[node] -= 1
+                    if agent.ttc_values[node] > 0:
+                        # Attacker can not compromise before
+                        # ttc is 0 or lower
+                        continue
+
                 attacker.compromise(node)
                 agent.performed_nodes.add(node)
                 compromised_nodes.add(node)
