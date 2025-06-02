@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from maltoolbox.attackgraph import AttackGraphNode, AttackGraph, Attacker
 from malsim.mal_simulator import MalSimulator
-from malsim.scenario import load_scenario
+from malsim.scenario import load_scenario, create_simulator_from_scenario
 from malsim.mal_simulator import MalSimDefenderState, MalSimAttackerState
 
 if TYPE_CHECKING:
@@ -121,12 +121,13 @@ def test_simulator_initialize_agents(
 def test_get_agents() -> None:
     """Test _get_attacker_agents and _get_defender_agents"""
 
-    ag, _ = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
-    sim = MalSimulator(ag)
+    sim, _ = create_simulator_from_scenario(
+        'tests/testdata/scenarios/simple_scenario.yml'
+    )
     sim.reset()
 
-    assert [a.name for a in sim._get_attacker_agents()] == ['attacker']
-    assert [a.name for a in sim._get_defender_agents()] == ['defender']
+    assert [a.name for a in sim._get_attacker_agents()] == ['Attacker1']
+    assert [a.name for a in sim._get_defender_agents()] == ['Defender1']
 
 
 def test_attacker_step(

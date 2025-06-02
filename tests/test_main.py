@@ -2,6 +2,7 @@
 
 import os
 from unittest.mock import patch
+from typing import Any
 
 from malsim.__main__ import run_simulation
 from malsim.scenario import create_simulator_from_scenario
@@ -19,7 +20,7 @@ def path_relative_to_tests(filename: str) -> str:
 
 
 @patch("builtins.input", return_value="\n") # to not freeze on input()
-def test_run_simulation() -> None:
+def test_run_simulation(mock_input: Any) -> None:
     """Make sure we can run simulation with defender agent
     registered in scenario"""
 
@@ -32,7 +33,7 @@ def test_run_simulation() -> None:
     run_simulation(sim, agents)
 
 @patch("builtins.input", return_value="\n") # to not freeze on input()
-def test_run_simulation_without_defender_agent() -> None:
+def test_run_simulation_without_defender_agent(mock_input: Any) -> None:
     """Make sure we can run simulation without defender agent
     registered in scenario"""
 
