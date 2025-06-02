@@ -555,7 +555,7 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
                 )
 
     def step(
-            self, actions: dict[str, tuple[int, int]]
+            self, actions: dict[str, tuple[int, Optional[int]]]
         ) -> tuple[
             dict[str, dict[str, Any]],
             dict[str, float],
@@ -568,7 +568,8 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
         malsim_actions: dict[str, list[AttackGraphNode]] = {}
         for agent_name, agent_action in actions.items():
             malsim_actions[agent_name] = []
-            if agent_action[0]:
+
+            if agent_action[0] and agent_action[1] is not None:
                 # If agent wants to act, convert index to node
                 malsim_actions[agent_name].append(
                     self.index_to_node(agent_action[1])

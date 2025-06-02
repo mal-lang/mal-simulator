@@ -6,7 +6,9 @@ from malsim.mal_simulator import MalSimAgentStateView
 from malsim.agents import BreadthFirstAttacker, DepthFirstAttacker
 
 
-def test_breadth_first_traversal_simple(dummy_lang_graph: LanguageGraph):
+def test_breadth_first_traversal_simple(
+        dummy_lang_graph: LanguageGraph
+    ) -> None:
     """
                     node1
                       |
@@ -74,7 +76,9 @@ def test_breadth_first_traversal_simple(dummy_lang_graph: LanguageGraph):
     assert actual_order == expected_order, \
         "Traversal order does not match expected breadth-first order"
 
-def test_breadth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
+def test_breadth_first_traversal_complicated(
+        dummy_lang_graph: LanguageGraph
+    ) -> None:
     r"""
                     node1 ______________
                   /       \             \
@@ -158,7 +162,9 @@ def test_breadth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
             "Traversal order does not match expected breadth-first order"
 
 
-def test_depth_first_traversal_complicated(dummy_lang_graph: LanguageGraph):
+def test_depth_first_traversal_complicated(
+        dummy_lang_graph: LanguageGraph
+    ) -> None:
     r"""
                     node1 ______________
                   /       \             \

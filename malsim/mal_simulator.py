@@ -200,7 +200,7 @@ class MalSimulator():
         self.cur_iter = 0        # Keep track on current iteration
 
         # All internal agent states (dead or alive)
-        self._agent_states: dict[str, MalSimAgentState] = {}
+        self._agent_states: dict[str, MalSimAttackerState | MalSimDefenderState] = {}
 
         # Keep track on all 'living' agents sorted by order to step in
         self._alive_agents: set[str] = set()
