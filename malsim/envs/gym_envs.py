@@ -1,4 +1,9 @@
-from typing import Any, Dict, SupportsFloat
+# type: ignore
+# Ignoring type checking in this file for now
+# before someone with more Gymnasium knowledge
+# can jump into the code base
+
+from typing import Any, Dict, SupportsFloat, Optional
 
 import gymnasium as gym
 import gymnasium.utils.env_checker as env_checker
@@ -13,10 +18,10 @@ from ..envs import MalSimVectorizedObsEnv
 from ..agents import DecisionAgent
 
 
-class AttackerEnv(gym.Env):
+class AttackerEnv(gym.Env[Any, Any]):
     metadata = {'render_modes': []}
 
-    def __init__(self, scenario_file: str, **kwargs) -> None:
+    def __init__(self, scenario_file: str, **kwargs: Any) -> None:
         """
         Params:
         - scenario_file: the scenario that should be loaded
@@ -79,21 +84,21 @@ class AttackerEnv(gym.Env):
             infos[self.attacker_agent_name]
         )
 
-    def render(self):
-        return self.sim.render()
+    def render(self) -> None:
+        self.sim.render()
 
     @property
-    def num_assets(self):
+    def num_assets(self) -> int:
         return len(self.sim._index_to_asset_type)
 
     @property
-    def num_step_names(self):
+    def num_step_names(self) -> int:
         return len(self.sim._index_to_step_name)
 
-class DefenderEnv(gym.Env):
+class DefenderEnv(gym.Env[Any, Any]):
     metadata = {'render_modes': []}
 
-    def __init__(self, scenario_file, **kwargs) -> None:
+    def __init__(self, scenario_file: str, **kwargs: Any) -> None:
         self.randomize = kwargs.pop('randomize_attacker_behavior', False)
         self.render_mode = kwargs.pop('render_mode', None)
 
@@ -104,7 +109,7 @@ class DefenderEnv(gym.Env):
 
         # Register attacker agents from scenario
         self._register_attacker_agents(self.scenario_agents)
-        self.attacker_decision_agents = {}
+        self.attacker_decision_agents: dict[str, DecisionAgent] = {}
 
         # Register defender agent
         self.defender_agent_name = "DefenderEnvAgent"
@@ -116,7 +121,7 @@ class DefenderEnv(gym.Env):
         self.action_space = \
             self.sim.action_space(self.defender_agent_name)
 
-    def _register_attacker_agents(self, agents: list[dict]):
+    def _register_attacker_agents(self, agents: list[dict[str, Any]]) -> None:
         """Register attackers in simulator"""
         for agent_info in agents:
             if agent_info['type'] == AgentType.ATTACKER:
@@ -125,7 +130,7 @@ class DefenderEnv(gym.Env):
                     agent_info['attacker_id'])
 
     def _create_attacker_decision_agents(
-            self, agents: list[dict], seed=None
+            self, agents: list[dict[str, Any]], seed: Optional[int] = None
         ) -> dict[str, DecisionAgent]:
         """Create decision agents for each attacker"""
 
@@ -187,8 +192,8 @@ class DefenderEnv(gym.Env):
             infos[self.defender_agent_name],
         )
 
-    def render(self):
-        return self.sim.render()
+    def render(self) -> None:
+        self.sim.render()
 
     @staticmethod
     def add_reverse_edges(edges: np.ndarray, defense_steps: set) -> np.ndarray:
@@ -202,25 +207,25 @@ class DefenderEnv(gym.Env):
         return edges
 
     @property
-    def num_assets(self):
+    def num_assets(self) -> int:
         return len(self.sim._index_to_asset_type)
 
     @property
-    def num_step_names(self):
+    def num_step_names(self) -> int:
         return len(self.sim._index_to_step_name)
 
 
-def _to_binary(val, max_val):
+def _to_binary(val: int, max_val: int) -> np.typing.NDArray[np.int64]:
     return np.array(
         list(np.binary_repr(val, width=max_val.bit_length())), dtype=np.int64
     )
 
 
-def vec_to_binary(vec, max_val):
+def vec_to_binary(vec: list[int], max_val: int) -> np.typing.NDArray[np.int64]:
     return np.array([_to_binary(val, max_val) for val in vec])
 
 
-def vec_to_one_hot(vec, num_vals):
+def vec_to_one_hot(vec: list[int], num_vals: int) -> np.typing.NDArray[np.int8]:
     return np.eye(num_vals, dtype=np.int8)[vec]
 
 
@@ -302,7 +307,11 @@ class LabeledGraphWrapper(Wrapper):
         return to_graph(obs, info, self.num_steps)
 
 
-def to_graph(obs: dict[str, Any], info: dict[str, Any], num_steps) -> dict[str, Any]:
+def to_graph(
+        obs: dict[str, Any],
+        info: dict[str, Any],
+        num_steps: int
+    ) -> dict[str, Any]:
     nodes = np.concatenate(
         [
             vec_to_one_hot(obs['observed_state'] + 1, 3),
@@ -318,7 +327,7 @@ def to_graph(obs: dict[str, Any], info: dict[str, Any], num_steps) -> dict[str, 
     }
 
 
-def register_envs():
+def register_envs() -> None:
     gym.register('MALDefenderEnv-v0', entry_point=DefenderEnv)
     gym.register('MALAttackerEnv-v0', entry_point=AttackerEnv)
 

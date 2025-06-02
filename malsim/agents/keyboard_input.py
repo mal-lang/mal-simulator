@@ -1,6 +1,6 @@
 from __future__ import annotations
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Any
 
 from .decision_agent import DecisionAgent
 from ..mal_simulator import MalSimAgentStateView
@@ -13,14 +13,14 @@ logger = logging.getLogger(__name__)
 class KeyboardAgent(DecisionAgent):
     """An agent that makes decisions by asking user for keyboard input"""
 
-    def __init__(self, _, **kwargs):
+    def __init__(self, _: Any, **kwargs: Any):
         super().__init__(**kwargs)
         logger.info("Creating KeyboardAgent")
 
     def get_next_action(
             self,
             agent_state: MalSimAgentStateView,
-            **kwargs
+            **kwargs: Any
         ) -> Optional[AttackGraphNode]:
         """Compute action from action_surface"""
 
@@ -35,13 +35,13 @@ class KeyboardAgent(DecisionAgent):
 
             return 0 <= node <= len(agent_state.action_surface)
 
-        def get_action_object(user_input: str) -> tuple:
+        def get_action_object(user_input: str) -> Optional[int]:
             node = int(user_input) if user_input != "" else None
             return node
 
         if not agent_state.action_surface:
             print("No actions to pick for defender")
-            return []
+            return None
 
         index_to_node = dict(enumerate(agent_state.action_surface))
         user_input = "xxx"

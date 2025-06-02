@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from typing import Any, Optional
 import functools
 import logging
 import sys
@@ -24,302 +25,12 @@ from ..mal_simulator import (
     MalSimDefenderState
 )
 
-from .base_classes import MalSimEnv
 
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
 
-# First the logging methods:
 
-def format_full_observation(sim, observation):
-    """
-    Return a formatted string of the entire observation. This includes
-    sections that will not change over time, these define the structure of
-    the attack graph.
-    """
-    obs_str = '\nAttack Graph Steps\n'
-
-    str_format = "{:<5} {:<80} {:<6} {:<5} {:<5} {:<30} {:<8} {:<}\n"
-    header_entry = [
-        "Entry", "Name", "Is_Obs", "State",
-        "RTTC", "Asset Type(Index)", "Asset Id", "Step"
-    ]
-    entries = []
-    for entry in range(0, len(observation["observed_state"])):
-        asset_type_index = observation["asset_type"][entry]
-        asset_type_str = sim._index_to_asset_type[asset_type_index ] + \
-            '(' + str(asset_type_index) + ')'
-        entries.append(
-            [
-                entry,
-                sim._index_to_full_name[entry],
-                observation["is_observable"][entry],
-                observation["observed_state"][entry],
-                observation["remaining_ttc"][entry],
-                asset_type_str,
-                observation["asset_id"][entry],
-                observation["step_name"][entry],
-            ]
-        )
-    obs_str += format_table(
-        str_format, header_entry, entries, reprint_header = 30
-    )
-
-    obs_str += "\nAttack Graph Edges:\n"
-    for edge in observation["attack_graph_edges"]:
-        obs_str += str(edge) + "\n"
-
-    obs_str += "\nInstance Model Assets:\n"
-    str_format = "{:<5} {:<5} {:<}\n"
-    header_entry = [
-        "Entry", "Id", "Type(Index)"]
-    entries = []
-    for entry in range(0, len(observation["model_asset_id"])):
-        asset_type_str = sim._index_to_asset_type[
-            observation["model_asset_type"][entry]] + \
-                '(' + str(observation["model_asset_type"][entry]) + ')'
-        entries.append(
-            [
-                entry,
-                observation["model_asset_id"][entry],
-                asset_type_str
-            ]
-        )
-    obs_str += format_table(
-        str_format, header_entry, entries, reprint_header = 30
-    )
-
-    obs_str += "\nInstance Model Edges:\n"
-    str_format = "{:<5} {:<40} {:<40} {:<}\n"
-    header_entry = [
-        "Entry",
-        "Left Asset(Id/Index)",
-        "Right Asset(Id/Index)",
-        "Type(Index)"
-    ]
-    entries = []
-    for entry in range(0, len(observation["model_edges_ids"])):
-        assoc_type_str = sim._index_to_model_assoc_type[
-            observation["model_edges_type"][entry]] + \
-                '(' + str(observation["model_edges_type"][entry]) + ')'
-        left_asset_index = int(observation["model_edges_ids"][entry][0])
-        right_asset_index = int(observation["model_edges_ids"][entry][1])
-        left_asset_id = sim._index_to_model_asset_id[left_asset_index]
-        right_asset_id = sim._index_to_model_asset_id[right_asset_index]
-        left_asset_str = \
-            sim.model.get_asset_by_id(left_asset_id).name + \
-            '(' + str(left_asset_id) + '/' + str(left_asset_index) + ')'
-        right_asset_str = \
-            sim.model.get_asset_by_id(right_asset_id).name + \
-            '(' + str(right_asset_id) + '/' + str(right_asset_index) + ')'
-        entries.append(
-            [
-                entry,
-                left_asset_str,
-                right_asset_str,
-                assoc_type_str
-            ]
-        )
-    obs_str += format_table(
-        str_format, header_entry, entries, reprint_header = 30
-    )
-
-    return obs_str
-
-def format_obs_var_sec(
-        sim,
-        observation,
-        included_values = [-1, 0, 1]
-    ):
-    """
-    Return a formatted string of the sections of the observation that can
-    vary over time.
-
-    Arguments:
-    observation     - the observation to format
-    included_values - the values to list, any values not present in the
-                        list will be filtered out
-    """
-
-    str_format = "{:>5} {:>80} {:<5} {:<5} {:<}\n"
-    header_entry = ["Id", "Name", "State", "RTTC", "Entry"]
-    entries = []
-    for entry in range(0, len(observation["observed_state"])):
-        if observation["is_observable"][entry] and \
-            observation["observed_state"][entry] in included_values:
-            entries.append(
-                [
-                    sim._index_to_id[entry],
-                    sim._index_to_full_name[entry],
-                    observation["observed_state"][entry],
-                    observation["remaining_ttc"][entry],
-                    entry
-                ]
-            )
-
-    obs_str = format_table(
-        str_format, header_entry, entries, reprint_header = 30
-    )
-
-    return obs_str
-
-def format_info(sim, info):
-    can_act = "Yes" if info["action_mask"][0][1] > 0 else "No"
-    agent_info_str = f"Can act? {can_act}\n"
-    for entry in range(0, len(info["action_mask"][1])):
-        if info["action_mask"][1][entry] == 1:
-            agent_info_str += f"{sim._index_to_id[entry]} " \
-                f"{sim._index_to_full_name[entry]}\n"
-    return agent_info_str
-
-
-def log_mapping_tables(logger, sim):
-    """Log all mapping tables in MalSimulator"""
-
-    str_format = "{:<5} {:<15} {:<}\n"
-    table = "\n"
-    header_entry = ["Index", "Attack Step Id", "Attack Step Full Name"]
-    entries = []
-    for entry in sim._index_to_id:
-        entries.append(
-            [
-                sim._id_to_index[entry],
-                entry,
-                sim._index_to_full_name[sim._id_to_index[entry]]
-            ]
-        )
-    table += format_table(
-        str_format,
-        header_entry,
-        entries,
-        reprint_header = 30
-    )
-    logger.debug(table)
-
-    str_format = "{:<5} {:<}\n"
-    table = "\n"
-    header_entry = ["Index", "Asset Id"]
-    entries = []
-    for entry in sim._model_asset_id_to_index:
-        entries.append(
-            [
-                sim._model_asset_id_to_index[entry],
-                entry
-            ]
-        )
-    table += format_table(
-        str_format,
-        header_entry,
-        entries,
-        reprint_header = 30
-    )
-    logger.debug(table)
-
-    str_format = "{:<5} {:<}\n"
-    table = "\n"
-    header_entry = ["Index", "Asset Type"]
-    entries = []
-    for entry in sim._asset_type_to_index:
-        entries.append(
-            [
-                sim._asset_type_to_index[entry],
-                entry
-            ]
-        )
-    table += format_table(
-        str_format,
-        header_entry,
-        entries,
-        reprint_header = 30
-    )
-    logger.debug(table)
-
-    str_format = "{:<5} {:<}\n"
-    table = "\n"
-    header_entry = ["Index", "Attack Step Name"]
-    entries = []
-    for entry in sim._index_to_step_name:
-        entries.append([sim._step_name_to_index[entry], entry])
-    table += format_table(
-        str_format,
-        header_entry,
-        entries,
-        reprint_header = 30
-    )
-    logger.debug(table)
-
-    str_format = "{:<5} {:<}\n"
-    table = "\n"
-    header_entry = ["Index", "Association Type"]
-    entries = []
-    for entry in sim._index_to_model_assoc_type:
-        entries.append([sim._model_assoc_type_to_index[entry], entry])
-    table += format_table(
-        str_format,
-        header_entry,
-        entries,
-        reprint_header = 30
-    )
-    logger.debug(table)
-
-
-def format_table(
-        entry_format: str,
-        header_entry: list[str],
-        entries: list[list[str]],
-        reprint_header: int = 0
-    ) -> str:
-    """
-    Format a table according to the parameters specified.
-
-    Arguments:
-    entry_format    - The string format for the table
-    reprint_header  - How many rows apart to reprint the header. If 0 the
-                      header will not be reprinted.
-    header_entry    - The entry representing the header of the table
-    entries         - The list of entries to format
-
-    Return:
-    The formatted table.
-    """
-
-    formatted_str = ''
-    header = entry_format.format(*header_entry)
-    formatted_str += header
-    for entry_nr, entry in zip(range(0, len(entries)), entries):
-        formatted_str += entry_format.format(*entry)
-        if (reprint_header != 0) and ((entry_nr + 1) % reprint_header == 0):
-            formatted_str += header
-    return formatted_str
-
-
-def log_agent_state(
-        logger, sim, agent, terminations, truncations, infos
-    ):
-    """Debug log all an agents current state"""
-
-    agent_obs_str = format_obs_var_sec(
-        sim, agent.observation, included_values = [0, 1]
-    )
-
-    logger.debug(
-        'Observation for agent "%s":\n%s', agent.name, agent_obs_str)
-    logger.debug(
-        'Rewards for agent "%s": %d', agent.name, agent.reward)
-    logger.debug(
-        'Termination for agent "%s": %s',
-        agent.name, terminations[agent.name])
-    logger.debug(
-        'Truncation for agent "%s": %s',
-        agent.name, str(truncations[agent.name]))
-    agent_info_str = format_info(sim, infos[agent.name])
-    logger.debug(
-        'Info for agent "%s":\n%s', agent.name, agent_info_str)
-
-
-# Now the actual class:
-
-class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
+class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
     """
     Environment that runs simulation between agents.
     Builds serialized observations.
@@ -331,7 +42,7 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
             sim: MalSimulator
         ):
 
-        super().__init__(sim)
+        self.sim = sim
 
         # Useful instead of having to fetch .sim.attack_graph
         self.attack_graph = sim.attack_graph
@@ -379,25 +90,26 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
             enumerate(self._index_to_model_assoc_type)
         }
 
-        if logger.isEnabledFor(logging.DEBUG):
-            log_mapping_tables(logger, self)
-
         self._blank_observation = self._create_blank_observation()
-
-        self._agent_observations = {}
-        self._agent_infos = {}
+        self._agent_observations: dict[str, Any] = {}
+        self._agent_infos: dict[str, Any] = {}
 
     @property
-    def agents(self):
+    def agents(self) -> list[str]:
         """Required by ParallelEnv"""
         return list(self.sim._alive_agents)
 
     @property
-    def possible_agents(self):
+    def possible_agents(self) -> list[str]:
         """Required by ParallelEnv"""
         return list(self.sim._agent_states.keys())
 
-    def _create_blank_observation(self, default_obs_state=-1):
+    def get_agent_state(self, agent_name: str) -> MalSimAgentStateView:
+        return self.sim.agent_states[agent_name]
+
+    def _create_blank_observation(
+            self, default_obs_state: int = -1
+        ) -> dict[str, Any]:
         """Create the initial observation"""
         # For now, an `object` is an attack step
         num_steps = len(self.sim.attack_graph.nodes)
@@ -502,15 +214,9 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
             "model_edges_type": np.array(observation["model_edges_type"],
                                 dtype=np.int64)
         }
-
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(
-                format_full_observation(self, np_obs)
-            )
-
         return np_obs
 
-    def create_action_mask(self, agent: MalSimAgentStateView):
+    def create_action_mask(self, agent: MalSimAgentStateView) -> dict[str, Any]:
         """
         Create an action mask for an agent based on its action_surface.
 
@@ -548,68 +254,19 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
             )
         }
 
-    def _update_agent_infos(self):
+    def _update_agent_infos(self) -> None:
         for agent in self.sim.agent_states.values():
             self._agent_infos[agent.name] = self.create_action_mask(agent)
 
-    def _get_association_full_name(self, association) -> str:
-        """Get association full name
-
-        TODO: Remove this method once the language graph integration is
-        complete in the mal-toolbox because the language graph associations
-        will use their full names for the name property
-
-        Arguments:
-        association     - the association whose full name will be returned
-
-        Return:
-        A string containing the association name and the name of each of the
-        two asset types for the left and right fields separated by
-        underscores.
-        """
-
-        assoc_name = association.__class__.__name__
-        if '_' in assoc_name:
-            # TODO: Not actually a to-do, but just an extra clarification that
-            # this is an ugly hack that will work for now until we get the
-            # unique association names. Right now some associations already
-            # use the asset types as part of their name if there are multiple
-            # associations with the same name.
-            return assoc_name
-
-        left_field_name, right_field_name = \
-            self.sim.attack_graph.model.get_association_field_names(association)
-        left_field = getattr(association, left_field_name)
-        right_field = getattr(association, right_field_name)
-        lang_assoc = self.sim.attack_graph.lang_graph.get_association_by_fields_and_assets(
-            left_field_name,
-            right_field_name,
-            left_field[0].type,
-            right_field[0].type
-        )
-        if lang_assoc is None:
-            raise LookupError('Failed to find association for fields '
-                '"%s" "%s" and asset types "%s" "%s"!' % (
-                    left_field_name,
-                    right_field_name,
-                    left_field[0].type,
-                    right_field[0].type
-                )
-            )
-        assoc_full_name = lang_assoc.name + '_' + \
-            lang_assoc.left_field.asset.name + '_' + \
-            lang_assoc.right_field.asset.name
-        return assoc_full_name
-
     @functools.lru_cache(maxsize=None)
-    def action_space(self, agent=None):
+    def action_space(self, agent: Optional[str] = None) -> MultiDiscrete:
         num_actions = 2  # two actions: wait or use
         # For now, an `object` is an attack step
         num_steps = len(self.sim.attack_graph.nodes)
         return MultiDiscrete([num_actions, num_steps], dtype=np.int64)
 
     @functools.lru_cache(maxsize=None)
-    def observation_space(self, agent_name: str = None):
+    def observation_space(self, agent_name: Optional[str] = None) -> Dict:
         # For now, an `object` is an attack step
         num_assets = len(self.attack_graph.model.assets)
         num_steps = len(self.attack_graph.nodes)
@@ -752,17 +409,17 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
             nodes = [self.index_to_node(step_idx)]
         return nodes
 
-    def register_attacker(self, attacker_name: str, attacker_id: int):
-        super().register_attacker(attacker_name, attacker_id)
+    def register_attacker(self, attacker_name: str, attacker_id: int) -> None:
+        self.sim.register_attacker(attacker_name, attacker_id)
         agent = self.sim.agent_states[attacker_name]
         self._init_agent(agent)
 
-    def register_defender(self, defender_name: str):
-        super().register_defender(defender_name)
+    def register_defender(self, defender_name: str) -> None:
+        self.sim.register_defender(defender_name)
         agent = self.sim.agent_states[defender_name]
         self._init_agent(agent)
 
-    def _init_agent(self, agent: MalSimAgentStateView):
+    def _init_agent(self, agent: MalSimAgentStateView) -> None:
         # Fill dicts with env specific agent obs/infos
         self._agent_observations[agent.name] = \
             self._create_blank_observation()
@@ -772,15 +429,15 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
 
     def _update_attacker_obs(
             self,
-            compromised_nodes,
-            disabled_nodes,
+            compromised_nodes: set[AttackGraphNode],
+            disabled_nodes: set[AttackGraphNode],
             attacker_agent: MalSimAttackerState
-        ):
+        ) -> None:
         """Update the observation of the serialized obs attacker"""
 
         def _enable_node(
-                node: AttackGraphNode, agent_observation: dict
-            ):
+                node: AttackGraphNode, agent_observation: dict[str, Any]
+            ) -> None:
             """Set enabled node obs state to enabled and
             its children to disabled"""
 
@@ -815,10 +472,10 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
 
     def _update_defender_obs(
             self,
-            compromised_nodes: list[AttackGraphNode],
-            disabled_nodes: list[AttackGraphNode],
+            compromised_nodes: set[AttackGraphNode],
+            disabled_nodes: set[AttackGraphNode],
             defender_agent: MalSimDefenderState
-        ):
+        ) -> None:
         """Update the observation of the defender"""
 
         defender_observation = self._agent_observations[defender_agent.name]
@@ -837,14 +494,13 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
 
     def reset(
             self,
-            seed: int | None = None,
-            options: dict | None = None
-        ) -> tuple[dict, dict]:
+            seed: Optional[int] = None,
+            options: Optional[dict[str, Any]] = None
+        ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Reset simulator and return current
         observation and infos for each agent"""
 
-        MalSimEnv.reset(self, seed, options)
-
+        self.sim.reset(seed=seed, options=options)
         self.attack_graph = self.sim.attack_graph # new ref
 
         for agent in self.sim.agent_states.values():
@@ -855,30 +511,34 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
                 self.create_action_mask(agent)
 
         # Enable pre-enabled nodes in observation
-        attacker_entry_points = [
+        attacker_entry_points = set(
             n for n in self.sim.attack_graph.nodes.values()
             if n.is_compromised()
-        ]
-        pre_enabled_defenses = [
+        )
+        pre_enabled_defenses = set(
             n for n in self.sim.attack_graph.nodes.values()
             if n.defense_status == 1.0
-        ]
+        )
 
         for node in attacker_entry_points:
             node.extras['entrypoint'] = True
 
         self._update_observations(
-            attacker_entry_points + pre_enabled_defenses, []
+            attacker_entry_points | pre_enabled_defenses, set()
         )
 
         # TODO: should we return copies instead so they are not modified externally?
         return self._agent_observations, self._agent_infos
 
-    def _update_observations(self, compromised_nodes, disabled_nodes):
+    def _update_observations(
+            self,
+            compromised_nodes: set[AttackGraphNode],
+            disabled_nodes: set[AttackGraphNode]
+        ) -> None:
         """Update observations of all agents"""
 
         if not self.sim.sim_settings.uncompromise_untraversable_steps:
-            disabled_nodes = []
+            disabled_nodes = set()
 
         # TODO: Is this correct? All attackers get the same compromised_nodes?
         logger.debug("Enable:\n\t%s", [n.full_name for n in compromised_nodes])
@@ -894,10 +554,18 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
                     compromised_nodes, disabled_nodes, agent
                 )
 
-    def step(self, actions: dict[str, tuple[int, int]]):
+    def step(
+            self, actions: dict[str, tuple[int, int]]
+        ) -> tuple[
+            dict[str, dict[str, Any]],
+            dict[str, float],
+            dict[str, bool],
+            dict[str, bool],
+            dict[str, dict[str, Any]]
+        ]:
         """Perform step with mal simulator and observe in parallel env"""
 
-        malsim_actions = {}
+        malsim_actions: dict[str, list[AttackGraphNode]] = {}
         for agent_name, agent_action in actions.items():
             malsim_actions[agent_name] = []
             if agent_action[0]:
@@ -908,11 +576,10 @@ class MalSimVectorizedObsEnv(ParallelEnv, MalSimEnv):
 
         states = self.sim.step(malsim_actions)
 
-        all_actioned = [
-            n
-            for state in states.values()
+        all_actioned = set(
+            n for state in states.values()
             for n in state.step_performed_nodes
-        ]
+        )
         disabled_nodes = next(iter(states.values())).step_unviable_nodes
 
         self._update_agent_infos() # Update action masks

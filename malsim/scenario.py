@@ -12,7 +12,7 @@ A scenario is a combination of:
 """
 
 import os
-from typing import Any, Optional
+from typing import Any, Optional, TextIO
 
 import yaml
 
@@ -66,7 +66,7 @@ allowed_fields = required_fields + [
 ]
 
 
-def validate_scenario(scenario_dict):
+def validate_scenario(scenario_dict: dict[str, Any]) -> None:
     """Verify scenario file keys"""
 
     # Verify that all keys in dict are supported
@@ -83,7 +83,7 @@ def validate_scenario(scenario_dict):
             raise RuntimeError(f"Setting '{key}' missing from scenario file")
 
 
-def path_relative_to_file_dir(rel_path, file):
+def path_relative_to_file_dir(rel_path: str, file: TextIO) -> str:
     """Returns the absolute path of a relative path in a second file
 
     Arguments:
@@ -98,7 +98,7 @@ def path_relative_to_file_dir(rel_path, file):
 
 
 def _validate_scenario_node_property_config(
-        graph: AttackGraph, prop_config: dict):
+        graph: AttackGraph, prop_config: dict[str, dict[str, Any]]) -> None:
     """Verify that node property configurations in a scenario contains only
     valid assets, asset types and step names"""
 
@@ -155,11 +155,11 @@ def _validate_scenario_node_property_config(
 def apply_scenario_node_property(
         attack_graph: AttackGraph,
         node_prop: str,
-        prop_config: dict,
+        prop_config: dict[str, dict[str, Any]],
         assumed_value: Optional[Any] = None,
         default_value: Optional[Any] = None,
         set_as_extras: bool = True
-):
+) -> None:
     """Apply node property values from scenario configuration.
 
     Note: Property values provided 'by_asset_name' will take precedence over
@@ -182,7 +182,9 @@ def apply_scenario_node_property(
                         themselves.
     """
 
-    def _extract_value_from_entries(entries: dict|list, step_name: str) -> Any:
+    def _extract_value_from_entries(
+            entries: dict[str, Any] | list[str], step_name: str
+        ) -> Any:
         """
         Return the property value matching the step name in the provided
         entries.
@@ -207,8 +209,12 @@ def apply_scenario_node_property(
             raise ValueError('Error! Scenario node property configuration '
                 'is neither dictionary, nor list!')
 
-    def _set_value(step: AttackGraphNode, node_prop: str, value: Any,
-        set_as_extras:bool):
+    def _set_value(
+            step: AttackGraphNode,
+            node_prop: str,
+            value: Any,
+            set_as_extras: bool
+        ) -> None:
         """
         Set the value of the node property to the value provided
 
@@ -315,7 +321,7 @@ def create_scenario_attacker(
 
 
 def load_simulator_agents(
-        attack_graph: AttackGraph, scenario: dict
+        attack_graph: AttackGraph, scenario: dict[str, Any]
     ) -> list[dict[str, Any]]:
     """Load agents to be registered in MALSimulator
 
@@ -379,7 +385,7 @@ def load_simulator_agents(
 
 
 def apply_scenario_to_attack_graph(
-        attack_graph: AttackGraph, scenario: dict):
+        attack_graph: AttackGraph, scenario: dict[str, Any]) -> None:
     """Update attack graph according to scenario configuration
 
     Apply scenario configurations from a loaded scenario file
@@ -451,8 +457,8 @@ def load_scenario(scenario_file: str) -> tuple[AttackGraph, list[dict[str, Any]]
 
 def create_simulator_from_scenario(
         scenario_file: str,
-        sim_class=MalSimulator,
-        **kwargs,
+        sim_class: Any = MalSimulator,
+        **kwargs: Any,
     ) -> tuple[MalSimulator, list[dict[str, Any]]]:
     """Creates and returns a MalSimulator created according to scenario file
 
