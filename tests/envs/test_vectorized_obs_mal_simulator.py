@@ -1,11 +1,19 @@
 """Test MalSimulator class"""
+from __future__ import annotations
+from typing import TYPE_CHECKING, Any
 
 from maltoolbox.attackgraph import AttackGraph, Attacker
 from malsim.mal_simulator import MalSimulator
 from malsim.envs import MalSimVectorizedObsEnv
 from malsim.scenario import load_scenario
 
-def test_create_blank_observation(corelang_lang_graph, model):
+if TYPE_CHECKING:
+    from maltoolbox.language import LanguageGraph
+    from maltoolbox.model import Model
+
+def test_create_blank_observation(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
     """Make sure blank observation contains correct default values"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
@@ -58,8 +66,8 @@ def test_create_blank_observation(corelang_lang_graph, model):
 
 
 def test_create_blank_observation_deterministic(
-        corelang_lang_graph, model
-    ):
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
     """Make sure blank observation is deterministic with seed given"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
@@ -94,8 +102,8 @@ def test_create_blank_observation_deterministic(
 
 
 def test_step_deterministic(
-        corelang_lang_graph, model
-    ):
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
     """Make sure blank observation is deterministic with seed given"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
@@ -106,8 +114,8 @@ def test_step_deterministic(
     sim.register_attacker("test_attacker", attacker.id)
     sim.register_defender("test_defender")
 
-    obs1 = {}
-    obs2 = {}
+    obs1: dict[str, Any] = {}
+    obs2: dict[str, Any] = {}
 
     # Run 1
     sim.reset(seed=123)
@@ -138,8 +146,8 @@ def test_step_deterministic(
 
 
 def test_create_blank_observation_observability_given(
-        corelang_lang_graph, model
-    ):
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
     """Make sure observability propagates correctly from extras field/scenario
     to observation in mal simulator"""
 
@@ -171,8 +179,8 @@ def test_create_blank_observation_observability_given(
             assert not observable
 
 def test_create_blank_observation_actionability_given(
-        corelang_lang_graph, model
-    ):
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
     """Make sure actionability propagates correctly from extras field/scenario
     to observation in mal simulator"""
 
@@ -201,7 +209,7 @@ def test_create_blank_observation_actionability_given(
             assert not actionable
 
 
-def test_malsimulator_observe_attacker():
+def test_malsimulator_observe_attacker() -> None:
     attack_graph, _ = load_scenario(
         'tests/testdata/scenarios/simple_scenario.yml')
 
@@ -267,15 +275,15 @@ def test_malsimulator_observe_attacker():
                 assert state == 0
 
 
-def test_malsimulator_observe_and_reward_attacker_defender():
+def test_malsimulator_observe_and_reward_attacker_defender() -> None:
     """Run attacker and defender actions and make sure
     rewards and observation states are updated correctly"""
 
     def verify_attacker_obs_state(
-            observed_state,
-            expected_reached,
-            expected_children_of_reached
-        ):
+            observed_state: list[int],
+            expected_reached: list[int],
+            expected_children_of_reached: list[int]
+        ) -> None:
         """Make sure obs state looks as expected"""
         for index, state in enumerate(observed_state):
             node_id = env._index_to_id[index]
@@ -287,8 +295,8 @@ def test_malsimulator_observe_and_reward_attacker_defender():
                 assert state == -1
 
     def verify_defender_obs_state(
-            observed_state
-        ):
+            observed_state: list[int]
+        ) -> None:
         """Make sure obs state looks as expected"""
         for index, state in enumerate(observed_state):
             node = env.index_to_node(index)
@@ -427,7 +435,9 @@ def test_malsimulator_observe_and_reward_attacker_defender():
     assert rew[defender_agent_name] == - rew[attacker_agent_name] - reward_host_0_not_present
 
 
-def test_malsimulator_initial_observation_defender(corelang_lang_graph, model):
+def test_malsimulator_initial_observation_defender(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
     """Make sure ._observe_defender observes nodes and set observed state"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
@@ -452,8 +462,8 @@ def test_malsimulator_initial_observation_defender(corelang_lang_graph, model):
 
 
 def test_malsimulator_observe_and_reward_attacker_no_entrypoints(
-        corelang_lang_graph, model
-    ):
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
     attacker = Attacker("TestAttacker", [], [])
@@ -475,8 +485,8 @@ def test_malsimulator_observe_and_reward_attacker_no_entrypoints(
 
 
 def test_malsimulator_observe_and_reward_attacker_entrypoints(
-        traininglang_lang_graph, traininglang_model
-    ):
+        traininglang_lang_graph: LanguageGraph, traininglang_model: Model
+    ) -> None:
 
     attack_graph = AttackGraph(
         traininglang_lang_graph, traininglang_model)

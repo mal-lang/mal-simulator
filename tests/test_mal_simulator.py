@@ -1,16 +1,22 @@
 """Test MalSimulator class"""
+from __future__ import annotations
+from typing import TYPE_CHECKING
 
 from maltoolbox.attackgraph import AttackGraphNode, AttackGraph, Attacker
 from malsim.mal_simulator import MalSimulator
+from malsim.scenario import load_scenario, create_simulator_from_scenario
+from malsim.mal_simulator import MalSimDefenderState, MalSimAttackerState
 
-from malsim.scenario import load_scenario
+if TYPE_CHECKING:
+    from maltoolbox.language import LanguageGraph
+    from maltoolbox.model import Model
 
-def test_init(corelang_lang_graph, model):
+def test_init(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
     MalSimulator(attack_graph)
 
 
-def test_reset(corelang_lang_graph, model):
+def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     """Make sure attack graph is reset"""
     attack_graph = AttackGraph(corelang_lang_graph, model)
 
@@ -52,7 +58,9 @@ def test_reset(corelang_lang_graph, model):
 
     assert attack_graph_before._to_dict() == attack_graph_after._to_dict()
 
-def test_register_agent_attacker(corelang_lang_graph, model):
+def test_register_agent_attacker(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
     attack_graph.attach_attackers()
     sim = MalSimulator(attack_graph)
@@ -64,7 +72,9 @@ def test_register_agent_attacker(corelang_lang_graph, model):
     assert agent_name in sim.agent_states
 
 
-def test_register_agent_defender(corelang_lang_graph, model):
+def test_register_agent_defender(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(attack_graph)
 
@@ -75,7 +85,9 @@ def test_register_agent_defender(corelang_lang_graph, model):
     assert agent_name in sim.agent_states
 
 
-def test_register_agent_action_surface(corelang_lang_graph, model):
+def test_register_agent_action_surface(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(attack_graph)
 
@@ -87,7 +99,9 @@ def test_register_agent_action_surface(corelang_lang_graph, model):
         assert node.is_available_defense()
 
 
-def test_simulator_initialize_agents(corelang_lang_graph, model):
+def test_simulator_initialize_agents(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
     """Test _initialize_agents"""
 
     ag, _ = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
@@ -104,20 +118,25 @@ def test_simulator_initialize_agents(corelang_lang_graph, model):
     assert set(sim.agent_states.keys()) == {attacker_name, defender_name}
 
 
-def test_get_agents():
+def test_get_agents() -> None:
     """Test _get_attacker_agents and _get_defender_agents"""
 
-    ag, _ = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
-    sim = MalSimulator(ag)
+    sim, _ = create_simulator_from_scenario(
+        'tests/testdata/scenarios/simple_scenario.yml'
+    )
     sim.reset()
 
-    sim._get_attacker_agents() == ['attacker']
-    sim._get_defender_agents() == ['defender']
+    assert [a.name for a in sim._get_attacker_agents()] == ['Attacker1']
+    assert [a.name for a in sim._get_defender_agents()] == ['Defender1']
 
 
-def test_attacker_step(corelang_lang_graph, model):
+def test_attacker_step(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
     entry_point = attack_graph.get_node_by_full_name('OS App:fullAccess')
+
+    assert entry_point, "OS App:fullAccess Should exist"
 
     attacker = Attacker(
         'attacker1',
@@ -130,19 +149,23 @@ def test_attacker_step(corelang_lang_graph, model):
 
     sim.register_attacker(attacker.name, attacker.id)
     sim.reset()
+
     attacker_agent = sim._agent_states[attacker.name]
+    assert isinstance(attacker_agent, MalSimAttackerState)
 
     # Can not attack the notPresent step
     defense_step = sim.attack_graph.get_node_by_full_name('OS App:notPresent')
-    actions = sim._attacker_step(attacker_agent, {defense_step})
+    assert defense_step
+    actions = sim._attacker_step(attacker_agent, [defense_step])
     assert not actions
 
     attack_step = sim.attack_graph.get_node_by_full_name('OS App:attemptRead')
-    actions = sim._attacker_step(attacker_agent, {attack_step})
+    assert attack_step
+    actions = sim._attacker_step(attacker_agent, [attack_step])
     assert actions  == {attack_step}
 
 
-def test_defender_step(corelang_lang_graph, model):
+def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(attack_graph)
 
@@ -151,28 +174,33 @@ def test_defender_step(corelang_lang_graph, model):
     sim.reset()
 
     defender_agent = sim._agent_states[defender_name]
+    assert isinstance(defender_agent, MalSimDefenderState)
+
     defense_step = sim.attack_graph.get_node_by_full_name(
         'OS App:notPresent')
-    enabled, made_unviable = sim._defender_step(defender_agent, {defense_step})
+    assert defense_step
+    enabled, made_unviable = sim._defender_step(defender_agent, [defense_step])
     assert enabled ==  {defense_step}
     assert made_unviable
 
     # Can not defend attack_step
     attack_step = sim.attack_graph.get_node_by_full_name(
         'OS App:attemptUseVulnerability')
-    enabled, made_unviable = sim._defender_step(defender_agent, {attack_step})
+    assert attack_step
+    enabled, made_unviable = sim._defender_step(defender_agent, [attack_step])
     assert enabled == set()
     assert not made_unviable
 
-def test_agent_state_views_simple(corelang_lang_graph, model):
+def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Model) -> None:
 
-    def get_node(full_name) -> AttackGraphNode:
+    def get_node(full_name: str) -> AttackGraphNode:
         node = sim.attack_graph.get_node_by_full_name(full_name)
         assert node
         return node
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
     entry_point = attack_graph.get_node_by_full_name('OS App:fullAccess')
+    assert entry_point, "Should exist"
 
     attacker = Attacker(
         'attacker1',
@@ -283,7 +311,7 @@ def test_agent_state_views_simple(corelang_lang_graph, model):
     assert len(dsv.step_unviable_nodes) == 55
 
 
-def test_observe_attacker():
+def test_observe_attacker() -> None:
     attack_graph, _ = load_scenario(
         'tests/testdata/scenarios/simple_scenario.yml'
     )
@@ -305,7 +333,7 @@ def test_observe_attacker():
     assert len(attacker.reached_attack_steps) == 1
 
 
-def test_step_attacker_defender_action_surface_updates():
+def test_step_attacker_defender_action_surface_updates() -> None:
     ag, _ = load_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml')
 
@@ -348,7 +376,7 @@ def test_step_attacker_defender_action_surface_updates():
     assert defender_step not in defender_agent.action_surface
 
 
-def test_default_simulator_default_settings_eviction():
+def test_default_simulator_default_settings_eviction() -> None:
     """Test attacker node eviction using MalSimulatorSettings default"""
     ag, _ = load_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml',

@@ -3,6 +3,7 @@
 from __future__ import annotations
 import argparse
 import logging
+from typing import Any, Optional
 
 from .mal_simulator import MalSimulator
 from .agents import DecisionAgent
@@ -12,11 +13,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
 
-def run_simulation(sim: MalSimulator, agents: list[dict]):
+def run_simulation(sim: MalSimulator, agents: list[dict[str, Any]]) -> None:
     """Run a simulation with agents"""
 
     sim.reset()
-    total_rewards = {agent_dict['name']: 0 for agent_dict in agents}
+    total_rewards = {agent_dict['name']: 0.0 for agent_dict in agents}
     all_agents_term_or_trunc = False
 
     logger.info("Starting CLI env simulator.")
@@ -29,7 +30,7 @@ def run_simulation(sim: MalSimulator, agents: list[dict]):
 
         # Select actions for each agent
         for agent_dict in agents:
-            decision_agent: DecisionAgent = agent_dict.get('agent')
+            decision_agent: Optional[DecisionAgent] = agent_dict.get('agent')
             agent_name = agent_dict['name']
             if decision_agent is None:
                 logger.warning(
@@ -66,7 +67,7 @@ def run_simulation(sim: MalSimulator, agents: list[dict]):
         agent_name = agent_dict['name']
         print(f'Total reward "{agent_name}"', total_rewards[agent_name])
 
-def main():
+def main() -> None:
     """Entrypoint function of the MAL Toolbox CLI"""
     parser = argparse.ArgumentParser()
     parser.add_argument(

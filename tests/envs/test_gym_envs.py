@@ -1,3 +1,8 @@
+# type: ignore
+# Ignoring type checking in this file for now
+# before someone with more Gymnasium knowledge
+# can jump into the code base
+
 import sys
 import os
 
@@ -26,18 +31,18 @@ scenario_file = 'tests/testdata/scenarios/simple_scenario.yml'
 scenario_file_no_defender = 'tests/testdata/scenarios/no_defender_agent_scenario.yml'
 
 
-def register_gym_agent(agent_id, entry_point):
+def register_gym_agent(agent_id: str, entry_point: gym.Env) -> None:
     if agent_id not in gym.envs.registry.keys():
         gym.register(agent_id, entry_point=entry_point)
 
 
-def test_pz(env: MalSimVectorizedObsEnv):
+def test_pz(env: MalSimVectorizedObsEnv) -> None:
     logger.debug('Run Parrallel API test.')
     parallel_api_test(env)
 
 
 # Check that an environment follows Gym API
-def test_gym():
+def test_gym() -> None:
     logger.debug('Run Gym Test.')
     register_gym_agent('MALDefenderEnv-v0', entry_point=DefenderEnv)
     env = gym.make(
@@ -53,7 +58,7 @@ def test_gym():
     env_checker.check_env(env.unwrapped)
 
 
-def test_random_defender_actions():
+def test_random_defender_actions() -> None:
     register_gym_agent('MALDefenderEnv-v0', entry_point=DefenderEnv)
     env = gym.make(
         'MALDefenderEnv-v0',
@@ -79,7 +84,7 @@ def test_random_defender_actions():
         done = term or trunc
 
 
-def test_episode():
+def test_episode() -> None:
     logger.debug('Run Episode Test.')
     register_gym_agent('MALDefenderEnv-v0', entry_point=DefenderEnv)
     env = gym.make(
@@ -102,7 +107,7 @@ def test_episode():
     # assert _return < 0.0 # If the defender does nothing then it will get a penalty for being attacked
 
 
-def test_mask():
+def test_mask() -> None:
     register_gym_agent('MALDefenderEnv-v0', entry_point=DefenderEnv)
     env = gym.make(
         'MALDefenderEnv-v0',
@@ -117,7 +122,7 @@ def test_mask():
     print(obs)
 
 
-def test_defender_penalty():
+def test_defender_penalty() -> None:
     register_gym_agent('MALDefenderEnv-v0', entry_point=DefenderEnv)
     env = gym.make(
         'MALDefenderEnv-v0',
@@ -131,7 +136,7 @@ def test_defender_penalty():
     # assert reward < 0 # All defense steps cost something
 
 
-def test_action_mask():
+def test_action_mask() -> None:
     register_gym_agent('MALDefenderEnv-v0', entry_point=DefenderEnv)
     env = gym.make(
         'MALDefenderEnv-v0',

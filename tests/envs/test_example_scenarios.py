@@ -5,7 +5,7 @@ expected reward is given to agents
 
 from malsim.scenario import create_simulator_from_scenario
 
-def test_bfs_vs_bfs_state_and_reward():
+def test_bfs_vs_bfs_state_and_reward() -> None:
     """
     The point of this test is to see that a specific
     scenario runs deterministically.
@@ -34,8 +34,8 @@ def test_bfs_vs_bfs_state_and_reward():
     attacker_agent = attacker_agent_info["agent"]
     defender_agent = defender_agent_info["agent"]
 
-    total_reward_defender = 0
-    total_reward_attacker = 0
+    total_reward_defender = 0.0
+    total_reward_attacker = 0.0
 
     attacker_actions = []
     defender_actions = []

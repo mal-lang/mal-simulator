@@ -1,7 +1,7 @@
 """A decision agent is a heuristic agent"""
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Any
 from abc import ABC, abstractmethod
 
 if TYPE_CHECKING:
@@ -14,7 +14,7 @@ class DecisionAgent(ABC):
     def get_next_action(
         self,
         agent_state: MalSimAgentStateView,
-        **kwargs
+        **kwargs: Any
     ) -> Optional[AttackGraphNode]:
         """
         Select next action the agent will work with.

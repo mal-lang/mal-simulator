@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 import logging
 import math
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class DefendCompromisedDefender(DecisionAgent):
     """A defender that defends compromised assets using notPresent"""
 
-    def __init__(self, agent_config, **_):
+    def __init__(self, agent_config: dict[str, Any], **_: Any):
         # Seed and rng not currently used
         seed = (
             agent_config["seed"]
@@ -30,7 +30,7 @@ class DefendCompromisedDefender(DecisionAgent):
         )
 
     def get_next_action(
-        self, agent_state: MalSimAgentStateView, **kwargs
+        self, agent_state: MalSimAgentStateView, **kwargs: Any
     ) -> Optional[AttackGraphNode]:
 
         """Return an action that disables a compromised node"""
@@ -71,7 +71,7 @@ class DefendCompromisedDefender(DecisionAgent):
 class DefendFutureCompromisedDefender(DecisionAgent):
     """A defender that defends compromised assets using notPresent"""
 
-    def __init__(self, agent_config, **_):
+    def __init__(self, agent_config: dict[str, Any], **_: Any):
         # Seed and rng not currently used
         seed = (
             agent_config["seed"]
@@ -85,7 +85,7 @@ class DefendFutureCompromisedDefender(DecisionAgent):
         )
 
     def get_next_action(
-        self, agent_state: MalSimAgentStateView, **kwargs
+        self, agent_state: MalSimAgentStateView, **kwargs: Any
     ) -> Optional[AttackGraphNode]:
 
         """Return an action that disables a compromised node"""

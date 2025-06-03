@@ -11,7 +11,7 @@ from malsim.scenario import (
 )
 from malsim.agents import PassiveAgent, BreadthFirstAttacker
 
-def path_relative_to_tests(filename):
+def path_relative_to_tests(filename: str) -> str:
     """Returns the absolute path of a file in ./tests
 
     Arguments:
@@ -21,7 +21,7 @@ def path_relative_to_tests(filename):
     return os.path.join(current_dir, f"{filename}")
 
 
-def test_load_scenario():
+def test_load_scenario() -> None:
     """Make sure we can load a scenario"""
 
     # Load the scenario
@@ -68,7 +68,7 @@ def test_load_scenario():
     assert isinstance(agents[1]['agent'], PassiveAgent)
 
 
-def test_load_scenario_no_attacker_in_model():
+def test_load_scenario_no_attacker_in_model() -> None:
     """Make sure we can load a scenario"""
 
     # Load the scenario
@@ -89,7 +89,7 @@ def test_load_scenario_no_attacker_in_model():
     assert attack_step in attacker.entry_points
 
 
-def test_load_scenario_attacker_in_model():
+def test_load_scenario_attacker_in_model() -> None:
     """
     Make sure model attacker is removed if scenario has attacker
     Make sure model attacker is not removed if scenario has no attacker
@@ -115,7 +115,7 @@ def test_load_scenario_attacker_in_model():
     assert all_attackers[0].name == 'Attacker:15' # From scenario
 
 
-def test_load_scenario_no_defender_agent():
+def test_load_scenario_no_defender_agent() -> None:
     """Make sure we can load a scenario"""
 
     # Load the scenario
@@ -128,7 +128,7 @@ def test_load_scenario_no_defender_agent():
     assert isinstance(agents[0]['agent'], BreadthFirstAttacker)
 
 
-def test_load_scenario_agent_class_error():
+def test_load_scenario_agent_class_error() -> None:
     """Make sure we get error when loading with wrong class"""
 
     # Load the scenario
@@ -140,7 +140,7 @@ def test_load_scenario_agent_class_error():
         )
 
 
-def test_load_scenario_observability_given():
+def test_load_scenario_observability_given() -> None:
     """Load a scenario with observability settings given and
     make sure observability is applied correctly"""
 
@@ -163,7 +163,7 @@ def test_load_scenario_observability_given():
             assert not node.extras['observable']
 
 
-def test_load_scenario_observability_not_given():
+def test_load_scenario_observability_not_given() -> None:
     """Load a scenario where no observability settings are given"""
     # Load scenario with no observability specifed
     attack_graph, _ = load_scenario(
@@ -177,7 +177,7 @@ def test_load_scenario_observability_not_given():
         assert node.extras['observable']
 
 
-def test_apply_scenario_observability():
+def test_apply_scenario_observability() -> None:
     """Try different cases for observability settings"""
 
     # Load scenario with no observability specified
@@ -219,7 +219,7 @@ def test_apply_scenario_observability():
         else:
             assert not node.extras['observable']
 
-def test_apply_scenario_observability_faulty():
+def test_apply_scenario_observability_faulty() -> None:
     """Try different failing cases for observability settings"""
 
     # Load scenario with no observability specified
@@ -297,7 +297,7 @@ def test_apply_scenario_observability_faulty():
         )
 
 
-def test_load_scenario_false_positive_negative_rate():
+def test_load_scenario_false_positive_negative_rate() -> None:
     """Load a scenario with observability settings given and
     make sure observability is applied correctly"""
 
@@ -337,7 +337,7 @@ def test_load_scenario_false_positive_negative_rate():
             assert 'false_positive_rate' not in node.extras
             assert 'false_negative_rate' not in node.extras
 
-def test_apply_scenario_fpr_fnr():
+def test_apply_scenario_fpr_fnr() -> None:
     """Try different cases for false positives/negatives rates"""
 
     # Load scenario with no specified
@@ -389,7 +389,7 @@ def test_apply_scenario_fpr_fnr():
             assert 'false_negative_rate' not in node.extras
 
 
-def test_apply_scenario_rewards_old_format():
+def test_apply_scenario_rewards_old_format() -> None:
     """Try different cases for rewards"""
 
     # Load scenario with no specified

@@ -33,7 +33,7 @@ class BreadthFirstAttacker(DecisionAgent):
         'seed': None,
     }
 
-    def __init__(self, agent_config: dict) -> None:
+    def __init__(self, agent_config: dict[str, Any]) -> None:
         """Initialize a BFS/DFS agent.
 
         Args:
@@ -47,7 +47,7 @@ class BreadthFirstAttacker(DecisionAgent):
         self._started = False
 
     def get_next_action(
-        self, agent_state: MalSimAgentStateView, **kwargs
+        self, agent_state: MalSimAgentStateView, **kwargs: Any
     ) -> Optional[AttackGraphNode]:
         """Receive the next action according to agent policy (bfs/dfs)"""
 
@@ -69,7 +69,7 @@ class BreadthFirstAttacker(DecisionAgent):
         self,
         new_nodes: set[AttackGraphNode],
         disabled_nodes: set[AttackGraphNode],
-    ):
+    ) -> None:
         new_targets: list[AttackGraphNode] = []
         if self._settings['seed']:
             # If a seed is set, we assume the user wants determinism in the
