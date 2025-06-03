@@ -346,7 +346,9 @@ class MalSimulator():
         compromised_steps = set()
         for attacker_state in self._get_attacker_agents():
             # Create a new agent state for the attacker
-            assert attacker_state.attacker.id, "Attacker must have ID defined"
+            assert attacker_state.attacker.id is not None, (
+                f"Attacker {attacker_state.attacker} must have ID defined"
+            )
             attacker = self.attack_graph.attackers[attacker_state.attacker.id]
             self._agent_states[attacker_state.name] = (
                 self._create_attacker_state(attacker_state.name, attacker)
