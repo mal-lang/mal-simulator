@@ -133,6 +133,9 @@ def _validate_scenario_node_property_config(
             )
 
     # TODO: revisit this variable once LookupDicts are merged
+    assert graph.model, (
+        "Attack graph in scenario needs to have a model attached to it"
+    )
     asset_names = set(a.name for a in graph.model.assets.values())
     for asset_name in prop_config.get('by_asset_name', []):
         # Make sure each specified asset exist
@@ -260,6 +263,9 @@ def apply_scenario_node_property(
 
         # Check for matching specific asset(given by name) property
         # configuration entry
+        assert step.model_asset, (
+            f"Attack step {step} missing connection to model"
+        )
         prop_specific_asset_entries = (
             prop_config.get('by_asset_name', {})
             .get(step.model_asset.name, {})

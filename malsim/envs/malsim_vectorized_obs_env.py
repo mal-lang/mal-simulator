@@ -46,7 +46,9 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
 
         # Useful instead of having to fetch .sim.attack_graph
         self.attack_graph = sim.attack_graph
-
+        assert self.attack_graph.model, (
+            "Attack graph in simulator needs to have a model attached to it"
+        )
         # List mapping from node/asset index to id/name/type
         self._index_to_id = [n.id for n in self.attack_graph.nodes.values()]
         self._index_to_full_name = (
@@ -127,7 +129,8 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
                 self._asset_type_to_index[step.lg_attack_step.asset.name]
                 for step in self.attack_graph.nodes.values()],
             "asset_id": [step.model_asset.id
-                         for step in self.attack_graph.nodes.values()],
+                         for step in self.attack_graph.nodes.values()
+                         if step.model_asset],
             "step_name": [
                 self._step_name_to_index.get(
                     str(step.lg_attack_step.asset.name + ":" + step.name)
@@ -172,6 +175,7 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
         observation["model_edges_ids"] = []
         observation["model_edges_type"] = []
 
+        assert self.attack_graph.model, "Graph needs model attached to it"
         for asset in self.attack_graph.model.assets.values():
             observation["model_asset_id"].append(asset.id)
             observation["model_asset_type"].append(
@@ -268,6 +272,9 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent_name: Optional[str] = None) -> Dict:
         # For now, an `object` is an attack step
+        assert self.attack_graph.model, (
+            "Attack graph in simulator needs to have a model attached to it"
+        )
         num_assets = len(self.attack_graph.model.assets)
         num_steps = len(self.attack_graph.nodes)
         num_lang_asset_types = len(self.sim.attack_graph.lang_graph.assets)
@@ -502,6 +509,9 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
 
         self.sim.reset(seed=seed, options=options)
         self.attack_graph = self.sim.attack_graph # new ref
+        assert self.attack_graph.model, (
+            "Attack graph in simulator needs to have a model attached to it"
+        )
 
         for agent in self.sim.agent_states.values():
             # Reset observation and action mask for agents

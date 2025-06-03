@@ -9,8 +9,12 @@ from typing import Any, Optional
 
 from maltoolbox import neo4j_configs
 from maltoolbox.ingestors import neo4j
-from maltoolbox.attackgraph import (AttackGraph, AttackGraphNode,
-    Attacker, query)
+from maltoolbox.attackgraph import (
+    AttackGraph,
+    AttackGraphNode,
+    Attacker,
+    query
+)
 from maltoolbox.attackgraph.analyzers import apriori
 
 ITERATIONS_LIMIT = int(1e9)
@@ -342,6 +346,7 @@ class MalSimulator():
         compromised_steps = set()
         for attacker_state in self._get_attacker_agents():
             # Create a new agent state for the attacker
+            assert attacker_state.attacker.id, "Attacker must have ID defined"
             attacker = self.attack_graph.attackers[attacker_state.attacker.id]
             self._agent_states[attacker_state.name] = (
                 self._create_attacker_state(attacker_state.name, attacker)
