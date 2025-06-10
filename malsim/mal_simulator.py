@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 from dataclasses import dataclass, field
 import logging
 from enum import Enum
@@ -332,9 +331,6 @@ class MalSimulator():
         self.prune_unviable_unnecessary = prune_unviable_unnecessary
         prepare_attack_graph(attack_graph, prune_unviable_unnecessary)
 
-        # Keep a backup attack graph to use when resetting
-        self.attack_graph_backup = copy.deepcopy(attack_graph)
-
         # Initialize all values
         self.attack_graph = attack_graph
 
@@ -348,7 +344,6 @@ class MalSimulator():
         # Keep track on all 'living' agents sorted by order to step in
         self._alive_agents: set[str] = set()
 
-
     def reset(
         self,
         seed: Optional[int] = None,
@@ -357,19 +352,13 @@ class MalSimulator():
         """Reset attack graph, iteration and reinitialize agents"""
 
         logger.info("Resetting MAL Simulator.")
-        # Reset attack graph
-        self.attack_graph = copy.deepcopy(self.attack_graph_backup)
 
-        #TODO: If we do a soft reset of the attack graph we do not need
-        # prepare it again. The deepcopy loses the defense, viability, and
-        # necessity values.
         prepare_attack_graph(
             self.attack_graph,
             self.prune_unviable_unnecessary
         )
-
-        # Reset current iteration
         self.cur_iter = 0
+
         # Reset agents
         self._reset_agents()
 
@@ -492,15 +481,10 @@ class MalSimulator():
 
         # Create new attacker agent states
         for attacker_state in self._get_attacker_agents():
-            # TODO: Re-fetching the entry nodes is only need if we fully reset
-            # the attack graph which should not be the case with the new
-            # implementation.
-            new_entry_point_nodes = {self.attack_graph.nodes[node.id]
-                for node in attacker_state.entry_points}
             self._agent_states[attacker_state.name] = (
                 self._create_attacker_state(
                     attacker_state.name,
-                    new_entry_point_nodes
+                    attacker_state.entry_points
                 )
             )
 
