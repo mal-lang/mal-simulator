@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 from dataclasses import dataclass, field
 import logging
 from enum import Enum
@@ -193,9 +192,6 @@ class MalSimulator():
         if prune_unviable_unnecessary:
             apriori.prune_unviable_and_unnecessary_nodes(attack_graph)
 
-        # Keep a backup attack graph to use when resetting
-        self.attack_graph_backup = copy.deepcopy(attack_graph)
-
         # Initialize all values
         self.attack_graph = attack_graph
 
@@ -217,9 +213,22 @@ class MalSimulator():
         """Reset attack graph, iteration and reinitialize agents"""
 
         logger.info("Resetting MAL Simulator.")
-        # Reset attack graph
-        self.attack_graph = copy.deepcopy(self.attack_graph_backup)
-        # Reset current iteration
+
+        # Disable all defenses and uncompromise all attack steps
+        for attacker_state in self._get_attacker_agents():
+            for node in attacker_state.performed_nodes:
+                if node not in attacker_state.attacker.entry_points:
+                    node.undo_compromise(attacker_state.attacker)
+
+        for defender_state in self._get_defender_agents():
+            for node in defender_state.performed_nodes:
+                node.defense_status = 0.0
+                node.is_viable = True
+
+
+        # Recalculate viability and necessity
+        apriori.calculate_viability_and_necessity(self.attack_graph)
+
         self.cur_iter = 0
         # Reset agents
         self._reset_agents()
