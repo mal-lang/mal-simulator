@@ -240,8 +240,8 @@ class MalSimulator():
     ) -> MalSimAttackerState:
         """Create a new defender state, initialize values"""
         attacker_state = MalSimAttackerState(name, attacker)
-        attacker_state.step_performed_nodes = attacker.reached_attack_steps
-        attacker_state.performed_nodes = attacker.reached_attack_steps
+        attacker_state.step_performed_nodes = set(attacker.reached_attack_steps)
+        attacker_state.performed_nodes = set(attacker.reached_attack_steps)
         attacker_state.action_surface = query.calculate_attack_surface(
             attacker, skip_compromised = True
         )
