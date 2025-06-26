@@ -7,7 +7,9 @@ from malsim.agents import (
     DefendFutureCompromisedDefender
 )
 
-def test_defend_compromised_defender(dummy_lang_graph: LanguageGraph):
+def test_defend_compromised_defender(
+        dummy_lang_graph: LanguageGraph
+    ) -> None:
     r"""
             node1          node2
             /    \         /   \
@@ -72,7 +74,9 @@ def test_defend_compromised_defender(dummy_lang_graph: LanguageGraph):
     assert action_node.id == node1.id
 
 
-def test_defend_future_compromised_defender(dummy_lang_graph: LanguageGraph):
+def test_defend_future_compromised_defender(
+        dummy_lang_graph: LanguageGraph
+    ) -> None:
     r"""
             node1              node2
             /    \             /     \

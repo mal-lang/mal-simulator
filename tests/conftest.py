@@ -15,7 +15,7 @@ lang_file_name ='tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar'
 
 ## Helpers
 
-def path_testdata(filename):
+def path_testdata(filename: str) -> str:
     """Returns the absolute path of a test data file (in ./testdata)
 
     Arguments:
@@ -23,16 +23,6 @@ def path_testdata(filename):
     """
     current_dir = path.dirname(path.realpath(__file__))
     return path.join(current_dir, f"testdata/{filename}")
-
-
-def empty_model(name, lang_classes_factory):
-    """Fixture that generates a model for tests
-
-    Uses coreLang specification (fixture) to create and return Model
-    """
-
-    # Create instance model from model json file
-    return Model(name, lang_classes_factory)
 
 ## Fixtures
 
@@ -50,21 +40,21 @@ def fixture_env()-> MalSimVectorizedObsEnv:
 
 
 @pytest.fixture
-def corelang_lang_graph():
+def corelang_lang_graph() -> LanguageGraph:
     """Fixture that returns the coreLang language specification as dict"""
     mar_file_path = path_testdata("org.mal-lang.coreLang-1.0.0.mar")
     return LanguageGraph.from_mar_archive(mar_file_path)
 
 
 @pytest.fixture
-def traininglang_lang_graph():
+def traininglang_lang_graph() -> LanguageGraph:
     """Fixture that returns the trainingLang language specification as dict"""
     mar_file_path = path_testdata("langs/org.mal-lang.trainingLang-1.0.0.mar")
     return LanguageGraph.from_mar_archive(mar_file_path)
 
 
 @pytest.fixture
-def traininglang_model(traininglang_lang_graph):
+def traininglang_model(traininglang_lang_graph: LanguageGraph) -> Model:
     """Fixture that generates a model for tests
 
     Uses trainingLang specification (fixture) to create and return a
@@ -76,7 +66,7 @@ def traininglang_model(traininglang_lang_graph):
 
 
 @pytest.fixture
-def model(corelang_lang_graph):
+def model(corelang_lang_graph: LanguageGraph) -> Model:
     """Fixture that generates a model for tests
 
     Uses coreLang specification (fixture) to create and return a
@@ -86,7 +76,7 @@ def model(corelang_lang_graph):
     return Model.load_from_file(model_file_name, corelang_lang_graph)
 
 @pytest.fixture
-def dummy_lang_graph(corelang_lang_graph):
+def dummy_lang_graph(corelang_lang_graph: LanguageGraph) -> LanguageGraph:
     """Fixture that generates a dummy LanguageGraph with a dummy
     LanguageGraphAsset and LanguageGraphAttackStep
     """
