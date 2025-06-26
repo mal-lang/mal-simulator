@@ -7,6 +7,8 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Any, Optional
 
+from .visualization.malsim_gui_client import MalSimGUIClient
+
 from maltoolbox import neo4j_configs
 from maltoolbox.ingestors import neo4j
 from maltoolbox.attackgraph import (AttackGraph, AttackGraphNode,
@@ -189,6 +191,9 @@ class MalSimulator():
         if prune_unviable_unnecessary:
             apriori.prune_unviable_and_unnecessary_nodes(attack_graph)
 
+        # Initialize the REST API client
+        self.rest_api_client = MalSimGUIClient()
+
         # Keep a backup attack graph to use when resetting
         self.attack_graph_backup = copy.deepcopy(attack_graph)
 
@@ -219,6 +224,9 @@ class MalSimulator():
         self.cur_iter = 0
         # Reset agents
         self._reset_agents()
+
+        # Upload initial state to the REST API
+        self.rest_api_client.upload_initial_state(self.attack_graph)
 
         return self.agent_states
 
@@ -640,6 +648,11 @@ class MalSimulator():
             if agent_state.terminated or agent_state.truncated:
                 logger.info("Removing agent %s", agent_state.name)
                 self._alive_agents.remove(agent_state.name)
+
+        self.rest_api_client.upload_performed_nodes(
+            list(step_all_compromised_nodes | step_enabled_defenses),
+            self.cur_iter
+        )
 
         self.cur_iter += 1
         return self.agent_states
