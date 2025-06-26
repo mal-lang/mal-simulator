@@ -35,9 +35,12 @@ from malsim.scenario import (
     load_scenario
 )
 
+from malsim.visualization.malsim_gui_client import MalSimGUIClient
+
 if TYPE_CHECKING:
     from malsim.scenario import Scenario
     from malsim.agents import DecisionAgent
+
 
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
@@ -192,6 +195,9 @@ class MalSimulator():
         logger.info("Creating Base MAL Simulator.")
         self.sim_settings = sim_settings
         self.rng = default_rng(self.sim_settings.seed)
+
+        # Initialize the REST API client
+        self.rest_api_client = MalSimGUIClient()
 
         # Initialize all values
         self.attack_graph = attack_graph
@@ -502,6 +508,9 @@ class MalSimulator():
         self.cur_iter = 0
         self.recording = {}
         self._reset_agents()
+
+        # Upload initial state to the REST API
+        self.rest_api_client.upload_initial_state(self.attack_graph)
 
         return self.agent_states
 
@@ -1256,6 +1265,11 @@ class MalSimulator():
                     "Agent %s terminated", agent_state.name
                 )
                 self._alive_agents.remove(agent_state.name)
+
+        self.rest_api_client.upload_performed_nodes(
+            list(step_compromised_nodes | step_enabled_defenses),
+            self.cur_iter
+        )
 
         self.cur_iter += 1
         return self.agent_states
