@@ -37,18 +37,14 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
     Implements the ParallelEnv.
     """
 
-    def __init__(
-            self,
-            sim: MalSimulator
-        ):
+    def __init__(self, sim: MalSimulator):
 
         self.sim = sim
-
-        # Useful instead of having to fetch .sim.attack_graph
         self.attack_graph = sim.attack_graph
         assert self.attack_graph.model, (
             "Attack graph in simulator needs to have a model attached to it"
         )
+
         # List mapping from node/asset index to id/name/type
         self._index_to_id = [n.id for n in self.attack_graph.nodes.values()]
         self._index_to_full_name = (
@@ -63,7 +59,7 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
             for asset in self.attack_graph.lang_graph.assets.values()
             for n in asset.attack_steps.values()
         }
-        self._index_to_step_name = list(unique_step_type_names)
+        self._index_to_step_type_name = list(unique_step_type_names)
 
         self._index_to_model_asset_id = (
             [int(asset_id) for asset_id in self.attack_graph.model.assets]
@@ -81,8 +77,8 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
             n: i for i, n in enumerate(self._index_to_id)}
         self._asset_type_to_index = {
             n: i for i, n in enumerate(self._index_to_asset_type)}
-        self._step_name_to_index = {
-            n: i for i, n in enumerate(self._index_to_step_name)
+        self._step_type_name_to_index = {
+            n: i for i, n in enumerate(self._index_to_step_type_name)
         }
         self._model_asset_id_to_index = {
             asset: i for i, asset in enumerate(self._index_to_model_asset_id)
@@ -132,7 +128,7 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
                          for step in self.attack_graph.nodes.values()
                          if step.model_asset],
             "step_name": [
-                self._step_name_to_index.get(
+                self._step_type_name_to_index.get(
                     str(step.lg_attack_step.asset.name + ":" + step.name)
                 ) for step in self.attack_graph.nodes.values()],
         }
