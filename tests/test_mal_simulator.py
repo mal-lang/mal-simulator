@@ -113,7 +113,9 @@ def test_reset_deepcopy(corelang_lang_graph, model):
         )
 
 
-def test_reset_after_compromise_and_defense(corelang_lang_graph, model):
+def test_reset_after_compromise_and_defense(
+        corelang_lang_graph, model
+    ) -> None:
     """Make sure attack graph is reset"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
