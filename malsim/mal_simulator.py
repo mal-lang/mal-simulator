@@ -163,6 +163,11 @@ class MalSimulatorSettings():
     # - Leave the node/step compromised even after it becomes untraversable
     uncompromise_untraversable_steps: bool = False
 
+    # Whether to deepcopy the attack graph on reset
+    # If set to True, the attack graph will be deepcopied on reset.
+    # otherwise it will reset each node on the initial attack graph.
+    deepcopy_on_reset: bool = False
+
 
 class MalSimulator():
     """A MAL Simulator that works on the AttackGraph
@@ -193,9 +198,6 @@ class MalSimulator():
         if prune_unviable_unnecessary:
             apriori.prune_unviable_and_unnecessary_nodes(attack_graph)
 
-        # Keep a backup attack graph to use when resetting
-        self.attack_graph_backup = copy.deepcopy(attack_graph)
-
         # Initialize all values
         self.attack_graph = attack_graph
 
@@ -209,6 +211,29 @@ class MalSimulator():
         # Keep track on all 'living' agents sorted by order to step in
         self._alive_agents: set[str] = set()
 
+        self._performed_since_reset: set[AttackGraphNode] = set()
+
+        self.attack_graph_backup: Optional[AttackGraph] = None
+        if self.sim_settings.deepcopy_on_reset:
+            # Keep a backup attack graph to use when resetting
+            self.attack_graph_backup = copy.deepcopy(attack_graph)
+
+
+    def _unperform_nodes(self, nodes: set[AttackGraphNode]) -> None:
+        """Uncompromise/disable nodes in the attack graph"""
+
+        for node in nodes:
+            if node.type in ('or', 'and'):
+                # Node is an attack step, uncompromise it
+                for attacker in node.compromised_by.copy():
+                    node.undo_compromise(attacker)
+
+            elif node.type == 'defense':
+                # Node is a defense, disable it
+                node.defense_status = 0.0
+                node.is_viable = True
+                apriori.propagate_viability_from_node(node)
+
     def reset(
         self,
         seed: Optional[int] = None,
@@ -217,9 +242,20 @@ class MalSimulator():
         """Reset attack graph, iteration and reinitialize agents"""
 
         logger.info("Resetting MAL Simulator.")
-        # Reset attack graph
-        self.attack_graph = copy.deepcopy(self.attack_graph_backup)
-        # Reset current iteration
+
+        if self.sim_settings.deepcopy_on_reset:
+            # Reset the attack graph to the backup with deepcopy
+            assert self.attack_graph_backup is not None, (
+                "Attack graph backup is not set, cannot reset attack graph!"
+            )
+            self.attack_graph = copy.deepcopy(self.attack_graph_backup)
+        else:
+            # Reset the state of the attack graph without deepcopy
+            self._unperform_nodes(self._performed_since_reset)
+
+        # Recalculate viability and necessity
+        apriori.calculate_viability_and_necessity(self.attack_graph)
+
         self.cur_iter = 0
         # Reset agents
         self._reset_agents()
@@ -231,8 +267,8 @@ class MalSimulator():
     ) -> MalSimAttackerState:
         """Create a new defender state, initialize values"""
         attacker_state = MalSimAttackerState(name, attacker)
-        attacker_state.step_performed_nodes = attacker.reached_attack_steps
-        attacker_state.performed_nodes = attacker.reached_attack_steps
+        attacker_state.step_performed_nodes = set(attacker.reached_attack_steps)
+        attacker_state.performed_nodes = set(attacker.reached_attack_steps)
         attacker_state.action_surface = query.calculate_attack_surface(
             attacker, skip_compromised = True
         )
@@ -651,6 +687,11 @@ class MalSimulator():
             if agent_state.terminated or agent_state.truncated:
                 logger.info("Removing agent %s", agent_state.name)
                 self._alive_agents.remove(agent_state.name)
+
+        # Keep track on performed nodes since last reset
+        self._performed_since_reset |= (
+            step_all_compromised_nodes | step_enabled_defenses
+        )
 
         self.cur_iter += 1
         return self.agent_states
