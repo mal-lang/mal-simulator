@@ -60,7 +60,9 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     assert attack_graph_before_copy._to_dict() == sim.attack_graph._to_dict()
 
 
-def test_reset_deepcopy(corelang_lang_graph, model):
+def test_reset_deepcopy(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
     """Make sure attack graph is reset with deepcopy"""
     attack_graph = AttackGraph(corelang_lang_graph, model)
 
@@ -113,7 +115,9 @@ def test_reset_deepcopy(corelang_lang_graph, model):
         )
 
 
-def test_reset_after_compromise_and_defense(corelang_lang_graph, model):
+def test_reset_after_compromise_and_defense(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
     """Make sure attack graph is reset"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
