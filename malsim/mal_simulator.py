@@ -220,6 +220,7 @@ class MalSimulator():
                 # Node is a defense, disable it
                 node.defense_status = 0.0
                 node.is_viable = True
+                apriori.propagate_viability_from_node(node)
 
     def reset(
         self,

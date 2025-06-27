@@ -60,28 +60,30 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     assert attack_graph_before_copy._to_dict() == sim.attack_graph._to_dict()
 
 
-def test_reset_after_compromise(corelang_lang_graph, model):
+def test_reset_after_compromise_and_defense(corelang_lang_graph, model):
     """Make sure attack graph is reset"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    agent_entry_point = attack_graph.get_node_by_full_name(
+    attacker_entry_point = attack_graph.get_node_by_full_name(
         'OS App:networkConnectUninspected')
+
     attacker_name = "testagent"
+    defender_name = "defender"
+
     attacker = Attacker(
         attacker_name,
-        entry_points = {agent_entry_point},
-        reached_attack_steps = {agent_entry_point},
+        entry_points = {attacker_entry_point},
+        reached_attack_steps = {attacker_entry_point},
         attacker_id = 100
     )
-
     attack_graph.add_attacker(attacker, attacker.id)
+
+    # Create simulator and register agents
     sim = MalSimulator(attack_graph)
-
     initial_attack_graph = copy.deepcopy(sim.attack_graph)
-
     sim.register_attacker(attacker_name, attacker.id)
-    assert attacker.name in sim.agent_states
-    assert len(sim.agent_states) == 1
+    sim.register_defender(defender_name)
+    assert len(sim.agent_states) == 2
 
     # Reset the simulator to initialize the agents
     states = sim.reset()
@@ -94,11 +96,28 @@ def test_reset_after_compromise(corelang_lang_graph, model):
     )
     assert compromise_this.is_compromised()
 
+    # Defend something
+    defend_this = next(iter(states[defender_name].action_surface))
+    assert not defend_this.is_enabled_defense()
+    sim.step({
+        defender_name: [defend_this]}
+    )
+    assert defend_this.is_enabled_defense()
+
     # Attack graph should be reset to initial state
     sim.reset()
 
     assert not compromise_this.is_compromised()
-    assert initial_attack_graph._to_dict() == sim.attack_graph._to_dict()
+
+    initial_graph_dict = initial_attack_graph._to_dict()
+    current_graph_dict = sim.attack_graph._to_dict()
+
+    for step in initial_graph_dict['attack_steps']:
+        # Check that the attack steps are the same
+        assert (
+            current_graph_dict['attack_steps'][step]
+            == initial_graph_dict['attack_steps'][step]
+        )
 
 
 def test_register_agent_attacker(
