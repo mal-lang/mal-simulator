@@ -2,6 +2,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+import copy
+
 from maltoolbox.attackgraph import AttackGraphNode, AttackGraph, Attacker
 from malsim.mal_simulator import MalSimulator
 from malsim.scenario import load_scenario, create_simulator_from_scenario
@@ -33,30 +35,71 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     )
 
     attack_graph.add_attacker(attacker, attacker.id)
-
     sim = MalSimulator(attack_graph)
 
-    attack_graph_before = sim.attack_graph
+    attack_graph_before_copy = copy.deepcopy(sim.attack_graph)
+
     sim.register_attacker(attacker_name, attacker.id)
     assert attacker.name in sim.agent_states
     assert len(sim.agent_states) == 1
 
     sim.reset()
 
-    attack_graph_after = sim.attack_graph
-
     # Make sure agent was added (and not removed)
     assert attacker.name in sim.agent_states
-    # Make sure the attack graph is not the same object but identical
-    assert id(attack_graph_before) != id(attack_graph_after)
 
-    for node in attack_graph_after.nodes.values():
+    # Make the copy of the old attack graph is not the same object
+    assert id(attack_graph_before_copy) != id(sim.attack_graph)
+
+    for node in sim.attack_graph.nodes.values():
         # Entry points are added to the nodes after backup is created
         # So they have to be removed for the graphs to be compared as identical
         if 'entrypoint' in node.extras:
             del node.extras['entrypoint']
 
-    assert attack_graph_before._to_dict() == attack_graph_after._to_dict()
+    assert attack_graph_before_copy._to_dict() == sim.attack_graph._to_dict()
+
+
+def test_reset_after_compromise(corelang_lang_graph, model):
+    """Make sure attack graph is reset"""
+
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    agent_entry_point = attack_graph.get_node_by_full_name(
+        'OS App:networkConnectUninspected')
+    attacker_name = "testagent"
+    attacker = Attacker(
+        attacker_name,
+        entry_points = {agent_entry_point},
+        reached_attack_steps = {agent_entry_point},
+        attacker_id = 100
+    )
+
+    attack_graph.add_attacker(attacker, attacker.id)
+    sim = MalSimulator(attack_graph)
+
+    initial_attack_graph = copy.deepcopy(sim.attack_graph)
+
+    sim.register_attacker(attacker_name, attacker.id)
+    assert attacker.name in sim.agent_states
+    assert len(sim.agent_states) == 1
+
+    # Reset the simulator to initialize the agents
+    states = sim.reset()
+
+    # Compromise something
+    compromise_this = next(iter(states[attacker_name].action_surface))
+    assert not compromise_this.is_compromised()
+    sim.step({
+        attacker_name: [compromise_this]}
+    )
+    assert compromise_this.is_compromised()
+
+    # Attack graph should be reset to initial state
+    sim.reset()
+
+    assert not compromise_this.is_compromised()
+    assert initial_attack_graph._to_dict() == sim.attack_graph._to_dict()
+
 
 def test_register_agent_attacker(
         corelang_lang_graph: LanguageGraph, model: Model
