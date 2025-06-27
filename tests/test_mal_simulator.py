@@ -1,13 +1,13 @@
 """Test MalSimulator class"""
 from __future__ import annotations
 from typing import TYPE_CHECKING
-
 import copy
 
 from maltoolbox.attackgraph import AttackGraphNode, AttackGraph, Attacker
-from malsim.mal_simulator import MalSimulator
+
 from malsim.scenario import load_scenario, create_simulator_from_scenario
 from malsim.mal_simulator import MalSimDefenderState, MalSimAttackerState
+from malsim.mal_simulator import MalSimulator, MalSimulatorSettings
 
 if TYPE_CHECKING:
     from maltoolbox.language import LanguageGraph
@@ -60,6 +60,59 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     assert attack_graph_before_copy._to_dict() == sim.attack_graph._to_dict()
 
 
+def test_reset_deepcopy(corelang_lang_graph, model):
+    """Make sure attack graph is reset with deepcopy"""
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+
+    agent_entry_point = attack_graph.get_node_by_full_name(
+        'OS App:networkConnectUninspected')
+
+    attacker_name = "testagent"
+
+    attacker = Attacker(
+        attacker_name,
+        entry_points = {agent_entry_point},
+        reached_attack_steps = {agent_entry_point},
+        attacker_id = 100
+    )
+
+    attack_graph.add_attacker(attacker, attacker.id)
+    sim = MalSimulator(
+        attack_graph,
+        sim_settings=MalSimulatorSettings(deepcopy_on_reset=True)
+    )
+
+    attack_graph_before_copy = sim.attack_graph
+
+    sim.register_attacker(attacker_name, attacker.id)
+    assert attacker.name in sim.agent_states
+    assert len(sim.agent_states) == 1
+
+    sim.reset()
+
+    # Make sure agent was added (and not removed)
+    assert attacker.name in sim.agent_states
+
+    # Make the copy of the old attack graph is not the same object
+    assert id(attack_graph_before_copy) != id(sim.attack_graph)
+
+    for node in sim.attack_graph.nodes.values():
+        # Entry points are added to the nodes after backup is created
+        # So they have to be removed for the graphs to be compared as identical
+        if 'entrypoint' in node.extras:
+            del node.extras['entrypoint']
+
+    graph_before_copy_dict = attack_graph_before_copy._to_dict()
+    current_graph_dict = sim.attack_graph._to_dict()
+
+    for step in graph_before_copy_dict['attack_steps']:
+        # Check that the attack steps are the same
+        assert (
+            current_graph_dict['attack_steps'][step]
+            == graph_before_copy_dict['attack_steps'][step]
+        )
+
+
 def test_reset_after_compromise_and_defense(corelang_lang_graph, model):
     """Make sure attack graph is reset"""
 
@@ -86,10 +139,11 @@ def test_reset_after_compromise_and_defense(corelang_lang_graph, model):
     assert len(sim.agent_states) == 2
 
     # Reset the simulator to initialize the agents
-    states = sim.reset()
+    sim.reset()
 
     # Compromise something
-    compromise_this = next(iter(states[attacker_name].action_surface))
+    compromise_this = sim.attack_graph.get_node_by_full_name("OS App:networkConnect")
+    assert compromise_this
     assert not compromise_this.is_compromised()
     sim.step({
         attacker_name: [compromise_this]}
@@ -97,7 +151,8 @@ def test_reset_after_compromise_and_defense(corelang_lang_graph, model):
     assert compromise_this.is_compromised()
 
     # Defend something
-    defend_this = next(iter(states[defender_name].action_surface))
+    defend_this = sim.attack_graph.get_node_by_full_name("OS App:supplyChainAuditing")
+    assert defend_this
     assert not defend_this.is_enabled_defense()
     sim.step({
         defender_name: [defend_this]}

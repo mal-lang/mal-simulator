@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 import logging
 from enum import Enum
@@ -162,6 +163,11 @@ class MalSimulatorSettings():
     # - Leave the node/step compromised even after it becomes untraversable
     uncompromise_untraversable_steps: bool = False
 
+    # Whether to deepcopy the attack graph on reset
+    # If set to True, the attack graph will be deepcopied on reset.
+    # otherwise it will reset each node on the initial attack graph.
+    deepcopy_on_reset: bool = False
+
 
 class MalSimulator():
     """A MAL Simulator that works on the AttackGraph
@@ -207,6 +213,12 @@ class MalSimulator():
 
         self._performed_since_reset: set[AttackGraphNode] = set()
 
+        self.attack_graph_backup: Optional[AttackGraph] = None
+        if self.sim_settings.deepcopy_on_reset:
+            # Keep a backup attack graph to use when resetting
+            self.attack_graph_backup = copy.deepcopy(attack_graph)
+
+
     def _unperform_nodes(self, nodes: set[AttackGraphNode]) -> None:
         """Uncompromise/disable nodes in the attack graph"""
 
@@ -231,8 +243,15 @@ class MalSimulator():
 
         logger.info("Resetting MAL Simulator.")
 
-        # Reset the state of the attack graph
-        self._unperform_nodes(self._performed_since_reset)
+        if self.sim_settings.deepcopy_on_reset:
+            # Reset the attack graph to the backup with deepcopy
+            assert self.attack_graph_backup is not None, (
+                "Attack graph backup is not set, cannot reset attack graph!"
+            )
+            self.attack_graph = copy.deepcopy(self.attack_graph_backup)
+        else:
+            # Reset the state of the attack graph without deepcopy
+            self._unperform_nodes(self._performed_since_reset)
 
         # Recalculate viability and necessity
         apriori.calculate_viability_and_necessity(self.attack_graph)
