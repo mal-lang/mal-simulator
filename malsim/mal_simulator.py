@@ -205,6 +205,22 @@ class MalSimulator():
         # Keep track on all 'living' agents sorted by order to step in
         self._alive_agents: set[str] = set()
 
+        self._performed_since_reset: set[AttackGraphNode] = set()
+
+    def _unperform_nodes(self, nodes: set[AttackGraphNode]) -> None:
+        """Uncompromise/disable nodes in the attack graph"""
+
+        for node in nodes:
+            if node.type in ('or', 'and'):
+                # Node is an attack step, uncompromise it
+                for attacker in node.compromised_by.copy():
+                    node.undo_compromise(attacker)
+
+            elif node.type == 'defense':
+                # Node is a defense, disable it
+                node.defense_status = 0.0
+                node.is_viable = True
+
     def reset(
         self,
         seed: Optional[int] = None,
@@ -214,17 +230,8 @@ class MalSimulator():
 
         logger.info("Resetting MAL Simulator.")
 
-        # Disable all defenses and uncompromise all attack steps
-        for attacker_state in self._get_attacker_agents():
-            for node in attacker_state.performed_nodes:
-                if node not in attacker_state.attacker.entry_points:
-                    node.undo_compromise(attacker_state.attacker)
-
-        for defender_state in self._get_defender_agents():
-            for node in defender_state.performed_nodes:
-                node.defense_status = 0.0
-                node.is_viable = True
-
+        # Reset the state of the attack graph
+        self._unperform_nodes(self._performed_since_reset)
 
         # Recalculate viability and necessity
         apriori.calculate_viability_and_necessity(self.attack_graph)
@@ -660,6 +667,11 @@ class MalSimulator():
             if agent_state.terminated or agent_state.truncated:
                 logger.info("Removing agent %s", agent_state.name)
                 self._alive_agents.remove(agent_state.name)
+
+        # Keep track on performed nodes since last reset
+        self._performed_since_reset |= (
+            step_all_compromised_nodes | step_enabled_defenses
+        )
 
         self.cur_iter += 1
         return self.agent_states
