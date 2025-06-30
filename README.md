@@ -219,3 +219,168 @@ options:
 
 This will create an attack graph using the configuration in the scenarios file, apply the rewards, add the attacker and run the simulation with the attacker.
 Currently having more than one attacker in the scenario file will have no effect to how the simulation is run, it will only run the first one as an agent.
+
+## Running the simulator without the CLI
+
+To run a more customized simulator or use wrappers/gym envs, you must write your own simulation loop.
+
+To initialize the MalSimulator you either need a scenario file or an attack graph loaded through some other means.
+
+### Initializing simulator programatically with a scenario file
+
+The regular simulator works with attack graph nodes and keeps track on agents state with those.
+
+```python
+import logging
+
+from malsim.scenario import create_simulator_from_scenario
+from malsim.envs import MalSimVectorizedObsEnv
+from malsim import MalSimulator
+
+logging.basicConfig() # Enable logging
+
+scenario_file = "tests/testdata/scenarios/traininglang_scenario.yml"
+sim, agents = create_simulator_from_scenario(scenario_file)
+
+# `sim` is the actual MALSimulator
+assert isinstance(sim, MalSimulator)
+
+# `agents` is a list of the scenario agents which are
+# automatically registered when you use `create_simulator_from_scenario``
+assert isinstance(agents, list)
+
+agent_states = sim.reset()
+
+# `agent_states` is a dict of agent names mapping to agent states
+# agent states contain info about the agents current state
+assert isinstance(agent_states, dict)
+
+# You can run simulations with the MalSimulator,
+# but you need to write a simulation loop:
+
+# Termination condition for our simulation loop
+all_agents_term_or_trunc = False
+
+i = 1
+while not all_agents_term_or_trunc:
+    all_agents_term_or_trunc = True
+    actions = {}
+
+    # Select actions for each agent
+    for agent_dict in agents:
+        agent_name = agent_dict['name']
+        # Generate actions - empty list is none action
+        # In this case we just pick the first action from the action surface
+        action = next(iter(agent_states[agent_name].action_surface))
+        actions[agent_dict['name']] = [action] if action else []
+
+    # Perform next step of simulation
+    agent_states = sim.step(actions)
+
+    for agent_dict in agents:
+        agent_state = agent_states[agent_dict['name']]
+        if not agent_state.terminated and not agent_state.truncated:
+            all_agents_term_or_trunc = False
+
+    print("---\n")
+    i += 1
+
+print("Game Over.")
+```
+
+## Running the VectorizedEnv (serialized observations)
+
+You can run the vectorized without gymnasium to receive serialized observations.
+
+```python
+
+import logging
+from typing import Optional
+
+from malsim.scenario import load_scenario
+from malsim.envs import MalSimVectorizedObsEnv
+from malsim.mal_simulator import MalSimulator, AgentType
+
+logging.basicConfig() # Enable logging
+
+scenario_file = "tests/testdata/scenarios/traininglang_scenario.yml"
+attack_graph, agents = load_scenario(scenario_file)
+
+# The vectorized obs env is a wrapper that creates serialized observations
+# for the simulator, similar to how the old simulator used to work, tailored
+# for use in gym envs.
+vectorized_env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
+
+# You need to register the agents manually.
+for agent in agents:
+    if agent['type'] == AgentType.ATTACKER:
+        vectorized_env.register_attacker(agent['name'], agent['attacker_id'])
+    elif agent['type'] == AgentType.DEFENDER:
+        vectorized_env.register_defender(agent['name'])
+
+# Run reset after agents are registered
+obs, info = vectorized_env.reset()
+
+# You need to write your own simulator loop:
+done = False
+while not done:
+    actions: dict[str, tuple[int, Optional[int]]] = {}
+
+    for agent in agents:
+        vectorized_agent_info = info[agent['name']] # Contains action mask which can be used
+        regular_agent_info = vectorized_env.sim.agent_states[agent['name']] # Also contains action mask
+        action = next(iter(regular_agent_info.action_surface))
+
+        if action:
+            actions[agent['name']] = (1, vectorized_env.node_to_index(action))
+        else:
+            actions[agent['name']] = (0, None)
+
+    obs, rew, term, trunc, info = vectorized_env.step(actions)
+
+    for agent in agents:
+        done = all(term.values()) or all(trunc.values())
+
+```
+
+## Running the Gym envs
+
+You can run the gym envs.
+
+```python
+import logging
+
+from malsim.envs.gym_envs import register_envs
+import gymnasium as gym
+from gymnasium.spaces import MultiDiscrete, Dict
+
+# Enable logging to stdout
+logging.basicConfig()
+
+env_name = "MALDefenderEnv"
+scenario_file = "tests/testdata/scenarios/traininglang_scenario.yml"
+register_envs()
+env: gym.Env[Dict, MultiDiscrete] = gym.make(
+    env_name,
+    scenario_file=scenario_file
+)
+
+# info contains serialized action mask
+obs, info = env.reset()
+
+# Simulation loop
+term = False
+while not term:
+    # Action selection should not be handled like this is you
+    # are training an ML agent naturally
+    defender_name = env.unwrapped.defender_agent_name
+    agent_info = env.unwrapped.sim.get_agent_state(defender_name)
+    action_node = next(iter(agent_info.action_surface))
+
+    # This is to translate a node to an index
+    serialized_action = (0, None)
+    if action_node:
+        serialized_action = (1, env.unwrapped.sim.node_to_index(action_node))
+
+    obs, rew, term, trunc, info = env.step(serialized_action)
+```
