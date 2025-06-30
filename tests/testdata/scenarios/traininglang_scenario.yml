@@ -18,7 +18,7 @@ rewards:
 false_positive_rates:
   by_asset_type:
     Host:
-      access: 0.5
+      access: 0.1
 
 agents:
   'Attacker1':

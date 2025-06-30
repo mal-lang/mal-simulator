@@ -371,16 +371,7 @@ obs, info = env.reset()
 # Simulation loop
 term = False
 while not term:
-    # Action selection should not be handled like this is you
-    # are training an ML agent naturally
-    defender_name = env.unwrapped.defender_agent_name
-    agent_info = env.unwrapped.sim.get_agent_state(defender_name)
-    action_node = next(iter(agent_info.action_surface))
-
-    # This is to translate a node to an index
-    serialized_action = (0, None)
-    if action_node:
-        serialized_action = (1, env.unwrapped.sim.node_to_index(action_node))
-
+    # Sample an action from action space
+    serialized_action = env.action_space.sample(info['action_mask'])
     obs, rew, term, trunc, info = env.step(serialized_action)
 ```
