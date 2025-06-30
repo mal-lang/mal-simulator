@@ -105,7 +105,7 @@ class DefenderEnv(gym.Env[Any, Any]):
         ag, agents = load_scenario(scenario_file)
 
         self.scenario_agents = agents
-        self.sim = MalSimVectorizedObsEnv(MalSimulator(ag), **kwargs)
+        self.sim = MalSimVectorizedObsEnv(MalSimulator(ag, **kwargs))
 
         # Register attacker agents from scenario
         self._register_attacker_agents(self.scenario_agents)

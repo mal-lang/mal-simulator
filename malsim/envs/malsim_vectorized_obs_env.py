@@ -483,7 +483,7 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
 
         defender_observation = self._agent_observations[defender_agent.name]
 
-        for node in compromised_nodes:
+        for node in compromised_nodes | defender_agent.step_false_positives:
             logger.debug("Enable %s in defender obs", node.full_name)
             node_idx = self.node_to_index(node)
             defender_observation['observed_state'][node_idx] = 1

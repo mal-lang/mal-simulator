@@ -15,6 +15,11 @@ rewards:
       read: 5
       modify: 10
 
+false_positive_rates:
+  by_asset_type:
+    Host:
+      access: 0.5
+
 agents:
   'Attacker1':
     type: 'attacker'

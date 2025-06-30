@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 import copy
 from dataclasses import dataclass, field
 import logging
@@ -79,6 +80,8 @@ class MalSimDefenderState(MalSimAgentState):
     # Contains the steps performed successfully by all of the attacker agents
     # in the last step
     step_all_compromised_nodes: set[AttackGraphNode] = set()
+    step_false_positives: set[AttackGraphNode] = set()
+    all_false_positives: set[AttackGraphNode] = set()
 
     def __init__(self, name: str):
         super().__init__(name, AgentType.DEFENDER)
@@ -155,6 +158,11 @@ class MalSimAgentStateView(MalSimAttackerState, MalSimDefenderState):
 @dataclass
 class MalSimulatorSettings():
     """Contains settings used in MalSimulator"""
+
+    # Set to true if you want defenders to generate
+    # false positives each step according to the
+    # false positive rate set on nodes in scenario
+    generate_false_positives: bool = False
 
     # uncompromise_untraversable_steps
     # - Uncompromise (evict attacker) from nodes/steps that are no longer
@@ -336,6 +344,12 @@ class MalSimulator():
             self._get_attacker_agents()
         )
 
+        if self.sim_settings.generate_false_positives:
+            step_false_positives = self._generate_false_positives()
+            defender_state.step_false_positives = step_false_positives
+            defender_state.all_false_positives |= step_false_positives
+
+
     def _reset_agents(self) -> None:
         """Reset agent states to a fresh start"""
 
@@ -478,6 +492,22 @@ class MalSimulator():
                                node.full_name)
 
         return compromised_nodes
+
+    def _generate_false_positives(self) -> set[AttackGraphNode]:
+        """
+        Generate false positives according to each nodes false positive rate
+        """
+
+        false_positives = set()
+        for node in self.attack_graph.nodes.values():
+            if node.type in ('or', 'and'):
+                fpr = node.extras.get('false_positive_rate', 0.0)
+
+                if fpr > random.random():
+                    logger.info("False positive: %s", node.full_name)
+                    false_positives.add(node)
+
+        return false_positives
 
     def _defender_step(
         self, agent: MalSimDefenderState, nodes: list[AttackGraphNode]
