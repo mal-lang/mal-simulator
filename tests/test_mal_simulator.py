@@ -464,6 +464,7 @@ def test_simulator_no_false_positives() -> None:
         sim.attack_graph.get_node_by_full_name("User:3:phishing")
     }
 
+    # Should be zero false positives since default setting is to not generate them
     assert len(agent_states['Defender1'].all_false_positives) == 0
     for node in agent_states['Defender1'].all_false_positives:
         # Only Host:access should give false positive

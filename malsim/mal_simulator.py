@@ -282,6 +282,9 @@ class MalSimulator():
         )
         defender_state.step_action_surface_removals = set()
         defender_state.reward = self._defender_reward(defender_state)
+        defender_state.step_false_positives = set()
+        defender_state.all_false_positives = set()
+
         return defender_state
 
     def _update_attacker_state(
