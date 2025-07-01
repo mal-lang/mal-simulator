@@ -1,9 +1,10 @@
 """Test MalSimulator class"""
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
+from unittest import mock
 
 from maltoolbox.attackgraph import AttackGraph, Attacker
-from malsim.mal_simulator import MalSimulator
+from malsim.mal_simulator import MalSimulator, MalSimulatorSettings
 from malsim.envs import MalSimVectorizedObsEnv
 from malsim.scenario import load_scenario
 
@@ -522,3 +523,66 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
             assert node in attacker.entry_points
             assert node in attacker.reached_attack_steps
             assert node.is_compromised()
+
+def test_false_positives_mock(corelang_lang_graph, model):
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    attack_graph.attach_attackers()
+    attacker = next(iter(attack_graph.attackers.values()))
+
+    sim = MalSimVectorizedObsEnv(
+        MalSimulator(
+            attack_graph,
+            sim_settings=MalSimulatorSettings(
+                generate_false_positives=True
+            )
+        )
+    )
+    sim.register_attacker("test_attacker", attacker.id)
+    sim.register_defender("test_defender")
+
+    pre_enabled_nodes = (
+        'OS App:fullAccess',    # Attacker entrypoint
+
+        'Program 1:notPresent', # Pre enabled defenses
+        'IDPS 1:effectiveness',
+        'SoftwareVulnerability:4:lowPrivilegesRequired',
+        'SoftwareVulnerability:4:availabilityImpactLimitations',
+        'Credentials:6:notDisclosed',
+        'Credentials:6:notGuessable',
+        'Credentials:7:notDisclosed',
+        'Credentials:7:notGuessable',
+        'Credentials:9:notDisclosed',
+        'Credentials:9:notGuessable',
+        'Credentials:10:notDisclosed',
+        'Credentials:10:notGuessable',
+        'Credentials:10:unique',
+        'User:12:noRemovableMediaUsage'
+    )
+
+    obs, infos = sim.reset()
+
+    program2_fa = (
+        sim.attack_graph.get_node_by_full_name("Program 2:fullAccess")
+    )
+    assert program2_fa
+    mocked_false_positives = {program2_fa}
+    with mock.patch.object(
+        MalSimulator,
+        "_generate_false_positives",
+        return_value=mocked_false_positives
+    ) as _:
+
+        obs, term, trunc, rews, infos = sim.step({})
+
+        # No steps should be marked compromised except for the
+        # false alert "Program 2:fullAccess"
+        index_of_program2_fa = sim.node_to_index(program2_fa)
+        assert obs['test_defender']['observed_state'][index_of_program2_fa] == 1
+
+        for index, state in enumerate(obs['test_defender']['observed_state']):
+            if state == 1:
+                node = sim.index_to_node(index)
+                assert (
+                    node.full_name in pre_enabled_nodes         # true positives
+                    or node.full_name == "Program 2:fullAccess" # false positive
+                )
