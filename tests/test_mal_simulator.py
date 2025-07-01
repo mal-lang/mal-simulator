@@ -5,7 +5,11 @@ from typing import TYPE_CHECKING
 from maltoolbox.attackgraph import AttackGraphNode, AttackGraph, Attacker
 from malsim.mal_simulator import MalSimulator
 from malsim.scenario import load_scenario, create_simulator_from_scenario
-from malsim.mal_simulator import MalSimDefenderState, MalSimAttackerState
+from malsim.mal_simulator import (
+    MalSimDefenderState,
+    MalSimAttackerState,
+    MalSimulatorSettings
+)
 
 if TYPE_CHECKING:
     from maltoolbox.language import LanguageGraph
@@ -421,3 +425,109 @@ def test_default_simulator_default_settings_eviction() -> None:
     # Verify defense was performed and attacker NOT kicked out
     assert user_3_compromise_defense.is_enabled_defense()
     assert attacker in user_3_compromise.compromised_by
+
+
+def test_simulator_no_false_positives() -> None:
+    """Make sure no false positives get generated if not set in settings"""
+
+    sim, agents = create_simulator_from_scenario(
+        'tests/testdata/scenarios/traininglang_scenario_fp.yml'
+    )
+
+    agent_states = sim.reset(seed=100)
+    while True:
+        actions = {}
+
+        for agent in agents:
+            agent_name = agent['name']
+            action_surface = list(agent_states[agent_name].action_surface)
+            action_surface.sort(key=lambda n: n.full_name)
+            actions[agent_name] = (
+                [action_surface[0]] if action_surface else []
+            )
+
+        agent_states = sim.step(actions)
+
+        if all(state.terminated for state in agent_states.values()):
+            print("All agents are dead")
+            break
+
+    # The agents are deterministic since we always pick from sorted action surface
+    assert agent_states["Defender1"].performed_nodes == {
+        sim.attack_graph.get_node_by_full_name("Data:2:notPresent"),
+        sim.attack_graph.get_node_by_full_name("Host:0:notPresent")
+    }
+    assert agent_states["Attacker1"].performed_nodes == {
+        sim.attack_graph.get_node_by_full_name("User:3:compromise"),
+        sim.attack_graph.get_node_by_full_name("Host:0:connect"),
+        sim.attack_graph.get_node_by_full_name("Host:0:authenticate"),
+        sim.attack_graph.get_node_by_full_name("User:3:phishing")
+    }
+
+    assert len(agent_states['Defender1'].all_false_positives) == 0
+    for node in agent_states['Defender1'].all_false_positives:
+        # Only Host:access should give false positive
+        assert node.model_asset.lg_asset.name == "Host"
+        assert node.lg_attack_step.name == "access"
+
+def test_simulator_false_positives() -> None:
+    """Make sure no false positives get generated if not set in settings"""
+
+    sim, agents = create_simulator_from_scenario(
+        'tests/testdata/scenarios/traininglang_scenario_fp.yml',
+        sim_settings=MalSimulatorSettings(
+            generate_false_positives=True
+        )
+    )
+
+    agent_states = sim.reset(seed=100)
+    while True:
+        actions = {}
+
+        for agent in agents:
+            agent_name = agent['name']
+            action_surface = list(agent_states[agent_name].action_surface)
+            action_surface.sort(key=lambda n: n.full_name)
+            actions[agent_name] = (
+                [action_surface[0]] if action_surface else []
+            )
+
+        agent_states = sim.step(actions)
+
+        if all(state.terminated for state in agent_states.values()):
+            print("All agents are dead")
+            break
+
+    # The agents are deterministic since we always pick from sorted action surface
+    assert agent_states["Defender1"].performed_nodes == {
+        sim.attack_graph.get_node_by_full_name("Data:2:notPresent"),
+        sim.attack_graph.get_node_by_full_name("Host:0:notPresent")
+    }
+    assert agent_states["Attacker1"].performed_nodes == {
+        sim.attack_graph.get_node_by_full_name("User:3:compromise"),
+        sim.attack_graph.get_node_by_full_name("Host:0:connect"),
+        sim.attack_graph.get_node_by_full_name("Host:0:authenticate"),
+        sim.attack_graph.get_node_by_full_name("User:3:phishing")
+    }
+
+    assert len(agent_states['Defender1'].all_false_positives) == 1
+    for node in agent_states['Defender1'].all_false_positives:
+        # Only Host:access should give false positive
+        assert node.model_asset.lg_asset.name == "Host"
+        assert node.lg_attack_step.name == "access"
+
+def test_simulator_generate_false_positives() -> None:
+    """Make sure generate_false_positives work"""
+
+    sim, _ = create_simulator_from_scenario(
+        'tests/testdata/scenarios/traininglang_scenario_fp.yml',
+    )
+
+    sim.reset(seed=1000)
+    num_fps = 0
+    num_calls = 100
+    for _ in range(num_calls):
+        num_fps += (
+            len(sim._generate_false_positives())
+        )
+    assert num_fps == 107

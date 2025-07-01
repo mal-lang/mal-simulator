@@ -510,7 +510,6 @@ class MalSimulator():
         for node in self.attack_graph.nodes.values():
             if node.type in ('or', 'and'):
                 fpr = node.extras.get('false_positive_rate', 0.0)
-
                 if fpr > self._rng.random():
                     logger.info("False positive: %s", node.full_name)
                     false_positives.add(node)
