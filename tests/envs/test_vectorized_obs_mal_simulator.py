@@ -524,7 +524,9 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
             assert node in attacker.reached_attack_steps
             assert node.is_compromised()
 
-def test_false_positives_mock(corelang_lang_graph, model):
+def test_false_positives_mock(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
     attack_graph.attach_attackers()
     attacker = next(iter(attack_graph.attackers.values()))
