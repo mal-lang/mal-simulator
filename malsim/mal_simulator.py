@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import random
 import copy
 from dataclasses import dataclass, field
 import logging
 from enum import Enum
 from types import MappingProxyType
 from typing import Any, Optional
+
+import numpy as np
 
 from maltoolbox import neo4j_configs
 from maltoolbox.ingestors import neo4j
@@ -217,6 +218,10 @@ class MalSimulator():
         # Keep track on all 'living' agents sorted by order to step in
         self._alive_agents: set[str] = set()
 
+        # Used for randomization in the simulator
+        # seed can be set by performing reset
+        self._rng = np.random.default_rng()
+
     def reset(
         self,
         seed: Optional[int] = None,
@@ -231,6 +236,8 @@ class MalSimulator():
         self.cur_iter = 0
         # Reset agents
         self._reset_agents()
+        # Set the rng seed
+        self._rng = np.random.default_rng(seed=seed)
 
         return self.agent_states
 
@@ -495,7 +502,8 @@ class MalSimulator():
 
     def _generate_false_positives(self) -> set[AttackGraphNode]:
         """
-        Generate false positives according to each nodes false positive rate
+        Generate false positives according to each nodes false positive rate.
+        This method is meant to run every step if false positive are enabled.
         """
 
         false_positives = set()
@@ -503,7 +511,7 @@ class MalSimulator():
             if node.type in ('or', 'and'):
                 fpr = node.extras.get('false_positive_rate', 0.0)
 
-                if fpr > random.random():
+                if fpr > self._rng.random():
                     logger.info("False positive: %s", node.full_name)
                     false_positives.add(node)
 
