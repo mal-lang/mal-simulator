@@ -136,8 +136,9 @@ actionable_steps:
 #  - A false negative rate of x for means that an active attack step
 #    will be observed as inactive at a rate of x in each observation
 # Default false positive/negative rate is 0, which is assumed if none are given.
-
-# Applies false positive rates per attack step (default 0)
+# Note: False positives/negatives rates will not generate in the
+#       current version of the MAL Simulator.
+# Set false positive rates per attack step (default 0)
 false_positive_rates:
   by_asset_type:
     <asset_type>:
@@ -146,7 +147,7 @@ false_positive_rates:
     <asset_name>:
       <step name>: rate (float)
 
-# Applies false negative rates per attack step (default 0)
+# Set false negative rates per attack step (default 0)
 false_negative_rates:
   by_asset_type:
     <asset_type>:
@@ -371,16 +372,7 @@ obs, info = env.reset()
 # Simulation loop
 term = False
 while not term:
-    # Action selection should not be handled like this is you
-    # are training an ML agent naturally
-    defender_name = env.unwrapped.defender_agent_name
-    agent_info = env.unwrapped.sim.get_agent_state(defender_name)
-    action_node = next(iter(agent_info.action_surface))
-
-    # This is to translate a node to an index
-    serialized_action = (0, None)
-    if action_node:
-        serialized_action = (1, env.unwrapped.sim.node_to_index(action_node))
-
+    # Sample an action from action space
+    serialized_action = env.action_space.sample(info['action_mask'])
     obs, rew, term, trunc, info = env.step(serialized_action)
 ```
