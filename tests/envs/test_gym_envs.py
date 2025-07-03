@@ -9,6 +9,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import pytest
+from unittest import mock
 
 import logging
 import numpy as np
@@ -19,6 +20,7 @@ from pettingzoo.test import parallel_api_test
 from malsim.envs import MalSimVectorizedObsEnv, AttackerEnv, DefenderEnv
 from malsim.envs.gym_envs import MaskingWrapper
 from malsim.agents.searchers import BreadthFirstAttacker, DepthFirstAttacker
+from malsim.mal_simulator import MalSimulatorSettings, MalSimulator
 
 logger = logging.getLogger(__name__)
 
@@ -244,3 +246,37 @@ def test_env_multiple_steps(env: MalSimVectorizedObsEnv) -> None:
         obs, reward, terminated, truncated, info = env.step(action)
         assert 'attacker' in obs
         assert 'defender' in obs
+
+
+def test_false_positives_gym() -> None:
+    """Make sure false positive is """
+    register_gym_agent('MALDefenderEnv-v0', entry_point=DefenderEnv)
+    env = gym.make(
+        'MALDefenderEnv-v0',
+        scenario_file=scenario_file,
+        sim_settings=MalSimulatorSettings(
+            generate_false_positives=True
+        )
+    )
+    obs, _ = env.reset()
+
+    program2_fa = env.unwrapped.sim.attack_graph.get_node_by_full_name(
+        "Program 2:fullAccess"
+    )
+    assert program2_fa
+    mocked_false_positives = {program2_fa}
+    program2_fa_index = env.unwrapped.sim.node_to_index(program2_fa)
+
+    # Precondition (unknown state)
+    assert obs['observed_state'][program2_fa_index] == -1
+
+    # Mock false positive as program2 full access
+    with mock.patch.object(
+        MalSimulator,
+        "_generate_false_positives",
+        return_value=mocked_false_positives
+    ) as _:
+
+        obs, _, _, _, _ = env.step((0, None))
+        # Make sure the mocked FP is 1 = observed
+        assert obs['observed_state'][program2_fa_index] == 1

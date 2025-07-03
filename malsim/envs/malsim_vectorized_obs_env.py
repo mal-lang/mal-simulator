@@ -396,6 +396,15 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
         assert node, "Node can not be None"
         return self._id_to_index[node.id]
 
+    def full_name_to_index(self, full_name: str) -> int:
+        """
+        Get the index of a node with specified full name,
+        raise error if node does not exist
+        """
+        node = self.attack_graph.get_node_by_full_name(full_name)
+        assert node, f"No node found with given full name: {full_name}"
+        return self.node_to_index(node)
+
     def serialized_action_to_node(
             self, serialized_action: tuple[int, int]
         ) -> list[AttackGraphNode]:
@@ -483,7 +492,7 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
 
         defender_observation = self._agent_observations[defender_agent.name]
 
-        for node in compromised_nodes:
+        for node in compromised_nodes | defender_agent.step_false_positives:
             logger.debug("Enable %s in defender obs", node.full_name)
             node_idx = self.node_to_index(node)
             defender_observation['observed_state'][node_idx] = 1

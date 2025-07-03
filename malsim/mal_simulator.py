@@ -7,6 +7,8 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Any, Optional
 
+import numpy as np
+
 from maltoolbox import neo4j_configs
 from maltoolbox.ingestors import neo4j
 from maltoolbox.attackgraph import (
@@ -79,6 +81,8 @@ class MalSimDefenderState(MalSimAgentState):
     # Contains the steps performed successfully by all of the attacker agents
     # in the last step
     step_all_compromised_nodes: set[AttackGraphNode] = set()
+    step_false_positives: set[AttackGraphNode] = set()
+    all_false_positives: set[AttackGraphNode] = set()
 
     def __init__(self, name: str):
         super().__init__(name, AgentType.DEFENDER)
@@ -156,6 +160,11 @@ class MalSimAgentStateView(MalSimAttackerState, MalSimDefenderState):
 class MalSimulatorSettings():
     """Contains settings used in MalSimulator"""
 
+    # Set to true if you want defenders to generate
+    # false positives each step according to the
+    # false positive rate set on nodes in scenario
+    generate_false_positives: bool = False
+
     # uncompromise_untraversable_steps
     # - Uncompromise (evict attacker) from nodes/steps that are no longer
     #   traversable (often because a defense kicked in) if set to True
@@ -209,6 +218,10 @@ class MalSimulator():
         # Keep track on all 'living' agents sorted by order to step in
         self._alive_agents: set[str] = set()
 
+        # Used for randomization in the simulator
+        # seed can be set by performing reset
+        self._rng = np.random.default_rng()
+
     def reset(
         self,
         seed: Optional[int] = None,
@@ -223,6 +236,8 @@ class MalSimulator():
         self.cur_iter = 0
         # Reset agents
         self._reset_agents()
+        # Set the rng seed
+        self._rng = np.random.default_rng(seed=seed)
 
         return self.agent_states
 
@@ -267,6 +282,9 @@ class MalSimulator():
         )
         defender_state.step_action_surface_removals = set()
         defender_state.reward = self._defender_reward(defender_state)
+        defender_state.step_false_positives = set()
+        defender_state.all_false_positives = set()
+
         return defender_state
 
     def _update_attacker_state(
@@ -335,6 +353,12 @@ class MalSimulator():
         defender_state.terminated = self._defender_is_terminated(
             self._get_attacker_agents()
         )
+
+        if self.sim_settings.generate_false_positives:
+            step_false_positives = self._generate_false_positives()
+            defender_state.step_false_positives = step_false_positives
+            defender_state.all_false_positives |= step_false_positives
+
 
     def _reset_agents(self) -> None:
         """Reset agent states to a fresh start"""
@@ -478,6 +502,22 @@ class MalSimulator():
                                node.full_name)
 
         return compromised_nodes
+
+    def _generate_false_positives(self) -> set[AttackGraphNode]:
+        """
+        Generate false positives according to each nodes false positive rate.
+        This method is meant to run every step if false positive are enabled.
+        """
+
+        false_positives = set()
+        for node in self.attack_graph.nodes.values():
+            if node.type in ('or', 'and'):
+                fpr = node.extras.get('false_positive_rate', 0.0)
+                if fpr > self._rng.random():
+                    logger.info("False positive: %s", node.full_name)
+                    false_positives.add(node)
+
+        return false_positives
 
     def _defender_step(
         self, agent: MalSimDefenderState, nodes: list[AttackGraphNode]
