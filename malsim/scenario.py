@@ -417,13 +417,15 @@ def apply_scenario_to_attack_graph(
         ) from e
 
 
-def _extend_scenario(original_scenario_path: str, scenario: dict):
+def _extend_scenario(
+        original_scenario_path: str, scenario: dict[str, Any]
+    ) -> dict[str, Any]:
     """
     Extend scenario with `original_scenario_path` with `overriding_scenario`
     """
 
     with open(original_scenario_path, 'r', encoding='utf-8') as s_file:
-        original_scenario = yaml.safe_load(s_file)
+        original_scenario: dict[str, Any] = yaml.safe_load(s_file)
         resulting_scenario = original_scenario.copy()
 
         resulting_scenario["lang_file"] = (
