@@ -41,6 +41,7 @@ Scenarios consist of MAL language, model, rewards, agent classes and attacker en
 they are a setup for running a simulation. This is how the format looks like:
 
 ```yml
+extends: <path to another scenario file> # optional
 lang_file: <path to .mar-archive>
 model_file: <path to json/yml model>
 
@@ -170,6 +171,12 @@ false_negative_rates:
 #     ...
 
 ```
+
+## Extend
+
+Instead of copy pasting an entire scenario it is possible to extend the scenario and only override
+specific values. Use the `extends` key pointing to another scenario. All keys present in the extending
+scenario will override the settings in the original (extended) scenario when you load the extending scenario.
 
 ### Loading a scenario from a python script
 
