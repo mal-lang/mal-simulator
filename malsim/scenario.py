@@ -426,6 +426,14 @@ def _extend_scenario(original_scenario_path: str, scenario: dict):
         original_scenario = yaml.safe_load(s_file)
         resulting_scenario = original_scenario.copy()
 
+        resulting_scenario["lang_file"] = (
+            path_relative_to_file_dir(original_scenario["lang_file"], s_file)
+        )
+
+        resulting_scenario["model_file"] = (
+            path_relative_to_file_dir(original_scenario["model_file"], s_file)
+        )
+
         for key, value in scenario.items():
             # Override the original scenario with the
             # overriding scenario key,value pairs
@@ -433,6 +441,7 @@ def _extend_scenario(original_scenario_path: str, scenario: dict):
                 # The 'extends' key is not needed after extend is done
                 continue
             resulting_scenario[key] = value
+
         return resulting_scenario
 
 
