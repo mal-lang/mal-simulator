@@ -2,7 +2,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
-from maltoolbox.attackgraph import AttackGraph, Attacker
+from maltoolbox.attackgraph import AttackGraph
 from malsim.mal_simulator import MalSimulator
 from malsim.envs import MalSimVectorizedObsEnv
 from malsim.scenario import load_scenario

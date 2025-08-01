@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
-from maltoolbox.attackgraph import AttackGraphNode, Attacker
+from maltoolbox.attackgraph import AttackGraphNode, AttackGraph
 from maltoolbox.language import LanguageGraph
-from malsim.mal_simulator import MalSimAgentStateView
+from malsim.mal_simulator import MalSimAgentStateView, MalSimulator
 from malsim.agents import (
     DefendCompromisedDefender,
     DefendFutureCompromisedDefender
@@ -11,45 +11,59 @@ def test_defend_compromised_defender(
         dummy_lang_graph: LanguageGraph
     ) -> None:
     r"""
-            node1          node2
-            /    \         /   \
-        node3       node4        node5
+        node0 -------+---------|
+         |   node1   |  node2  |
+         |   /    \  |  /   \  |
+        node3      node4    node5
 
     """
-    dummy_or_attack_step = (
+    dummy_and_attack_step = (
         dummy_lang_graph.assets['DummyAsset']
-        .attack_steps['DummyOrAttackStep']
+        .attack_steps['DummyAndAttackStep']
+    )
+    dummy_defense_attack_step = (
+        dummy_lang_graph.assets['DummyAsset']
+        .attack_steps['DummyDefenseAttackStep']
     )
 
-    # Create nodes
-    node1 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=1)
-    node2 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=2)
+    # Create attack graph with nodes
+    ag = AttackGraph(dummy_lang_graph)
+    node0 = ag.add_node(lg_attack_step = dummy_and_attack_step, node_id = 0)
+    node1 = ag.add_node(lg_attack_step = dummy_defense_attack_step, node_id = 1)
+    node2 = ag.add_node(lg_attack_step = dummy_defense_attack_step, node_id = 2)
+    node3 = ag.add_node(lg_attack_step = dummy_and_attack_step, node_id = 3)
+    node4 = ag.add_node(lg_attack_step = dummy_and_attack_step, node_id = 4)
+    node5 = ag.add_node(lg_attack_step = dummy_and_attack_step, node_id = 5)
 
-    node3 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=3)
-    node4 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=4)
-    node5 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=5)
+    # Connect nodes (Node1 -> Node3, Node4, Node5)
+    node0.children.add(node3)
+    node3.parents.add(node0)
+    node0.children.add(node4)
+    node4.parents.add(node0)
+    node0.children.add(node5)
+    node5.parents.add(node0)
 
-    # Connect nodes (Node1 -> Node2 -> Node3 -> Node4)
+    # Connect nodes (Node1 -> Node3, Node4)
     node1.children.add(node3)
     node3.parents.add(node1)
     node1.children.add(node4)
     node4.parents.add(node1)
 
+    # Connect nodes (Node2 -> Node4, Node5)
     node2.children.add(node4)
     node4.parents.add(node2)
     node2.children.add(node5)
-    node5.parents.add(node5)
+    node5.parents.add(node2)
+
+    sim = MalSimulator(ag)
 
     # Set up an attacker
-    attacker = Attacker(name="TestAttacker")
-    attacker.compromise(node4)
+    sim.register_attacker('bfs', {node4})
 
-    # Set up a mock MalSimAgentState
-    agent = MagicMock()
-    agent.action_surface = [node1, node2]
-
-    # Set up MalSimAgentStateView
-    agent_view = MalSimAgentStateView(agent)
+    # Set up a defender
+    sim.register_defender('def_comp')
+    agent_state = sim.agent_states['def_comp']
+    agent_view = MalSimAgentStateView(agent_state)
 
     # Configure BreadthFirstAttacker
     agent_config = {"seed": 42, "randomize": False}
@@ -78,52 +92,67 @@ def test_defend_future_compromised_defender(
         dummy_lang_graph: LanguageGraph
     ) -> None:
     r"""
-            node1              node2
-            /    \             /     \
-        node3      node4       |    node5
-                      |        |
-                       \      /
-                         node 6
+        node0 -------+-----------|
+         |   node1   |    node2  |
+         |   /    \  |    /   \  |
+        node3      node4  |   node5
+                     |    |
+                     \    /
+                     node 6
     """
 
-    dummy_or_attack_step = (
+    dummy_and_attack_step = (
         dummy_lang_graph.assets['DummyAsset']
-        .attack_steps['DummyOrAttackStep']
+        .attack_steps['DummyAndAttackStep']
+    )
+    dummy_defense_attack_step = (
+        dummy_lang_graph.assets['DummyAsset']
+        .attack_steps['DummyDefenseAttackStep']
     )
 
-    # Create nodes
-    node1 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=1)
-    node2 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=2)
+    # Create attack graph with nodes
+    ag = AttackGraph(dummy_lang_graph)
+    node0 = ag.add_node(lg_attack_step = dummy_and_attack_step, node_id = 0)
+    node1 = ag.add_node(lg_attack_step = dummy_defense_attack_step, node_id = 1)
+    node2 = ag.add_node(lg_attack_step = dummy_defense_attack_step, node_id = 2)
+    node3 = ag.add_node(lg_attack_step = dummy_and_attack_step, node_id = 3)
+    node4 = ag.add_node(lg_attack_step = dummy_and_attack_step, node_id = 4)
+    node5 = ag.add_node(lg_attack_step = dummy_and_attack_step, node_id = 5)
+    node6 = ag.add_node(lg_attack_step = dummy_and_attack_step, node_id = 6)
 
-    node3 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=3)
-    node4 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=4)
-    node5 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=5)
-    node6 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=6)
+    # Connect nodes (Node1 -> Node3, Node4, Node5)
+    node0.children.add(node3)
+    node3.parents.add(node0)
+    node0.children.add(node4)
+    node4.parents.add(node0)
+    node0.children.add(node5)
+    node5.parents.add(node0)
 
-    # Connect nodes (Node1 -> Node2 -> Node3 -> Node4)
+    # Connect nodes (Node1 -> Node3, Node4)
     node1.children.add(node3)
     node3.parents.add(node1)
     node1.children.add(node4)
     node4.parents.add(node1)
 
+    # Connect nodes (Node2 -> Node5, Node6)
+    node2.children.add(node5)
+    node5.parents.add(node2)
     node2.children.add(node6)
     node6.parents.add(node2)
-    node2.children.add(node5)
-    node5.parents.add(node5)
 
+    # Connect nodes (Node4 -> Node6)
     node4.children.add(node6)
     node6.parents.add(node4)
 
+    sim = MalSimulator(ag)
+
     # Set up an attacker
-    attacker = Attacker(name="TestAttacker")
-    attacker.compromise(node4)
+    sim.register_attacker('bfs', {node4})
 
-    # Set up a mock MalSimAgentState
-    agent = MagicMock()
-    agent.action_surface = [node1, node2]
-
-    # Set up MalSimAgentStateView
-    agent_view = MalSimAgentStateView(agent)
+    # Set up a defender
+    sim.register_defender('def_future_comp')
+    agent_state = sim.agent_states['def_future_comp']
+    agent_view = MalSimAgentStateView(agent_state)
 
     # Configure BreadthFirstAttacker
     agent_config = {"seed": 42, "randomize": False}
