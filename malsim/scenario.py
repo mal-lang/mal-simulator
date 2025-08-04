@@ -15,6 +15,7 @@ import os
 from typing import Any, Optional, TextIO
 
 import yaml
+import zipfile
 
 from maltoolbox.model import Model
 from maltoolbox.language import LanguageGraph
