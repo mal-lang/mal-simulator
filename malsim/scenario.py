@@ -15,7 +15,10 @@ import os
 from typing import Any, Optional, TextIO
 
 import yaml
+import zipfile
 
+from maltoolbox.model import Model
+from maltoolbox.language import LanguageGraph
 from maltoolbox.attackgraph import (
     AttackGraph,
     AttackGraphNode,
@@ -49,10 +52,11 @@ deprecated_fields = [
 ]
 
 # All required fields in scenario yml file
+# Tuple indicates one of the fields in the tuple is required
 required_fields = [
     'agents',
     'lang_file',
-    'model_file',
+    ('model_file', 'model'),
 ]
 
 # All allowed fields in scenario yml fild
@@ -68,18 +72,39 @@ allowed_fields = required_fields + [
 def validate_scenario(scenario_dict: dict[str, Any]) -> None:
     """Verify scenario file keys"""
 
+    # Unpack tuples from allowed fields
+    allowed_fields_flattened = []
+    for f in allowed_fields:
+        if isinstance(f, str):
+            allowed_fields_flattened.append(f)
+        elif isinstance(f, tuple):
+            for sf in f:
+                allowed_fields_flattened.append(sf)
+
     # Verify that all keys in dict are supported
     for key in scenario_dict.keys():
         if key in deprecated_fields:
             raise SyntaxError(f"Scenario setting '{key}' is deprecated, see "
                                "README or ./tests/testdata/scenarios")
-        if key not in allowed_fields:
+        if key not in allowed_fields_flattened:
             raise SyntaxError(f"Scenario setting '{key}' is not supported")
 
     # Verify that all required fields are in scenario file
     for key in required_fields:
-        if key not in scenario_dict:
-            raise RuntimeError(f"Setting '{key}' missing from scenario file")
+        if isinstance(key, tuple):
+            if not any(k in scenario_dict for k in key):
+                raise RuntimeError(
+                    f"One of '{key}' is required in scenario file"
+                )
+            if all(k in scenario_dict for k in key):
+                raise RuntimeError(
+                    f"Only one of '{key}' is allowed in scenario file"
+                )
+        elif isinstance(key, str):
+            if key not in scenario_dict:
+                raise RuntimeError(
+                    f"Setting '{key}' required in scenario file"
+                )
 
 
 def path_relative_to_file_dir(rel_path: str, file: TextIO) -> str:
@@ -464,9 +489,18 @@ def load_scenario(scenario_file: str) -> tuple[AttackGraph, list[dict[str, Any]]
     """Load a scenario from a scenario file to an AttackGraph"""
 
     scenario_dict = _load_scenario_dict(scenario_file)
-    attack_graph = create_attack_graph(
-        scenario_dict['lang_file'], scenario_dict['model_file']
-    )
+    lang_graph = LanguageGraph.load_from_file(scenario_dict['lang_file'])
+    model = None
+
+    if 'model_file' in scenario_dict:
+        model_file = scenario_dict['model_file']
+        model = Model.load_from_file(model_file, lang_graph)
+    elif 'model' in scenario_dict:
+        model = Model._from_dict(scenario_dict['model'], lang_graph)
+    else:
+        raise ValueError("No model or model file in scenario")
+
+    attack_graph = create_attack_graph(lang_graph, model)
     apply_scenario_to_attack_graph(attack_graph, scenario_dict)
 
     # Load the scenario configuration
@@ -494,7 +528,6 @@ def create_simulator_from_scenario(
     """
 
     attack_graph, scenario_agents = load_scenario(scenario_file)
-
     sim = sim_class(attack_graph, **kwargs)
 
     # Register agents in simulator
