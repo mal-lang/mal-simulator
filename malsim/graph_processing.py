@@ -1,5 +1,5 @@
 """
-MAL Simulator Attack Graph Apriori Submodule
+MAL Simulator Attack Graph Processing Submodule
 
 This submodule is meant to process the attack graph before running the
 simulation.

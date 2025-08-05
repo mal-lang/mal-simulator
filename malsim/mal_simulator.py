@@ -14,7 +14,7 @@ from maltoolbox.attackgraph import (
     AttackGraphNode
 )
 
-from malsim.apriori import (
+from malsim.graph_processing import (
     calculate_viability_and_necessity,
     propagate_viability_from_node,
     prune_unviable_and_unnecessary_nodes
