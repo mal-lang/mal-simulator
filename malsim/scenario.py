@@ -348,6 +348,8 @@ def load_simulator_agents(
             entry_nodes = get_entry_point_nodes(attack_graph, entry_points)
             agent_dict['entry_points'] = entry_nodes
 
+        # TODO: What is the expected behavior here? If there is no good
+        # usecase for this scenario we should just remove it.
         if class_name is None:
             # No class name - no agent object created
             agents.append(agent_dict)
