@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import logging
 from enum import Enum
 from types import MappingProxyType
-from typing import Any, Optional
+from typing import Any, Optional, Iterable
 
 from maltoolbox import neo4j_configs
 from maltoolbox.ingestors import neo4j
@@ -46,19 +46,18 @@ class MalSimAgentState:
     # Contains all nodes that this agent has performed successfully
     performed_nodes: set[AttackGraphNode] = field(default_factory=set)
 
-    # Contains the steps performed successfully in the last step
+    # Contains the nodes performed successfully in the last step
     step_performed_nodes: set[AttackGraphNode] = field(default_factory=set)
 
-    # Contains possible actions that became available in the last step
+    # Contains possible nodes that became available in the last step
     step_action_surface_additions: set[AttackGraphNode] = (
         field(default_factory = set))
 
-    # Contains previously possible actions that became unavailable in the last
-    # step
+    # Contains nodes that became unavailable in the last step
     step_action_surface_removals: set[AttackGraphNode] = (
         field(default_factory = set))
 
-    # Contains nodes that defender actions made unviable in the last step
+    # Contains nodes that became unviable in the last step by defender actions
     step_unviable_nodes: set[AttackGraphNode] = field(default_factory=set)
 
     # Fields that tell if the agent is done or stopped
@@ -71,8 +70,10 @@ class MalSimAttackerState(MalSimAgentState):
 
     def __init__(self, name: str):
         super().__init__(name, AgentType.ATTACKER)
+        self.entry_points = set()
 
-    def compromise(self, node: AttackGraphNode) -> bool:
+    def compromise(self, node: AttackGraphNode):
+        """Compromise the node"""
         self.performed_nodes.add(node)
 
     def is_node_traversable(self, node: AttackGraphNode) -> bool:
@@ -89,91 +90,26 @@ class MalSimAttackerState(MalSimAgentState):
         node        - the node we wish to evalute
         """
 
-        logger.debug(
-            'Evaluate if "%s"(%d), of type "%s",'
-            'is traversable by Attacker "%s"',
-            node.full_name,
-            node.id,
-            node.type,
-            self.name
-        )
         if not node.is_viable:
-            logger.debug(
-                '"%s"(%d) is not traversable because it is non-viable',
-                node.full_name,
-                node.id,
-            )
             return False
 
         match(node.type):
             case 'or':
-                for parent in node.parents:
-                    if parent in self.performed_nodes:
-                        logger.debug(
-                            '"%s"(%d) is traversable because it is viable, and '
-                            'of type "or", and its parent "%s(%d)" has already '
-                            'been compromised.',
-                            node.full_name,
-                            node.id,
-                            parent.full_name,
-                            parent.id
-                        )
-                        return True
-                logger.debug(
-                    '"%s"(%d) is not traversable because while it is '
-                    'viable, and of type "or", none of its parents '
-                    'have been compromised.',
-                    node.full_name,
-                    node.id
+                return any(
+                    parent in self.performed_nodes for parent in node.parents
                 )
-                return False
-
             case 'and':
-                for parent in node.parents:
-                    if parent.is_necessary and \
-                        parent not in self.performed_nodes:
-                        # If the parent is not present in the attacks steps
-                        # already reached and is necessary.
-                        logger.debug(
-                            '"%s"(%d) is not traversable because while it is '
-                            'viable, and of type "and", its necessary parent '
-                            '"%s(%d)" has not already been compromised.',
-                            node.full_name,
-                            node.id,
-                            parent.full_name,
-                            parent.id
-                        )
-                        return False
-                logger.debug(
-                    '"%s"(%d) is traversable because it is viable, '
-                    'of type "and", and all of its necessary parents have '
-                    'already been compromised.',
-                    node.full_name,
-                    node.id
+                return all(
+                    parent in self.performed_nodes or not parent.is_necessary
+                    in self.performed_nodes for parent in node.parents
                 )
-                return True
-
             case 'exist' | 'notExist' | 'defense':
-                logger.warning(
-                    'Nodes of type "exist", "notExist", and "defense" are never '
-                    'marked as traversable. However, we do not normally check '
-                    'if they are traversable. Node "%s"(%d) of type "%s" was '
-                    'checked for traversability.',
-                    node.full_name,
-                    node.id,
-                    node.type
-                )
                 return False
-
             case _:
-                logger.error(
-                    'Node "%s"(%d) has an unknown type "%s".',
-                    node.full_name,
-                    node.id,
-                    node.type
+                raise TypeError(
+                    f'Node "{node.full_name}"({node.id})'
+                    f'has an unknown type "{node.type}".'
                 )
-                return False
-
 
     def calculate_attack_surface(
             self,
@@ -197,28 +133,17 @@ class MalSimAttackerState(MalSimAgentState):
         """
         logger.debug('Get the attack surface for Attacker "%s".', self.name)
         attack_surface = set()
-        frontier = (from_nodes if from_nodes is not None else
-            self.performed_nodes)
+        frontier = (
+            from_nodes if from_nodes is not None else self.performed_nodes
+        )
         for attack_step in frontier:
-            logger.debug(
-                'Determine attack surface stemming from '
-                '"%s"(%d) for Attacker "%s".',
-                attack_step.full_name,
-                attack_step.id,
-                self.name
-            )
             for child in attack_step.children:
                 if skip_compromised and child in self.performed_nodes:
                     continue
-                if self.is_node_traversable(child) and \
-                        child not in attack_surface:
-                    logger.debug(
-                        'Add node "%s"(%d) to the attack surface of '
-                        'Attacker "%s".',
-                        child.full_name,
-                        child.id,
-                        self.name
-                    )
+                if (
+                    self.is_node_traversable(child)
+                    and child not in attack_surface
+                ):
                     attack_surface.add(child)
 
         return attack_surface
@@ -695,8 +620,9 @@ class MalSimulator():
                     agent.name, node.full_name, node.id
                 )
             else:
-                logger.warning("Attacker could not compromise %s",
-                               node.full_name)
+                logger.warning(
+                    "Attacker could not compromise %s", node.full_name
+                )
 
         return compromised_nodes
 
