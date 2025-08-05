@@ -73,10 +73,6 @@ class MalSimAttackerState(MalSimAgentState):
         super().__init__(name, AgentType.ATTACKER)
         self.entry_points: set[AttackGraphNode] = set()
 
-    def compromise(self, node: AttackGraphNode) -> None:
-        """Compromise the node"""
-        self.performed_nodes.add(node)
-
     def is_node_traversable(self, node: AttackGraphNode) -> bool:
         """
         Return True or False depending if the node specified is traversable
@@ -101,7 +97,9 @@ class MalSimAttackerState(MalSimAgentState):
                 )
             case 'and':
                 return all(
-                    parent in self.performed_nodes or parent.is_necessary not in self.performed_nodes for parent in node.parents
+                    parent in self.performed_nodes
+                    or parent.is_necessary not in self.performed_nodes
+                    for parent in node.parents
                 )
             case 'exist' | 'notExist' | 'defense':
                 return False
@@ -169,7 +167,6 @@ class MalSimDefenderState(MalSimAgentState):
         return node.type == 'defense' and \
             'suppress' not in node.tags and \
             node.defense_status == 1.0
-
 
     def is_available_defense(self, node: AttackGraphNode) -> bool:
         """
@@ -431,6 +428,9 @@ class MalSimulator():
         Update a previous attacker state based on what the agent compromised
         and what nodes became unviable.
         """
+        attacker_state.step_performed_nodes = step_agent_compromised_nodes
+        attacker_state.performed_nodes |= step_agent_compromised_nodes
+        attacker_state.step_unviable_nodes = step_nodes_made_unviable
 
         # Find what new steps attacker can reach this step
         action_surface_additions = (
@@ -454,9 +454,6 @@ class MalSimulator():
         attacker_state.step_action_surface_additions = action_surface_additions
         attacker_state.step_action_surface_removals = action_surface_removals
         attacker_state.action_surface = new_action_surface
-        attacker_state.step_performed_nodes = step_agent_compromised_nodes
-        attacker_state.performed_nodes |= step_agent_compromised_nodes
-        attacker_state.step_unviable_nodes = step_nodes_made_unviable
         attacker_state.reward = self._attacker_reward(attacker_state)
         attacker_state.truncated = self.cur_iter >= self.max_iter
         attacker_state.terminated = (
@@ -612,7 +609,6 @@ class MalSimulator():
             if agent.is_node_traversable(node) \
                     and node in agent.action_surface:
 
-                agent.compromise(node)
                 compromised_nodes.add(node)
 
                 logger.info(

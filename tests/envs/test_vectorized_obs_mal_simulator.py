@@ -71,11 +71,11 @@ def test_create_blank_observation_deterministic(
     """Make sure blank observation is deterministic with seed given"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    attack_graph.attach_attackers()
-    attacker = next(iter(attack_graph.attackers.values()))
+    os_app_fa = attack_graph.get_node_by_full_name("OS App:fullAccess")
+    assert os_app_fa
 
     sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
-    sim.register_attacker("test_attacker", attacker.id)
+    sim.register_attacker("test_attacker", {os_app_fa})
     sim.register_defender("test_defender")
 
     obs1, _ = sim.reset(seed=123)
@@ -107,11 +107,11 @@ def test_step_deterministic(
     """Make sure blank observation is deterministic with seed given"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    attack_graph.attach_attackers()
-    attacker = next(iter(attack_graph.attackers.values()))
-
     sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
-    sim.register_attacker("test_attacker", attacker.id)
+    os_app_fa = attack_graph.get_node_by_full_name("OS App:fullAccess")
+    assert os_app_fa
+
+    sim.register_attacker("test_attacker", {os_app_fa})
     sim.register_defender("test_defender")
 
     obs1: dict[str, Any] = {}
@@ -220,20 +220,20 @@ def test_malsimulator_observe_attacker() -> None:
     defender_agent_name = 'defender'
     attacker_agent_name = 'attacker'
 
-    attacker = next(iter(attack_graph.attackers.values()))
+    os_app_fa = attack_graph.get_node_by_full_name("OS App:fullAccess")
+    assert os_app_fa
 
-    env.register_attacker(attacker_agent_name, attacker.id)
+    env.register_attacker(attacker_agent_name, {os_app_fa})
     env.register_defender(defender_agent_name)
 
     # Must reset after registering agents
     env.reset()
 
     # Make alteration to the attack graph attacker
-    assert len(env.sim.attack_graph.attackers) == 1
-    attacker = next(iter(env.sim.attack_graph.attackers.values()))
+    attacker_state = env.get_agent_state(attacker_agent_name)
 
-    assert len(attacker.reached_attack_steps) == 1
-    reached_step = next(iter(attacker.reached_attack_steps))
+    assert len(attacker_state.performed_nodes) == 1
+    reached_step = next(iter(attacker_state.performed_nodes))
 
     # Select actions for the attacker
     actions_to_take = []
@@ -243,7 +243,7 @@ def test_malsimulator_observe_attacker() -> None:
             # where two are children of the first one
             actions_to_take.append(child_node)
 
-    num_reached_steps_before = len(attacker.reached_attack_steps)
+    num_reached_steps_before = len(attacker_state.performed_nodes)
 
     for attacker_action in actions_to_take:
         obs, _, _, _, _ = env.step({
@@ -251,13 +251,14 @@ def test_malsimulator_observe_attacker() -> None:
             attacker_agent_name: (1, env.node_to_index(attacker_action))
         })
 
-        num_reached_steps_now = len(attacker.reached_attack_steps)
+        attacker_state = env.get_agent_state(attacker_agent_name)
+        num_reached_steps_now = len(attacker_state.performed_nodes)
         assert num_reached_steps_now == num_reached_steps_before + 1
         num_reached_steps_before = num_reached_steps_now
 
     attacker_observation = obs[attacker_agent_name]["observed_state"]
 
-    for node in attacker.reached_attack_steps:
+    for node in attacker_state.performed_nodes:
         node_index = env._id_to_index[node.id]
         node_obs_state = attacker_observation[node_index]
         assert node_obs_state == 1
@@ -265,12 +266,12 @@ def test_malsimulator_observe_attacker() -> None:
     for index, state in enumerate(attacker_observation):
         node = env.index_to_node(index)
 
-        if node.is_compromised():
+        if node in attacker_state.performed_nodes:
             assert state == 1
         else:
             if state == -1:
                 for parent in node.parents:
-                    assert parent not in attacker.reached_attack_steps
+                    assert parent not in attacker_state.performed_nodes
             else:
                 assert state == 0
 
@@ -295,15 +296,17 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
                 assert state == -1
 
     def verify_defender_obs_state(
-            observed_state: list[int]
+            observed_state: list[int],
+            expected_enabled_nodes: list[int]
         ) -> None:
         """Make sure obs state looks as expected"""
         for index, state in enumerate(observed_state):
-            node = env.index_to_node(index)
             if state == 1:
-                assert node.is_compromised() or node.is_enabled_defense()
+                assert index in expected_enabled_nodes
             elif state == 0:
-                assert not node.is_compromised() and not node.is_enabled_defense(), f"{node.full_name} not correct state {state}"
+                assert index not in expected_enabled_nodes, (
+                    f"{index} not correct state {state}"
+                )
             else:
                 assert state == -1
 
@@ -312,18 +315,28 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
     # Create the simulator
     env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
-    attacker = next(iter(attack_graph.attackers.values()))
-    attacker_agent_name = "Attacker1"
-    env.register_attacker(attacker_agent_name, attacker.id)
+    user3_phish = attack_graph.get_node_by_full_name("User:3:phishing")
+    host0_connect = attack_graph.get_node_by_full_name("Host:0:connect")
+    assert user3_phish
+    assert host0_connect
+
+    # Register an attacker
+    attacker_name = "attacker"
+    entry_points = {user3_phish, host0_connect}
+    env.register_attacker(attacker_name, entry_points)
 
     defender_agent_name = "Defender1"
     env.register_defender(defender_agent_name)
-
     env.reset()
 
-    attacker_reached_steps = [n.id for n in attacker.entry_points]
+    defender_enabled_steps = [
+        n.id for n in env.attack_graph.nodes.values()
+        if n.defense_status == 1.0
+    ]
+
+    attacker_reached_steps = [n.id for n in entry_points]
     attacker_reached_step_children = []
-    for reached in attacker.entry_points:
+    for reached in entry_points:
         attacker_reached_step_children.extend(
             [n.id for n in reached.children]
         )
@@ -343,7 +356,7 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
     # Step with attacker action
     obs, rew, _, _, _ = env.step({
             defender_agent_name: (0, None),
-            attacker_agent_name: (1, env.node_to_index(user_3_compromise))
+            attacker_name: (1, env.node_to_index(user_3_compromise))
         }
     )
 
@@ -353,21 +366,23 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
         [n.id for n in user_3_compromise.children])
 
     verify_attacker_obs_state(
-        obs[attacker_agent_name]['observed_state'],
+        obs[attacker_name]['observed_state'],
         attacker_reached_steps,
-        attacker_reached_step_children)
+        attacker_reached_step_children
+    )
     verify_defender_obs_state(
-        obs[defender_agent_name]['observed_state']
+        obs[defender_agent_name]['observed_state'],
+        attacker_reached_steps + defender_enabled_steps
     )
 
     # Verify rewards
     assert rew[defender_agent_name] == 0
-    assert rew[attacker_agent_name] == 0
+    assert rew[attacker_name] == 0
 
     # Step with attacker again
     obs, rew, _, _, _ = env.step({
             defender_agent_name: (0, None),
-            attacker_agent_name: (1, env.node_to_index(host_0_authenticate))
+            attacker_name: (1, env.node_to_index(host_0_authenticate))
         }
     )
 
@@ -376,21 +391,22 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
     attacker_reached_step_children.extend(
         [n.id for n in host_0_authenticate.children])
     verify_attacker_obs_state(
-        obs[attacker_agent_name]['observed_state'],
+        obs[attacker_name]['observed_state'],
         attacker_reached_steps,
         attacker_reached_step_children)
     verify_defender_obs_state(
-        obs[defender_agent_name]['observed_state']
+        obs[defender_agent_name]['observed_state'],
+        attacker_reached_steps + defender_enabled_steps
     )
 
     # Verify rewards
     assert rew[defender_agent_name] == 0
-    assert rew[attacker_agent_name] == 0
+    assert rew[attacker_name] == 0
 
     # Step attacker again
     obs, rew, _, _, _ = env.step({
             defender_agent_name: (0, None),
-            attacker_agent_name: (1, env.node_to_index(host_0_access))
+            attacker_name: (1, env.node_to_index(host_0_access))
         }
     )
 
@@ -399,40 +415,43 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
     attacker_reached_step_children.extend(
         [n.id for n in host_0_access.children])
     verify_attacker_obs_state(
-        obs[attacker_agent_name]['observed_state'],
+        obs[attacker_name]['observed_state'],
         attacker_reached_steps,
         attacker_reached_step_children)
     verify_defender_obs_state(
-        obs[defender_agent_name]['observed_state']
+        obs[defender_agent_name]['observed_state'],
+        attacker_reached_steps + defender_enabled_steps
     )
 
     reward_host_0_access = 4
     # Verify rewards
-    assert rew[attacker_agent_name] == reward_host_0_access
-    assert rew[defender_agent_name] == -rew[attacker_agent_name]
+    assert rew[attacker_name] == reward_host_0_access
+    assert rew[defender_agent_name] == -rew[attacker_name]
 
     # Step defender and attacker
     # Attacker wont be able to traverse Data:2:read since
     # Host:0:notPresent is activated before
     obs, rew, _, _, _ = env.step({
             defender_agent_name: (1, env.node_to_index(host_0_notPresent)),
-            attacker_agent_name: (1, env.node_to_index(data_2_read))
+            attacker_name: (1, env.node_to_index(data_2_read))
         }
     )
+    defender_enabled_steps.append(host_0_notPresent.id)
 
     # Attacker obs state should look the same as before
     verify_attacker_obs_state(
-        obs[attacker_agent_name]['observed_state'],
+        obs[attacker_name]['observed_state'],
         attacker_reached_steps,
         attacker_reached_step_children)
     verify_defender_obs_state(
-        obs[defender_agent_name]['observed_state']
+        obs[defender_agent_name]['observed_state'],
+        attacker_reached_steps + defender_enabled_steps
     )
 
     # Verify rewards
     reward_host_0_not_present = 2
-    assert rew[attacker_agent_name] == reward_host_0_access  # no additional reward
-    assert rew[defender_agent_name] == - rew[attacker_agent_name] - reward_host_0_not_present
+    assert rew[attacker_name] == reward_host_0_access  # no additional reward
+    assert rew[defender_agent_name] == - rew[attacker_name] - reward_host_0_not_present
 
 
 def test_malsimulator_initial_observation_defender(
@@ -488,35 +507,37 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
 
     attack_graph = AttackGraph(
         traininglang_lang_graph, traininglang_model)
-    attack_graph.attach_attackers()
     env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
+    user3_phish = attack_graph.get_node_by_full_name("User:3:phishing")
+    host0_connect = attack_graph.get_node_by_full_name("Host:0:connect")
+    assert user3_phish
+    assert host0_connect
+
     # Register an attacker
-    attacker = env.sim.attack_graph.attackers[0]
-    env.register_attacker(attacker.name, attacker.id)
+    attacker_name = "attacker"
+    entry_points = {user3_phish, host0_connect}
+    env.register_attacker(attacker_name, entry_points)
 
     # We need to reinitialize to initialize agent
     obs, _ = env.reset()
 
-    # Since reset deepcopies attack graph we
-    # need to fetch attacker again
-    attacker = env.sim.attack_graph.attackers[0]
-
     for index, state in enumerate(
-            obs[attacker.name]['observed_state']):
+            obs[attacker_name]['observed_state']
+        ):
 
+        attacker_state = env.get_agent_state(attacker_name)
         node = env.index_to_node(index)
         if state == -1:
-            assert node not in attacker.entry_points
-            assert node not in attacker.reached_attack_steps
-            assert not node.is_compromised()
-            assert not any([p.is_compromised() for p in node.parents])
+            assert node not in attacker_state.entry_points
+            assert node not in attacker_state.performed_nodes
+            assert not any(
+                p in attacker_state.performed_nodes for p in node.parents)
         elif state == 0:
-            assert node not in attacker.entry_points
-            assert node not in attacker.reached_attack_steps
-            assert not node.is_compromised()
-            assert any([p.is_compromised() for p in node.parents])
+            assert node not in attacker_state.entry_points
+            assert node not in attacker_state.performed_nodes
+            assert any(
+                p in attacker_state.performed_nodes for p in node.parents)
         elif state == 1:
-            assert node in attacker.entry_points
-            assert node in attacker.reached_attack_steps
-            assert node.is_compromised()
+            assert node in attacker_state.entry_points
+            assert node in attacker_state.performed_nodes

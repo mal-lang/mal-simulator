@@ -34,7 +34,9 @@ def fixture_env()-> MalSimVectorizedObsEnv:
     env = MalSimVectorizedObsEnv(MalSimulator(attack_graph, max_iter=1000))
     env.register_defender('defender')
 
-    env.register_attacker('attacker', 0)
+    os_app_fa = attack_graph.get_node_by_full_name("OS App:fullAccess")
+    assert os_app_fa
+    env.register_attacker('attacker', {os_app_fa})
 
     return env
 

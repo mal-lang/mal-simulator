@@ -43,9 +43,10 @@ class AttackerEnv(gym.Env[Any, Any]):
 
         attacker_agent = attacker_agents[0]
         self.attacker_agent_name = attacker_agent['name']
+
         self.sim.register_attacker(
             self.attacker_agent_name,
-            attacker_agent['attacker_id']
+            attacker_agent['entry_points']
         )
         self.sim.reset()
 
@@ -127,7 +128,8 @@ class DefenderEnv(gym.Env[Any, Any]):
             if agent_info['type'] == AgentType.ATTACKER:
                 self.sim.register_attacker(
                     agent_info['name'],
-                    agent_info['attacker_id'])
+                    agent_info['entry_points']
+                )
 
     def _create_attacker_decision_agents(
             self, agents: list[dict[str, Any]], seed: Optional[int] = None
