@@ -13,14 +13,15 @@ from maltoolbox.attackgraph import (
     AttackGraph,
     AttackGraphNode
 )
-ITERATIONS_LIMIT = int(1e9)
-logger = logging.getLogger(__name__)
 
 from malsim.apriori import (
     calculate_viability_and_necessity,
     propagate_viability_from_node,
     prune_unviable_and_unnecessary_nodes
 )
+
+ITERATIONS_LIMIT = int(1e9)
+logger = logging.getLogger(__name__)
 
 class AgentType(Enum):
     """Enum for agent types"""
@@ -100,8 +101,7 @@ class MalSimAttackerState(MalSimAgentState):
                 )
             case 'and':
                 return all(
-                    parent in self.performed_nodes or not parent.is_necessary
-                    in self.performed_nodes for parent in node.parents
+                    parent in self.performed_nodes or parent.is_necessary not in self.performed_nodes for parent in node.parents
                 )
             case 'exist' | 'notExist' | 'defense':
                 return False

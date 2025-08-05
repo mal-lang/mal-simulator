@@ -122,7 +122,7 @@ class DefendFutureCompromisedDefender(DecisionAgent):
                             p in self.compromised_nodes
                             for p in child_node.parents
                         )
-                        and not child_node in self.compromised_nodes
+                        and child_node not in self.compromised_nodes
                         for child_node in node.children
                     )
                 )

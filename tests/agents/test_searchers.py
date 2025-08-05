@@ -1,5 +1,4 @@
-from unittest.mock import MagicMock
-from maltoolbox.attackgraph import AttackGraphNode, AttackGraph
+from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.language import LanguageGraph
 from malsim.mal_simulator import MalSimulator, MalSimAgentStateView
 from malsim.agents import BreadthFirstAttacker, DepthFirstAttacker

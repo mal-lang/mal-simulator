@@ -466,12 +466,10 @@ def test_malsimulator_observe_and_reward_attacker_no_entrypoints(
     ) -> None:
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    attacker = Attacker("TestAttacker", [], [])
-    attack_graph.add_attacker(attacker)
     sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
     # Register an attacker
-    sim.register_attacker(attacker.name, attacker.id)
+    sim.register_attacker('attacker', set())
     sim.reset()
 
     obs, rew, _, _, _ = sim.step({})
@@ -479,9 +477,9 @@ def test_malsimulator_observe_and_reward_attacker_no_entrypoints(
     # Observe and reward with no new actions
     # Since attacker has no entry points and no steps have been performed
     # the observed state should be empty
-    for state in obs[attacker.name]['observed_state']:
+    for state in obs['attacker']['observed_state']:
         assert state == -1
-    assert rew[attacker.name] == 0
+    assert rew['attacker'] == 0
 
 
 def test_malsimulator_observe_and_reward_attacker_entrypoints(

@@ -412,8 +412,10 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
             nodes = [self.index_to_node(step_idx)]
         return nodes
 
-    def register_attacker(self, attacker_name: str, attacker_id: int) -> None:
-        self.sim.register_attacker(attacker_name, attacker_id)
+    def register_attacker(
+            self, attacker_name: str, entry_points: set
+        ) -> None:
+        self.sim.register_attacker(attacker_name, entry_points)
         agent = self.sim.agent_states[attacker_name]
         self._init_agent(agent)
 
