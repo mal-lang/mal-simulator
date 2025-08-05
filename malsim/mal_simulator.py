@@ -580,7 +580,7 @@ class MalSimulator():
                         defender_agent.reward += node_reward
 
                     # Uncompromise node if requested
-                    attacker_agent.undo_compromise(unviable_node)
+                    attacker_agent.performed_nodes.remove(unviable_node)
 
     def _attacker_step(
         self, agent: MalSimAttackerState, nodes: list[AttackGraphNode]
