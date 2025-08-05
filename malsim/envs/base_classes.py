@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Optional
+
+from maltoolbox.attackgraph import AttackGraphNode
 from ..mal_simulator import MalSimulator, MalSimAgentStateView
 
 class MalSimEnv(ABC):
@@ -19,9 +21,9 @@ class MalSimEnv(ABC):
         self.sim.reset(seed=seed, options=options)
 
     def register_attacker(
-            self, attacker_name: str, attacker_id: int
+            self, attacker_name: str, entry_points: set[AttackGraphNode]
         ) -> None:
-        self.sim.register_attacker(attacker_name, attacker_id)
+        self.sim.register_attacker(attacker_name, entry_points)
 
     def register_defender(
             self, defender_name: str

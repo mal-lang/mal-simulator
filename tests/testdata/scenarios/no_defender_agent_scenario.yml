@@ -30,4 +30,4 @@ agents:
     config:
       seed: 1
     entry_points:
-      - 'Credentials:6:attemptCredentialsReuse'
+      - 'OS App:fullAccess'

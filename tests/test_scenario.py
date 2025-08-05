@@ -47,72 +47,14 @@ def test_load_scenario() -> None:
     assert attack_graph.get_node_by_full_name('Identity:11:notPresent')\
         .extras['reward'] == 3.5
 
-    # One attacker from scenario (overrides attacker from model)
-    assert len(attack_graph.attackers) == 1
-
     # Verify attacker entrypoint was added
     attack_step = attack_graph.get_node_by_full_name(
-        'Credentials:6:attemptCredentialsReuse'
+        'OS App:fullAccess'
     )
-    attacker_name = "Attacker1"
-    attacker = next(
-        (attacker for attacker in attack_graph.attackers.values()
-         if attacker.name == attacker_name)
-    )
-    assert attack_step in attacker.entry_points
-
-    # Entry points list and reached attack steps list are different lists
-    assert id(attacker.entry_points) != id(attacker.reached_attack_steps)
+    assert attack_step in agents[0]['entry_points']
 
     assert isinstance(agents[0]['agent'], BreadthFirstAttacker)
     assert isinstance(agents[1]['agent'], PassiveAgent)
-
-
-def test_load_scenario_no_attacker_in_model() -> None:
-    """Make sure we can load a scenario"""
-
-    # Load the scenario
-    attack_graph, _ = load_scenario(
-        path_relative_to_tests('./testdata/scenarios/no_existing_attacker_in_model_scenario.yml')
-    )
-
-    # Verify one attacker entrypoint was added (model is missing attacker)
-    assert len(attack_graph.attackers) == 1
-    attack_step = attack_graph.get_node_by_full_name(
-        'Credentials:6:attemptCredentialsReuse'
-    )
-    attacker_name = "Attacker1"
-    attacker = next(
-        (attacker for attacker in attack_graph.attackers.values()
-         if attacker.name == attacker_name)
-    )
-    assert attack_step in attacker.entry_points
-
-
-def test_load_scenario_attacker_in_model() -> None:
-    """
-    Make sure model attacker is removed if scenario has attacker
-    Make sure model attacker is not removed if scenario has no attacker
-    """
-
-    # Load the scenario that has entry point defined
-    attack_graph, _ = load_scenario(
-        path_relative_to_tests(
-            'testdata/scenarios/simple_scenario.yml')
-    )
-
-    all_attackers = list(attack_graph.attackers.values())
-    assert len(all_attackers) == 1
-    assert all_attackers[0].name == 'Attacker1' # From scenario
-
-    # Load the scenario that has no entry point defined
-    attack_graph, _ = load_scenario(
-        path_relative_to_tests(
-            'testdata/scenarios/no_entry_points_simple_scenario.yml')
-    )
-    all_attackers = list(attack_graph.attackers.values())
-    assert len(all_attackers) == 1
-    assert all_attackers[0].name == 'Attacker:15' # From scenario
 
 
 def test_load_scenario_no_defender_agent() -> None:

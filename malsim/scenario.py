@@ -19,7 +19,6 @@ import yaml
 from maltoolbox.attackgraph import (
     AttackGraph,
     AttackGraphNode,
-    Attacker,
     create_attack_graph
 )
 
@@ -286,44 +285,28 @@ def apply_scenario_node_property(
                 set_as_extras)
 
 
-def create_scenario_attacker(
-    attack_graph: AttackGraph, attacker_name: str, entry_point_names: list[str]
-) -> Attacker:
-    """Apply attacker entrypoints to attackgraph from scenario
-
-    Creater attacker, add entrypoints to it and compromise them.
+def get_entry_point_nodes(
+    attack_graph: AttackGraph, entry_point_names: list[str]
+) -> set[AttackGraphNode]:
+    """Get entry point nodes from attackgraph
 
     Args:
-    - attack_graph: the attack graph to apply entry points to
-    - attacker_name: the name to give the attacker
-    - entry_points: the entry points to apply for the attacker
+    - attack_graph: the attack graph to the nodes from
+    - entry_points: the entry points names to look for
 
     Returns:
-    - the Attacker with the relevant entrypoints
+    - the set of entry point nodes from the attack graph
     """
 
-    entry_points = []
-    reached_attack_steps = []
+    entry_points = set()
 
     for entry_point_name in entry_point_names:
         entry_point = attack_graph.get_node_by_full_name(entry_point_name)
         if not entry_point:
             raise LookupError(f'Node {entry_point_name} does not exist')
-        entry_points.append(entry_point)
-        reached_attack_steps.append(entry_point)
+        entry_points.add(entry_point)
 
-    attacker = Attacker(
-        name=attacker_name,
-        entry_points=set(entry_points),
-        reached_attack_steps=set(reached_attack_steps),
-    )
-    attack_graph.add_attacker(attacker)
-
-    # Compromise the entry points
-    for entry_point in entry_points:
-        attacker.compromise(entry_point)
-
-    return attacker
+    return entry_points
 
 
 def load_simulator_agents(
@@ -345,18 +328,6 @@ def load_simulator_agents(
     agents = []
     scenario_agents = scenario.get('agents', {})
 
-    # Override attackers in attack graph / model if
-    # attacker entry points are defined in scenario
-    entry_points_defined_in_scenario = any(
-        agent_info.get('entry_points')
-        for agent_info in scenario_agents.values()
-        if AgentType(agent_info.get('type')) == AgentType.ATTACKER
-    )
-    if entry_points_defined_in_scenario:
-        all_attackers = list(attack_graph.attackers.values())
-        for attacker in all_attackers:
-            attack_graph.remove_attacker(attacker)
-
     for agent_name, agent_info in scenario_agents.items():
         class_name = agent_info.get('agent_class')
         agent_type = AgentType(agent_info.get('type'))
@@ -366,9 +337,11 @@ def load_simulator_agents(
         if agent_type == AgentType.ATTACKER:
             # Attacker has entrypoints
             entry_points = agent_info.get('entry_points')
-            attacker = create_scenario_attacker(attack_graph, agent_name, entry_points)
-            agent_dict['attacker_id'] = attacker.id
+            entry_nodes = get_entry_point_nodes(attack_graph, entry_points)
+            agent_dict['entry_points'] = entry_nodes
 
+        # TODO: What is the expected behavior here? If there is no good
+        # usecase for this scenario we should just remove it.
         if class_name is None:
             # No class name - no agent object created
             agents.append(agent_dict)
@@ -433,7 +406,9 @@ def apply_scenario_to_attack_graph(
 
     try:
         apply_scenario_node_property(
-            attack_graph, 'reward', scenario.get('rewards', {})
+            attack_graph,
+            'reward',
+            scenario.get('rewards', {})
         )
     except AssertionError as e:
         raise RuntimeError(
@@ -489,7 +464,7 @@ def create_simulator_from_scenario(
         if agent_dict['type'] == AgentType.ATTACKER:
             sim.register_attacker(
                 agent_dict['name'],
-                agent_dict['attacker_id']
+                agent_dict['entry_points']
             )
         elif agent_dict['type'] == AgentType.DEFENDER:
             sim.register_defender(
