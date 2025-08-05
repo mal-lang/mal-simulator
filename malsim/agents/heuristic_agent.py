@@ -28,7 +28,7 @@ class DefendCompromisedDefender(DecisionAgent):
             if agent_config.get("randomize")
             else None
         )
-        self.compromised_nodes = set()
+        self.compromised_nodes: set[AttackGraphNode] = set()
 
     def get_next_action(
         self, agent_state: MalSimAgentStateView, **kwargs: Any
@@ -86,7 +86,7 @@ class DefendFutureCompromisedDefender(DecisionAgent):
             if agent_config.get("randomize")
             else None
         )
-        self.compromised_nodes = set()
+        self.compromised_nodes: set[AttackGraphNode] = set()
 
     def get_next_action(
         self, agent_state: MalSimAgentStateView, **kwargs: Any

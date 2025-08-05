@@ -71,9 +71,9 @@ class MalSimAttackerState(MalSimAgentState):
 
     def __init__(self, name: str):
         super().__init__(name, AgentType.ATTACKER)
-        self.entry_points = set()
+        self.entry_points: set[AttackGraphNode] = set()
 
-    def compromise(self, node: AttackGraphNode):
+    def compromise(self, node: AttackGraphNode) -> None:
         """Compromise the node"""
         self.performed_nodes.add(node)
 

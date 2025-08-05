@@ -413,7 +413,7 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
         return nodes
 
     def register_attacker(
-            self, attacker_name: str, entry_points: set
+            self, attacker_name: str, entry_points: set[AttackGraphNode]
         ) -> None:
         self.sim.register_attacker(attacker_name, entry_points)
         agent = self.sim.agent_states[attacker_name]
@@ -457,18 +457,17 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
                 if child_obs == -1:
                     agent_observation['observed_state'][child_index] = 0
 
-        attacker = attacker_agent.attacker
         attacker_observation = self._agent_observations[attacker_agent.name]
 
         for node in compromised_nodes:
-            if node.is_compromised_by(attacker):
+            if node in attacker_agent.performed_nodes:
                 # Enable node
                 logger.debug("Enable %s in attacker obs", node.full_name)
                 _enable_node(node, attacker_observation)
 
         for node in disabled_nodes:
             is_entrypoint = node.extras.get('entrypoint', False)
-            if node.is_compromised_by(attacker) and not is_entrypoint:
+            if node in attacker_agent.performed_nodes and not is_entrypoint:
                 logger.debug("Disable %s in attacker obs", node.full_name)
                 # Mark attacker compromised steps that were
                 # disabled by a defense as disabled in obs
