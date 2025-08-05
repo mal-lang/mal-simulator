@@ -16,8 +16,7 @@ from typing import TYPE_CHECKING
 import logging
 
 if TYPE_CHECKING:
-    from ..attackgraph import AttackGraph
-    from ..node import AttackGraphNode
+    from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
 logger = logging.getLogger(__name__)
 
