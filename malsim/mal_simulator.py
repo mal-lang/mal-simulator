@@ -348,6 +348,40 @@ class MalSimulatorSettings():
     # - Leave the node/step compromised even after it becomes untraversable
     uncompromise_untraversable_steps: bool = False
 
+def prepare_attack_graph(
+    attack_graph: AttackGraph,
+    prune_unviable_unnecessary: bool = True
+) -> AttackGraph:
+    """
+    Prepare the attack graph for running the simulation:
+    - assign defense values to the defenses
+    - calculate the viability and necessity of nodes
+    - prune nodes if requested
+    - in the future this should also handle initial TTC evaluations
+
+    Args:
+        attack_graph                -   The attack graph to modify
+        prune_unviable_unnecessary  -   Prunes graph of unnecessary and
+                                        unviable nodesif set to true
+    """
+    for node in attack_graph.nodes.values():
+        # TODO: This and the rest of the defense_status logic in
+        # MalSimDefenderState should be redone once the TTC calculations are
+        # in place.
+        if node.type == 'defense':
+            node.defense_status = 1.0 if node.ttc and \
+                node.ttc['name'] == 'Enabled' else 0.0
+        node.is_viable = True
+        node.is_necessary = True
+        node.extras['viable'] = node.is_viable
+        node.extras['necessary'] = node.is_necessary
+
+    # Calculate viability and necessity and optionally prune graph
+    calculate_viability_and_necessity(attack_graph)
+    if prune_unviable_unnecessary:
+        prune_unviable_and_unnecessary_nodes(attack_graph)
+
+    return attack_graph
 
 class MalSimulator():
     """A MAL Simulator that works on the AttackGraph
@@ -373,7 +407,8 @@ class MalSimulator():
         """
         logger.info("Creating Base MAL Simulator.")
 
-        self.prepare_attack_graph(attack_graph, prune_unviable_unnecessary)
+        self.prune_unviable_unnecessary = prune_unviable_unnecessary
+        prepare_attack_graph(attack_graph, prune_unviable_unnecessary)
 
         # Keep a backup attack graph to use when resetting
         self.attack_graph_backup = copy.deepcopy(attack_graph)
@@ -391,30 +426,6 @@ class MalSimulator():
         # Keep track on all 'living' agents sorted by order to step in
         self._alive_agents: set[str] = set()
 
-    def prepare_attack_graph(
-        self,
-        attack_graph: AttackGraph,
-        prune_unviable_unnecessary: bool = True
-    ) -> AttackGraph:
-        for node in attack_graph.nodes.values():
-            # TODO: This and the rest of the defense_status logic in
-            # MalSimDefenderState should be redone once the TTC calculations are
-            # in place.
-            if node.type == 'defense':
-                node.defense_status = 1.0 if node.ttc and \
-                    node.ttc['name'] == 'Enabled' else 0.0
-            node.is_viable = True
-            node.is_necessary = True
-            node.extras['viable'] = node.is_viable
-            node.extras['necessary'] = node.is_necessary
-
-        # Calculate viability and necessity and optionally prune graph
-        calculate_viability_and_necessity(attack_graph)
-        if prune_unviable_unnecessary:
-            prune_unviable_and_unnecessary_nodes(attack_graph)
-
-        return attack_graph
-
 
     def reset(
         self,
@@ -427,7 +438,13 @@ class MalSimulator():
         # Reset attack graph
         self.attack_graph = copy.deepcopy(self.attack_graph_backup)
 
-        self.prepare_attack_graph(self.attack_graph)
+        #TODO: If we do a soft reset of the attack graph we do not need
+        # prepare it again. The deepcopy loses the defense, viability, and
+        # necessity values.
+        prepare_attack_graph(
+            self.attack_graph,
+            self.prune_unviable_unnecessary
+        )
 
         # Reset current iteration
         self.cur_iter = 0
