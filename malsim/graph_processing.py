@@ -112,13 +112,9 @@ def evaluate_viability(node: AttackGraphNode) -> None:
                 f'{node.full_name} defense status invalid: {node.defense_status}.'
             node.is_viable = node.defense_status != 1.0
         case 'or':
-            node.is_viable = False
-            for parent in node.parents:
-                node.is_viable = node.is_viable or parent.is_viable
+            node.is_viable = any(parent.is_viable for parent in node.parents)
         case 'and':
-            node.is_viable = True
-            for parent in node.parents:
-                node.is_viable = node.is_viable and parent.is_viable
+            node.is_viable = all(parent.is_viable for parent in node.parents)
         case _:
             msg = ('Evaluate viability was provided node "%s"(%d) which '
                    'is of unknown type "%s"')
@@ -146,13 +142,13 @@ def evaluate_necessity(node: AttackGraphNode) -> None:
                 f'{node.full_name} defense status invalid: {node.defense_status}.'
             node.is_necessary = node.defense_status != 0.0
         case 'or':
-            node.is_necessary = True
-            for parent in node.parents:
-                node.is_necessary = node.is_necessary and parent.is_necessary
+            node.is_necessary = all(
+                parent.is_necessary for parent in node.parents
+            )
         case 'and':
-            node.is_necessary = False
-            for parent in node.parents:
-                node.is_necessary = node.is_necessary or parent.is_necessary
+            node.is_necessary = any(
+                parent.is_necessary for parent in node.parents
+            )
         case _:
             msg = ('Evaluate necessity was provided node "%s"(%d) which '
                    'is of unknown type "%s"')
