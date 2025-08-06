@@ -139,8 +139,8 @@ class MalSimAttackerState(MalSimAgentState):
                 if skip_compromised and child in self.performed_nodes:
                     continue
                 if (
+                    child not in attack_surface and
                     self.is_node_traversable(child)
-                    and child not in attack_surface
                 ):
                     attack_surface.add(child)
 
