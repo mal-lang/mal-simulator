@@ -418,10 +418,11 @@ def apply_scenario_to_attack_graph(
 
 
 def _extend_scenario(
-        original_scenario_path: str, scenario: dict[str, Any]
+        original_scenario_path: str, overriding_scenario: dict[str, Any]
     ) -> dict[str, Any]:
     """
-    Extend scenario with `original_scenario_path` with `overriding_scenario`
+    Override settings in `original_scenario_path` with settings
+    in `overriding_scenario` and return the result.
     """
 
     with open(original_scenario_path, 'r', encoding='utf-8') as s_file:
@@ -436,7 +437,7 @@ def _extend_scenario(
             path_relative_to_file_dir(original_scenario["model_file"], s_file)
         )
 
-        for key, value in scenario.items():
+        for key, value in overriding_scenario.items():
             # Override the original scenario with the
             # overriding scenario key,value pairs
             if key == "extends":
