@@ -7,8 +7,6 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Any, Optional, Iterable
 
-from maltoolbox import neo4j_configs
-from maltoolbox.ingestors import neo4j
 from maltoolbox.attackgraph import (
     AttackGraph,
     AttackGraphNode
@@ -799,13 +797,4 @@ class MalSimulator():
         return self.agent_states
 
     def render(self) -> None:
-        """Render attack graph from simulation in Neo4J"""
-        logger.debug("Sending attack graph to Neo4J database.")
-        neo4j.ingest_attack_graph(
-            self.attack_graph,
-            neo4j_configs["uri"],
-            neo4j_configs["username"],
-            neo4j_configs["password"],
-            neo4j_configs["dbname"],
-            delete=True,
-        )
+        pass
