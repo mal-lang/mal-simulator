@@ -120,9 +120,9 @@ def test_step_deterministic(
     # Run 1
     sim.reset(seed=123)
     for _ in range(10):
+        attacker_state = sim.get_agent_state('test_attacker')
         attacker_node = next(
-            n for n in sim.get_agent_state('test_attacker').action_surface
-            if not n.is_compromised()
+            n for n in attacker_state.action_surface
         )
         attacker_action = (1, sim.node_to_index(attacker_node))
         obs1, _, _, _, _ = sim.step(
@@ -132,9 +132,9 @@ def test_step_deterministic(
     # Run 2 - identical
     sim.reset(seed=123)
     for _ in range(10):
+        attacker_state = sim.get_agent_state('test_attacker')
         attacker_node = next(
-            n for n in sim.get_agent_state('test_attacker').action_surface
-            if not n.is_compromised()
+            n for n in attacker_state.action_surface
         )
         attacker_action = (1, sim.node_to_index(attacker_node))
         obs2, _, _, _, _ = sim.step(
@@ -329,9 +329,11 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
     env.register_defender(defender_agent_name)
     env.reset()
 
+    defender_state = env.get_agent_state(defender_agent_name)
+
     defender_enabled_steps = [
         n.id for n in env.attack_graph.nodes.values()
-        if n.defense_status == 1.0
+        if n in defender_state.performed_nodes
     ]
 
     attacker_reached_steps = [n.id for n in entry_points]
@@ -467,11 +469,14 @@ def test_malsimulator_initial_observation_defender(
     obs, _ = env.reset()
 
     defender_obs_state = obs[defender_agent_name]["observed_state"]
+    defender_agent_state = env.get_agent_state(defender_agent_name)
 
     nodes_to_observe = [
         node for node in env.sim.attack_graph.nodes.values()
-        if node.is_enabled_defense() or node.is_compromised()
+        if node in defender_agent_state.performed_nodes
     ]
+
+    assert nodes_to_observe
 
     # Assert that observed state is 1 after observe_defender
     for node in nodes_to_observe:
