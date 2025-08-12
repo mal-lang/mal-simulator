@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 def propagate_viability_from_node(
-        node: AttackGraphNode, is_viable: dict[AttackGraphNode, bool]
+        node: AttackGraphNode, viable_nodes: set[AttackGraphNode]
     ) -> set[AttackGraphNode]:
     """
     Update viability of children of node given as parameter. Propagate
@@ -31,33 +31,44 @@ def propagate_viability_from_node(
     Arguments:
     node            - the attack graph node from which to propagate the
                       viability status
+    viable_nodes    - set of all viable nodes
 
     Returns:
     changed_nodes   - set of nodes that have changed viability
     """
     logger.debug(
         'Propagate viability from "%s"(%d) with viability status %s.',
-        node.full_name, node.id, is_viable[node]
+        node.full_name, node.id, node in viable_nodes
     )
     changed_nodes = set()
     for child in node.children:
-        original_value = is_viable[child]
-        if child.type == 'or':
-            is_viable[child] = any(
-                is_viable[parent] for parent in child.parents)
-        elif child.type == 'and':
-            is_viable[child] = all(
-                is_viable[parent] for parent in child.parents)
+        was_viable = child in viable_nodes
+        is_viable = None
 
-        if is_viable[child] != original_value:
+        if child.type == 'or':
+            is_viable = any(
+                parent in viable_nodes for parent in child.parents)
+        elif child.type == 'and':
+            is_viable = all(
+                parent in viable_nodes for parent in child.parents)
+        else:
+            raise TypeError('Child of node must be of type "or"/"and"')
+
+        if is_viable != was_viable:
+
+            if is_viable:
+                viable_nodes.add(child)
+            else:
+                viable_nodes.remove(child)
+
             changed_nodes |= (
-                {child} | propagate_viability_from_node(child, is_viable)
+                {child} | propagate_viability_from_node(child, viable_nodes)
             )
 
     return changed_nodes
 
 def propagate_necessity_from_node(
-        node: AttackGraphNode, is_necessary: dict[AttackGraphNode, bool]
+        node: AttackGraphNode, necessary_nodes: set[AttackGraphNode]
     ) -> set[AttackGraphNode]:
     """
     Update necessity of children of node givein as parameter. Propagate
@@ -67,28 +78,37 @@ def propagate_necessity_from_node(
     Arguments:
     node            - the attack graph node from which to propagate the
                       necessity status
+    necessary_nodes - set of all necessary nodes
 
     Returns:
     changed_nodes   - set of nodes that have changed necessity
     """
     logger.debug(
         'Propagate necessity from "%s"(%d) with necessity status %s.',
-        node.full_name, node.id, is_necessary[node]
+        node.full_name, node.id, node in necessary_nodes
     )
     changed_nodes = set()
     for child in node.children:
-        original_value = is_necessary[child]
+        was_necessary = child in necessary_nodes
+        is_necessary = None
         if child.type == 'or':
-            is_necessary[child] = all(
-                is_necessary[parent] for parent in child.parents)
+            is_necessary = all(
+                parent in necessary_nodes for parent in child.parents)
 
         elif child.type == 'and':
-            is_necessary[child] = any(
-                is_necessary[parent] for parent in child.parents)
+            is_necessary = any(
+                parent in necessary_nodes for parent in child.parents)
 
-        if is_necessary[child] != original_value:
+        if is_necessary != was_necessary:
+
+            if is_necessary:
+                necessary_nodes.add(child)
+            else:
+                necessary_nodes.remove(child)
+
             changed_nodes |= (
-                {child} | propagate_necessity_from_node(child, is_necessary)
+                {child}
+                | propagate_necessity_from_node(child, necessary_nodes)
             )
 
     return changed_nodes
@@ -96,16 +116,16 @@ def propagate_necessity_from_node(
 
 def evaluate_viability(
         node: AttackGraphNode,
-        is_viable: dict[AttackGraphNode, bool],
+        viable_nodes: set[AttackGraphNode],
         enabled_defenses: set[AttackGraphNode]
-    ) -> bool:
+    ) -> None:
     """
     Arguments:
     node                - the node to evaluate viability for
-    is_viable           - dict mapping nodes to their viability
+    viable_nodes        - set of all viable nodes
     enabled_defenses    - set of all enabled defenses
     """
-    node_is_viable = is_viable[node]
+    node_is_viable = node in viable_nodes
     match (node.type):
         case 'exist':
             assert isinstance(node.existence_status, bool), \
@@ -118,46 +138,56 @@ def evaluate_viability(
         case 'defense':
             node_is_viable = node not in enabled_defenses
         case 'or':
-            node_is_viable = any(is_viable[parent] for parent in node.parents)
+            node_is_viable = any(
+                parent in viable_nodes for parent in node.parents
+            )
         case 'and':
-            node_is_viable = all(is_viable[parent] for parent in node.parents)
+            node_is_viable = all(
+                parent in viable_nodes for parent in node.parents
+            )
         case _:
             msg = ('Evaluate viability was provided node "%s"(%d) which '
                    'is of unknown type "%s"')
             logger.error(msg, node.full_name, node.id, node.type)
             raise ValueError(msg % (node.full_name, node.id, node.type))
 
-    return node_is_viable
+    if node_is_viable:
+        viable_nodes.add(node)
+    else:
+        viable_nodes.remove(node)
+
 
 def evaluate_necessity(
         node: AttackGraphNode,
-        is_necessary: dict[AttackGraphNode, bool],
+        necessary_nodes: set[AttackGraphNode],
         enabled_defenses: set[AttackGraphNode]
     ) -> None:
     """
     Arguments:
     node             - the node to evaluate necessity for.
-    is_necessary     - dict mapping nodes to their necessity
+    necessary_nodes  - set of all necessary nodes
     enabled_defenses - set of all enabled defenses
     """
+
+    node_is_necessary = node in necessary_nodes
     match (node.type):
         case 'exist':
             assert isinstance(node.existence_status, bool), \
                 f'Existence status not defined for {node.full_name}.'
-            is_necessary[node] = not node.existence_status
+            node_is_necessary = not node.existence_status
         case 'notExist':
             assert isinstance(node.existence_status, bool), \
                 f'Existence status not defined for {node.full_name}.'
-            is_necessary[node] = bool(node.existence_status)
+            node_is_necessary = bool(node.existence_status)
         case 'defense':
-            is_necessary[node] = node in enabled_defenses
+            node_is_necessary = node in enabled_defenses
         case 'or':
-            is_necessary[node] = all(
-                is_necessary[parent] for parent in node.parents
+            node_is_necessary = all(
+                parent in necessary_nodes for parent in node.parents
             )
         case 'and':
-            is_necessary[node] = any(
-                is_necessary[parent] for parent in node.parents
+            node_is_necessary = any(
+                parent in necessary_nodes for parent in node.parents
             )
         case _:
             msg = ('Evaluate necessity was provided node "%s"(%d) which '
@@ -165,12 +195,17 @@ def evaluate_necessity(
             logger.error(msg, node.full_name, node.id, node.type)
             raise ValueError(msg % (node.full_name, node.id, node.type))
 
+    if node_is_necessary:
+        necessary_nodes.add(node)
+    else:
+        necessary_nodes.remove(node)
+
 
 def calculate_viability_and_necessity(
         graph: AttackGraph, enabled_defenses: set[AttackGraphNode]
     ) -> tuple[
-            dict[AttackGraphNode, bool],
-            dict[AttackGraphNode, bool]
+            set[AttackGraphNode],
+            set[AttackGraphNode]
         ]:
     """
     Arguments:
@@ -180,33 +215,33 @@ def calculate_viability_and_necessity(
 
     Return:
     tuple with
-        - dict mapping from node to viability
-        - dict mapping from node to necessity
+        - set of viable nodes
+        - set of necessary nodes
     """
-    is_viable = {n: True for n in graph.nodes.values()}
-    is_necessary = {n: True for n in graph.nodes.values()}
+    viable_nodes = set(n for n in graph.nodes.values())
+    necessary_nodes = set(n for n in graph.nodes.values())
 
     for node in graph.nodes.values():
         if node.type in ['exist', 'notExist', 'defense']:
-            evaluate_viability(node, is_viable, enabled_defenses)
-            propagate_viability_from_node(node, is_viable)
-            evaluate_necessity(node, is_necessary, enabled_defenses)
-            propagate_necessity_from_node(node, is_necessary)
+            evaluate_viability(node, viable_nodes, enabled_defenses)
+            propagate_viability_from_node(node, viable_nodes)
+            evaluate_necessity(node, necessary_nodes, enabled_defenses)
+            propagate_necessity_from_node(node, necessary_nodes)
 
-    return is_viable, is_necessary
+    return viable_nodes, necessary_nodes
 
 
 def prune_unviable_and_unnecessary_nodes(
         graph: AttackGraph,
-        is_viable: dict[AttackGraphNode, bool],
-        is_necessary: dict[AttackGraphNode, bool]
+        viable_nodes: set[AttackGraphNode],
+        necessary_nodes: set[AttackGraphNode]
     ) -> None:
     """
     Arguments:
-    graph         - the attack graph for which we wish to remove the
-                    the nodes which are not viable or necessary.
-    is_viable     - dict mapping nodes to their viability
-    is_necessary  - dict mapping nodes to their necessity
+    graph            - the attack graph for which we wish to remove the
+                       the nodes which are not viable or necessary.
+    viable_nodes     - set of all viable nodes
+    necessary_nodes  - set of all necessary nodes
 
     """
     logger.debug(
@@ -215,7 +250,7 @@ def prune_unviable_and_unnecessary_nodes(
     nodes_to_remove = set()
     for node in graph.nodes.values():
         if node.type in ('or', 'and') and \
-            (not is_viable[node] or not is_necessary[node]):
+            (node not in viable_nodes or node not in necessary_nodes):
             nodes_to_remove.add(node)
 
     # Do the removal separatly so we don't remove
@@ -223,7 +258,7 @@ def prune_unviable_and_unnecessary_nodes(
     for node in nodes_to_remove:
         logger.debug(
             'Remove %s node "%s"(%d) from attack graph.',
-            'unviable' if is_necessary[node] else 'unnecessary',
+            'unviable' if node in necessary_nodes else 'unnecessary',
             node.full_name,
             node.id
         )

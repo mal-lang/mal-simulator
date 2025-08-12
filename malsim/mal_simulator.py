@@ -199,8 +199,8 @@ class MalSimulator():
         self._agent_states: dict[str, MalSimAgentState] = {}
 
         # Store properties of each AttackGraphNode
-        self._is_viable: dict[AttackGraphNode, bool] = {}
-        self._is_necessary: dict[AttackGraphNode, bool] = {}
+        self._viable_nodes: set[AttackGraphNode] = set()
+        self._necessary_nodes: set[AttackGraphNode] = set()
         self._enabled_defenses: set[AttackGraphNode] = set()
 
         # Keep track on all 'living' agents sorted by order to step in
@@ -235,7 +235,7 @@ class MalSimulator():
                     self._enabled_defenses.add(node)
 
         # Calculate viability and necessity and optionally prune graph
-        self._is_viable, self._is_necessary = (
+        self._viable_nodes, self._necessary_nodes = (
             calculate_viability_and_necessity(
                 attack_graph, self._enabled_defenses
             )
@@ -243,7 +243,7 @@ class MalSimulator():
 
         if prune_unviable_unnecessary:
             prune_unviable_and_unnecessary_nodes(
-                attack_graph, self._is_viable, self._is_necessary
+                attack_graph, self._viable_nodes, self._necessary_nodes
             )
 
 
@@ -280,7 +280,7 @@ class MalSimulator():
         """
         return {
             node for node in self.attack_graph.nodes.values()
-            if self._is_viable[node]
+            if node in self._viable_nodes
             and node.type == 'defense'
             and 'suppress' not in node.tags
             and node not in self._enabled_defenses
@@ -304,28 +304,29 @@ class MalSimulator():
         node        - the node we wish to evalute
         """
 
-        if not self._is_viable[node]:
+        if node not in self._viable_nodes:
             return False
 
         match(node.type):
             case 'or':
-                return any(
+                traversable = any(
                     parent in attacker_state.performed_nodes
                     for parent in node.parents
                 )
             case 'and':
-                return all(
+                traversable = all(
                     parent in attacker_state.performed_nodes
-                    or not self._is_necessary[parent]
+                    or parent not in self._necessary_nodes
                     for parent in node.parents
                 )
             case 'exist' | 'notExist' | 'defense':
-                return False
+                traversable = False
             case _:
                 raise TypeError(
                     f'Node "{node.full_name}"({node.id})'
                     f'has an unknown type "{node.type}".'
                 )
+        return traversable
 
     def _get_attack_surface(
             self,
@@ -648,9 +649,11 @@ class MalSimulator():
 
             # Enable defense if possible
             if node in agent.action_surface:
-                self._is_viable[node] = False
+                self._viable_nodes.remove(node)
                 attack_steps_made_unviable |= (
-                    propagate_viability_from_node(node, self._is_viable)
+                    propagate_viability_from_node(
+                        node, self._viable_nodes
+                    )
                 )
                 enabled_defenses.add(node)
                 logger.info(
