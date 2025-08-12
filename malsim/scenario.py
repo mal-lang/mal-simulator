@@ -425,32 +425,22 @@ def _extend_scenario(
     in `overriding_scenario` and return the result.
     """
 
-    with open(original_scenario_path, 'r', encoding='utf-8') as s_file:
-        original_scenario: dict[str, Any] = yaml.safe_load(s_file)
-        resulting_scenario = original_scenario.copy()
+    original_scenario: dict[str, Any] = (
+        _load_scenario_dict(original_scenario_path)
+    )
+    resulting_scenario = original_scenario.copy()
 
-        resulting_scenario["lang_file"] = (
-            path_relative_to_file_dir(original_scenario["lang_file"], s_file)
-        )
+    for key, value in overriding_scenario.items():
+        # Override the original scenario with the
+        # overriding scenario key,value pairs
+        if key == "extends":
+            # The 'extends' key is not needed after extend is done
+            continue
+        resulting_scenario[key] = value
 
-        resulting_scenario["model_file"] = (
-            path_relative_to_file_dir(original_scenario["model_file"], s_file)
-        )
+    return resulting_scenario
 
-        for key, value in overriding_scenario.items():
-            # Override the original scenario with the
-            # overriding scenario key,value pairs
-            if key == "extends":
-                # The 'extends' key is not needed after extend is done
-                continue
-            resulting_scenario[key] = value
-
-        return resulting_scenario
-
-
-def load_scenario(scenario_file: str) -> tuple[AttackGraph, list[dict[str, Any]]]:
-    """Load a scenario from a scenario file to an AttackGraph"""
-
+def _load_scenario_dict(scenario_file: str) -> dict[str, Any]:
     with open(scenario_file, 'r', encoding='utf-8') as s_file:
         scenario = yaml.safe_load(s_file)
 
@@ -460,17 +450,28 @@ def load_scenario(scenario_file: str) -> tuple[AttackGraph, list[dict[str, Any]]
             )
             scenario = _extend_scenario(original_scenario_path, scenario)
 
-        lang_file = path_relative_to_file_dir(scenario['lang_file'], s_file)
-        model_file = path_relative_to_file_dir(scenario['model_file'], s_file)
+        # Convert path relative to scenario file
+        scenario['lang_file'] = path_relative_to_file_dir(
+            scenario['lang_file'], s_file
+        )
+        scenario['model_file'] = path_relative_to_file_dir(
+            scenario['model_file'], s_file
+        )
 
-        # Create the attack graph from model + lang and apply scenario
-        attack_graph = create_attack_graph(lang_file, model_file)
-        apply_scenario_to_attack_graph(attack_graph, scenario)
+    return scenario
 
-        # Load the scenario configuration
-        scenario_agents = load_simulator_agents(attack_graph, scenario)
+def load_scenario(scenario_file: str) -> tuple[AttackGraph, list[dict[str, Any]]]:
+    """Load a scenario from a scenario file to an AttackGraph"""
 
-        return attack_graph, scenario_agents
+    scenario_dict = _load_scenario_dict(scenario_file)
+    attack_graph = create_attack_graph(
+        scenario_dict['lang_file'], scenario_dict['model_file']
+    )
+    apply_scenario_to_attack_graph(attack_graph, scenario_dict)
+
+    # Load the scenario configuration
+    scenario_agents = load_simulator_agents(attack_graph, scenario_dict)
+    return attack_graph, scenario_agents
 
 
 def create_simulator_from_scenario(

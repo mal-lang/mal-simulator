@@ -66,7 +66,6 @@ def test_extend_scenario() -> None:
             './testdata/scenarios/traininglang_scenario_extended.yml'
         )
     )
-
     num_nodes_with_reward = 0
     for node in attack_graph.nodes.values():
         reward = node.extras.get('reward')
@@ -78,6 +77,66 @@ def test_extend_scenario() -> None:
     assert num_nodes_with_reward == 7
 
     # 2 agents are defined in the original scenario
+    assert len(agents) == 2
+
+
+def test_extend_scenario_deeper() -> None:
+    """
+    Make sure we can extend a scenario several levels
+    and in different sub directory
+    """
+
+    # Load the scenario from a sub folder extending another scenario
+    attack_graph, agents = load_scenario(
+        path_relative_to_tests(
+            './testdata/scenarios/sub/traininglang_scenario_extended_again.yml'
+        )
+    )
+    num_nodes_with_reward = 0
+    for node in attack_graph.nodes.values():
+        reward = node.extras.get('reward')
+        if reward:
+            # All nodes with reward set should have reward 1
+            # Since this is defined in the extended scenario
+            num_nodes_with_reward += 1
+            assert reward == 1
+    assert num_nodes_with_reward == 7
+
+    # 1 agents are defined in the extended_again scenario
+    assert len(agents) == 1
+
+
+def test_extend_scenario_override_lang_model() -> None:
+    """
+    Make sure we can extend a scenario several levels
+    and in different sub directory
+    """
+
+    # Load the scenario from a sub folder extending another scenario
+    # that overrides lang and model
+    attack_graph, agents = load_scenario(
+        path_relative_to_tests(
+            './testdata/scenarios/sub/traininglang_scenario_override_lang_model.yml'
+        )
+    )
+
+    # No reward overrides
+    assert attack_graph.get_node_by_full_name('Host:0:notPresent')\
+        .extras['reward'] == 2
+    assert attack_graph.get_node_by_full_name('Host:0:access')\
+        .extras['reward'] == 4
+    assert attack_graph.get_node_by_full_name('Host:1:notPresent')\
+        .extras['reward'] == 7
+    assert attack_graph.get_node_by_full_name('Host:1:access')\
+        .extras['reward'] == 5
+    assert attack_graph.get_node_by_full_name('Data:2:notPresent')\
+        .extras['reward'] == 8
+    assert attack_graph.get_node_by_full_name('Data:2:read')\
+        .extras['reward'] == 5
+    assert attack_graph.get_node_by_full_name('Data:2:modify')\
+        .extras['reward'] == 10
+
+    # No agent overrides
     assert len(agents) == 2
 
 

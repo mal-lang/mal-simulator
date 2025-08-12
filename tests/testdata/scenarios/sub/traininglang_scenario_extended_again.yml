@@ -1,0 +1,5 @@
+extends: ../traininglang_scenario_extended.yml
+
+agents:
+  'Defender1':
+    type: 'defender'
