@@ -57,6 +57,30 @@ def test_load_scenario() -> None:
     assert isinstance(agents[1]['agent'], PassiveAgent)
 
 
+def test_extend_scenario() -> None:
+    """Make sure we can extend a scenario"""
+
+    # Load the scenario
+    attack_graph, agents = load_scenario(
+        path_relative_to_tests(
+            './testdata/scenarios/traininglang_scenario_extended.yml'
+        )
+    )
+
+    num_nodes_with_reward = 0
+    for node in attack_graph.nodes.values():
+        reward = node.extras.get('reward')
+        if reward:
+            # All nodes with reward set should have reward 1
+            # Since this is defined in the overriding scenario
+            num_nodes_with_reward += 1
+            assert reward == 1
+    assert num_nodes_with_reward == 7
+
+    # 2 agents are defined in the original scenario
+    assert len(agents) == 2
+
+
 def test_load_scenario_no_defender_agent() -> None:
     """Make sure we can load a scenario"""
 
