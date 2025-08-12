@@ -1,6 +1,7 @@
 """Test MalSimulator class"""
 from __future__ import annotations
 from typing import TYPE_CHECKING
+import copy
 
 from maltoolbox.attackgraph import AttackGraphNode, AttackGraph
 from malsim.mal_simulator import MalSimulator
@@ -27,7 +28,7 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
 
     sim = MalSimulator(attack_graph)
 
-    attack_graph_before = sim.attack_graph
+    attack_graph_before = copy.deepcopy(sim.attack_graph)
     sim.register_attacker(attacker_name, {agent_entry_point})
     assert attacker_name in sim.agent_states
     assert len(sim.agent_states) == 1
@@ -87,7 +88,7 @@ def test_register_agent_action_surface(
     defender_state = sim.agent_states[agent_name]
     action_surface = defender_state.action_surface
     for node in action_surface:
-        assert defender_state.is_available_defense(node)
+        assert node not in sim._enabled_defenses
 
 
 def test_simulator_initialize_agents(
@@ -201,10 +202,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     state_views = sim.reset()
     entry_point = get_node('OS App:fullAccess')
 
-    pre_enabled_defenses = set(
-        n for n in sim.attack_graph.nodes.values() if n.type == 'defense' and
-        'suppress' not in n.tags and n.defense_status == 1.0
-    )
+    pre_enabled_defenses = set(sim._enabled_defenses)
 
     asv = state_views['attacker']
     dsv = state_views['defender']
@@ -253,6 +251,8 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert os_app_attempt_deny not in asv.action_surface
     assert dsv.step_action_surface_removals == {program2_not_present}
     assert dsv.step_all_compromised_nodes == {os_app_attempt_deny}
+
+    # TODO: Why is this number changed in this PR?
     assert len(dsv.step_unviable_nodes) == 50
 
     # Go through an attack step that already has some children in the attack
