@@ -88,7 +88,6 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         'Internet:reverseReach',
         'Internet:networkForwardingInspected',
         'ConnectionRule Internet->Linux System:attemptAccessNetworksUninspected',
-        'Linux system:denyFromNetworkingAsset',
         'ConnectionRule Internet->Linux System:attemptDeny',
         'Internet:attemptEavesdrop',
         'Internet:attemptAdversaryInTheMiddle',
@@ -99,7 +98,6 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         'ConnectionRule Internet->Linux System:attemptAccessNetworksInspected',
         'ConnectionRule Internet->Linux System:attemptConnectToApplicationsInspected',
         'ConnectionRule Internet->Linux System:successfulAccessNetworksUninspected',
-        'Linux system:attemptDeny',
         'ConnectionRule Internet->Linux System:deny',
         'Internet:bypassEavesdropDefense',
         'Internet:successfulEavesdrop',
@@ -111,6 +109,7 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         'ConnectionRule Internet->Linux System:successfulAccessNetworksInspected',
         'ConnectionRule Internet->Linux System:connectToApplicationsInspected',
         'ConnectionRule Internet->Linux System:accessNetworksUninspected',
+        'Linux system:denyFromNetworkingAsset',
         'Internet:eavesdrop',
         'Internet:adversaryInTheMiddle',
         'Linux system:attemptUseVulnerability',
@@ -119,6 +118,7 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         'Linux system:softwareProductVulnerabilityNetworkAccessAchieved',
         'Linux system:attemptReverseReach',
         'ConnectionRule Internet->Linux System:accessNetworksInspected',
+        'Linux system:attemptDeny',
         'Internet:accessInspected'
     ]
 
