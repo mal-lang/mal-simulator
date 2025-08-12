@@ -96,7 +96,7 @@ class MalSimAttackerState(MalSimAgentState):
             case 'and':
                 return all(
                     parent in self.performed_nodes
-                    or parent.is_necessary not in self.performed_nodes
+                    or not parent.is_necessary
                     for parent in node.parents
                 )
             case 'exist' | 'notExist' | 'defense':
