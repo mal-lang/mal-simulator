@@ -251,8 +251,6 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert os_app_attempt_deny not in asv.action_surface
     assert dsv.step_action_surface_removals == {program2_not_present}
     assert dsv.step_all_compromised_nodes == {os_app_attempt_deny}
-
-    # TODO: Why is this number changed in this PR?
     assert len(dsv.step_unviable_nodes) == 50
 
     # Go through an attack step that already has some children in the attack

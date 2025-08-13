@@ -125,7 +125,6 @@ def evaluate_viability(
     viable_nodes        - set of all viable nodes
     enabled_defenses    - set of all enabled defenses
     """
-    node_is_viable = node in viable_nodes
     match (node.type):
         case 'exist':
             assert isinstance(node.existence_status, bool), \
@@ -169,7 +168,6 @@ def evaluate_necessity(
     enabled_defenses - set of all enabled defenses
     """
 
-    node_is_necessary = node in necessary_nodes
     match (node.type):
         case 'exist':
             assert isinstance(node.existence_status, bool), \
