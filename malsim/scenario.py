@@ -15,7 +15,6 @@ import os
 from typing import Any, Optional, TextIO
 
 import yaml
-import zipfile
 
 from maltoolbox.model import Model
 from maltoolbox.language import LanguageGraph
@@ -53,7 +52,7 @@ deprecated_fields = [
 
 # All required fields in scenario yml file
 # Tuple indicates one of the fields in the tuple is required
-required_fields = [
+required_fields: list[str | tuple[str, str]] = [
     'agents',
     'lang_file',
     ('model_file', 'model'),
@@ -90,20 +89,20 @@ def validate_scenario(scenario_dict: dict[str, Any]) -> None:
             raise SyntaxError(f"Scenario setting '{key}' is not supported")
 
     # Verify that all required fields are in scenario file
-    for key in required_fields:
-        if isinstance(key, tuple):
-            if not any(k in scenario_dict for k in key):
+    for key_or_keys in required_fields:
+        if isinstance(key_or_keys, tuple):
+            if not any(k in scenario_dict for k in key_or_keys):
                 raise RuntimeError(
-                    f"One of '{key}' is required in scenario file"
+                    f"One of '{key_or_keys}' is required in scenario file"
                 )
-            if all(k in scenario_dict for k in key):
+            if all(k in scenario_dict for k in key_or_keys):
                 raise RuntimeError(
-                    f"Only one of '{key}' is allowed in scenario file"
+                    f"Only one of '{key_or_keys}' is allowed in scenario file"
                 )
-        elif isinstance(key, str):
-            if key not in scenario_dict:
+        elif isinstance(key_or_keys, str):
+            if key_or_keys not in scenario_dict:
                 raise RuntimeError(
-                    f"Setting '{key}' required in scenario file"
+                    f"Setting '{key_or_keys}' required in scenario file"
                 )
 
 
