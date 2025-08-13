@@ -20,43 +20,56 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-def propagate_viability_from_node(node: AttackGraphNode) -> set[AttackGraphNode]:
+def propagate_viability_from_node(
+        node: AttackGraphNode, viable_nodes: set[AttackGraphNode]
+    ) -> set[AttackGraphNode]:
     """
-    Update viability of children of node givein as parameter. Propagate
+    Update viability of children of node given as parameter. Propagate
     recursively via children as long as changes occur. Return all nodes which
     have changed viability.
 
     Arguments:
     node            - the attack graph node from which to propagate the
                       viability status
+    viable_nodes    - set of all viable nodes
 
     Returns:
     changed_nodes   - set of nodes that have changed viability
     """
     logger.debug(
         'Propagate viability from "%s"(%d) with viability status %s.',
-        node.full_name, node.id, node.is_viable
+        node.full_name, node.id, node in viable_nodes
     )
     changed_nodes = set()
     for child in node.children:
-        original_value = child.is_viable
+        was_viable = child in viable_nodes
+        is_viable = None
+
         if child.type == 'or':
-            child.is_viable = any(
-                parent.is_viable for parent in child.parents)
-
+            is_viable = any(
+                parent in viable_nodes for parent in child.parents)
         elif child.type == 'and':
-            child.is_viable = all(
-                parent.is_viable for parent in child.parents)
+            is_viable = all(
+                parent in viable_nodes for parent in child.parents)
+        else:
+            raise TypeError('Child of node must be of type "or"/"and"')
 
-        if child.is_viable != original_value:
-            changed_nodes |= ({child} |
-                propagate_viability_from_node(child))
-            child.extras['viable'] = child.is_viable
+        if is_viable != was_viable:
+
+            if is_viable:
+                viable_nodes.add(child)
+            else:
+                viable_nodes.remove(child)
+
+            changed_nodes |= (
+                {child} | propagate_viability_from_node(child, viable_nodes)
+            )
 
     return changed_nodes
 
-
-def propagate_necessity_from_node(node: AttackGraphNode) -> set[AttackGraphNode]:
+def propagate_necessity_from_node(
+        node: AttackGraphNode, necessary_nodes: set[AttackGraphNode]
+    ) -> set[AttackGraphNode]:
     """
     Update necessity of children of node givein as parameter. Propagate
     recursively via children as long as changes occur. Return all nodes which
@@ -65,89 +78,114 @@ def propagate_necessity_from_node(node: AttackGraphNode) -> set[AttackGraphNode]
     Arguments:
     node            - the attack graph node from which to propagate the
                       necessity status
+    necessary_nodes - set of all necessary nodes
 
     Returns:
     changed_nodes   - set of nodes that have changed necessity
     """
     logger.debug(
         'Propagate necessity from "%s"(%d) with necessity status %s.',
-        node.full_name, node.id, node.is_necessary
+        node.full_name, node.id, node in necessary_nodes
     )
     changed_nodes = set()
     for child in node.children:
-        original_value = child.is_necessary
+        was_necessary = child in necessary_nodes
+        is_necessary = None
         if child.type == 'or':
-            child.is_necessary = all(
-                parent.is_necessary for parent in child.parents)
+            is_necessary = all(
+                parent in necessary_nodes for parent in child.parents)
 
         elif child.type == 'and':
-            child.is_necessary = any(
-                parent.is_necessary for parent in child.parents)
+            is_necessary = any(
+                parent in necessary_nodes for parent in child.parents)
 
-        if child.is_necessary != original_value:
-            changed_nodes |= ({child} |
-                propagate_necessity_from_node(child))
-            child.extras['necessary'] = child.is_necessary
+        if is_necessary != was_necessary:
+
+            if is_necessary:
+                necessary_nodes.add(child)
+            else:
+                necessary_nodes.remove(child)
+
+            changed_nodes |= (
+                {child}
+                | propagate_necessity_from_node(child, necessary_nodes)
+            )
 
     return changed_nodes
 
 
-def evaluate_viability(node: AttackGraphNode) -> None:
+def evaluate_viability(
+        node: AttackGraphNode,
+        viable_nodes: set[AttackGraphNode],
+        enabled_defenses: set[AttackGraphNode]
+    ) -> None:
     """
     Arguments:
-    graph       - the node to evaluate viability for.
+    node                - the node to evaluate viability for
+    viable_nodes        - set of all viable nodes
+    enabled_defenses    - set of all enabled defenses
     """
     match (node.type):
         case 'exist':
             assert isinstance(node.existence_status, bool), \
                 f'Existence status not defined for {node.full_name}.'
-            node.is_viable = node.existence_status
+            node_is_viable = node.existence_status
         case 'notExist':
             assert isinstance(node.existence_status, bool), \
                 f'Existence status not defined for {node.full_name}.'
-            node.is_viable = not node.existence_status
+            node_is_viable = not node.existence_status
         case 'defense':
-            assert node.defense_status is not None and \
-                   0.0 <= node.defense_status <= 1.0, \
-                f'{node.full_name} defense status invalid: {node.defense_status}.'
-            node.is_viable = node.defense_status != 1.0
+            node_is_viable = node not in enabled_defenses
         case 'or':
-            node.is_viable = any(parent.is_viable for parent in node.parents)
+            node_is_viable = any(
+                parent in viable_nodes for parent in node.parents
+            )
         case 'and':
-            node.is_viable = all(parent.is_viable for parent in node.parents)
+            node_is_viable = all(
+                parent in viable_nodes for parent in node.parents
+            )
         case _:
             msg = ('Evaluate viability was provided node "%s"(%d) which '
                    'is of unknown type "%s"')
             logger.error(msg, node.full_name, node.id, node.type)
             raise ValueError(msg % (node.full_name, node.id, node.type))
 
+    if node_is_viable:
+        viable_nodes.add(node)
+    else:
+        viable_nodes.remove(node)
 
-def evaluate_necessity(node: AttackGraphNode) -> None:
+
+def evaluate_necessity(
+        node: AttackGraphNode,
+        necessary_nodes: set[AttackGraphNode],
+        enabled_defenses: set[AttackGraphNode]
+    ) -> None:
     """
     Arguments:
-    graph       - the node to evaluate necessity for.
+    node             - the node to evaluate necessity for.
+    necessary_nodes  - set of all necessary nodes
+    enabled_defenses - set of all enabled defenses
     """
+
     match (node.type):
         case 'exist':
             assert isinstance(node.existence_status, bool), \
                 f'Existence status not defined for {node.full_name}.'
-            node.is_necessary = not node.existence_status
+            node_is_necessary = not node.existence_status
         case 'notExist':
             assert isinstance(node.existence_status, bool), \
                 f'Existence status not defined for {node.full_name}.'
-            node.is_necessary = bool(node.existence_status)
+            node_is_necessary = bool(node.existence_status)
         case 'defense':
-            assert node.defense_status is not None and \
-                   0.0 <= node.defense_status <= 1.0, \
-                f'{node.full_name} defense status invalid: {node.defense_status}.'
-            node.is_necessary = node.defense_status != 0.0
+            node_is_necessary = node in enabled_defenses
         case 'or':
-            node.is_necessary = all(
-                parent.is_necessary for parent in node.parents
+            node_is_necessary = all(
+                parent in necessary_nodes for parent in node.parents
             )
         case 'and':
-            node.is_necessary = any(
-                parent.is_necessary for parent in node.parents
+            node_is_necessary = any(
+                parent in necessary_nodes for parent in node.parents
             )
         case _:
             msg = ('Evaluate necessity was provided node "%s"(%d) which '
@@ -155,26 +193,54 @@ def evaluate_necessity(node: AttackGraphNode) -> None:
             logger.error(msg, node.full_name, node.id, node.type)
             raise ValueError(msg % (node.full_name, node.id, node.type))
 
+    if node_is_necessary:
+        necessary_nodes.add(node)
+    else:
+        necessary_nodes.remove(node)
 
-def calculate_viability_and_necessity(graph: AttackGraph) -> None:
+
+def calculate_viability_and_necessity(
+        graph: AttackGraph, enabled_defenses: set[AttackGraphNode]
+    ) -> tuple[
+            set[AttackGraphNode],
+            set[AttackGraphNode]
+        ]:
     """
     Arguments:
-    graph       - the attack graph for which we wish to determine the
-                  viability and necessity statuses for the nodes.
+    graph             - the attack graph for which we wish to determine the
+                        viability and necessity statuses for the nodes.
+    enabled_defenses  - set of all enabled defenses
+
+    Return:
+    tuple with
+        - set of viable nodes
+        - set of necessary nodes
     """
+    viable_nodes = set(n for n in graph.nodes.values())
+    necessary_nodes = set(n for n in graph.nodes.values())
+
     for node in graph.nodes.values():
         if node.type in ['exist', 'notExist', 'defense']:
-            evaluate_viability(node)
-            propagate_viability_from_node(node)
-            evaluate_necessity(node)
-            propagate_necessity_from_node(node)
+            evaluate_viability(node, viable_nodes, enabled_defenses)
+            propagate_viability_from_node(node, viable_nodes)
+            evaluate_necessity(node, necessary_nodes, enabled_defenses)
+            propagate_necessity_from_node(node, necessary_nodes)
+
+    return viable_nodes, necessary_nodes
 
 
-def prune_unviable_and_unnecessary_nodes(graph: AttackGraph) -> None:
+def prune_unviable_and_unnecessary_nodes(
+        graph: AttackGraph,
+        viable_nodes: set[AttackGraphNode],
+        necessary_nodes: set[AttackGraphNode]
+    ) -> None:
     """
     Arguments:
-    graph       - the attack graph for which we wish to remove the
-                  the nodes which are not viable or necessary.
+    graph            - the attack graph for which we wish to remove the
+                       the nodes which are not viable or necessary.
+    viable_nodes     - set of all viable nodes
+    necessary_nodes  - set of all necessary nodes
+
     """
     logger.debug(
         'Prune unviable and unnecessary nodes from the attack graph.')
@@ -182,7 +248,7 @@ def prune_unviable_and_unnecessary_nodes(graph: AttackGraph) -> None:
     nodes_to_remove = set()
     for node in graph.nodes.values():
         if node.type in ('or', 'and') and \
-            (not node.is_viable or not node.is_necessary):
+            (node not in viable_nodes or node not in necessary_nodes):
             nodes_to_remove.add(node)
 
     # Do the removal separatly so we don't remove
@@ -190,9 +256,8 @@ def prune_unviable_and_unnecessary_nodes(graph: AttackGraph) -> None:
     for node in nodes_to_remove:
         logger.debug(
             'Remove %s node "%s"(%d) from attack graph.',
-            'unviable' if node.is_necessary else 'unnecessary',
+            'unviable' if node in necessary_nodes else 'unnecessary',
             node.full_name,
             node.id
         )
         graph.remove_node(node)
-

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import copy
 from dataclasses import dataclass, field
 import logging
 from enum import Enum
 from types import MappingProxyType
-from typing import Any, Optional, Iterable
+from typing import Any, Optional
 
 from maltoolbox.attackgraph import (
     AttackGraph,
@@ -71,80 +70,6 @@ class MalSimAttackerState(MalSimAgentState):
         super().__init__(name, AgentType.ATTACKER)
         self.entry_points: set[AttackGraphNode] = set()
 
-    def is_node_traversable(self, node: AttackGraphNode) -> bool:
-        """
-        Return True or False depending if the node specified is traversable
-        for given the current attacker agent state.
-
-        A node is traversable if it is viable and:
-        - if it is of type 'or' and any of its parents have been compromised
-        - if it is of type 'and' and all of its necessary parents have been
-          compromised
-
-        Arguments:
-        node        - the node we wish to evalute
-        """
-
-        if not node.is_viable:
-            return False
-
-        match(node.type):
-            case 'or':
-                return any(
-                    parent in self.performed_nodes for parent in node.parents
-                )
-            case 'and':
-                return all(
-                    parent in self.performed_nodes
-                    or not parent.is_necessary
-                    for parent in node.parents
-                )
-            case 'exist' | 'notExist' | 'defense':
-                return False
-            case _:
-                raise TypeError(
-                    f'Node "{node.full_name}"({node.id})'
-                    f'has an unknown type "{node.type}".'
-                )
-
-    def calculate_attack_surface(
-            self,
-            *,
-            from_nodes: Optional[Iterable[AttackGraphNode]] = None,
-            skip_compromised: bool = False,
-    ) -> set[AttackGraphNode]:
-        """
-        Calculate the attack surface of the attacker. If from_nodes are provided
-        only calculate the attack surface stemming from those nodes, otherwise use
-        all nodes the attacker has compromised. If skip_compromised is true,
-        exclude already compromised nodes from the returned attack surface.
-
-        The attack surface includes all of the traversable children nodes.
-
-        Arguments:
-        from_nodes        - the nodes to calculate the attack surface from; defaults
-                            to the attackers compromised nodes list if omitted
-        skip_compromised  - if true do not add already compromised nodes to the
-                            attack surface
-        """
-        logger.debug('Get the attack surface for Attacker "%s".', self.name)
-        attack_surface = set()
-        frontier = (
-            from_nodes if from_nodes is not None else self.performed_nodes
-        )
-        for attack_step in frontier:
-            for child in attack_step.children:
-                if skip_compromised and child in self.performed_nodes:
-                    continue
-                if (
-                    child not in attack_surface and
-                    self.is_node_traversable(child)
-                ):
-                    attack_surface.add(child)
-
-        return attack_surface
-
-
 
 class MalSimDefenderState(MalSimAgentState):
     """Stores the state of a defender in the simulator"""
@@ -155,38 +80,6 @@ class MalSimDefenderState(MalSimAgentState):
 
     def __init__(self, name: str):
         super().__init__(name, AgentType.DEFENDER)
-
-    def is_enabled_defense(self, node: AttackGraphNode) -> bool:
-        """
-        Return True if this node is a defense node and it is enabled and not
-        suppressed via tags.
-        False, otherwise.
-        """
-        return node.type == 'defense' and \
-            'suppress' not in node.tags and \
-            node.defense_status == 1.0
-
-    def is_available_defense(self, node: AttackGraphNode) -> bool:
-        """
-        Return True if this node is a defense node and it is not fully enabled
-        and not suppressed via tags. False otherwise.
-        """
-        return node.type == 'defense' and \
-            'suppress' not in node.tags and \
-            node.defense_status != 1.0
-
-    def get_defense_surface(self, graph: AttackGraph) -> set[AttackGraphNode]:
-        """
-        Get the defense surface. All non-suppressed defense steps that are not
-        already fully enabled.
-
-        Arguments:
-        graph       - the attack graph
-        """
-        logger.debug('Get the defense surface.')
-        return {node for node in graph.nodes.values()
-            if self.is_available_defense(node)}
-
 
 
 class MalSimAgentStateView(MalSimAttackerState, MalSimDefenderState):
@@ -268,40 +161,6 @@ class MalSimulatorSettings():
     # - Leave the node/step compromised even after it becomes untraversable
     uncompromise_untraversable_steps: bool = False
 
-def prepare_attack_graph(
-    attack_graph: AttackGraph,
-    prune_unviable_unnecessary: bool = True
-) -> AttackGraph:
-    """
-    Prepare the attack graph for running the simulation:
-    - assign defense values to the defenses
-    - calculate the viability and necessity of nodes
-    - prune nodes if requested
-    - in the future this should also handle initial TTC evaluations
-
-    Args:
-        attack_graph                -   The attack graph to modify
-        prune_unviable_unnecessary  -   Prunes graph of unnecessary and
-                                        unviable nodesif set to true
-    """
-    for node in attack_graph.nodes.values():
-        # TODO: This and the rest of the defense_status logic in
-        # MalSimDefenderState should be redone once the TTC calculations are
-        # in place.
-        if node.type == 'defense':
-            node.defense_status = 1.0 if node.ttc and \
-                node.ttc['name'] == 'Enabled' else 0.0
-        node.is_viable = True
-        node.is_necessary = True
-        node.extras['viable'] = node.is_viable
-        node.extras['necessary'] = node.is_necessary
-
-    # Calculate viability and necessity and optionally prune graph
-    calculate_viability_and_necessity(attack_graph)
-    if prune_unviable_unnecessary:
-        prune_unviable_and_unnecessary_nodes(attack_graph)
-
-    return attack_graph
 
 class MalSimulator():
     """A MAL Simulator that works on the AttackGraph
@@ -328,10 +187,6 @@ class MalSimulator():
         logger.info("Creating Base MAL Simulator.")
 
         self.prune_unviable_unnecessary = prune_unviable_unnecessary
-        prepare_attack_graph(attack_graph, prune_unviable_unnecessary)
-
-        # Keep a backup attack graph to use when resetting
-        self.attack_graph_backup = copy.deepcopy(attack_graph)
 
         # Initialize all values
         self.attack_graph = attack_graph
@@ -341,10 +196,55 @@ class MalSimulator():
         self.cur_iter = 0        # Keep track on current iteration
 
         # All internal agent states (dead or alive)
-        self._agent_states: dict[str, MalSimAttackerState | MalSimDefenderState] = {}
+        self._agent_states: dict[str, MalSimAgentState] = {}
+
+        # Store properties of each AttackGraphNode
+        self._viable_nodes: set[AttackGraphNode] = set()
+        self._necessary_nodes: set[AttackGraphNode] = set()
+        self._enabled_defenses: set[AttackGraphNode] = set()
 
         # Keep track on all 'living' agents sorted by order to step in
         self._alive_agents: set[str] = set()
+
+        self.prepare_attack_graph(
+            attack_graph, prune_unviable_unnecessary
+        )
+
+    def prepare_attack_graph(
+        self,
+        attack_graph: AttackGraph,
+        prune_unviable_unnecessary: bool = True
+    ) -> None:
+        """
+        Prepare the node properties for running the simulation:
+        - assign defense values to the defenses
+        - calculate the viability and necessity of nodes
+        - prune nodes if requested
+        - in the future this should also handle initial TTC evaluations
+
+        Args:
+            attack_graph                -   The attack graph to work with
+            prune_unviable_unnecessary  -   Prunes graph of unnecessary and
+                                            unviable nodesif set to true
+        """
+        for node in attack_graph.nodes.values():
+            # TODO: This should be redone once the
+            # TTC calculations are in place.
+            if node.type == 'defense':
+                if node.ttc and node.ttc['name'] == 'Enabled':
+                    self._enabled_defenses.add(node)
+
+        # Calculate viability and necessity and optionally prune graph
+        self._viable_nodes, self._necessary_nodes = (
+            calculate_viability_and_necessity(
+                attack_graph, self._enabled_defenses
+            )
+        )
+
+        if prune_unviable_unnecessary:
+            prune_unviable_and_unnecessary_nodes(
+                attack_graph, self._viable_nodes, self._necessary_nodes
+            )
 
 
     def reset(
@@ -355,13 +255,11 @@ class MalSimulator():
         """Reset attack graph, iteration and reinitialize agents"""
 
         logger.info("Resetting MAL Simulator.")
-        # Reset attack graph
-        self.attack_graph = copy.deepcopy(self.attack_graph_backup)
 
-        #TODO: If we do a soft reset of the attack graph we do not need
-        # prepare it again. The deepcopy loses the defense, viability, and
-        # necessity values.
-        prepare_attack_graph(
+        # Reset nodes
+        self._enabled_defenses = set()
+
+        self.prepare_attack_graph(
             self.attack_graph,
             self.prune_unviable_unnecessary
         )
@@ -373,6 +271,108 @@ class MalSimulator():
 
         return self.agent_states
 
+    def _get_defense_surface(self) -> set[AttackGraphNode]:
+        """Get the defense surface.
+        All non-suppressed defense steps that are not already enabled.
+
+        Arguments:
+        graph       - the attack graph
+        """
+        return {
+            node for node in self.attack_graph.nodes.values()
+            if node in self._viable_nodes
+            and node.type == 'defense'
+            and 'suppress' not in node.tags
+            and node not in self._enabled_defenses
+        }
+
+    def _is_node_traversable(
+            self,
+            attacker_state: MalSimAttackerState,
+            node: AttackGraphNode
+        ) -> bool:
+        """
+        Return True or False depending if the node specified is traversable
+        for given the current attacker agent state.
+
+        A node is traversable if it is viable and:
+        - if it is of type 'or' and any of its parents have been compromised
+        - if it is of type 'and' and all of its necessary parents have been
+          compromised
+
+        Arguments:
+        node        - the node we wish to evalute
+        """
+
+        if node not in self._viable_nodes:
+            return False
+
+        match(node.type):
+            case 'or':
+                traversable = any(
+                    parent in attacker_state.performed_nodes
+                    for parent in node.parents
+                )
+            case 'and':
+                traversable = all(
+                    parent in attacker_state.performed_nodes
+                    or parent not in self._necessary_nodes
+                    for parent in node.parents
+                )
+            case 'exist' | 'notExist' | 'defense':
+                traversable = False
+            case _:
+                raise TypeError(
+                    f'Node "{node.full_name}"({node.id})'
+                    f'has an unknown type "{node.type}".'
+                )
+        return traversable
+
+    def _get_attack_surface(
+            self,
+            attacker_state: MalSimAttackerState,
+            from_nodes: Optional[set[AttackGraphNode]] = None,
+            skip_compromised: bool = True
+    ) -> set[AttackGraphNode]:
+        """
+        Calculate the attack surface of the attacker.
+        If from_nodes are provided only calculate the attack surface
+        stemming from those nodes, otherwise use all nodes the attacker
+        has compromised. If skip_compromised is true, exclude already
+        compromised nodes from the returned attack surface.
+
+        The attack surface includes all of the traversable children nodes.
+
+        Arguments:
+        from_nodes        - the nodes to calculate the attack surface from;
+                            defaults to the attackers compromised nodes list
+                            if omitted
+        skip_compromised  - if true do not add already compromised nodes to
+                            the attack surface
+        """
+        logger.debug(
+            'Get the attack surface for Attacker "%s".', attacker_state.name
+        )
+        attack_surface = set()
+        frontier = (
+            from_nodes if from_nodes is not None
+            else attacker_state.performed_nodes
+        )
+        for attack_step in frontier:
+            for child in attack_step.children:
+                if (
+                    skip_compromised
+                    and child in attacker_state.performed_nodes
+                ):
+                    continue
+                if (
+                    child not in attack_surface and
+                    self._is_node_traversable(attacker_state, child)
+                ):
+                    attack_surface.add(child)
+
+        return attack_surface
+
     def _create_attacker_state(
         self, name: str, entry_points: set[AttackGraphNode]
     ) -> MalSimAttackerState:
@@ -380,8 +380,8 @@ class MalSimulator():
         attacker_state = MalSimAttackerState(name)
         attacker_state.step_performed_nodes = set(entry_points)
         attacker_state.performed_nodes = set(entry_points)
-        attacker_state.action_surface = attacker_state.calculate_attack_surface(
-            skip_compromised = True
+        attacker_state.action_surface = (
+            self._get_attack_surface(attacker_state)
         )
         attacker_state.step_action_surface_additions = (
             set(attacker_state.action_surface)
@@ -396,19 +396,13 @@ class MalSimulator():
 
         defender_state = MalSimDefenderState(name)
         # Defender needs these for its initial state
-        enabled_defenses = set(
-            node for node in self.attack_graph.nodes.values()
-            if defender_state.is_enabled_defense(node)
-        )
         compromised_steps = set()
         for attacker_state in self._get_attacker_agents():
             compromised_steps |= attacker_state.performed_nodes
-        defender_state.step_performed_nodes = enabled_defenses
-        defender_state.performed_nodes = enabled_defenses
+        defender_state.step_performed_nodes = self._enabled_defenses
+        defender_state.performed_nodes = self._enabled_defenses
         defender_state.step_all_compromised_nodes = compromised_steps
-        defender_state.action_surface = (
-            defender_state.get_defense_surface(self.attack_graph)
-        )
+        defender_state.action_surface = self._get_defense_surface()
         defender_state.step_action_surface_additions = (
             set(defender_state.action_surface)
         )
@@ -432,7 +426,8 @@ class MalSimulator():
 
         # Find what new steps attacker can reach this step
         action_surface_additions = (
-            attacker_state.calculate_attack_surface(
+            self._get_attack_surface(
+                attacker_state,
                 from_nodes=step_agent_compromised_nodes,
                 skip_compromised=True
             ) # Exclude nodes already in the action surface
@@ -604,11 +599,8 @@ class MalSimulator():
             )
 
             # Compromise node if possible
-            if agent.is_node_traversable(node) \
-                    and node in agent.action_surface:
-
+            if self._is_node_traversable(agent, node):
                 compromised_nodes.add(node)
-
                 logger.info(
                     'Attacker agent "%s" compromised "%s"(%d).',
                     agent.name, node.full_name, node.id
@@ -656,11 +648,13 @@ class MalSimulator():
                 continue
 
             # Enable defense if possible
-            if agent.is_available_defense(node):
-                node.defense_status = 1.0
-                node.is_viable = False
-                attack_steps_made_unviable |= \
-                    propagate_viability_from_node(node)
+            if node in agent.action_surface:
+                self._viable_nodes.remove(node)
+                attack_steps_made_unviable |= (
+                    propagate_viability_from_node(
+                        node, self._viable_nodes
+                    )
+                )
                 enabled_defenses.add(node)
                 logger.info(
                     'Defender agent "%s" enabled "%s"(%d).',
