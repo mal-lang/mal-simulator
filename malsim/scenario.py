@@ -442,7 +442,7 @@ def _extend_scenario(
 
 def _load_scenario_dict(scenario_file: str) -> dict[str, Any]:
     with open(scenario_file, 'r', encoding='utf-8') as s_file:
-        scenario = yaml.safe_load(s_file)
+        scenario: dict[str, Any] = yaml.safe_load(s_file)
 
         if "extends" in scenario:
             original_scenario_path = (
