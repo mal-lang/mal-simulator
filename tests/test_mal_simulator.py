@@ -214,8 +214,29 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert dsv.performed_nodes == pre_enabled_defenses
 
     assert len(asv.action_surface) == 6
-    assert len(dsv.action_surface) == 18
-
+    assert set(n.full_name for n in dsv.action_surface) == {
+        'Credentials:10:notPhishable',
+        'Data:5:notPresent',
+        'Credentials:9:unique',
+        'User:12:noPasswordReuse',
+        'Group:13:notPresent',
+        'IDPS 1:notPresent',
+        'OS App:supplyChainAuditing',
+        'OS App:notPresent',
+        'Credentials:6:unique',
+        'Program 2:notPresent',
+        'Credentials:9:notPhishable',
+        'Program 2:supplyChainAuditing',
+        'User:12:securityAwareness',
+        'Identity:11:notPresent',
+        'Credentials:7:notPhishable',
+        'Identity:8:notPresent',
+        'Credentials:7:unique',
+        'Credentials:6:notPhishable',
+        'IDPS 1:supplyChainAuditing',
+        'SoftwareVulnerability:4:notPresent',
+        'Program 1:supplyChainAuditing'
+    }
     assert len(dsv.step_action_surface_additions) == len(dsv.action_surface)
     assert len(asv.step_action_surface_additions) == len(asv.action_surface)
 
@@ -251,7 +272,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert os_app_attempt_deny not in asv.action_surface
     assert dsv.step_action_surface_removals == {program2_not_present}
     assert dsv.step_all_compromised_nodes == {os_app_attempt_deny}
-    assert len(dsv.step_unviable_nodes) == 50
+    assert len(dsv.step_unviable_nodes) == 49
 
     # Go through an attack step that already has some children in the attack
     # surface(OS App:accessNetworkAndConnections in this case)
@@ -285,10 +306,10 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert dsv.step_performed_nodes == {os_app_not_present}
     assert asv.step_action_surface_additions == set()
     assert dsv.step_action_surface_additions == set()
-    assert len(asv.step_action_surface_removals) == 11
+    assert len(asv.step_action_surface_removals) == 12
     assert dsv.step_action_surface_removals == {os_app_not_present}
     assert dsv.step_all_compromised_nodes == set()
-    assert len(dsv.step_unviable_nodes) == 54
+    assert len(dsv.step_unviable_nodes) == 55
 
 
 def test_step_attacker_defender_action_surface_updates() -> None:

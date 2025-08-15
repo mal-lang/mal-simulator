@@ -231,7 +231,7 @@ class MalSimulator():
             # TODO: This should be redone once the
             # TTC calculations are in place.
             if node.type == 'defense':
-                if node.ttc and node.ttc['name'] == 'Enabled':
+                if node.ttc['arguments'] == [1.0]:
                     self._enabled_defenses.add(node)
 
         # Calculate viability and necessity and optionally prune graph
@@ -280,10 +280,10 @@ class MalSimulator():
         """
         return {
             node for node in self.attack_graph.nodes.values()
-            if node in self._viable_nodes
-            and node.type == 'defense'
-            and 'suppress' not in node.tags
+            if node.type == 'defense'
+            and node in self._viable_nodes
             and node not in self._enabled_defenses
+            and 'suppress' not in node.tags
         }
 
     def _is_node_traversable(
@@ -464,6 +464,8 @@ class MalSimulator():
         Update a previous defender state based on what steps
         were enabled/compromised during last step
         """
+        self._enabled_defenses |= step_enabled_defenses
+
         defender_state.step_action_surface_additions = set()
         defender_state.step_action_surface_removals = step_enabled_defenses
         defender_state.action_surface -= step_enabled_defenses
@@ -485,15 +487,10 @@ class MalSimulator():
 
         # Create new attacker agent states
         for attacker_state in self._get_attacker_agents():
-            # TODO: Re-fetching the entry nodes is only need if we fully reset
-            # the attack graph which should not be the case with the new
-            # implementation.
-            new_entry_point_nodes = {self.attack_graph.nodes[node.id]
-                for node in attacker_state.entry_points}
             self._agent_states[attacker_state.name] = (
                 self._create_attacker_state(
                     attacker_state.name,
-                    new_entry_point_nodes
+                    attacker_state.entry_points
                 )
             )
 
