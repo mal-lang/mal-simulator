@@ -195,21 +195,28 @@ def test_analyzers_apriori_prune_unviable_and_unnecessary_nodes(
     example_attackgraph = AttackGraph(model.lang_graph, model)
 
     # Pick out an or node and make it non-necessary
-    node_to_make_non_necessary = next(
+    node_to_make_unnecessary = next(
         node for node in example_attackgraph.nodes.values()
         if node.type == 'or'
+    )
+    node_to_make_unviable = next(
+        node for node in example_attackgraph.nodes.values()
+        if node.type == 'and'
     )
 
     viable, necessary = calculate_viability_and_necessity(
         example_attackgraph, set()
     )
-    necessary.remove(node_to_make_non_necessary)
+    necessary.remove(node_to_make_unnecessary)
+    viable.remove(node_to_make_unviable)
+
     prune_unviable_and_unnecessary_nodes(
         example_attackgraph, viable, necessary
     )
 
     # Make sure the node was pruned
-    assert node_to_make_non_necessary.id not in example_attackgraph.nodes
+    assert node_to_make_unviable.id not in example_attackgraph.nodes
+    assert node_to_make_unnecessary.id not in example_attackgraph.nodes
 
 
 def test_analyzers_apriori_propagate_viability(dummy_lang_graph: LanguageGraph) -> None:
