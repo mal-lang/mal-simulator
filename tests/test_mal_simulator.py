@@ -215,28 +215,29 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
 
     assert len(asv.action_surface) == 6
     assert set(n.full_name for n in dsv.action_surface) == {
-        'Credentials:10:notPhishable',
-        'Data:5:notPresent',
-        'Credentials:9:unique',
-        'User:12:noPasswordReuse',
-        'Group:13:notPresent',
-        'IDPS 1:notPresent',
-        'OS App:supplyChainAuditing',
-        'OS App:notPresent',
-        'Credentials:6:unique',
-        'Program 2:notPresent',
-        'Credentials:9:notPhishable',
-        'Program 2:supplyChainAuditing',
-        'User:12:securityAwareness',
-        'Identity:11:notPresent',
-        'Credentials:7:notPhishable',
-        'Identity:8:notPresent',
-        'Credentials:7:unique',
-        'Credentials:6:notPhishable',
-        'IDPS 1:supplyChainAuditing',
-        'SoftwareVulnerability:4:notPresent',
-        'Program 1:supplyChainAuditing'
+        'Credentials:10:notPhishable',        # Disabled in lang
+        'Data:5:notPresent',                  # Disabled in lang
+        'Credentials:9:unique',               # Enabled in lang, Disabled in model
+        'User:12:noPasswordReuse',            # Enabled in lang, Disabled in model
+        'Group:13:notPresent',                # Disabled in lang
+        'IDPS 1:notPresent',                  # Disabled in lang
+        'OS App:supplyChainAuditing',         # Not set in lang, Disabled by default
+        'OS App:notPresent',                  # Disabled in lang
+        'Credentials:6:unique',               # Enabled in lang, Disabled in model
+        'Program 2:notPresent',               # Disabled in lang
+        'Credentials:9:notPhishable',         # Disabled in lang
+        'Program 2:supplyChainAuditing',      # Not set in lang, Disabled by default
+        'User:12:securityAwareness',          # Not set in lang, Disabled by default
+        'Identity:11:notPresent',             # Disabled in lang
+        'Credentials:7:notPhishable',         # Disabled in lang
+        'Identity:8:notPresent',              # Disabled in lang
+        'Credentials:7:unique',               # Enabled in lang, Disabled in model
+        'Credentials:6:notPhishable',         # Disabled in lang
+        'IDPS 1:supplyChainAuditing',         # Not set in lang, Disabled by default
+        'SoftwareVulnerability:4:notPresent', # Disabled in lang
+        'Program 1:supplyChainAuditing'       # Not set in lang, Disabled by default
     }
+
     assert len(dsv.step_action_surface_additions) == len(dsv.action_surface)
     assert len(asv.step_action_surface_additions) == len(asv.action_surface)
 
