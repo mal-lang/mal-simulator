@@ -1,0 +1,3 @@
+model_file: ../../models/traininglang_model.yml
+lang_file: ../../langs/org.mal-lang.trainingLang-1.0.0.mar
+extends: ../traininglang_scenario.yml
