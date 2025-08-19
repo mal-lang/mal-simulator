@@ -478,9 +478,11 @@ def _load_scenario_dict(scenario_file: str) -> dict[str, Any]:
         scenario['lang_file'] = path_relative_to_file_dir(
             scenario['lang_file'], s_file
         )
-        scenario['model_file'] = path_relative_to_file_dir(
-            scenario['model_file'], s_file
-        )
+
+        if 'model_file' in scenario:
+            scenario['model_file'] = path_relative_to_file_dir(
+                scenario['model_file'], s_file
+            )
 
     return scenario
 
