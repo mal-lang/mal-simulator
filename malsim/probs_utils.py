@@ -5,7 +5,7 @@ import math
 import random
 from enum import Enum
 
-from typing import Any
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +146,7 @@ def expected_prob(probs_dict: dict[str, Any]) -> float:
 
 
 def calculate_prob(
-    probs_dict: dict[str, Any],
+    probs_dict: Optional[dict[str, Any]],
     method: ProbCalculationMethod
 ) -> float:
     """Calculate the value from a probability distribution

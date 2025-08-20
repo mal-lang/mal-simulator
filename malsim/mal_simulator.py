@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import logging
+import math
 from enum import Enum
 from types import MappingProxyType
 from typing import Any, Optional
@@ -9,6 +10,12 @@ from typing import Any, Optional
 from maltoolbox.attackgraph import (
     AttackGraph,
     AttackGraphNode
+)
+
+from malsim.probs_utils import (
+    calculate_prob,
+    clear_bernoulli_dict,
+    ProbCalculationMethod,
 )
 
 from malsim.graph_processing import (
@@ -149,6 +156,13 @@ class MalSimAgentStateView(MalSimAttackerState, MalSimDefenderState):
 
         return dunder_attrs + props
 
+class ProbMode(Enum):
+    """
+    Describes how to use the probability distributions in the attack graph.
+    """
+    SAMPLE = 1
+    PRESAMPLE = 2
+    EXPECTED = 3
 
 @dataclass
 class MalSimulatorSettings():
@@ -160,6 +174,7 @@ class MalSimulatorSettings():
     # otherwise:
     # - Leave the node/step compromised even after it becomes untraversable
     uncompromise_untraversable_steps: bool = False
+    prob_mode: ProbMode = ProbMode.SAMPLE
 
 
 class MalSimulator():
@@ -202,6 +217,7 @@ class MalSimulator():
         self._viable_nodes: set[AttackGraphNode] = set()
         self._necessary_nodes: set[AttackGraphNode] = set()
         self._enabled_defenses: set[AttackGraphNode] = set()
+        self._ttc_values: dict[AttackGraphNode, float] = dict()
 
         # Keep track on all 'living' agents sorted by order to step in
         self._alive_agents: set[str] = set()
@@ -228,16 +244,28 @@ class MalSimulator():
                                             unviable nodesif set to true
         """
         for node in attack_graph.nodes.values():
-            # TODO: This should be redone once the
-            # TTC calculations are in place.
-            if node.type == 'defense':
-                if node.ttc and node.ttc['name'] == 'Enabled':
-                    self._enabled_defenses.add(node)
+
+            match(self.sim_settings.prob_mode):
+                case ProbMode.SAMPLE | ProbMode.PRESAMPLE:
+                    ttc_value = calculate_prob(
+                        node.ttc, ProbCalculationMethod.SAMPLE
+                    )
+                case ProbMode.EXPECTED:
+                     ttc_value = calculate_prob(
+                        node.ttc, ProbCalculationMethod.EXPECTED
+                    )
+
+            if node.type in ['and', 'or']:
+                self._ttc_values[node] = ttc_value
+            if node.type == 'defense' and ttc_value != math.inf:
+                self._enabled_defenses.add(node)
 
         # Calculate viability and necessity and optionally prune graph
         self._viable_nodes, self._necessary_nodes = (
             calculate_viability_and_necessity(
-                attack_graph, self._enabled_defenses
+                attack_graph,
+                self._enabled_defenses,
+                self._ttc_values
             )
         )
 
@@ -268,6 +296,7 @@ class MalSimulator():
         self.cur_iter = 0
         # Reset agents
         self._reset_agents()
+        clear_bernoulli_dict()
 
         return self.agent_states
 
