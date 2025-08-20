@@ -1,0 +1,64 @@
+assets:
+  0:
+    associated_assets:
+      appConnections:
+        1: ConnectionRule:1
+    extras:
+      position:
+        x: -1938.0
+        y: -814.0
+    name: Program 1
+    type: Application
+  1:
+    associated_assets:
+      applications:
+        0: Program 1
+      networks:
+        2: Network:2
+    extras:
+      position:
+        x: -1616.0
+        y: -834.0
+    name: ConnectionRule:1
+    type: ConnectionRule
+  2:
+    associated_assets:
+      netConnections:
+        1: ConnectionRule:1
+        3: ConnectionRule:3
+    extras:
+      position:
+        x: -1285.0
+        y: -855.0
+    name: Network:2
+    type: Network
+  3:
+    associated_assets:
+      applications:
+        4: Program 2
+      networks:
+        2: Network:2
+    extras:
+      position:
+        x: -934.0
+        y: -852.0
+    name: ConnectionRule:3
+    type: ConnectionRule
+  4:
+    associated_assets:
+      appConnections:
+        3: ConnectionRule:3
+    extras:
+      position:
+        x: -644.0
+        y: -865.0
+    name: Program 2
+    type: Application
+attackers: {}
+metadata:
+  MAL-Toolbox Version: 0.3.10
+  info: Created by the mal-toolbox model python module.
+  langID: org.mal-lang.coreLang
+  langVersion: 1.0.0
+  malVersion: 0.1.0-SNAPSHOT
+  name: basic_model
