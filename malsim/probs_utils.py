@@ -13,6 +13,11 @@ class ProbCalculationMethod(Enum):
     SAMPLE = 1
     EXPECTED = 2
 
+bernoulli_dict: dict[int, float] = {}
+
+def clear_bernoulli_dict() -> None:
+    bernoulli_dict.clear()
+
 def sample_prob(probs_dict: dict[str, Any]) -> float:
     """Calculate the sampled value from a probability distribution function
     Arguments:
@@ -34,9 +39,14 @@ def sample_prob(probs_dict: dict[str, Any]) -> float:
 
     match(probs_dict['name']):
         case 'Bernoulli':
+            pd_id = id(probs_dict)
+            if pd_id in bernoulli_dict:
+                return bernoulli_dict[pd_id]
             value = random.random()
-            threshold = 1.0 - float(probs_dict['arguments'][0])
-            return math.inf if value < threshold else 1.0
+            threshold = float(probs_dict['arguments'][0])
+            res = math.inf if value > threshold else 1.0
+            bernoulli_dict[pd_id] = res
+            return res
 
         case 'Exponential':
             lambd = float(probs_dict['arguments'][0])
@@ -91,6 +101,7 @@ def expected_prob(probs_dict: dict[str, Any]) -> float:
 
     match(probs_dict['name']):
         case 'Bernoulli':
+            # TODO: What is the expected value of non-unit non-zero Bernoulli?
             threshold = (
                 1 / float(probs_dict['arguments'][0])
                 if probs_dict['arguments'][0] != 0
@@ -170,9 +181,6 @@ def calculate_prob(
                     return lv / rv
                 case 'exponentiation':
                     return float(pow(lv, rv))
-                case _:
-                    raise ValueError('Unknown probability distribution type '
-                    f'encountered "{probs_dict["type"]}"!')
 
         case 'function':
             match(method):
