@@ -105,7 +105,12 @@ def dummy_lang_graph(corelang_lang_graph: LanguageGraph) -> LanguageGraph:
     dummy_defense_attack_step_node = LanguageGraphAttackStep(
         name = 'DummyDefenseAttackStep',
         type = 'defense',
-        asset = dummy_asset
+        asset = dummy_asset,
+        ttc = {
+            'arguments': [0.0],
+            'name': 'Bernoulli',
+            'type': 'function'
+        }
     )
     dummy_asset.attack_steps['DummyDefenseAttackStep'] =\
         dummy_defense_attack_step_node
