@@ -451,7 +451,7 @@ def _extend_scenario(
     """
 
     original_scenario: dict[str, Any] = (
-        _load_scenario_dict(original_scenario_path)
+        load_scenario_dict(original_scenario_path)
     )
     resulting_scenario = original_scenario.copy()
 
@@ -465,7 +465,7 @@ def _extend_scenario(
 
     return resulting_scenario
 
-def _load_scenario_dict(scenario_file: str) -> dict[str, Any]:
+def load_scenario_dict(scenario_file: str) -> dict[str, Any]:
     with open(scenario_file, 'r', encoding='utf-8') as s_file:
         scenario: dict[str, Any] = yaml.safe_load(s_file)
 
@@ -490,7 +490,7 @@ def _load_scenario_dict(scenario_file: str) -> dict[str, Any]:
 def load_scenario(scenario_file: str) -> tuple[AttackGraph, list[dict[str, Any]]]:
     """Load a scenario from a scenario file to an AttackGraph"""
 
-    scenario_dict = _load_scenario_dict(scenario_file)
+    scenario_dict = load_scenario_dict(scenario_file)
     lang_graph = LanguageGraph.load_from_file(scenario_dict['lang_file'])
     model = None
 
@@ -545,3 +545,32 @@ def create_simulator_from_scenario(
             )
 
     return sim, scenario_agents
+
+
+def create_scenario_dict(
+    lang_file: str,
+    model: str | Model,
+    agents: dict[str, Any],
+    settings: Optional[dict[str, Any]] = None
+) -> dict[str, Any]:
+    """Create a scenario dict from given settings"""
+    scenario_dict: dict[str, Any] = {}
+    scenario_dict['lang_file'] = lang_file
+
+    if isinstance(model, Model):
+        scenario_dict['model'] = model._to_dict()
+    else:
+        scenario_dict['model_file'] = model
+    scenario_dict['agents'] = agents
+
+    if settings:
+        for k, v in settings.items():
+            scenario_dict[k] = v
+
+    return scenario_dict
+
+
+def save_scenario_dict(scenario_dict: dict[str, Any], file_path: str):
+    """Save scenario to file"""
+    with open(file_path, 'w', encoding='utf-8') as f:
+        yaml.safe_dump(scenario_dict, f, sort_keys=False)
