@@ -13,12 +13,11 @@ class ProbCalculationMethod(Enum):
     SAMPLE = 1
     EXPECTED = 2
 
-bernoulli_dict: dict[int, float] = {}
 
-def clear_bernoulli_dict() -> None:
-    bernoulli_dict.clear()
-
-def sample_prob(probs_dict: dict[str, Any]) -> float:
+def sample_prob(
+        probs_dict: dict[str, Any],
+        calculated_bernoullis: dict[int, float]
+    ) -> float:
     """Calculate the sampled value from a probability distribution function
     Arguments:
     probs_dict      - a dictionary containing the probability distribution
@@ -40,12 +39,12 @@ def sample_prob(probs_dict: dict[str, Any]) -> float:
     match(probs_dict['name']):
         case 'Bernoulli':
             pd_id = id(probs_dict)
-            if pd_id in bernoulli_dict:
-                return bernoulli_dict[pd_id]
+            if pd_id in calculated_bernoullis:
+                return calculated_bernoullis[pd_id]
             value = random.random()
             threshold = float(probs_dict['arguments'][0])
             res = math.inf if value > threshold else 1.0
-            bernoulli_dict[pd_id] = res
+            calculated_bernoullis[pd_id] = res
             return res
 
         case 'Exponential':
@@ -147,7 +146,8 @@ def expected_prob(probs_dict: dict[str, Any]) -> float:
 
 def calculate_prob(
     probs_dict: Optional[dict[str, Any]],
-    method: ProbCalculationMethod
+    method: ProbCalculationMethod,
+    calculated_bernoullis: dict[int, float]
 ) -> float:
     """Calculate the value from a probability distribution
     Arguments:
@@ -168,8 +168,12 @@ def calculate_prob(
     match(probs_dict['type']):
         case 'addition' | 'subtraction' | 'multiplication' | \
                 'division' | 'exponentiation':
-            lv = calculate_prob(probs_dict['lhs'], method)
-            rv = calculate_prob(probs_dict['rhs'], method)
+            lv = calculate_prob(
+                probs_dict['lhs'], method, calculated_bernoullis
+            )
+            rv = calculate_prob(
+                probs_dict['rhs'], method, calculated_bernoullis
+            )
             match(probs_dict['type']):
                 case 'addition':
                     return lv + rv
@@ -185,7 +189,7 @@ def calculate_prob(
         case 'function':
             match(method):
                 case ProbCalculationMethod.SAMPLE:
-                    return sample_prob(probs_dict)
+                    return sample_prob(probs_dict, calculated_bernoullis)
                 case ProbCalculationMethod.EXPECTED:
                     return expected_prob(probs_dict)
                 case _:
