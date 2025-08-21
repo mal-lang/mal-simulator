@@ -156,7 +156,7 @@ class MalSimAgentStateView(MalSimAttackerState, MalSimDefenderState):
 
         return dunder_attrs + props
 
-class ProbMode(Enum):
+class TTCMode(Enum):
     """
     Describes how to use the probability distributions in the attack graph.
     """
@@ -174,7 +174,7 @@ class MalSimulatorSettings():
     # otherwise:
     # - Leave the node/step compromised even after it becomes untraversable
     uncompromise_untraversable_steps: bool = False
-    prob_mode: ProbMode = ProbMode.SAMPLE
+    prob_mode: TTCMode = TTCMode.LIVESAMPLE
     seed: Optional[int] = None
 
 
@@ -205,7 +205,7 @@ class MalSimulator():
 
         self.sim_settings = sim_settings
         self.max_iter = max_iter  # Max iterations before stopping simulation
-        self.cur_iter = 0        # Keep track on current iteration
+        self.cur_iter = 0         # Keep track on current iteration
 
         # All internal agent states (dead or alive)
         self._agent_states: dict[str, MalSimAgentState] = {}
@@ -234,11 +234,11 @@ class MalSimulator():
         random.seed(self.sim_settings.seed)
         for node in self.attack_graph.nodes.values():
             match(self.sim_settings.prob_mode):
-                case ProbMode.SAMPLE | ProbMode.PRESAMPLE:
+                case TTCMode.LIVESAMPLE | TTCMode.PRESAMPLE:
                     ttc_value = calculate_prob(
                         node.ttc, ProbCalculationMethod.SAMPLE
                     )
-                case ProbMode.EXPECTED:
+                case TTCMode.EXPECTED:
                      ttc_value = calculate_prob(
                         node.ttc, ProbCalculationMethod.EXPECTED
                     )
