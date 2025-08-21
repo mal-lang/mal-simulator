@@ -146,6 +146,7 @@ def test_action_mask() -> None:
     _, info = env.reset()
 
     num_defenses = len(np.flatnonzero(info['action_mask'][1]))
+    assert num_defenses == 21
 
     terminated = False
     while num_defenses > 1 and not terminated:

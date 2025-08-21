@@ -22,7 +22,6 @@ from malsim.probs_utils import (
 from malsim.graph_processing import (
     calculate_viability_and_necessity,
     propagate_viability_from_node,
-    prune_unviable_and_unnecessary_nodes
 )
 
 ITERATIONS_LIMIT = int(1e9)
@@ -174,7 +173,6 @@ class MalSimulatorSettings():
     #   traversable (often because a defense kicked in) if set to True
     # otherwise:
     # - Leave the node/step compromised even after it becomes untraversable
-    prune_unviable_unnecessary: bool = True
     uncompromise_untraversable_steps: bool = False
     prob_mode: ProbMode = ProbMode.SAMPLE
     seed: Optional[int] = None
@@ -230,7 +228,6 @@ class MalSimulator():
         Prepare the node properties for running the simulation:
         - assign defense values to the defenses
         - calculate the viability and necessity of nodes
-        - prune nodes if requested
         - in the future this should also handle initial TTC evaluations
 
         """
@@ -259,11 +256,6 @@ class MalSimulator():
                 self._ttc_values
             )
         )
-
-        if self.sim_settings.prune_unviable_unnecessary:
-            prune_unviable_and_unnecessary_nodes(
-                self.attack_graph, self._viable_nodes, self._necessary_nodes
-            )
 
 
     def reset(
