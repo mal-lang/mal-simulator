@@ -15,7 +15,6 @@ from maltoolbox.attackgraph import (
 
 from malsim.probs_utils import (
     calculate_prob,
-    clear_bernoulli_dict,
     ProbCalculationMethod,
 )
 
@@ -160,7 +159,7 @@ class TTCMode(Enum):
     """
     Describes how to use the probability distributions in the attack graph.
     """
-    SAMPLE = 1
+    LIVE_SAMPLE = 1
     PRESAMPLE = 2
     EXPECTED = 3
 
@@ -174,7 +173,7 @@ class MalSimulatorSettings():
     # otherwise:
     # - Leave the node/step compromised even after it becomes untraversable
     uncompromise_untraversable_steps: bool = False
-    prob_mode: TTCMode = TTCMode.LIVESAMPLE
+    prob_mode: TTCMode = TTCMode.LIVE_SAMPLE
     seed: Optional[int] = None
 
 
@@ -214,7 +213,8 @@ class MalSimulator():
         self._viable_nodes: set[AttackGraphNode] = set()
         self._necessary_nodes: set[AttackGraphNode] = set()
         self._enabled_defenses: set[AttackGraphNode] = set()
-        self._ttc_values: dict[AttackGraphNode, float] = dict()
+        self._ttc_values: dict[AttackGraphNode, float] = {}
+        self._calculated_bernoullis: dict[int, float] = {}
 
         # Keep track on all 'living' agents sorted by order to step in
         self._alive_agents: set[str] = set()
@@ -234,13 +234,17 @@ class MalSimulator():
         random.seed(self.sim_settings.seed)
         for node in self.attack_graph.nodes.values():
             match(self.sim_settings.prob_mode):
-                case TTCMode.LIVESAMPLE | TTCMode.PRESAMPLE:
+                case TTCMode.LIVE_SAMPLE | TTCMode.PRESAMPLE:
                     ttc_value = calculate_prob(
-                        node.ttc, ProbCalculationMethod.SAMPLE
+                        node.ttc,
+                        ProbCalculationMethod.SAMPLE,
+                        self._calculated_bernoullis
                     )
                 case TTCMode.EXPECTED:
                      ttc_value = calculate_prob(
-                        node.ttc, ProbCalculationMethod.EXPECTED
+                        node.ttc,
+                        ProbCalculationMethod.EXPECTED,
+                        self._calculated_bernoullis
                     )
 
             if node.type in ['and', 'or']:
@@ -275,7 +279,7 @@ class MalSimulator():
         self.cur_iter = 0
         # Reset agents
         self._reset_agents()
-        clear_bernoulli_dict()
+        self._calculated_bernoullis.clear()
 
         return self.agent_states
 

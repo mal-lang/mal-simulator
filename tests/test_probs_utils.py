@@ -22,8 +22,8 @@ def test_probs_utils(model: Model) -> None:
 
     for node in attack_graph.nodes.values():
         #TODO: Actually check some of the results
-        calculate_prob(node.ttc, ProbCalculationMethod.SAMPLE)
+        calculate_prob(node.ttc, ProbCalculationMethod.SAMPLE, {})
 
     for node in attack_graph.nodes.values():
         #TODO: Actually check some of the results
-        calculate_prob(node.ttc, ProbCalculationMethod.EXPECTED)
+        calculate_prob(node.ttc, ProbCalculationMethod.EXPECTED, {})
