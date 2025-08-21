@@ -4,9 +4,11 @@ from typing import TYPE_CHECKING
 import copy
 
 from maltoolbox.attackgraph import AttackGraphNode, AttackGraph
-from malsim.mal_simulator import MalSimulator
+from malsim.mal_simulator import (
+    MalSimulator, MalSimulatorSettings,
+    MalSimDefenderState, MalSimAttackerState
+)
 from malsim.scenario import load_scenario, create_simulator_from_scenario
-from malsim.mal_simulator import MalSimDefenderState, MalSimAttackerState
 
 if TYPE_CHECKING:
     from maltoolbox.language import LanguageGraph
@@ -22,7 +24,7 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
 
     agent_entry_point = attack_graph.get_node_by_full_name(
-        'OS App:networkConnectUninspected')
+        'OS App:localConnect')
 
     attacker_name = "testagent"
 
@@ -177,7 +179,7 @@ def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
     assert enabled == set()
     assert not made_unviable
 
-# XXX: Some of the assert values in this test have changed when updating the
+# TODO: Some of the assert values in this test have changed when updating the
 # attacker logic. We should check to see if the behaviour is the new behaviour
 # is correct.
 def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Model) -> None:
@@ -191,8 +193,10 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     entry_point = attack_graph.get_node_by_full_name('OS App:fullAccess')
     assert entry_point, "Should exist"
 
+    mss = MalSimulatorSettings()
+    mss.seed = 13
     # Create simulator and register agents
-    sim = MalSimulator(attack_graph)
+    sim = MalSimulator(attack_graph, mss)
     attacker_name = 'attacker'
     defender_name = 'defender'
     sim.register_attacker(attacker_name, {entry_point})
@@ -214,7 +218,29 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert dsv.performed_nodes == pre_enabled_defenses
 
     assert len(asv.action_surface) == 6
-    assert len(dsv.action_surface) == 18
+    assert set(n.full_name for n in dsv.action_surface) == {
+        'Credentials:10:notPhishable',        # Disabled in lang
+        'Data:5:notPresent',                  # Disabled in lang
+        'Credentials:9:unique',               # Enabled in lang, Disabled in model
+        'User:12:noPasswordReuse',            # Enabled in lang, Disabled in model
+        'Group:13:notPresent',                # Disabled in lang
+        'IDPS 1:notPresent',                  # Disabled in lang
+        'OS App:supplyChainAuditing',         # Not set in lang, Disabled by default
+        'OS App:notPresent',                  # Disabled in lang
+        'Credentials:6:unique',               # Enabled in lang, Disabled in model
+        'Program 2:notPresent',               # Disabled in lang
+        'Credentials:9:notPhishable',         # Disabled in lang
+        'Program 2:supplyChainAuditing',      # Not set in lang, Disabled by default
+        'User:12:securityAwareness',          # Not set in lang, Disabled by default
+        'Identity:11:notPresent',             # Disabled in lang
+        'Credentials:7:notPhishable',         # Disabled in lang
+        'Identity:8:notPresent',              # Disabled in lang
+        'Credentials:7:unique',               # Enabled in lang, Disabled in model
+        'Credentials:6:notPhishable',         # Disabled in lang
+        'IDPS 1:supplyChainAuditing',         # Not set in lang, Disabled by default
+        'SoftwareVulnerability:4:notPresent', # Disabled in lang
+        'Program 1:supplyChainAuditing'       # Not set in lang, Disabled by default
+    }
 
     assert len(dsv.step_action_surface_additions) == len(dsv.action_surface)
     assert len(asv.step_action_surface_additions) == len(asv.action_surface)
@@ -251,7 +277,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert os_app_attempt_deny not in asv.action_surface
     assert dsv.step_action_surface_removals == {program2_not_present}
     assert dsv.step_all_compromised_nodes == {os_app_attempt_deny}
-    assert len(dsv.step_unviable_nodes) == 50
+    assert len(dsv.step_unviable_nodes) == 49
 
     # Go through an attack step that already has some children in the attack
     # surface(OS App:accessNetworkAndConnections in this case)
@@ -285,10 +311,10 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert dsv.step_performed_nodes == {os_app_not_present}
     assert asv.step_action_surface_additions == set()
     assert dsv.step_action_surface_additions == set()
-    assert len(asv.step_action_surface_removals) == 11
+    assert len(asv.step_action_surface_removals) == 12
     assert dsv.step_action_surface_removals == {os_app_not_present}
     assert dsv.step_all_compromised_nodes == set()
-    assert len(dsv.step_unviable_nodes) == 54
+    assert len(dsv.step_unviable_nodes) == 63
 
 
 def test_step_attacker_defender_action_surface_updates() -> None:
