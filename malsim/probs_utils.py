@@ -43,9 +43,8 @@ def sample_prob(
 
     match(probs_dict['name']):
         case 'Bernoulli':
-            pd_id = id(probs_dict)
-            if pd_id in calculated_bernoullis:
-                return calculated_bernoullis[pd_id]
+            if node in calculated_bernoullis:
+                return calculated_bernoullis[node]
             value = random.random()
             threshold = float(probs_dict['arguments'][0])
             res = math.inf if value > threshold else 1.0
