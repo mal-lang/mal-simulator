@@ -12,6 +12,8 @@ from malsim.mal_simulator import (
 )
 from malsim.scenario import load_scenario, create_simulator_from_scenario
 
+from .conftest import get_node
+
 if TYPE_CHECKING:
     from maltoolbox.language import LanguageGraph
     from maltoolbox.model import Model
@@ -25,9 +27,7 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     """Make sure attack graph is reset"""
     attack_graph = AttackGraph(corelang_lang_graph, model)
 
-    agent_entry_point = attack_graph.get_node_by_full_name(
-        'OS App:localConnect')
-
+    agent_entry_point = get_node(attack_graph, 'OS App:localConnect')
     attacker_name = "testagent"
 
     sim = MalSimulator(attack_graph)
@@ -130,9 +130,7 @@ def test_attacker_step(
         corelang_lang_graph: LanguageGraph, model: Model
     ) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    entry_point = attack_graph.get_node_by_full_name('OS App:fullAccess')
-
-    assert entry_point, "OS App:fullAccess should exist"
+    entry_point = get_node(attack_graph, 'OS App:fullAccess')
 
     sim = MalSimulator(attack_graph)
 
@@ -144,13 +142,11 @@ def test_attacker_step(
     assert isinstance(attacker_agent, MalSimAttackerState)
 
     # Can not attack the notPresent step
-    defense_step = sim.attack_graph.get_node_by_full_name('OS App:notPresent')
-    assert defense_step
+    defense_step = get_node(attack_graph, 'OS App:notPresent')
     actions = sim._attacker_step(attacker_agent, [defense_step])
     assert not actions
 
-    attack_step = sim.attack_graph.get_node_by_full_name('OS App:attemptRead')
-    assert attack_step
+    attack_step = get_node(attack_graph, 'OS App:attemptRead')
     actions = sim._attacker_step(attacker_agent, [attack_step])
     assert actions  == {attack_step}
 
@@ -166,16 +162,13 @@ def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
     defender_agent = sim._agent_states[defender_name]
     assert isinstance(defender_agent, MalSimDefenderState)
 
-    defense_step = sim.attack_graph.get_node_by_full_name(
-        'OS App:notPresent')
-    assert defense_step
+    defense_step = get_node(attack_graph, 'OS App:notPresent')
     enabled, made_unviable = sim._defender_step(defender_agent, [defense_step])
     assert enabled ==  {defense_step}
     assert made_unviable
 
     # Can not defend attack_step
-    attack_step = sim.attack_graph.get_node_by_full_name(
-        'OS App:attemptUseVulnerability')
+    attack_step = get_node(attack_graph, 'OS App:attemptUseVulnerability')
     assert attack_step
     enabled, made_unviable = sim._defender_step(defender_agent, [attack_step])
     assert enabled == set()
@@ -186,14 +179,8 @@ def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
 # is correct.
 def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Model) -> None:
 
-    def get_node(full_name: str) -> AttackGraphNode:
-        node = sim.attack_graph.get_node_by_full_name(full_name)
-        assert node
-        return node
-
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    entry_point = attack_graph.get_node_by_full_name('OS App:fullAccess')
-    assert entry_point, "Should exist"
+    entry_point = get_node(attack_graph, 'OS App:fullAccess')
 
     mss = MalSimulatorSettings()
     mss.seed = 13
@@ -206,7 +193,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
 
     # Evaluate the agent state views after reset
     state_views = sim.reset()
-    entry_point = get_node('OS App:fullAccess')
+    entry_point = get_node(attack_graph, 'OS App:fullAccess')
 
     pre_enabled_defenses = set(sim._enabled_defenses)
 
@@ -251,12 +238,12 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert dsv.step_action_surface_removals == set()
 
     # Save all relvant nodes in variables
-    program2_not_present = get_node('Program 2:notPresent')
-    os_app_attempt_deny = get_node('OS App:attemptDeny')
-    os_app_success_deny = get_node('OS App:successfulDeny')
-    os_app_not_present = get_node('OS App:notPresent')
-    os_app_access_netcon = get_node('OS App:accessNetworkAndConnections')
-    os_app_spec_access = get_node('OS App:specificAccess')
+    program2_not_present = get_node(attack_graph, 'Program 2:notPresent')
+    os_app_attempt_deny = get_node(attack_graph, 'OS App:attemptDeny')
+    os_app_success_deny = get_node(attack_graph, 'OS App:successfulDeny')
+    os_app_not_present = get_node(attack_graph, 'OS App:notPresent')
+    os_app_access_netcon = get_node(attack_graph, 'OS App:accessNetworkAndConnections')
+    os_app_spec_access = get_node(attack_graph, 'OS App:specificAccess')
 
     # Evaluate the agent state views after stepping through an attack step and
     # a defense that will not impact it in any way
@@ -328,8 +315,8 @@ def test_step_attacker_defender_action_surface_updates() -> None:
     attacker_agent_id = "attacker"
     defender_agent_id = "defender"
 
-    user3_phishing = sim.attack_graph.get_node_by_full_name('User:3:phishing')
-    host0_connect = sim.attack_graph.get_node_by_full_name('Host:0:connect')
+    user3_phishing = get_node(sim.attack_graph, 'User:3:phishing')
+    host0_connect = get_node(sim.attack_graph, 'Host:0:connect')
     sim.register_attacker(
         attacker_agent_id,
         set([user3_phishing, host0_connect])
@@ -385,7 +372,7 @@ def test_default_simulator_default_settings_eviction() -> None:
     defender_agent = sim.agent_states[defender_agent_id]
 
     # Get a step to compromise and its defense parent
-    user_3_compromise = sim.attack_graph.get_node_by_full_name('User:3:compromise')
+    user_3_compromise = get_node(sim.attack_graph, 'User:3:compromise')
     user_3_compromise_defense = next(n for n in user_3_compromise.parents if n.type=='defense')
     assert user_3_compromise not in attacker_agent.performed_nodes
     assert user_3_compromise_defense not in defender_agent.performed_nodes
@@ -415,7 +402,7 @@ def test_default_simulator_default_settings_eviction() -> None:
 def test_simulator_ttcs() -> None:
     """Create a simulator and check TTCs, then reset and check TTCs again"""
 
-    def get_node(sim: MalSimulator, full_name):
+    def get_node(sim: MalSimulator, full_name: str) -> AttackGraphNode:
         node = sim.attack_graph.get_node_by_full_name(full_name)
         assert node
         return node
