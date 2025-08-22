@@ -53,6 +53,8 @@ def test_breadth_first_traversal_simple(
         # Get next action
         agent_view = MalSimAgentStateView(agent_state)
         action_node = attacker_ai.get_next_action(agent_view)
+        assert action_node
+
         # Get next action
         sim.step({'bfs': [action_node]})
 
@@ -127,6 +129,8 @@ def test_breadth_first_traversal_complicated(
         # Get next action
         agent_view = MalSimAgentStateView(agent_state)
         action_node = attacker_ai.get_next_action(agent_view)
+        assert action_node
+
         # Get next action
         sim.step({'bfs': [action_node]})
 
@@ -199,6 +203,8 @@ def test_depth_first_traversal_complicated(
         # Get next action
         agent_view = MalSimAgentStateView(agent_state)
         action_node = attacker_ai.get_next_action(agent_view)
+        assert action_node
+
         # Get next action
         sim.step({'dfs': [action_node]})
 

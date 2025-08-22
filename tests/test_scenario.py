@@ -11,6 +11,8 @@ from malsim.scenario import (
 )
 from malsim.agents import PassiveAgent, BreadthFirstAttacker
 
+from .conftest import get_node
+
 def path_relative_to_tests(filename: str) -> str:
     """Returns the absolute path of a file in ./tests
 
@@ -24,33 +26,32 @@ def path_relative_to_tests(filename: str) -> str:
 def test_load_scenario() -> None:
     """Make sure we can load a scenario"""
 
+
     # Load the scenario
     attack_graph, agents = load_scenario(
         path_relative_to_tests('./testdata/scenarios/simple_scenario.yml')
     )
 
     # Verify rewards were added as defined in './testdata/simple_scenario.yml'
-    assert attack_graph.get_node_by_full_name('OS App:notPresent')\
+    assert get_node(attack_graph, 'OS App:notPresent')\
         .extras['reward'] == 2
-    assert attack_graph.get_node_by_full_name('OS App:supplyChainAuditing')\
+    assert get_node(attack_graph, 'OS App:supplyChainAuditing')\
         .extras['reward'] == 7
-    assert attack_graph.get_node_by_full_name('Program 1:notPresent')\
+    assert get_node(attack_graph, 'Program 1:notPresent')\
         .extras['reward'] == 3
-    assert attack_graph.get_node_by_full_name('Program 1:supplyChainAuditing')\
+    assert get_node(attack_graph, 'Program 1:supplyChainAuditing')\
         .extras['reward'] == 7
-    assert attack_graph.get_node_by_full_name('SoftwareVulnerability:4:notPresent')\
+    assert get_node(attack_graph, 'SoftwareVulnerability:4:notPresent')\
         .extras['reward'] == 4
-    assert attack_graph.get_node_by_full_name('Data:5:notPresent')\
+    assert get_node(attack_graph, 'Data:5:notPresent')\
         .extras['reward'] == 1
-    assert attack_graph.get_node_by_full_name('Credentials:6:notPhishable')\
+    assert get_node(attack_graph, 'Credentials:6:notPhishable')\
         .extras['reward'] == 7
-    assert attack_graph.get_node_by_full_name('Identity:11:notPresent')\
+    assert get_node(attack_graph, 'Identity:11:notPresent')\
         .extras['reward'] == 3.5
 
     # Verify attacker entrypoint was added
-    attack_step = attack_graph.get_node_by_full_name(
-        'OS App:fullAccess'
-    )
+    attack_step = get_node(attack_graph, 'OS App:fullAccess')
     assert attack_step in agents[0]['entry_points']
 
     assert isinstance(agents[0]['agent'], BreadthFirstAttacker)
@@ -121,20 +122,13 @@ def test_extend_scenario_override_lang_model() -> None:
     )
 
     # No reward overrides
-    assert attack_graph.get_node_by_full_name('Host:0:notPresent')\
-        .extras['reward'] == 2
-    assert attack_graph.get_node_by_full_name('Host:0:access')\
-        .extras['reward'] == 4
-    assert attack_graph.get_node_by_full_name('Host:1:notPresent')\
-        .extras['reward'] == 7
-    assert attack_graph.get_node_by_full_name('Host:1:access')\
-        .extras['reward'] == 5
-    assert attack_graph.get_node_by_full_name('Data:2:notPresent')\
-        .extras['reward'] == 8
-    assert attack_graph.get_node_by_full_name('Data:2:read')\
-        .extras['reward'] == 5
-    assert attack_graph.get_node_by_full_name('Data:2:modify')\
-        .extras['reward'] == 10
+    assert get_node(attack_graph, 'Host:0:notPresent').extras['reward'] == 2
+    assert get_node(attack_graph, 'Host:0:access').extras['reward'] == 4
+    assert get_node(attack_graph, 'Host:1:notPresent').extras['reward'] == 7
+    assert get_node(attack_graph, 'Host:1:access').extras['reward'] == 5
+    assert get_node(attack_graph, 'Data:2:notPresent').extras['reward'] == 8
+    assert get_node(attack_graph, 'Data:2:read').extras['reward'] == 5
+    assert get_node(attack_graph, 'Data:2:modify').extras['reward'] == 10
 
     # No agent overrides
     assert len(agents) == 2
@@ -182,7 +176,7 @@ def test_load_scenario_observability_given() -> None:
             assert node.extras['observable']
         elif node.lg_attack_step.asset.name == "Application" and node.name == "supplyChainAuditing":
             assert node.extras['observable']
-        elif node.model_asset.name == "Identity:8" and node.name == "assume":
+        elif node.model_asset and node.model_asset.name == "Identity:8" and node.name == "assume":
             assert node.extras['observable']
         else:
             assert not node.extras['observable']
@@ -239,7 +233,7 @@ def test_apply_scenario_observability() -> None:
             assert node.extras['observable']
         elif node.lg_attack_step.asset.name == 'Application' and node.name in ('fullAccess', 'notPresent'):
             assert node.extras['observable']
-        elif node.model_asset.name == 'OS App' and node.name in ('read'):
+        elif node.model_asset and node.model_asset.name == 'OS App' and node.name in ('read'):
             assert node.extras['observable']
         else:
             assert not node.extras['observable']
@@ -404,7 +398,7 @@ def test_apply_scenario_fpr_fnr() -> None:
             assert node.extras['false_negative_rate'] == 0.6
         elif node.lg_attack_step.asset.name == 'Data' and node.name == 'delete':
             assert node.extras['false_negative_rate'] == 0.7
-        elif node.model_asset.name == 'OS App' and node.name == 'read':
+        elif node.model_asset and node.model_asset.name == 'OS App' and node.name == 'read':
             assert node.extras['false_negative_rate'] == 0.9
         elif node.lg_attack_step.asset.name == 'Application' and node.name == 'read':
             assert node.extras['false_negative_rate'] == 1.0
