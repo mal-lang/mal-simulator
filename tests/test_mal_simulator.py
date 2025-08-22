@@ -2,6 +2,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import copy
+import math
+
 
 from maltoolbox.attackgraph import AttackGraphNode, AttackGraph
 from malsim.mal_simulator import (
@@ -409,3 +411,55 @@ def test_default_simulator_default_settings_eviction() -> None:
     # Verify defense was performed and attacker NOT kicked out
     assert user_3_compromise in attacker_agent.performed_nodes
     assert user_3_compromise_defense in defender_agent.performed_nodes
+
+def test_simulator_ttcs() -> None:
+    """Create a simulator and check TTCs, then reset and check TTCs again"""
+
+    def get_node(sim: MalSimulator, full_name):
+        node = sim.attack_graph.get_node_by_full_name(full_name)
+        assert node
+        return node
+
+    sim, _ = create_simulator_from_scenario(
+        'tests/testdata/scenarios/traininglang_scenario.yml'
+    )
+
+    host_0_notPresent = get_node(sim, "Host:0:notPresent")
+    host_0_auth = get_node(sim, "Host:0:authenticate")
+    host_0_connect = get_node(sim, "Host:0:connect")
+    host_0_access = get_node(sim, "Host:0:access")
+    host_1_notPresent = get_node(sim, "Host:1:notPresent")
+    host_1_auth = get_node(sim, "Host:1:authenticate")
+    host_1_connect = get_node(sim, "Host:1:connect")
+    host_1_access = get_node(sim, "Host:1:access")
+    data_2_notPresent = get_node(sim, "Data:2:notPresent")
+    data_2_read = get_node(sim, "Data:2:read")
+    data_2_modify = get_node(sim, "Data:2:modify")
+    user_3_notPresent = get_node(sim, "User:3:notPresent")
+    user_3_compromise = get_node(sim, "User:3:compromise")
+    user_3_phishing = get_node(sim, "User:3:phishing")
+    network_3_access = get_node(sim, "Network:3:access")
+
+    expected_bernoullis = {
+        host_0_notPresent: math.inf,
+        host_0_auth: 1.0,
+        host_0_connect: 1.0,
+        host_0_access: 1.0,
+        host_1_notPresent: math.inf,
+        host_1_auth: 1.0,
+        host_1_connect: 1.0,
+        host_1_access: 1.0,
+        data_2_notPresent: math.inf,
+        data_2_read: 1.0,
+        data_2_modify: 1.0,
+        user_3_notPresent: math.inf,
+        user_3_compromise: 1.0,
+        user_3_phishing: 1.0,
+        network_3_access: 1.0
+    }
+
+    assert sim._calculated_bernoullis == expected_bernoullis
+
+    sim.reset()
+
+    assert sim._calculated_bernoullis == expected_bernoullis
