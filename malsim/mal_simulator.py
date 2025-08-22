@@ -214,7 +214,7 @@ class MalSimulator():
         self._necessary_nodes: set[AttackGraphNode] = set()
         self._enabled_defenses: set[AttackGraphNode] = set()
         self._ttc_values: dict[AttackGraphNode, float] = {}
-        self._calculated_bernoullis: dict[int, float] = {}
+        self._calculated_bernoullis: dict[AttackGraphNode, float] = {}
 
         # Keep track on all 'living' agents sorted by order to step in
         self._alive_agents: set[str] = set()
@@ -236,12 +236,14 @@ class MalSimulator():
             match(self.sim_settings.prob_mode):
                 case TTCMode.LIVE_SAMPLE | TTCMode.PRESAMPLE:
                     ttc_value = calculate_prob(
+                        node,
                         node.ttc,
                         ProbCalculationMethod.SAMPLE,
                         self._calculated_bernoullis
                     )
                 case TTCMode.EXPECTED:
-                     ttc_value = calculate_prob(
+                    ttc_value = calculate_prob(
+                        node,
                         node.ttc,
                         ProbCalculationMethod.EXPECTED,
                         self._calculated_bernoullis
@@ -271,6 +273,7 @@ class MalSimulator():
         logger.info("Resetting MAL Simulator.")
 
         # Reset nodes
+        self._calculated_bernoullis.clear()
         self._enabled_defenses = set()
 
         self.prepare_attack_graph()
@@ -279,7 +282,6 @@ class MalSimulator():
         self.cur_iter = 0
         # Reset agents
         self._reset_agents()
-        self._calculated_bernoullis.clear()
 
         return self.agent_states
 
