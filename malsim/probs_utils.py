@@ -1,11 +1,15 @@
 """Utility functions for handling probabilities"""
 
+from __future__ import annotations
 import logging
 import math
 import random
 from enum import Enum
 
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from maltoolbox.attackgraph import AttackGraphNode
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +19,9 @@ class ProbCalculationMethod(Enum):
 
 
 def sample_prob(
+        node: AttackGraphNode,
         probs_dict: dict[str, Any],
-        calculated_bernoullis: dict[int, float]
+        calculated_bernoullis: dict[AttackGraphNode, float]
     ) -> float:
     """Calculate the sampled value from a probability distribution function
     Arguments:
@@ -44,7 +49,7 @@ def sample_prob(
             value = random.random()
             threshold = float(probs_dict['arguments'][0])
             res = math.inf if value > threshold else 1.0
-            calculated_bernoullis[pd_id] = res
+            calculated_bernoullis[node] = res
             return res
 
         case 'Exponential':
@@ -83,7 +88,7 @@ def sample_prob(
                 f'function encountered "{probs_dict["name"]}"!')
 
 
-def expected_prob(probs_dict: dict[str, Any]) -> float:
+def expected_prob(node: AttackGraphNode, probs_dict: dict[str, Any]) -> float:
     """Calculate the expected value from a probability distribution function
     Arguments:
     probs_dict      - a dictionary containing the probability distribution
@@ -145,9 +150,10 @@ def expected_prob(probs_dict: dict[str, Any]) -> float:
 
 
 def calculate_prob(
+    node: AttackGraphNode,
     probs_dict: Optional[dict[str, Any]],
     method: ProbCalculationMethod,
-    calculated_bernoullis: dict[int, float]
+    calculated_bernoullis: dict[AttackGraphNode, float]
 ) -> float:
     """Calculate the value from a probability distribution
     Arguments:
@@ -169,10 +175,10 @@ def calculate_prob(
         case 'addition' | 'subtraction' | 'multiplication' | \
                 'division' | 'exponentiation':
             lv = calculate_prob(
-                probs_dict['lhs'], method, calculated_bernoullis
+                node, probs_dict['lhs'], method, calculated_bernoullis
             )
             rv = calculate_prob(
-                probs_dict['rhs'], method, calculated_bernoullis
+                node, probs_dict['rhs'], method, calculated_bernoullis
             )
             match(probs_dict['type']):
                 case 'addition':
@@ -189,9 +195,9 @@ def calculate_prob(
         case 'function':
             match(method):
                 case ProbCalculationMethod.SAMPLE:
-                    return sample_prob(probs_dict, calculated_bernoullis)
+                    return sample_prob(node, probs_dict, calculated_bernoullis)
                 case ProbCalculationMethod.EXPECTED:
-                    return expected_prob(probs_dict)
+                    return expected_prob(node, probs_dict)
                 case _:
                     raise ValueError('Unknown Probability Calculation method '
                     f'encountered "{method}"!')
