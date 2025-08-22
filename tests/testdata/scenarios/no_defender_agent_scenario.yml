@@ -1,25 +1,15 @@
 lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
-model_file: ../models/simple_test_model.yml
+model_file: ../models/basic_model.yml
 
 # Rewards for each attack step
 rewards:
   by_asset_name:
-    OS App:
+    Program 1:
       notPresent: 2
       supplyChainAuditing: 7
-    Program 1:
+    Program 2:
       notPresent: 3
       supplyChainAuditing: 7
-    SoftwareVulnerability:4:
-      notPresent: 4
-    Data:5:
-      notPresent: 1
-    Credentials:6:
-      notPhishable: 7
-    Identity:11:
-      notPresent: 3.5
-    Identity:8:
-      assume: 50
 
 # Add entry points to AttackGraph with attacker names
 # and attack step full_names
@@ -30,4 +20,4 @@ agents:
     config:
       seed: 1
     entry_points:
-      - 'OS App:fullAccess'
+      - 'Program 1:fullAccess'

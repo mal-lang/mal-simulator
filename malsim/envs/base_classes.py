@@ -18,7 +18,9 @@ class MalSimEnv(ABC):
         seed: Optional[int] = None,
         options: Optional[dict[str, Any]] = None
     ) -> None:
-        self.sim.reset(seed=seed, options=options)
+        if seed is not None:
+            self.sim.sim_settings.seed = seed
+        self.sim.reset(options = options)
 
     def register_attacker(
             self, attacker_name: str, entry_points: set[AttackGraphNode]

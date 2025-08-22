@@ -96,13 +96,16 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         'ConnectionRule Internet->Linux System:connectToApplicationsUninspected',
         'ConnectionRule Internet->Linux System:attemptReverseReach',
         'ConnectionRule Internet->Linux System:attemptAccessNetworksInspected',
-        'ConnectionRule Internet->Linux System:attemptConnectToApplicationsInspected',
+        'ConnectionRule Internet->Linux '
+        'System:attemptConnectToApplicationsInspected',
         'ConnectionRule Internet->Linux System:successfulAccessNetworksUninspected',
         'ConnectionRule Internet->Linux System:deny',
         'Internet:bypassEavesdropDefense',
         'Internet:successfulEavesdrop',
         'Internet:bypassAdversaryInTheMiddleDefense',
         'Internet:successfulAdversaryInTheMiddle',
+        'ConnectionRule Internet->Linux System:restrictedBypassed',
+        'ConnectionRule Internet->Linux System:payloadInspectionBypassed',
         'Linux system:networkConnectUninspected',
         'Linux system:networkConnectInspected',
         'ConnectionRule Internet->Linux System:reverseReach',
@@ -110,7 +113,9 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         'ConnectionRule Internet->Linux System:connectToApplicationsInspected',
         'ConnectionRule Internet->Linux System:accessNetworksUninspected',
         'Linux system:denyFromNetworkingAsset',
+        'Internet:eavesdropDefenseBypassed',
         'Internet:eavesdrop',
+        'Internet:adversaryInTheMiddleDefenseBypassed',
         'Internet:adversaryInTheMiddle',
         'Linux system:attemptUseVulnerability',
         'Linux system:networkConnect',
@@ -148,4 +153,4 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     assert defender_agent_state.reward == -50
 
     assert total_reward_attacker == 0
-    assert total_reward_defender == -2000
+    assert total_reward_defender == -2200

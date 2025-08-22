@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import logging
+import math
+import random
 from enum import Enum
 from types import MappingProxyType
 from typing import Any, Optional
@@ -11,10 +13,14 @@ from maltoolbox.attackgraph import (
     AttackGraphNode
 )
 
+from malsim.probs_utils import (
+    calculate_prob,
+    ProbCalculationMethod,
+)
+
 from malsim.graph_processing import (
     calculate_viability_and_necessity,
     propagate_viability_from_node,
-    prune_unviable_and_unnecessary_nodes
 )
 
 ITERATIONS_LIMIT = int(1e9)
@@ -149,6 +155,13 @@ class MalSimAgentStateView(MalSimAttackerState, MalSimDefenderState):
 
         return dunder_attrs + props
 
+class TTCMode(Enum):
+    """
+    Describes how to use the probability distributions in the attack graph.
+    """
+    LIVE_SAMPLE = 1
+    PRESAMPLE = 2
+    EXPECTED = 3
 
 @dataclass
 class MalSimulatorSettings():
@@ -160,6 +173,8 @@ class MalSimulatorSettings():
     # otherwise:
     # - Leave the node/step compromised even after it becomes untraversable
     uncompromise_untraversable_steps: bool = False
+    prob_mode: TTCMode = TTCMode.LIVE_SAMPLE
+    seed: Optional[int] = None
 
 
 class MalSimulator():
@@ -173,27 +188,23 @@ class MalSimulator():
     def __init__(
         self,
         attack_graph: AttackGraph,
-        prune_unviable_unnecessary: bool = True,
         sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
         max_iter: int = ITERATIONS_LIMIT,
     ):
         """
         Args:
             attack_graph                -   The attack graph to use
-            max_iter                    -   Max iterations in simulation
-            prune_unviable_unnecessary  -   Prunes graph if set to true
             sim_settings                -   Settings for simulator
+            max_iter                    -   Max iterations in simulation
         """
         logger.info("Creating Base MAL Simulator.")
-
-        self.prune_unviable_unnecessary = prune_unviable_unnecessary
 
         # Initialize all values
         self.attack_graph = attack_graph
 
         self.sim_settings = sim_settings
         self.max_iter = max_iter  # Max iterations before stopping simulation
-        self.cur_iter = 0        # Keep track on current iteration
+        self.cur_iter = 0         # Keep track on current iteration
 
         # All internal agent states (dead or alive)
         self._agent_states: dict[str, MalSimAgentState] = {}
@@ -202,54 +213,59 @@ class MalSimulator():
         self._viable_nodes: set[AttackGraphNode] = set()
         self._necessary_nodes: set[AttackGraphNode] = set()
         self._enabled_defenses: set[AttackGraphNode] = set()
+        self._ttc_values: dict[AttackGraphNode, float] = {}
+        self._calculated_bernoullis: dict[AttackGraphNode, float] = {}
 
         # Keep track on all 'living' agents sorted by order to step in
         self._alive_agents: set[str] = set()
 
-        self.prepare_attack_graph(
-            attack_graph, prune_unviable_unnecessary
-        )
+        self.prepare_attack_graph()
 
     def prepare_attack_graph(
-        self,
-        attack_graph: AttackGraph,
-        prune_unviable_unnecessary: bool = True
+        self
     ) -> None:
         """
         Prepare the node properties for running the simulation:
         - assign defense values to the defenses
         - calculate the viability and necessity of nodes
-        - prune nodes if requested
         - in the future this should also handle initial TTC evaluations
 
-        Args:
-            attack_graph                -   The attack graph to work with
-            prune_unviable_unnecessary  -   Prunes graph of unnecessary and
-                                            unviable nodesif set to true
         """
-        for node in attack_graph.nodes.values():
-            # TODO: This should be redone once the
-            # TTC calculations are in place.
-            if node.type == 'defense':
-                if node.ttc and node.ttc['name'] == 'Enabled':
-                    self._enabled_defenses.add(node)
+        random.seed(self.sim_settings.seed)
+        for node in self.attack_graph.nodes.values():
+            match(self.sim_settings.prob_mode):
+                case TTCMode.LIVE_SAMPLE | TTCMode.PRESAMPLE:
+                    ttc_value = calculate_prob(
+                        node,
+                        node.ttc,
+                        ProbCalculationMethod.SAMPLE,
+                        self._calculated_bernoullis
+                    )
+                case TTCMode.EXPECTED:
+                    ttc_value = calculate_prob(
+                        node,
+                        node.ttc,
+                        ProbCalculationMethod.EXPECTED,
+                        self._calculated_bernoullis
+                    )
+
+            if node.type in ['and', 'or']:
+                self._ttc_values[node] = ttc_value
+            if node.type == 'defense' and ttc_value != math.inf:
+                self._enabled_defenses.add(node)
 
         # Calculate viability and necessity and optionally prune graph
         self._viable_nodes, self._necessary_nodes = (
             calculate_viability_and_necessity(
-                attack_graph, self._enabled_defenses
+                self.attack_graph,
+                self._enabled_defenses,
+                self._ttc_values
             )
         )
-
-        if prune_unviable_unnecessary:
-            prune_unviable_and_unnecessary_nodes(
-                attack_graph, self._viable_nodes, self._necessary_nodes
-            )
 
 
     def reset(
         self,
-        seed: Optional[int] = None,
         options: Optional[dict[str, Any]] = None
     ) -> dict[str, MalSimAgentStateView]:
         """Reset attack graph, iteration and reinitialize agents"""
@@ -257,12 +273,10 @@ class MalSimulator():
         logger.info("Resetting MAL Simulator.")
 
         # Reset nodes
+        self._calculated_bernoullis.clear()
         self._enabled_defenses = set()
 
-        self.prepare_attack_graph(
-            self.attack_graph,
-            self.prune_unviable_unnecessary
-        )
+        self.prepare_attack_graph()
 
         # Reset current iteration
         self.cur_iter = 0

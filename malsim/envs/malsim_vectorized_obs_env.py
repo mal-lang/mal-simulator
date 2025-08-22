@@ -506,7 +506,9 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
         """Reset simulator and return current
         observation and infos for each agent"""
 
-        self.sim.reset(seed=seed, options=options)
+        if seed is not None:
+            self.sim.sim_settings.seed = seed
+        self.sim.reset(options=options)
         self.attack_graph = self.sim.attack_graph # new ref
         assert self.attack_graph.model, (
             "Attack graph in simulator needs to have a model attached to it"
