@@ -22,7 +22,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 def propagate_viability_from_node(
-        node: AttackGraphNode, viable_nodes: set[AttackGraphNode]
+        node: AttackGraphNode,
+        viable_nodes: set[AttackGraphNode],
+        ttc_values: dict[AttackGraphNode, float]
     ) -> set[AttackGraphNode]:
     """
     Update viability of children of node given as parameter. Propagate
@@ -33,6 +35,7 @@ def propagate_viability_from_node(
     node            - the attack graph node from which to propagate the
                       viability status
     viable_nodes    - set of all viable nodes
+    ttc_values      - a dictionary containing the ttc values of each node
 
     Returns:
     changed_nodes   - set of nodes that have changed viability
@@ -43,6 +46,11 @@ def propagate_viability_from_node(
     )
     changed_nodes = set()
     for child in node.children:
+        if ttc_values.get(child) == math.inf:
+            # If a node has an infinite TTC value it means that it is
+            # intrinsically unviable due to a Bernoulli probability.
+            continue
+
         was_viable = child in viable_nodes
         is_viable = None
 
@@ -67,7 +75,9 @@ def propagate_viability_from_node(
                 viable_nodes.discard(child)
 
             changed_nodes |= (
-                {child} | propagate_viability_from_node(child, viable_nodes)
+                {child} | propagate_viability_from_node(
+                    child, viable_nodes, ttc_values
+                )
             )
 
     return changed_nodes
@@ -242,7 +252,7 @@ def calculate_viability_and_necessity(
 
     for node in graph.nodes.values():
         evaluate_viability(node, viable_nodes, enabled_defenses, ttc_values)
-        propagate_viability_from_node(node, viable_nodes)
+        propagate_viability_from_node(node, viable_nodes, ttc_values)
         if node.type in ['exist', 'notExist', 'defense']:
             evaluate_necessity(node, necessary_nodes, enabled_defenses)
             propagate_necessity_from_node(node, necessary_nodes)

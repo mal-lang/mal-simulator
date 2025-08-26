@@ -682,7 +682,7 @@ class MalSimulator():
                 self._viable_nodes.remove(node)
                 attack_steps_made_unviable |= (
                     propagate_viability_from_node(
-                        node, self._viable_nodes
+                        node, self._viable_nodes, self._ttc_values
                     )
                 )
                 enabled_defenses.add(node)
