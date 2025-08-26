@@ -266,7 +266,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert os_app_attempt_deny not in asv.action_surface
     assert dsv.step_action_surface_removals == {program2_not_present}
     assert dsv.step_all_compromised_nodes == {os_app_attempt_deny}
-    assert len(dsv.step_unviable_nodes) == 49
+    assert len(dsv.step_unviable_nodes) == 48
 
     # Go through an attack step that already has some children in the attack
     # surface(OS App:accessNetworkAndConnections in this case)

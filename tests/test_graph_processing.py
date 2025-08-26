@@ -284,7 +284,9 @@ def test_analyzers_apriori_propagate_viability(dummy_lang_graph: LanguageGraph) 
 
     changed_nodes = set()
     for parent in [vp1, vp2, uvp1, uvp2]:
-        changed_nodes |= propagate_viability_from_node(parent, viable_nodes)
+        changed_nodes |= propagate_viability_from_node(
+            parent, viable_nodes, dict()
+        )
 
     assert changed_nodes == {or_2uvp, and_1uvp}
 

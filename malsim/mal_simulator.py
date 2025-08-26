@@ -74,7 +74,7 @@ class MalSimAttackerState(MalSimAgentState):
 
     # Current TTCs, for live sampled mode it will just be the latest sample
     # result
-    ttcs: dict[int, float] = dict()
+    ttcs: dict[AttackGraphNode, float] = dict()
 
     def __init__(self, name: str):
         super().__init__(name, AgentType.ATTACKER)

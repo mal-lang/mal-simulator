@@ -98,14 +98,24 @@ def dummy_lang_graph(corelang_lang_graph: LanguageGraph) -> LanguageGraph:
     dummy_or_attack_step_node = LanguageGraphAttackStep(
         name = 'DummyOrAttackStep',
         type = 'or',
-        asset = dummy_asset
+        asset = dummy_asset,
+        ttc = {
+            'arguments': [1.0],
+            'name': 'Bernoulli',
+            'type': 'function'
+        }
     )
     dummy_asset.attack_steps['DummyOrAttackStep'] = dummy_or_attack_step_node
 
     dummy_and_attack_step_node = LanguageGraphAttackStep(
         name = 'DummyAndAttackStep',
         type = 'and',
-        asset = dummy_asset
+        asset = dummy_asset,
+        ttc = {
+            'arguments': [1.0],
+            'name': 'Bernoulli',
+            'type': 'function'
+        }
     )
     dummy_asset.attack_steps['DummyAndAttackStep'] =\
         dummy_and_attack_step_node
