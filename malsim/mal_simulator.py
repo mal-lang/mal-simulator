@@ -179,6 +179,15 @@ class MalSimulatorSettings():
     uncompromise_untraversable_steps: bool = False
     ttc_mode: TTCMode = TTCMode.LIVE_SAMPLE
     seed: Optional[int] = None
+    # attack_surface_skip_compromised
+    # - if true do not add already compromised nodes to the attack surface
+    attack_surface_skip_compromised: bool = True
+    # attack_surface_skip_unviable
+    # - if true do not add unviable nodes to the attack surface
+    attack_surface_skip_unviable: bool = True
+    # attack_surface_skip_unnecessary
+    # - if true do not add unnecessary nodes to the attack surface
+    attack_surface_skip_unnecessary: bool = True
 
 
 class MalSimulator():
@@ -349,8 +358,7 @@ class MalSimulator():
     def _get_attack_surface(
             self,
             attacker_state: MalSimAttackerState,
-            from_nodes: Optional[set[AttackGraphNode]] = None,
-            skip_compromised: bool = True
+            from_nodes: Optional[set[AttackGraphNode]] = None
     ) -> set[AttackGraphNode]:
         """
         Calculate the attack surface of the attacker.
@@ -365,8 +373,6 @@ class MalSimulator():
         from_nodes        - the nodes to calculate the attack surface from;
                             defaults to the attackers compromised nodes list
                             if omitted
-        skip_compromised  - if true do not add already compromised nodes to
-                            the attack surface
         """
         logger.debug(
             'Get the attack surface for Attacker "%s".', attacker_state.name
@@ -379,8 +385,18 @@ class MalSimulator():
         for attack_step in frontier:
             for child in attack_step.children:
                 if (
-                    skip_compromised
+                    self.sim_settings.attack_surface_skip_compromised
                     and child in attacker_state.performed_nodes
+                ):
+                    continue
+                if (
+                    self.sim_settings.attack_surface_skip_unviable
+                    and child not in self._viable_nodes
+                ):
+                    continue
+                if (
+                    self.sim_settings.attack_surface_skip_unnecessary
+                    and child not in self._necessary_nodes
                 ):
                     continue
                 if (
@@ -449,7 +465,6 @@ class MalSimulator():
             self._get_attack_surface(
                 attacker_state,
                 from_nodes=step_agent_compromised_nodes,
-                skip_compromised=True
             ) # Exclude nodes already in the action surface
             - attacker_state.action_surface
         )
