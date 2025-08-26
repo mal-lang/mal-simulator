@@ -550,15 +550,10 @@ class MalSimulator():
 
         # Create new attacker agent states
         for attacker_state in self._get_attacker_agents():
-            # TODO: Re-fetching the entry nodes is only need if we fully reset
-            # the attack graph which should not be the case with the new
-            # implementation.
-            new_entry_point_nodes = {self.attack_graph.nodes[node.id]
-                for node in attacker_state.entry_points}
             self._agent_states[attacker_state.name] = (
                 self._create_attacker_state(
                     attacker_state.name,
-                    new_entry_point_nodes
+                    attacker_state.entry_points
                 )
             )
 
