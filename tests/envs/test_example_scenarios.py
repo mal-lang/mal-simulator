@@ -4,6 +4,7 @@ expected reward is given to agents
 """
 
 from malsim.scenario import create_simulator_from_scenario
+from malsim.mal_simulator import MalSimulatorSettings, TTCMode
 
 def test_bfs_vs_bfs_state_and_reward() -> None:
     """
@@ -17,7 +18,12 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     """
 
     sim, agents = create_simulator_from_scenario(
-        "tests/testdata/scenarios/bfs_vs_bfs_network_app_data_scenario.yml"
+        "tests/testdata/scenarios/bfs_vs_bfs_network_app_data_scenario.yml",
+        sim_settings = MalSimulatorSettings(
+            ttc_mode=TTCMode.DISABLED,
+            attack_surface_skip_unnecessary=False,
+            run_defense_step_bernoullis=False
+        )
     )
     sim.reset()
 

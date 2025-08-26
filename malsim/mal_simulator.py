@@ -166,6 +166,7 @@ class TTCMode(Enum):
     LIVE_SAMPLE = 1
     PRESAMPLE = 2
     EXPECTED = 3
+    DISABLED = 4
 
 @dataclass
 class MalSimulatorSettings():
@@ -177,7 +178,11 @@ class MalSimulatorSettings():
     # otherwise:
     # - Leave the node/step compromised even after it becomes untraversable
     uncompromise_untraversable_steps: bool = False
+    # ttc_mode
+    # - mode to sample TTCs on attack steps
     ttc_mode: TTCMode = TTCMode.LIVE_SAMPLE
+    # seed
+    # - optionally run deterministic simulations with seed
     seed: Optional[int] = None
     # attack_surface_skip_compromised
     # - if true do not add already compromised nodes to the attack surface
@@ -188,7 +193,9 @@ class MalSimulatorSettings():
     # attack_surface_skip_unnecessary
     # - if true do not add unnecessary nodes to the attack surface
     attack_surface_skip_unnecessary: bool = True
-
+    # run_defense_step_bernoullis
+    # - if true, sample defenses bernoullis to decide their initial states
+    run_defense_step_bernoullis: bool = True
 
 class MalSimulator():
     """A MAL Simulator that works on the AttackGraph
@@ -234,19 +241,13 @@ class MalSimulator():
 
         self.prepare_attack_graph()
 
-    def prepare_attack_graph(
-        self
-    ) -> None:
-        """
-        Prepare the node properties for running the simulation:
-        - assign defense values to the defenses
-        - calculate the viability and necessity of nodes
-        - in the future this should also handle initial TTC evaluations
-
-        """
-        random.seed(self.sim_settings.seed)
+    def _attack_step_ttcs(self) -> dict[AttackGraphNode, float]:
+        """Calculate and return attack steps TTCs"""
+        ttc_values = {}
         for node in self.attack_graph.nodes.values():
             match(self.sim_settings.ttc_mode):
+                case TTCMode.DISABLED:
+                    ttc_value = 1.0
                 case TTCMode.LIVE_SAMPLE | TTCMode.PRESAMPLE:
                     ttc_value = calculate_prob(
                         node,
@@ -261,11 +262,40 @@ class MalSimulator():
                         ProbCalculationMethod.EXPECTED,
                         self._calculated_bernoullis
                     )
-
             if node.type in ['and', 'or']:
-                self._ttc_values[node] = ttc_value
-            if node.type == 'defense' and ttc_value != math.inf:
-                self._enabled_defenses.add(node)
+                ttc_values[node] = ttc_value
+
+        return ttc_values
+
+    def _pre_enabled_defenses(self) -> set[AttackGraphNode]:
+        """Calculate and return pre enabled defenses"""
+        pre_enabled_defenses = set()
+        for node in self.attack_graph.nodes.values():
+            if node.type == 'defense':
+                ttc_value = calculate_prob(
+                    node,
+                    node.ttc,
+                    ProbCalculationMethod.SAMPLE,
+                    self._calculated_bernoullis
+                )
+                if ttc_value != math.inf:
+                    pre_enabled_defenses.add(node)
+        return pre_enabled_defenses
+
+    def prepare_attack_graph(
+        self
+    ) -> None:
+        """
+        Prepare the node properties for running the simulation:
+        - assign defense values to the defenses
+        - calculate the viability and necessity of nodes
+        - in the future this should also handle initial TTC evaluations
+        """
+        random.seed(self.sim_settings.seed)
+        self._ttc_values = self._attack_step_ttcs()
+
+        if self.sim_settings.run_defense_step_bernoullis:
+            self._enabled_defenses = self._pre_enabled_defenses()
 
         # Calculate viability and necessity and optionally prune graph
         self._viable_nodes, self._necessary_nodes = (
