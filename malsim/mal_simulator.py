@@ -72,6 +72,10 @@ class MalSimAgentState:
 class MalSimAttackerState(MalSimAgentState):
     """Stores the state of an attacker in the simulator"""
 
+    # Current TTCs, for live sampled mode it will just be the latest sample
+    # result
+    ttcs: dict[int, float] = dict()
+
     def __init__(self, name: str):
         super().__init__(name, AgentType.ATTACKER)
         self.entry_points: set[AttackGraphNode] = set()
@@ -173,7 +177,7 @@ class MalSimulatorSettings():
     # otherwise:
     # - Leave the node/step compromised even after it becomes untraversable
     uncompromise_untraversable_steps: bool = False
-    prob_mode: TTCMode = TTCMode.LIVE_SAMPLE
+    ttc_mode: TTCMode = TTCMode.LIVE_SAMPLE
     seed: Optional[int] = None
 
 
@@ -233,7 +237,7 @@ class MalSimulator():
         """
         random.seed(self.sim_settings.seed)
         for node in self.attack_graph.nodes.values():
-            match(self.sim_settings.prob_mode):
+            match(self.sim_settings.ttc_mode):
                 case TTCMode.LIVE_SAMPLE | TTCMode.PRESAMPLE:
                     ttc_value = calculate_prob(
                         node,
@@ -402,6 +406,8 @@ class MalSimulator():
         )
         attacker_state.step_action_surface_removals = set()
         attacker_state.entry_points = set(entry_points)
+        if self.sim_settings.ttc_mode != TTCMode.LIVE_SAMPLE:
+            attacker_state.ttcs = dict(self._ttc_values)
         attacker_state.reward = self._attacker_reward(attacker_state)
         return attacker_state
 
@@ -614,11 +620,21 @@ class MalSimulator():
 
             # Compromise node if possible
             if self._is_node_traversable(agent, node):
-                compromised_nodes.add(node)
-                logger.info(
-                    'Attacker agent "%s" compromised "%s"(%d).',
-                    agent.name, node.full_name, node.id
-                )
+                if self.sim_settings.ttc_mode == TTCMode.LIVE_SAMPLE:
+                    agent.ttcs[node] = calculate_prob(
+                        node,
+                        node.ttc,
+                        ProbCalculationMethod.SAMPLE,
+                        self._calculated_bernoullis
+                    )
+                agent.ttcs[node] -= 1.0
+
+                if agent.ttcs[node] <= 0.0:
+                    compromised_nodes.add(node)
+                    logger.info(
+                        'Attacker agent "%s" compromised "%s"(%d).',
+                        agent.name, node.full_name, node.id
+                    )
             else:
                 logger.warning(
                     "Attacker could not compromise %s", node.full_name
