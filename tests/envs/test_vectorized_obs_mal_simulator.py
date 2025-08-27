@@ -155,7 +155,7 @@ def test_create_blank_observation_observability_given(
     scenario_file = \
         'tests/testdata/scenarios/traininglang_observability_scenario.yml'
     scenario = load_scenario(scenario_file)
-    env = MalSimVectorizedObsEnv(MalSimulator(scenario.attack_graph))
+    env = MalSimVectorizedObsEnv(MalSimulator.from_scenario(scenario))
 
     num_objects = len(env.sim.attack_graph.nodes)
     blank_observation = env._create_blank_observation()
@@ -187,7 +187,7 @@ def test_create_blank_observation_actionability_given(
     # Load Scenario with observability rules set
     scenario_file = 'tests/testdata/scenarios/traininglang_actionability_scenario.yml'
     scenario = load_scenario(scenario_file)
-    env = MalSimVectorizedObsEnv(MalSimulator(scenario.attack_graph))
+    env = MalSimVectorizedObsEnv(MalSimulator.from_scenario(scenario))
 
     num_objects = len(env.sim.attack_graph.nodes)
     blank_observation = env._create_blank_observation()
@@ -312,9 +312,7 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
     scenario = load_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml')
     # Create the simulator
-    env = MalSimVectorizedObsEnv(
-        MalSimulator(scenario.attack_graph, node_rewards=scenario.rewards)
-    )
+    env = MalSimVectorizedObsEnv(MalSimulator.from_scenario(scenario))
 
     user3_phish = get_node(scenario.attack_graph, "User:3:phishing")
     host0_connect = get_node(scenario.attack_graph, "Host:0:connect")

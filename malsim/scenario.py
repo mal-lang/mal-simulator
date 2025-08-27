@@ -530,11 +530,7 @@ def create_simulator_from_scenario(
     """
 
     scenario = load_scenario(scenario_file)
-    sim = MalSimulator(
-        scenario.attack_graph,
-        node_rewards=scenario.rewards,
-        **kwargs
-    )
+    sim = MalSimulator.from_scenario(scenario, **kwargs)
 
     # Register agents in simulator
     for agent_dict in scenario.agents:
