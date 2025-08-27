@@ -208,6 +208,7 @@ class MalSimulator():
     def __init__(
         self,
         attack_graph: AttackGraph,
+        node_rewards: Optional[dict[AttackGraphNode, float]] = None,
         sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
         max_iter: int = ITERATIONS_LIMIT,
     ):
@@ -230,6 +231,7 @@ class MalSimulator():
         self._agent_states: dict[str, MalSimAgentState] = {}
 
         # Store properties of each AttackGraphNode
+        self._node_rewards: dict[AttackGraphNode, float] = node_rewards or {}
         self._viable_nodes: set[AttackGraphNode] = set()
         self._necessary_nodes: set[AttackGraphNode] = set()
         self._enabled_defenses: set[AttackGraphNode] = set()
@@ -622,7 +624,7 @@ class MalSimulator():
                 if unviable_node in attacker_agent.performed_nodes:
 
                     # Reward is no longer present for attacker
-                    node_reward = unviable_node.extras.get('reward', 0)
+                    node_reward = self._node_rewards.get(unviable_node, 0)
                     attacker_agent.reward -= node_reward
 
                     # Reward is no longer present for defenders
@@ -741,8 +743,7 @@ class MalSimulator():
 
         return enabled_defenses, attack_steps_made_unviable
 
-    @staticmethod
-    def _attacker_reward(attacker_state: MalSimAttackerState) -> float:
+    def _attacker_reward(self, attacker_state: MalSimAttackerState) -> float:
         """
         Calculate current attacker reward by adding this steps
         compromised node rewards to the previous attacker reward.
@@ -755,12 +756,11 @@ class MalSimulator():
         """
         # Attacker is rewarded for compromised nodes
         return attacker_state.reward + sum(
-            float(n.extras.get("reward", 0))
+            self._node_rewards.get(n, 0.0)
             for n in attacker_state.step_performed_nodes
         )
 
-    @staticmethod
-    def _defender_reward(defender_state: MalSimDefenderState) -> float:
+    def _defender_reward(self, defender_state: MalSimDefenderState) -> float:
         """
         Calculate current defender reward by subtracting this steps
         compromised/enabled node rewards from the previous defender reward.
@@ -775,7 +775,7 @@ class MalSimulator():
         step_enabled_defenses = defender_state.step_performed_nodes
         step_compromised_nodes = defender_state.step_all_compromised_nodes
         return defender_state.reward - sum(
-            float(n.extras.get("reward", 0))
+            self._node_rewards.get(n, 0.0)
             for n in step_enabled_defenses | step_compromised_nodes
         )
 
