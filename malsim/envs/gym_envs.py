@@ -31,15 +31,18 @@ class AttackerEnv(gym.Env[Any, Any]):
         self.render_mode = kwargs.pop('render_mode', None)
 
         # Create a simulator from the scenario given
-        attack_graph, agents = load_scenario(scenario_file, **kwargs)
-        self.sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
+        scenario = load_scenario(scenario_file, **kwargs)
+        self.sim = MalSimVectorizedObsEnv(MalSimulator(scenario.attack_graph))
 
         attacker_agents = [
-            agent for agent in agents if agent['type'] == AgentType.ATTACKER]
+            agent for agent in scenario.agents
+            if agent['type'] == AgentType.ATTACKER
+        ]
 
         assert len(attacker_agents) == 1, (
             "More than one attacker in scenario,"
-            "can not decide which one to use in AttackerEnv")
+            "can not decide which one to use in AttackerEnv"
+        )
 
         attacker_agent = attacker_agents[0]
         self.attacker_agent_name = attacker_agent['name']
@@ -103,10 +106,12 @@ class DefenderEnv(gym.Env[Any, Any]):
         self.randomize = kwargs.pop('randomize_attacker_behavior', False)
         self.render_mode = kwargs.pop('render_mode', None)
 
-        ag, agents = load_scenario(scenario_file)
+        scenario = load_scenario(scenario_file)
 
-        self.scenario_agents = agents
-        self.sim = MalSimVectorizedObsEnv(MalSimulator(ag), **kwargs)
+        self.scenario_agents = scenario.agents
+        self.sim = MalSimVectorizedObsEnv(
+            MalSimulator(scenario.attack_graph, ),
+        )
 
         # Register attacker agents from scenario
         self._register_attacker_agents(self.scenario_agents)

@@ -12,6 +12,7 @@ A scenario is a combination of:
 """
 
 import os
+from dataclasses import dataclass
 from typing import Any, Optional, TextIO
 
 import yaml
@@ -69,8 +70,21 @@ allowed_fields = required_fields + [
     'false_negative_rates',
 ]
 
+@dataclass
+class Scenario:
+    """Scenarios defines everything needed to run a simulation"""
+    attack_graph: AttackGraph
+    agents: list[dict[str, Any]]
 
-def validate_scenario(scenario_dict: dict[str, Any]) -> None:
+    # Node properties
+    rewards: dict[AttackGraphNode, float]
+    false_positive_rates: dict[AttackGraphNode, float]
+    false_negative_rates: dict[AttackGraphNode, float]
+    is_observable: dict[AttackGraphNode, bool]
+    is_actionable: dict[AttackGraphNode, bool]
+
+
+def _validate_scenario_dict(scenario_dict: dict[str, Any]) -> None:
     """Verify scenario file keys"""
 
     # Unpack tuples from allowed fields
@@ -157,7 +171,6 @@ def _validate_scenario_node_property_config(
                 "node property configuration"
             )
 
-    # TODO: revisit this variable once LookupDicts are merged
     assert graph.model, (
         "Attack graph in scenario needs to have a model attached to it"
     )
@@ -187,7 +200,7 @@ def apply_scenario_node_property(
         assumed_value: Optional[Any] = None,
         default_value: Optional[Any] = None,
         set_as_extras: bool = True
-) -> None:
+) -> dict[AttackGraphNode, Any]:
     """Apply node property values from scenario configuration.
 
     Note: Property values provided 'by_asset_name' will take precedence over
@@ -208,6 +221,9 @@ def apply_scenario_node_property(
     - set_as_extras:    Whether or not to save the property values in the
                         extras field or set them as a property of the nodes
                         themselves.
+
+    Return dict mapping from attack graph node to the value it is given
+    for the requested property.
     """
 
     def _extract_value_from_entries(
@@ -260,22 +276,24 @@ def apply_scenario_node_property(
         else:
             setattr(step, node_prop, value)
 
-
+    property_dict: dict[AttackGraphNode, Any] = {}
     _validate_scenario_node_property_config(attack_graph, prop_config)
 
-    if not prop_config:
-        # If the property is not present in the configuration at all apply the
-        # default to all nodes if provided.
-        if assumed_value is not None:
-            for step in attack_graph.nodes.values():
-                _set_value(step, node_prop, assumed_value, set_as_extras)
-        return
-    else:
-        if default_value is not None:
-            for step in attack_graph.nodes.values():
-                _set_value(step, node_prop, default_value, set_as_extras)
-
     for step in attack_graph.nodes.values():
+
+        if default_value is not None:
+            property_dict[step] = default_value
+            _set_value(step, node_prop, default_value, set_as_extras)
+
+        if not prop_config:
+            # If the property is not present in the configuration at all,
+            # apply the default to all nodes if provided.
+            if assumed_value is not None:
+                for step in attack_graph.nodes.values():
+                    _set_value(step, node_prop, assumed_value, set_as_extras)
+                    property_dict[step] = assumed_value
+
+
         # Check for matching asset type property configuration entry
         prop_asset_type_entries = (
             prop_config.get('by_asset_type', {})
@@ -304,11 +322,15 @@ def apply_scenario_node_property(
         if prop_value_from_asset_type:
             _set_value(step, node_prop, prop_value_from_asset_type,
                 set_as_extras)
+            property_dict[step] = prop_value_from_asset_type
 
         # Specific asset defined values override asset type values
         if prop_value_from_specific_asset:
             _set_value(step, node_prop, prop_value_from_specific_asset,
                 set_as_extras)
+            property_dict[step] = prop_value_from_specific_asset
+
+    return property_dict
 
 
 def get_entry_point_nodes(
@@ -389,60 +411,6 @@ def load_simulator_agents(
     return agents
 
 
-def apply_scenario_to_attack_graph(
-        attack_graph: AttackGraph, scenario: dict[str, Any]) -> None:
-    """Update attack graph according to scenario configuration
-
-    Apply scenario configurations from a loaded scenario file
-    to an attack graph
-
-    Arguments:
-    - attack_graph: The attack graph to apply scenario to
-    - scenario: The scenario file loaded into a dict
-    """
-
-    # Validate that all necessary keys are in there
-    validate_scenario(scenario)
-
-    # Apply properties to attack graph nodes
-    apply_scenario_node_property(
-        attack_graph,
-        'observable',
-        scenario.get('observable_steps', {}),
-        assumed_value = 1,
-        default_value = 0
-    )
-    apply_scenario_node_property(
-        attack_graph,
-        'actionable',
-        scenario.get('actionable_steps', {}),
-        assumed_value = 1,
-        default_value = 0
-    )
-    apply_scenario_node_property(
-        attack_graph,
-        'false_positive_rate',
-        scenario.get('false_positive_rates', {})
-    )
-    apply_scenario_node_property(
-        attack_graph,
-        'false_negative_rate',
-        scenario.get('false_negative_rates', {})
-    )
-
-    try:
-        apply_scenario_node_property(
-            attack_graph,
-            'reward',
-            scenario.get('rewards', {})
-        )
-    except AssertionError as e:
-        raise RuntimeError(
-            "Error! Scenario file contains invalid reward configuration. "
-            "See README or ./tests/testdata/scenarios for more information."
-        ) from e
-
-
 def _extend_scenario(
         original_scenario_path: str, overriding_scenario: dict[str, Any]
     ) -> dict[str, Any]:
@@ -488,7 +456,8 @@ def load_scenario_dict(scenario_file: str) -> dict[str, Any]:
 
     return scenario
 
-def load_scenario(scenario_file: str) -> tuple[AttackGraph, list[dict[str, Any]]]:
+
+def load_scenario(scenario_file: str) -> Scenario:
     """Load a scenario from a scenario file to an AttackGraph"""
 
     scenario_dict = load_scenario_dict(scenario_file)
@@ -504,16 +473,46 @@ def load_scenario(scenario_file: str) -> tuple[AttackGraph, list[dict[str, Any]]
         raise ValueError("No model or model file in scenario")
 
     attack_graph = create_attack_graph(lang_graph, model)
-    apply_scenario_to_attack_graph(attack_graph, scenario_dict)
 
     # Load the scenario configuration
     scenario_agents = load_simulator_agents(attack_graph, scenario_dict)
-    return attack_graph, scenario_agents
+
+    scenario = Scenario(
+        attack_graph,
+        scenario_agents,
+        apply_scenario_node_property(
+            attack_graph, 'reward', scenario_dict.get('rewards', {})
+        ),
+        apply_scenario_node_property(
+            attack_graph,
+            'false_positive_rate',
+            scenario_dict.get('false_positive_rates', {})
+        ),
+        apply_scenario_node_property(
+            attack_graph,
+            'false_negative_rate',
+            scenario_dict.get('false_negative_rates', {})
+        ),
+        apply_scenario_node_property(
+            attack_graph,
+            'observable',
+            scenario_dict.get('observable_steps', {}),
+            assumed_value = 1,
+            default_value = 0
+        ),
+        apply_scenario_node_property(
+            attack_graph,
+            'actionable',
+            scenario_dict.get('actionable_steps', {}),
+            assumed_value = 1,
+            default_value = 0
+        )
+    )
+    return scenario
 
 
 def create_simulator_from_scenario(
         scenario_file: str,
-        sim_class: Any = MalSimulator,
         **kwargs: Any,
     ) -> tuple[MalSimulator, list[dict[str, Any]]]:
     """Creates and returns a MalSimulator created according to scenario file
@@ -530,11 +529,15 @@ def create_simulator_from_scenario(
     - agents: the agent infos as a list of dicts
     """
 
-    attack_graph, scenario_agents = load_scenario(scenario_file)
-    sim = sim_class(attack_graph, **kwargs)
+    scenario = load_scenario(scenario_file)
+    sim = MalSimulator(
+        scenario.attack_graph,
+        node_rewards=scenario.rewards,
+        **kwargs
+    )
 
     # Register agents in simulator
-    for agent_dict in scenario_agents:
+    for agent_dict in scenario.agents:
         if agent_dict['type'] == AgentType.ATTACKER:
             sim.register_attacker(
                 agent_dict['name'],
@@ -545,7 +548,7 @@ def create_simulator_from_scenario(
                 agent_dict['name']
             )
 
-    return sim, scenario_agents
+    return sim, scenario.agents
 
 
 def create_scenario_dict(

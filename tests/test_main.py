@@ -6,8 +6,6 @@ from typing import Any
 
 from malsim.__main__ import run_simulation
 from malsim.scenario import create_simulator_from_scenario
-from malsim.mal_simulator import MalSimulator
-
 
 def path_relative_to_tests(filename: str) -> str:
     """Returns the absolute path of a file in ./tests
@@ -28,8 +26,7 @@ def test_run_simulation(mock_input: Any) -> None:
         './testdata/scenarios/bfs_vs_bfs_scenario.yml'
     )
 
-    sim, agents = create_simulator_from_scenario(
-        scenario_file, sim_class=MalSimulator)
+    sim, agents = create_simulator_from_scenario(scenario_file)
     run_simulation(sim, agents)
 
 @patch("builtins.input", return_value="\n") # to not freeze on input()
@@ -40,6 +37,5 @@ def test_run_simulation_without_defender_agent(mock_input: Any) -> None:
     scenario_file = path_relative_to_tests(
         './testdata/scenarios/no_defender_agent_scenario.yml'
     )
-    sim, agents = create_simulator_from_scenario(
-        scenario_file, sim_class=MalSimulator)
+    sim, agents = create_simulator_from_scenario(scenario_file)
     run_simulation(sim, agents)
