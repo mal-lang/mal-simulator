@@ -669,6 +669,11 @@ class MalSimulator():
                     )
                 agent.ttcs[node] -= 1.0
 
+                # Because we are working on a unit basis this check yields
+                # slightly odd values on average because any leftover
+                # fractional remainder will take up one entire step. This is a
+                # reasonable assumption, but might seem odd when looking at
+                # the average times it takes to compromise steps.
                 if agent.ttcs[node] <= 0.0:
                     compromised_nodes.add(node)
                     logger.info(
