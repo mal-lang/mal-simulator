@@ -32,10 +32,9 @@ def sample_prob(
     The float value obtained from calculating the sampled value corresponding
     to the function provided.
     """
+
     if probs_dict is None:
-        # TODO: Do we want a configurable default? There have been projects
-        # that have asked for small, but non-zero values for all attack steps.
-        return 0
+        raise ValueError('Probabilities dictionary was missing.')
 
     if probs_dict['type'] != 'function':
         raise ValueError('Sample probability method requires a function '
@@ -97,6 +96,10 @@ def expected_prob(node: AttackGraphNode, probs_dict: dict[str, Any]) -> float:
     The float value obtained from calculating the expected value corresponding
     to the function provided.
     """
+
+    if probs_dict is None:
+        raise ValueError('Probabilities dictionary was missing.')
+
     if probs_dict['type'] != 'function':
         raise ValueError('Expected value probability method requires a '
             'function probability distribution, but got '
@@ -104,7 +107,12 @@ def expected_prob(node: AttackGraphNode, probs_dict: dict[str, Any]) -> float:
 
     match(probs_dict['name']):
         case 'Bernoulli':
-            # TODO: What is the expected value of non-unit non-zero Bernoulli?
+            # This expected value estimation was added so that we can use
+            # non-zero and non-unit Bernoulli values. Failing a Bernoulli
+            # yields an infinite value and multiplying any non-zero value by
+            # infinity does nothing. We decided to simply use the
+            # multiplicative inverse(e.g. 0.1 -> 10, 0.25 -> 4) since most
+            # often the Bernoulli is used a multiplication factor.
             threshold = (
                 1 / float(probs_dict['arguments'][0])
                 if probs_dict['arguments'][0] != 0
