@@ -7,6 +7,8 @@ from malsim.mal_simulator import MalSimulator
 from malsim.envs import MalSimVectorizedObsEnv
 from malsim.scenario import load_scenario
 
+from ..conftest import get_node
+
 if TYPE_CHECKING:
     from maltoolbox.language import LanguageGraph
     from maltoolbox.model import Model
@@ -52,7 +54,7 @@ def test_create_blank_observation(
     assert len(blank_observation['asset_id']) == num_objects
     for index, expected_asset_id in enumerate(blank_observation['asset_id']):
         node = sim.index_to_node(index)
-        assert node.model_asset.id == expected_asset_id
+        assert node.model_asset and node.model_asset.id == expected_asset_id
 
     assert len(blank_observation['step_name']) == num_objects
 
@@ -71,8 +73,7 @@ def test_create_blank_observation_deterministic(
     """Make sure blank observation is deterministic with seed given"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    os_app_fa = attack_graph.get_node_by_full_name("OS App:fullAccess")
-    assert os_app_fa
+    os_app_fa = get_node(attack_graph, "OS App:fullAccess")
 
     sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
     sim.register_attacker("test_attacker", {os_app_fa})
@@ -108,8 +109,7 @@ def test_step_deterministic(
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
-    os_app_fa = attack_graph.get_node_by_full_name("OS App:fullAccess")
-    assert os_app_fa
+    os_app_fa = get_node(attack_graph, "OS App:fullAccess")
 
     sim.register_attacker("test_attacker", {os_app_fa})
     sim.register_defender("test_defender")
@@ -173,7 +173,7 @@ def test_create_blank_observation_observability_given(
             assert observable
         elif node.lg_attack_step.asset.name == 'Data' and node.name in ('read'):
             assert observable
-        elif node.model_asset.name == 'User:3' and node.name in ('phishing'):
+        elif node.model_asset and node.model_asset.name == 'User:3' and node.name in ('phishing'):
             assert observable
         else:
             assert not observable
@@ -203,7 +203,7 @@ def test_create_blank_observation_actionability_given(
             assert actionable
         elif node.lg_attack_step.asset.name == 'Data' and node.name in ('notPresent'):
             assert actionable
-        elif node.model_asset.name == 'User:3' and node.name in ('notPresent'):
+        elif node.model_asset and node.model_asset.name == 'User:3' and node.name in ('notPresent'):
             assert actionable
         else:
             assert not actionable
@@ -220,8 +220,7 @@ def test_malsimulator_observe_attacker() -> None:
     defender_agent_name = 'defender'
     attacker_agent_name = 'attacker'
 
-    os_app_fa = attack_graph.get_node_by_full_name("OS App:fullAccess")
-    assert os_app_fa
+    os_app_fa = get_node(attack_graph, "OS App:fullAccess")
 
     env.register_attacker(attacker_agent_name, {os_app_fa})
     env.register_defender(defender_agent_name)
@@ -315,10 +314,8 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
     # Create the simulator
     env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
-    user3_phish = attack_graph.get_node_by_full_name("User:3:phishing")
-    host0_connect = attack_graph.get_node_by_full_name("Host:0:connect")
-    assert user3_phish
-    assert host0_connect
+    user3_phish = get_node(attack_graph, "User:3:phishing")
+    host0_connect = get_node(attack_graph, "Host:0:connect")
 
     # Register an attacker
     attacker_name = "attacker"
@@ -344,16 +341,11 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
         )
 
     # Prepare nodes that will be stepped through in order
-    user_3_compromise = env.sim.attack_graph\
-        .get_node_by_full_name("User:3:compromise")
-    host_0_authenticate = env.sim.attack_graph\
-        .get_node_by_full_name("Host:0:authenticate")
-    host_0_access = env.sim.attack_graph\
-        .get_node_by_full_name("Host:0:access")
-    host_0_notPresent = env.sim.attack_graph\
-        .get_node_by_full_name("Host:0:notPresent")
-    data_2_read = env.sim.attack_graph\
-        .get_node_by_full_name("Data:2:read")
+    user_3_compromise = get_node(attack_graph, "User:3:compromise")
+    host_0_authenticate = get_node(attack_graph, "Host:0:authenticate")
+    host_0_access = get_node(attack_graph, "Host:0:access")
+    host_0_notPresent = get_node(attack_graph, "Host:0:notPresent")
+    data_2_read = get_node(attack_graph, "Data:2:read")
 
     # Step with attacker action
     obs, rew, _, _, _ = env.step({
@@ -514,10 +506,8 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
         traininglang_lang_graph, traininglang_model)
     env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
-    user3_phish = attack_graph.get_node_by_full_name("User:3:phishing")
-    host0_connect = attack_graph.get_node_by_full_name("Host:0:connect")
-    assert user3_phish
-    assert host0_connect
+    user3_phish = get_node(attack_graph, "User:3:phishing")
+    host0_connect = get_node(attack_graph, "Host:0:connect")
 
     # Register an attacker
     attacker_name = "attacker"

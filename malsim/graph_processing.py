@@ -14,6 +14,7 @@ Currently it adds the following information to nodes:
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import logging
+import math
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
@@ -21,7 +22,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 def propagate_viability_from_node(
-        node: AttackGraphNode, viable_nodes: set[AttackGraphNode]
+        node: AttackGraphNode,
+        viable_nodes: set[AttackGraphNode],
+        ttc_values: dict[AttackGraphNode, float]
     ) -> set[AttackGraphNode]:
     """
     Update viability of children of node given as parameter. Propagate
@@ -32,6 +35,7 @@ def propagate_viability_from_node(
     node            - the attack graph node from which to propagate the
                       viability status
     viable_nodes    - set of all viable nodes
+    ttc_values      - a dictionary containing the ttc values of each node
 
     Returns:
     changed_nodes   - set of nodes that have changed viability
@@ -42,6 +46,11 @@ def propagate_viability_from_node(
     )
     changed_nodes = set()
     for child in node.children:
+        if ttc_values.get(child) == math.inf:
+            # If a node has an infinite TTC value it means that it is
+            # intrinsically unviable due to a Bernoulli probability.
+            continue
+
         was_viable = child in viable_nodes
         is_viable = None
 
@@ -54,15 +63,21 @@ def propagate_viability_from_node(
         else:
             raise TypeError('Child of node must be of type "or"/"and"')
 
+        logger.debug(
+            'Child: %s(%d) viability was %s and is now %s.',
+            child.full_name, child.id, was_viable, is_viable
+        )
         if is_viable != was_viable:
 
             if is_viable:
                 viable_nodes.add(child)
             else:
-                viable_nodes.remove(child)
+                viable_nodes.discard(child)
 
             changed_nodes |= (
-                {child} | propagate_viability_from_node(child, viable_nodes)
+                {child} | propagate_viability_from_node(
+                    child, viable_nodes, ttc_values
+                )
             )
 
     return changed_nodes
@@ -99,12 +114,16 @@ def propagate_necessity_from_node(
             is_necessary = any(
                 parent in necessary_nodes for parent in child.parents)
 
+        logger.debug(
+            'Child: %s(%d) necessity was %s and is now %s.',
+            child.full_name, child.id, was_necessary, is_necessary
+        )
         if is_necessary != was_necessary:
 
             if is_necessary:
                 necessary_nodes.add(child)
             else:
-                necessary_nodes.remove(child)
+                necessary_nodes.discard(child)
 
             changed_nodes |= (
                 {child}
@@ -117,14 +136,23 @@ def propagate_necessity_from_node(
 def evaluate_viability(
         node: AttackGraphNode,
         viable_nodes: set[AttackGraphNode],
-        enabled_defenses: set[AttackGraphNode]
+        enabled_defenses: set[AttackGraphNode],
+        ttc_values: dict[AttackGraphNode, float]
     ) -> None:
     """
     Arguments:
     node                - the node to evaluate viability for
     viable_nodes        - set of all viable nodes
     enabled_defenses    - set of all enabled defenses
+    ttc_values          - a dictionary containing the ttc values of each node
     """
+    if ttc_values.get(node) == math.inf:
+        # If a node has an infinite TTC value it means that it is
+        # intrinsically unviable due to a Bernoulli probability. Only 'and'
+        # and 'or' nodes have TTC values
+        viable_nodes.discard(node)
+        return
+
     match (node.type):
         case 'exist':
             assert isinstance(node.existence_status, bool), \
@@ -139,11 +167,11 @@ def evaluate_viability(
         case 'or':
             node_is_viable = any(
                 parent in viable_nodes for parent in node.parents
-            )
+            ) or not node.parents
         case 'and':
             node_is_viable = all(
                 parent in viable_nodes for parent in node.parents
-            )
+            ) or not node.parents
         case _:
             msg = ('Evaluate viability was provided node "%s"(%d) which '
                    'is of unknown type "%s"')
@@ -153,7 +181,7 @@ def evaluate_viability(
     if node_is_viable:
         viable_nodes.add(node)
     else:
-        viable_nodes.remove(node)
+        viable_nodes.discard(node)
 
 
 def evaluate_necessity(
@@ -182,11 +210,11 @@ def evaluate_necessity(
         case 'or':
             node_is_necessary = all(
                 parent in necessary_nodes for parent in node.parents
-            )
+            ) or not node.parents
         case 'and':
             node_is_necessary = any(
                 parent in necessary_nodes for parent in node.parents
-            )
+            ) or not node.parents
         case _:
             msg = ('Evaluate necessity was provided node "%s"(%d) which '
                    'is of unknown type "%s"')
@@ -196,11 +224,13 @@ def evaluate_necessity(
     if node_is_necessary:
         necessary_nodes.add(node)
     else:
-        necessary_nodes.remove(node)
+        necessary_nodes.discard(node)
 
 
 def calculate_viability_and_necessity(
-        graph: AttackGraph, enabled_defenses: set[AttackGraphNode]
+        graph: AttackGraph,
+        enabled_defenses: set[AttackGraphNode],
+        ttc_values: dict[AttackGraphNode, float]
     ) -> tuple[
             set[AttackGraphNode],
             set[AttackGraphNode]
@@ -209,6 +239,7 @@ def calculate_viability_and_necessity(
     Arguments:
     graph             - the attack graph for which we wish to determine the
                         viability and necessity statuses for the nodes.
+    ttc_values        - a dictionary containing the ttc values of each node.
     enabled_defenses  - set of all enabled defenses
 
     Return:
@@ -220,9 +251,9 @@ def calculate_viability_and_necessity(
     necessary_nodes = set(n for n in graph.nodes.values())
 
     for node in graph.nodes.values():
+        evaluate_viability(node, viable_nodes, enabled_defenses, ttc_values)
+        propagate_viability_from_node(node, viable_nodes, ttc_values)
         if node.type in ['exist', 'notExist', 'defense']:
-            evaluate_viability(node, viable_nodes, enabled_defenses)
-            propagate_viability_from_node(node, viable_nodes)
             evaluate_necessity(node, necessary_nodes, enabled_defenses)
             propagate_necessity_from_node(node, necessary_nodes)
 
