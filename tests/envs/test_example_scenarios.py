@@ -178,7 +178,10 @@ def test_bfs_vs_bfs_basic_state_and_reward() -> None:
 
     sim, agents = create_simulator_from_scenario(
         "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml",
-        sim_settings = MalSimulatorSettings(seed = 13)
+        sim_settings = MalSimulatorSettings(
+            seed=13,
+            ttc_mode=TTCMode.LIVE_SAMPLE
+        )
     )
     sim.reset()
 

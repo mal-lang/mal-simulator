@@ -180,7 +180,7 @@ class MalSimulatorSettings():
     uncompromise_untraversable_steps: bool = False
     # ttc_mode
     # - mode to sample TTCs on attack steps
-    ttc_mode: TTCMode = TTCMode.LIVE_SAMPLE
+    ttc_mode: TTCMode = TTCMode.DISABLED
     # seed
     # - optionally run deterministic simulations with seed
     seed: Optional[int] = None

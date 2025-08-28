@@ -8,7 +8,8 @@ import math
 from maltoolbox.attackgraph import AttackGraphNode, AttackGraph
 from malsim.mal_simulator import (
     MalSimulator, MalSimulatorSettings,
-    MalSimDefenderState, MalSimAttackerState
+    MalSimDefenderState, MalSimAttackerState,
+    TTCMode
 )
 from malsim.scenario import load_scenario, create_simulator_from_scenario
 
@@ -182,8 +183,10 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     attack_graph = AttackGraph(corelang_lang_graph, model)
     entry_point = get_node(attack_graph, 'OS App:fullAccess')
 
-    mss = MalSimulatorSettings()
-    mss.seed = 13
+    mss = MalSimulatorSettings(
+        seed=13,
+        ttc_mode=TTCMode.LIVE_SAMPLE
+    )
     # Create simulator and register agents
     sim = MalSimulator(attack_graph, mss)
     attacker_name = 'attacker'
@@ -408,7 +411,8 @@ def test_simulator_ttcs() -> None:
         return node
 
     sim, _ = create_simulator_from_scenario(
-        'tests/testdata/scenarios/traininglang_scenario.yml'
+        'tests/testdata/scenarios/traininglang_scenario.yml',
+        sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.LIVE_SAMPLE)
     )
 
     host_0_notPresent = get_node(sim, "Host:0:notPresent")
