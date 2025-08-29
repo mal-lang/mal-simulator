@@ -15,7 +15,6 @@ import os
 from typing import Any, Optional, TextIO
 
 import yaml
-import zipfile
 
 from maltoolbox.model import Model
 from maltoolbox.language import LanguageGraph
@@ -570,7 +569,9 @@ def create_scenario_dict(
     return scenario_dict
 
 
-def save_scenario_dict(scenario_dict: dict[str, Any], file_path: str):
+def save_scenario_dict(
+    scenario_dict: dict[str, Any], file_path: str
+) -> None:
     """Save scenario to file"""
     with open(file_path, 'w', encoding='utf-8') as f:
         yaml.safe_dump(scenario_dict, f, sort_keys=False)
