@@ -188,7 +188,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
         ttc_mode=TTCMode.LIVE_SAMPLE
     )
     # Create simulator and register agents
-    sim = MalSimulator(attack_graph, mss)
+    sim = MalSimulator(attack_graph, sim_settings=mss)
     attacker_name = 'attacker'
     defender_name = 'defender'
     sim.register_attacker(attacker_name, {entry_point})

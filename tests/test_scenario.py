@@ -2,6 +2,7 @@
 
 import os
 import pytest
+from typing import Any
 
 from maltoolbox.attackgraph import create_attack_graph
 from malsim.scenario import (
@@ -401,7 +402,7 @@ def test_apply_scenario_fpr_fnr() -> None:
         elif node.lg_attack_step.asset.name == 'Data' and node.name == 'delete':
             assert node.extras['false_negative_rate'] == 0.7
             assert false_negatives_rates[node] == 0.7
-        elif node.model_asset.name == 'OS App' and node.name == 'read':
+        elif node.model_asset and node.model_asset.name == 'OS App' and node.name == 'read':
             assert node.extras['false_negative_rate'] == 0.9
             assert false_negatives_rates[node] == 0.9
         elif node.lg_attack_step.asset.name == 'Application' and node.name == 'read':
@@ -420,7 +421,7 @@ def test_apply_scenario_rewards_old_format() -> None:
     # Load scenario with no specified
     lang_file = 'tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar'
     model_file = 'tests/testdata/models/simple_test_model.yml'
-    scenario = {
+    scenario: dict[str, Any] = {
         'lang_file': lang_file,
         'model_file': model_file,
 
