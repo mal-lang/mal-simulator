@@ -6,7 +6,7 @@ import math
 import random
 from enum import Enum
 from types import MappingProxyType
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
 
 from maltoolbox.attackgraph import (
     AttackGraph,
@@ -22,6 +22,9 @@ from malsim.graph_processing import (
     calculate_viability_and_necessity,
     propagate_viability_from_node,
 )
+
+if TYPE_CHECKING:
+    from .scenario import Scenario
 
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
@@ -208,6 +211,7 @@ class MalSimulator():
     def __init__(
         self,
         attack_graph: AttackGraph,
+        node_rewards: Optional[dict[AttackGraphNode, float]] = None,
         sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
         max_iter: int = ITERATIONS_LIMIT,
     ):
@@ -230,6 +234,7 @@ class MalSimulator():
         self._agent_states: dict[str, MalSimAgentState] = {}
 
         # Store properties of each AttackGraphNode
+        self._node_rewards: dict[AttackGraphNode, float] = node_rewards or {}
         self._viable_nodes: set[AttackGraphNode] = set()
         self._necessary_nodes: set[AttackGraphNode] = set()
         self._enabled_defenses: set[AttackGraphNode] = set()
@@ -281,6 +286,39 @@ class MalSimulator():
                 if ttc_value != math.inf:
                     pre_enabled_defenses.add(node)
         return pre_enabled_defenses
+
+    @classmethod
+    def from_scenario(
+        cls,
+        scenario: Scenario,
+        sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
+        max_iter: int = ITERATIONS_LIMIT,
+        **kwargs: Any
+    ) -> MalSimulator:
+        """Create a MalSimulator object from a Scenario"""
+        return cls(
+            scenario.attack_graph,
+            node_rewards=scenario.rewards,
+            sim_settings=sim_settings,
+            max_iter=max_iter,
+            **kwargs
+        )
+
+    def node_is_viable(self, node: AttackGraphNode) -> bool:
+        """Get viability of a node"""
+        return node in self._viable_nodes
+
+    def node_is_necessary(self, node: AttackGraphNode) -> bool:
+        """Get necessity of a node"""
+        return node in self._necessary_nodes
+
+    def node_is_enabled_defense(self, node: AttackGraphNode) -> bool:
+        """Get a nodes defense status"""
+        return node in self._enabled_defenses
+
+    def node_reward(self, node: AttackGraphNode) -> float:
+        """Get reward for a node"""
+        return self._node_rewards.get(node, 0.0)
 
     def prepare_attack_graph(
         self
@@ -340,7 +378,7 @@ class MalSimulator():
             if node in self._viable_nodes
             and node.type == 'defense'
             and 'suppress' not in node.tags
-            and node not in self._enabled_defenses
+            and not self.node_is_enabled_defense(node)
         }
 
     def _is_node_traversable(
@@ -373,7 +411,7 @@ class MalSimulator():
             case 'and':
                 traversable = all(
                     parent in attacker_state.performed_nodes
-                    or parent not in self._necessary_nodes
+                    or not self.node_is_necessary(parent)
                     for parent in node.parents
                 )
             case 'exist' | 'notExist' | 'defense':
@@ -622,7 +660,7 @@ class MalSimulator():
                 if unviable_node in attacker_agent.performed_nodes:
 
                     # Reward is no longer present for attacker
-                    node_reward = unviable_node.extras.get('reward', 0)
+                    node_reward = self.node_reward(unviable_node)
                     attacker_agent.reward -= node_reward
 
                     # Reward is no longer present for defenders
@@ -741,8 +779,7 @@ class MalSimulator():
 
         return enabled_defenses, attack_steps_made_unviable
 
-    @staticmethod
-    def _attacker_reward(attacker_state: MalSimAttackerState) -> float:
+    def _attacker_reward(self, attacker_state: MalSimAttackerState) -> float:
         """
         Calculate current attacker reward by adding this steps
         compromised node rewards to the previous attacker reward.
@@ -755,12 +792,11 @@ class MalSimulator():
         """
         # Attacker is rewarded for compromised nodes
         return attacker_state.reward + sum(
-            float(n.extras.get("reward", 0))
+            self.node_reward(n)
             for n in attacker_state.step_performed_nodes
         )
 
-    @staticmethod
-    def _defender_reward(defender_state: MalSimDefenderState) -> float:
+    def _defender_reward(self, defender_state: MalSimDefenderState) -> float:
         """
         Calculate current defender reward by subtracting this steps
         compromised/enabled node rewards from the previous defender reward.
@@ -775,7 +811,7 @@ class MalSimulator():
         step_enabled_defenses = defender_state.step_performed_nodes
         step_compromised_nodes = defender_state.step_all_compromised_nodes
         return defender_state.reward - sum(
-            float(n.extras.get("reward", 0))
+            self.node_reward(n)
             for n in step_enabled_defenses | step_compromised_nodes
         )
 
