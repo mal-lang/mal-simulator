@@ -440,3 +440,13 @@ def test_apply_scenario_rewards_old_format() -> None:
     with pytest.raises(RuntimeError):
         # Make sure we get error when loading with wrong rewards format
         apply_scenario_to_attack_graph(attack_graph, scenario)
+
+
+def test_load_scenario_with_model() -> None:
+    """Try different cases for rewards"""
+
+    attack_graph, _ = load_scenario(
+        path_relative_to_tests(
+            'testdata/scenarios/traininglang_scenario_with_model.yml'
+        )
+    )
