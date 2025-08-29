@@ -820,6 +820,13 @@ class MalSimulator():
         )
         logger.debug("Performing actions: %s", actions)
 
+        if not self._alive_agents:
+            logger.warning("No agents are alive anymore, step will have no effect")
+
+        for agent_name in actions:
+            if agent_name not in self._agent_states:
+                raise KeyError(f"No agent has name '{agent_name}'")
+
         # Populate these from the results for all agents' actions.
         step_all_compromised_nodes: set[AttackGraphNode] = set()
         step_enabled_defenses: set[AttackGraphNode] = set()
@@ -859,7 +866,10 @@ class MalSimulator():
 
             # Remove agents that are terminated or truncated
             if agent_state.terminated or agent_state.truncated:
-                logger.info("Removing agent %s", agent_state.name)
+                logger.info(
+                    "Removing agent %s since it is terminated or truncated",
+                    agent_state.name
+                )
                 self._alive_agents.remove(agent_state.name)
 
         self.cur_iter += 1
