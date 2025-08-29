@@ -341,11 +341,11 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
         )
 
     # Prepare nodes that will be stepped through in order
-    user_3_compromise = get_node(attack_graph, "User:3:compromise")
-    host_0_authenticate = get_node(attack_graph, "Host:0:authenticate")
-    host_0_access = get_node(attack_graph, "Host:0:access")
-    host_0_notPresent = get_node(attack_graph, "Host:0:notPresent")
-    data_2_read = get_node(attack_graph, "Data:2:read")
+    user_3_compromise = get_node(scenario.attack_graph, "User:3:compromise")
+    host_0_authenticate = get_node(scenario.attack_graph, "Host:0:authenticate")
+    host_0_access = get_node(scenario.attack_graph, "Host:0:access")
+    host_0_notPresent = get_node(scenario.attack_graph, "Host:0:notPresent")
+    data_2_read = get_node(scenario.attack_graph, "Data:2:read")
 
     # Step with attacker action
     obs, rew, _, _, _ = env.step({
