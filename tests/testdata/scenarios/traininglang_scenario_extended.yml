@@ -1,0 +1,15 @@
+extends: traininglang_scenario.yml
+
+# Rewards for each attack step
+rewards:
+  by_asset_name:
+    Host:0:
+      notPresent: 1
+      access: 1
+    Host:1:
+      notPresent: 1
+      access: 1
+    Data:2:
+      notPresent: 1
+      read: 1
+      modify: 1

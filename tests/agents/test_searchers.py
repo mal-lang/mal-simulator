@@ -1,8 +1,6 @@
-from unittest.mock import MagicMock
-from maltoolbox.attackgraph import AttackGraphNode, Attacker
-from maltoolbox.attackgraph.query import calculate_attack_surface
+from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.language import LanguageGraph
-from malsim.mal_simulator import MalSimAgentStateView
+from malsim.mal_simulator import MalSimulator, MalSimAgentStateView
 from malsim.agents import BreadthFirstAttacker, DepthFirstAttacker
 
 
@@ -10,68 +8,58 @@ def test_breadth_first_traversal_simple(
         dummy_lang_graph: LanguageGraph
     ) -> None:
     """
+                    node0
+                      |
                     node1
                       |
                     node2
                       |
                     node3
-                      |
-                    node4
     """
     dummy_or_attack_step = (
         dummy_lang_graph.assets['DummyAsset']
         .attack_steps['DummyOrAttackStep']
     )
 
-    # Create nodes
-    node1 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=1)
-    node2 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=2)
-    node3 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=3)
-    node4 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=4)
+    # Create attack graph with nodes
+    ag = AttackGraph(dummy_lang_graph)
+    node0 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node1 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node2 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node3 = ag.add_node(lg_attack_step = dummy_or_attack_step)
 
     # Connect nodes (Node1 -> Node2 -> Node3 -> Node4)
+    node0.children.add(node1)
+    node1.parents.add(node0)
     node1.children.add(node2)
     node2.parents.add(node1)
     node2.children.add(node3)
     node3.parents.add(node2)
-    node3.children.add(node4)
-    node4.parents.add(node3)
 
-    # Set up an attacker
-    attacker = Attacker(
-        name = "TestAttacker",
-        entry_points = {node1},
-        reached_attack_steps = set(),
-        attacker_id = 100)
+    sim = MalSimulator(ag)
 
-    # Set up a mock MalSimAgentState
-    agent = MagicMock()
-    agent.action_surface = [node1]
-
-    # Set up MalSimAgentStateView
-    agent_view = MalSimAgentStateView(agent)
+    sim.register_attacker('bfs', {node0})
+    agent_state = sim.agent_states['bfs']
 
     # Configure BreadthFirstAttacker
     agent_config = {"seed": 42, "randomize": False}
     attacker_ai = BreadthFirstAttacker(agent_config)
 
     # Expected traversal order
-    expected_order = [1, 2, 3, 4]
+    expected_order = [1, 2, 3]
 
     actual_order = []
     for _ in expected_order:
         # Get next action
+        agent_view = MalSimAgentStateView(agent_state)
         action_node = attacker_ai.get_next_action(agent_view)
-        assert action_node is not None, "Action node shouldn't be None"
+        assert action_node
 
-        # Mark node as compromised
-        attacker.compromise(action_node)
-        agent.step_action_surface_additions = calculate_attack_surface(
-            attacker, from_nodes=[action_node]
-        )
+        # Get next action
+        sim.step({'bfs': [action_node]})
 
         # Store the ID for verification
-        actual_order.append(action_node.id)
+        actual_order.append(next(iter(agent_state.step_performed_nodes)).id)
 
     assert actual_order == expected_order, \
         "Traversal order does not match expected breadth-first order"
@@ -80,11 +68,11 @@ def test_breadth_first_traversal_complicated(
         dummy_lang_graph: LanguageGraph
     ) -> None:
     r"""
-                    node1 ______________
+                    node0 ______________
                   /       \             \
-            node2          node3        node8
+            node1          node2        node7
             /   \           /   \
-        node4   node5    node6  node7
+        node3   node4    node5  node6
 
     """
 
@@ -93,71 +81,63 @@ def test_breadth_first_traversal_complicated(
         .attack_steps['DummyOrAttackStep']
     )
 
-    # Create nodes
-    node1 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=1)
-    node2 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=2)
-    node3 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=3)
-    node4 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=4)
-    node5 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=5)
-    node6 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=6)
-    node7 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=7)
-    node8 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=8)
+    # Create attack graph with nodes
+    ag = AttackGraph(dummy_lang_graph)
+    node0 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node1 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node2 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node3 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node4 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node5 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node6 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node7 = ag.add_node(lg_attack_step = dummy_or_attack_step)
 
-    # Connect nodes (Node1 -> Node2 -> Node3 -> Node4)
-    node1.children.add(node2)
-    node2.parents.add(node1)
+    # Connect nodes (Node0 -> Node1, Node2, Node7)
+    node0.children.add(node1)
+    node1.parents.add(node0)
+    node0.children.add(node2)
+    node2.parents.add(node0)
+    node0.children.add(node7)
+    node7.parents.add(node0)
+
+    # Connect nodes (Node1 -> Node3, Node4)
     node1.children.add(node3)
     node3.parents.add(node1)
-    node1.children.add(node8)
-    node8.parents.add(node1)
+    node1.children.add(node4)
+    node4.parents.add(node1)
 
-    node2.children.add(node4)
-    node4.parents.add(node2)
+    # Connect nodes (Node2 -> Node5, Node6)
     node2.children.add(node5)
     node5.parents.add(node2)
+    node2.children.add(node6)
+    node6.parents.add(node2)
 
-    node3.children.add(node6)
-    node6.parents.add(node3)
-    node3.children.add(node7)
-    node7.parents.add(node3)
+    sim = MalSimulator(ag)
 
-    # Set up an attacker
-    attacker = Attacker(
-        name = "TestAttacker",
-        entry_points = {node1},
-        reached_attack_steps = set(),
-        attacker_id = 100)
-
-    # Set up a mock MalSimAgentState
-    agent = MagicMock()
-    agent.action_surface = [node1]
-
-    # Set up MalSimAgentStateView
-    agent_view = MalSimAgentStateView(agent)
+    sim.register_attacker('bfs', {node0})
+    agent_state = sim.agent_states['bfs']
 
     # Configure BreadthFirstAttacker
     agent_config = {"seed": 42, "randomize": False}
     attacker_ai = BreadthFirstAttacker(agent_config)
 
     # Expected traversal order
-    expected_order = [1, 2, 3, 8, 4, 5, 6, 7]
+    expected_order = [1, 2, 7, 3, 4, 5, 6]
 
     actual_order = []
     for _ in expected_order:
         # Get next action
+        agent_view = MalSimAgentStateView(agent_state)
         action_node = attacker_ai.get_next_action(agent_view)
-        assert action_node is not None, "Action node shouldn't be None"
+        assert action_node
 
-        # Mark node as compromised
-        attacker.compromise(action_node)
-        agent.step_action_surface_additions = calculate_attack_surface(
-            attacker, from_nodes=[action_node]
-        )
+        # Get next action
+        sim.step({'bfs': [action_node]})
 
         # Store the ID for verification
-        actual_order.append(action_node.id)
+        actual_order.append(next(iter(agent_state.step_performed_nodes)).id)
 
-    for level in (0, 1), (1, 4), (4, 8):
+    for level in (0, 3), (3, 7):
         assert set(expected_order[level[0]:level[1]]) == set(actual_order[level[0]:level[1]]), \
             "Traversal order does not match expected breadth-first order"
 
@@ -166,11 +146,11 @@ def test_depth_first_traversal_complicated(
         dummy_lang_graph: LanguageGraph
     ) -> None:
     r"""
-                    node1 ______________
+                    node0 ______________
                   /       \             \
-            node2          node3        node8
+            node1          node2        node7
             /   \           /   \
-        node4   node5    node6  node7
+        node3   node4    node5  node6
 
     """
     dummy_or_attack_step = (
@@ -178,82 +158,71 @@ def test_depth_first_traversal_complicated(
         .attack_steps['DummyOrAttackStep']
     )
 
-    # Create nodes
-    node1 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=1)
-    node2 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=2)
-    node3 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=3)
-    node4 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=4)
-    node5 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=5)
-    node6 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=6)
-    node7 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=7)
-    node8 = AttackGraphNode(lg_attack_step=dummy_or_attack_step, node_id=8)
+    # Create attack graph with nodes
+    ag = AttackGraph(dummy_lang_graph)
+    node0 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node1 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node2 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node3 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node4 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node5 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node6 = ag.add_node(lg_attack_step = dummy_or_attack_step)
+    node7 = ag.add_node(lg_attack_step = dummy_or_attack_step)
 
-    # Connect nodes (Node1 -> Node2 -> Node3 -> Node4)
-    node1.children.add(node2)
-    node2.parents.add(node1)
+    # Connect nodes (Node0 -> Node1, Node2, Node7)
+    node0.children.add(node1)
+    node1.parents.add(node0)
+    node0.children.add(node2)
+    node2.parents.add(node0)
+    node0.children.add(node7)
+    node7.parents.add(node0)
+
+    # Connect nodes (Node1 -> Node3, Node4)
     node1.children.add(node3)
     node3.parents.add(node1)
-    node1.children.add(node8)
-    node8.parents.add(node1)
+    node1.children.add(node4)
+    node4.parents.add(node1)
 
-    node2.children.add(node4)
-    node4.parents.add(node2)
+    # Connect nodes (Node2 -> Node5, Node6)
     node2.children.add(node5)
     node5.parents.add(node2)
+    node2.children.add(node6)
+    node6.parents.add(node2)
 
-    node3.children.add(node6)
-    node6.parents.add(node3)
-    node3.children.add(node7)
-    node7.parents.add(node3)
+    sim = MalSimulator(ag)
 
-    # Set up an attacker
-    attacker = Attacker(
-        name = "TestAttacker",
-        entry_points = {node1},
-        reached_attack_steps = set(),
-        attacker_id = 100)
-
-    # Set up a mock MalSimAgentState
-    agent = MagicMock()
-    agent.action_surface = [node1]
-
-    # Set up MalSimAgentStateView
-    agent_view = MalSimAgentStateView(agent)
+    sim.register_attacker('dfs', {node0})
+    agent_state = sim.agent_states['dfs']
 
     # Configure BreadthFirstAttacker
     agent_config = {"seed": 42, "randomize": False}
     attacker_ai = DepthFirstAttacker(agent_config)
 
-    # Expected traversal order
-    expected_order =  [1, 8, 3, 7, 6, 2, 5, 4]
-
     actual_order = []
-    for _ in expected_order:
+    for _ in range(0,7):
         # Get next action
+        agent_view = MalSimAgentStateView(agent_state)
         action_node = attacker_ai.get_next_action(agent_view)
-        assert action_node is not None, "Action node shouldn't be None"
+        assert action_node
 
-        # Mark node as compromised
-        attacker.compromise(action_node)
-        agent.step_action_surface_additions = calculate_attack_surface(
-            attacker, from_nodes=[action_node]
-        )
+        # Get next action
+        sim.step({'dfs': [action_node]})
 
         # Store the ID for verification
-        actual_order.append(action_node.id)
+        actual_order.append(next(iter(agent_state.step_performed_nodes)).id)
 
-    assert actual_order == expected_order, \
-        "Traversal order does not match expected breadth-first order"
 
-    # All children of 1 must come after 1
-    assert actual_order.index(8) > actual_order.index(1)
-    assert actual_order.index(2) > actual_order.index(1)
-    assert actual_order.index(3) > actual_order.index(1)
 
-    # All children of 3 must come after 3
-    assert actual_order.index(7) > actual_order.index(3)
-    assert actual_order.index(6) > actual_order.index(3)
+    # All children of 1 must come directly after it
+    index1 = actual_order.index(1)
+    assert (
+        3 in actual_order[index1 + 1: index1 + 3] and
+        4 in actual_order[index1 + 1: index1 + 3]
+    )
 
-    # All children of 2 must come after 2
-    assert actual_order.index(4) > actual_order.index(2)
-    assert actual_order.index(5) > actual_order.index(2)
+    # All children of 2 must come directly after it
+    index2 = actual_order.index(2)
+    assert (
+        5 in actual_order[index2 + 1: index2 + 3] and
+        6 in actual_order[index2 + 1: index2 + 3]
+    )

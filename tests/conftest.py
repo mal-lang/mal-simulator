@@ -2,7 +2,11 @@ from os import path
 import pytest
 
 from maltoolbox.model import Model
-from maltoolbox.attackgraph import create_attack_graph
+from maltoolbox.attackgraph import (
+    AttackGraph,
+    AttackGraphNode,
+    create_attack_graph
+)
 from maltoolbox.language import (
     LanguageGraph, LanguageGraphAttackStep, LanguageGraphAsset
 )
@@ -14,6 +18,11 @@ attack_graph_file_name = path.join('/tmp','attack_graph.json')
 lang_file_name ='tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar'
 
 ## Helpers
+
+def get_node(graph: AttackGraph, full_name: str) -> AttackGraphNode:
+    node = graph.get_node_by_full_name(full_name)
+    assert node, f"Node {full_name} does not exist in graph"
+    return node
 
 def path_testdata(filename: str) -> str:
     """Returns the absolute path of a test data file (in ./testdata)
@@ -34,7 +43,8 @@ def fixture_env()-> MalSimVectorizedObsEnv:
     env = MalSimVectorizedObsEnv(MalSimulator(attack_graph, max_iter=1000))
     env.register_defender('defender')
 
-    env.register_attacker('attacker', 0)
+    os_app_fa = get_node(attack_graph, "OS App:fullAccess")
+    env.register_attacker('attacker', {os_app_fa})
 
     return env
 
@@ -88,14 +98,24 @@ def dummy_lang_graph(corelang_lang_graph: LanguageGraph) -> LanguageGraph:
     dummy_or_attack_step_node = LanguageGraphAttackStep(
         name = 'DummyOrAttackStep',
         type = 'or',
-        asset = dummy_asset
+        asset = dummy_asset,
+        ttc = {
+            'arguments': [1.0],
+            'name': 'Bernoulli',
+            'type': 'function'
+        }
     )
     dummy_asset.attack_steps['DummyOrAttackStep'] = dummy_or_attack_step_node
 
     dummy_and_attack_step_node = LanguageGraphAttackStep(
         name = 'DummyAndAttackStep',
         type = 'and',
-        asset = dummy_asset
+        asset = dummy_asset,
+        ttc = {
+            'arguments': [1.0],
+            'name': 'Bernoulli',
+            'type': 'function'
+        }
     )
     dummy_asset.attack_steps['DummyAndAttackStep'] =\
         dummy_and_attack_step_node
@@ -103,9 +123,30 @@ def dummy_lang_graph(corelang_lang_graph: LanguageGraph) -> LanguageGraph:
     dummy_defense_attack_step_node = LanguageGraphAttackStep(
         name = 'DummyDefenseAttackStep',
         type = 'defense',
-        asset = dummy_asset
+        asset = dummy_asset,
+        ttc = {
+            'arguments': [0.0],
+            'name': 'Bernoulli',
+            'type': 'function'
+        }
     )
     dummy_asset.attack_steps['DummyDefenseAttackStep'] =\
         dummy_defense_attack_step_node
+
+    dummy_exist_attack_step_node = LanguageGraphAttackStep(
+        name = 'DummyExistAttackStep',
+        type = 'exist',
+        asset = dummy_asset
+    )
+    dummy_asset.attack_steps['DummyExistAttackStep'] =\
+        dummy_exist_attack_step_node
+
+    dummy_exist_attack_step_node = LanguageGraphAttackStep(
+        name = 'DummyNotExistAttackStep',
+        type = 'notExist',
+        asset = dummy_asset
+    )
+    dummy_asset.attack_steps['DummyNotExistAttackStep'] =\
+        dummy_exist_attack_step_node
 
     return lang_graph

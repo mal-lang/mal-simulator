@@ -28,12 +28,15 @@ class DefendCompromisedDefender(DecisionAgent):
             if agent_config.get("randomize")
             else None
         )
+        self.compromised_nodes: set[AttackGraphNode] = set()
 
     def get_next_action(
         self, agent_state: MalSimAgentStateView, **kwargs: Any
     ) -> Optional[AttackGraphNode]:
 
         """Return an action that disables a compromised node"""
+
+        self.compromised_nodes |= agent_state.step_all_compromised_nodes
 
         selected_node_cost = math.inf
         selected_node = None
@@ -44,7 +47,7 @@ class DefendCompromisedDefender(DecisionAgent):
 
         for node in possible_choices:
 
-            if node.is_enabled_defense():
+            if node in self.compromised_nodes:
                 continue
 
             node_cost = node.extras.get('reward', 0)
@@ -56,7 +59,7 @@ class DefendCompromisedDefender(DecisionAgent):
 
                 node_has_compromised_child = (
                     any(
-                        child_node.is_compromised()
+                        child_node in self.compromised_nodes
                         for child_node in node.children
                     )
                 )
@@ -83,12 +86,15 @@ class DefendFutureCompromisedDefender(DecisionAgent):
             if agent_config.get("randomize")
             else None
         )
+        self.compromised_nodes: set[AttackGraphNode] = set()
 
     def get_next_action(
         self, agent_state: MalSimAgentStateView, **kwargs: Any
     ) -> Optional[AttackGraphNode]:
 
         """Return an action that disables a compromised node"""
+
+        self.compromised_nodes |= agent_state.step_all_compromised_nodes
 
         selected_node_cost = math.inf
         selected_node = None
@@ -99,7 +105,7 @@ class DefendFutureCompromisedDefender(DecisionAgent):
 
         for node in possible_choices:
 
-            if node.is_enabled_defense():
+            if node in self.compromised_nodes:
                 continue
 
             node_cost = node.extras.get('reward', 0)
@@ -112,8 +118,11 @@ class DefendFutureCompromisedDefender(DecisionAgent):
 
                 node_has_child_that_can_be_compromised = (
                     any(
-                        any(p.is_compromised() for p in child_node.parents)
-                        and not child_node.is_compromised()
+                        any(
+                            p in self.compromised_nodes
+                            for p in child_node.parents
+                        )
+                        and child_node not in self.compromised_nodes
                         for child_node in node.children
                     )
                 )

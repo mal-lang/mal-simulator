@@ -11,8 +11,7 @@ description = "A MAL compliant simulator."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "py2neo>=2021.2.3",
-  "mal-toolbox~=0.3.0",
+  "mal-toolbox==1.*",
   "PyYAML>=6.0.1",
   "numpy>=1.21.4"
 ]

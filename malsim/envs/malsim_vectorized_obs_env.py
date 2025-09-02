@@ -216,7 +216,7 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
         }
         return np_obs
 
-    def create_action_mask(self, agent: MalSimAgentStateView) -> dict[str, Any]:
+    def create_action_mask(self, agent_state: MalSimAgentStateView) -> dict[str, Any]:
         """
         Create an action mask for an agent based on its action_surface.
 
@@ -228,21 +228,21 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
         """
 
         available_actions = [0] * len(self.sim.attack_graph.nodes)
-        can_wait = 1 if agent.type == AgentType.DEFENDER else 0
+        can_wait = 1 if agent_state.type == AgentType.DEFENDER else 0
         can_act = 0
 
-        for node in agent.action_surface:
+        for node in agent_state.action_surface:
 
-            if agent.type == AgentType.DEFENDER:
+            if agent_state.type == AgentType.DEFENDER:
                 # Defender can act on its whole action surface
                 index = self._id_to_index[node.id]
                 available_actions[index] = 1
                 can_act = 1
 
-            if agent.type == AgentType.ATTACKER:
+            if agent_state.type == AgentType.ATTACKER:
                 # Attacker can only act on nodes that are not compromised
-                attacker = agent.attacker
-                if not node.is_compromised_by(attacker):
+
+                if node not in agent_state.performed_nodes:
                     index = self._id_to_index[node.id]
                     available_actions[index] = 1
                     can_act = 1
@@ -412,8 +412,10 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
             nodes = [self.index_to_node(step_idx)]
         return nodes
 
-    def register_attacker(self, attacker_name: str, attacker_id: int) -> None:
-        self.sim.register_attacker(attacker_name, attacker_id)
+    def register_attacker(
+            self, attacker_name: str, entry_points: set[AttackGraphNode]
+        ) -> None:
+        self.sim.register_attacker(attacker_name, entry_points)
         agent = self.sim.agent_states[attacker_name]
         self._init_agent(agent)
 
@@ -455,18 +457,19 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
                 if child_obs == -1:
                     agent_observation['observed_state'][child_index] = 0
 
-        attacker = attacker_agent.attacker
         attacker_observation = self._agent_observations[attacker_agent.name]
 
         for node in compromised_nodes:
-            if node.is_compromised_by(attacker):
+            if node in attacker_agent.performed_nodes:
                 # Enable node
                 logger.debug("Enable %s in attacker obs", node.full_name)
                 _enable_node(node, attacker_observation)
 
         for node in disabled_nodes:
-            is_entrypoint = node.extras.get('entrypoint', False)
-            if node.is_compromised_by(attacker) and not is_entrypoint:
+            if (
+                node in attacker_agent.performed_nodes
+                and node not in attacker_agent.entry_points
+            ):
                 logger.debug("Disable %s in attacker obs", node.full_name)
                 # Mark attacker compromised steps that were
                 # disabled by a defense as disabled in obs
@@ -503,34 +506,25 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
         """Reset simulator and return current
         observation and infos for each agent"""
 
-        self.sim.reset(seed=seed, options=options)
+        if seed is not None:
+            self.sim.sim_settings.seed = seed
+        self.sim.reset(options=options)
         self.attack_graph = self.sim.attack_graph # new ref
         assert self.attack_graph.model, (
             "Attack graph in simulator needs to have a model attached to it"
         )
 
+        pre_enabled_nodes = set()
         for agent in self.sim.agent_states.values():
             # Reset observation and action mask for agents
             self._agent_observations[agent.name] = \
                 self._create_blank_observation()
             self._agent_infos[agent.name] = \
                 self.create_action_mask(agent)
-
-        # Enable pre-enabled nodes in observation
-        attacker_entry_points = set(
-            n for n in self.sim.attack_graph.nodes.values()
-            if n.is_compromised()
-        )
-        pre_enabled_defenses = set(
-            n for n in self.sim.attack_graph.nodes.values()
-            if n.defense_status == 1.0
-        )
-
-        for node in attacker_entry_points:
-            node.extras['entrypoint'] = True
+            pre_enabled_nodes |= agent.performed_nodes
 
         self._update_observations(
-            attacker_entry_points | pre_enabled_defenses, set()
+            pre_enabled_nodes, set()
         )
 
         # TODO: should we return copies instead so they are not modified externally?

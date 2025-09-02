@@ -57,7 +57,8 @@ class BreadthFirstAttacker(DecisionAgent):
                 if self._started else agent_state.action_surface
             ),
             disabled_nodes=(
-                agent_state.step_action_surface_removals
+                agent_state.step_action_surface_removals |
+                agent_state.step_performed_nodes
             )
         )
 
@@ -86,7 +87,6 @@ class BreadthFirstAttacker(DecisionAgent):
 
         if (
             self._current_target
-            and not self._current_target.is_compromised()
             and self._current_target not in disabled_nodes
         ):
             # If self.current_target was not compromised, e.g. due to TTCs,
