@@ -253,28 +253,6 @@ def apply_scenario_node_property(
             raise ValueError('Error! Scenario node property configuration '
                 'is neither dictionary, nor list!')
 
-    def _set_value(
-            step: AttackGraphNode,
-            node_prop: str,
-            value: Any,
-            set_as_extras: bool
-        ) -> None:
-        """
-        Set the value of the node property to the value provided
-
-        Arguments:
-        - step:             The attack graph step to set the property for
-        - node_prop:        Property name in string format
-        - value:            The value to set the property to
-        - set_as_extras:    Whether or not to save the property value in the
-                            extras field or set it as a property of the node
-                            itself.
-
-        """
-        if set_as_extras:
-            step.extras[node_prop] = value
-        else:
-            setattr(step, node_prop, value)
 
     property_dict: dict[AttackGraphNode, Any] = {}
     _validate_scenario_node_property_config(attack_graph, prop_config)
@@ -283,14 +261,14 @@ def apply_scenario_node_property(
 
         if default_value is not None:
             property_dict[step] = default_value
-            _set_value(step, node_prop, default_value, set_as_extras)
+            step.extras[node_prop] = default_value # legacy
 
         if not prop_config:
             # If the property is not present in the configuration at all,
             # apply the default to all nodes if provided.
             if assumed_value is not None:
                 for step in attack_graph.nodes.values():
-                    _set_value(step, node_prop, assumed_value, set_as_extras)
+                    step.extras[node_prop] = assumed_value # legacy
                     property_dict[step] = assumed_value
 
 
@@ -320,14 +298,12 @@ def apply_scenario_node_property(
 
         # Asset type values are applied first
         if prop_value_from_asset_type:
-            _set_value(step, node_prop, prop_value_from_asset_type,
-                set_as_extras)
+            step.extras[node_prop] = prop_value_from_asset_type # legacy
             property_dict[step] = prop_value_from_asset_type
 
         # Specific asset defined values override asset type values
         if prop_value_from_specific_asset:
-            _set_value(step, node_prop, prop_value_from_specific_asset,
-                set_as_extras)
+            step.extras[node_prop] = prop_value_from_specific_asset # legacy
             property_dict[step] = prop_value_from_specific_asset
 
     return property_dict
