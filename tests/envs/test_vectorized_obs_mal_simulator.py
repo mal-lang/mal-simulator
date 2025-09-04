@@ -154,8 +154,8 @@ def test_create_blank_observation_observability_given(
     # Load Scenario with observability rules set
     scenario_file = \
         'tests/testdata/scenarios/traininglang_observability_scenario.yml'
-    ag, _ = load_scenario(scenario_file)
-    env = MalSimVectorizedObsEnv(MalSimulator(ag))
+    scenario = load_scenario(scenario_file)
+    env = MalSimVectorizedObsEnv(MalSimulator.from_scenario(scenario))
 
     num_objects = len(env.sim.attack_graph.nodes)
     blank_observation = env._create_blank_observation()
@@ -186,8 +186,8 @@ def test_create_blank_observation_actionability_given(
 
     # Load Scenario with observability rules set
     scenario_file = 'tests/testdata/scenarios/traininglang_actionability_scenario.yml'
-    ag, _ = load_scenario(scenario_file)
-    env = MalSimVectorizedObsEnv(MalSimulator(ag))
+    scenario = load_scenario(scenario_file)
+    env = MalSimVectorizedObsEnv(MalSimulator.from_scenario(scenario))
 
     num_objects = len(env.sim.attack_graph.nodes)
     blank_observation = env._create_blank_observation()
@@ -210,17 +210,17 @@ def test_create_blank_observation_actionability_given(
 
 
 def test_malsimulator_observe_attacker() -> None:
-    attack_graph, _ = load_scenario(
+    scenario = load_scenario(
         'tests/testdata/scenarios/simple_scenario.yml')
 
     # Create the simulator
-    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
+    env = MalSimVectorizedObsEnv(MalSimulator(scenario.attack_graph))
 
     # Register the agents
     defender_agent_name = 'defender'
     attacker_agent_name = 'attacker'
 
-    os_app_fa = get_node(attack_graph, "OS App:fullAccess")
+    os_app_fa = get_node(scenario.attack_graph, "OS App:fullAccess")
 
     env.register_attacker(attacker_agent_name, {os_app_fa})
     env.register_defender(defender_agent_name)
@@ -309,13 +309,15 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
             else:
                 assert state == -1
 
-    attack_graph, _ = load_scenario(
+    scenario = load_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml')
     # Create the simulator
-    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
+    env = MalSimVectorizedObsEnv(
+        MalSimulator.from_scenario(scenario, register_agents=False)
+    )
 
-    user3_phish = get_node(attack_graph, "User:3:phishing")
-    host0_connect = get_node(attack_graph, "Host:0:connect")
+    user3_phish = get_node(scenario.attack_graph, "User:3:phishing")
+    host0_connect = get_node(scenario.attack_graph, "Host:0:connect")
 
     # Register an attacker
     attacker_name = "attacker"
@@ -341,11 +343,11 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
         )
 
     # Prepare nodes that will be stepped through in order
-    user_3_compromise = get_node(attack_graph, "User:3:compromise")
-    host_0_authenticate = get_node(attack_graph, "Host:0:authenticate")
-    host_0_access = get_node(attack_graph, "Host:0:access")
-    host_0_notPresent = get_node(attack_graph, "Host:0:notPresent")
-    data_2_read = get_node(attack_graph, "Data:2:read")
+    user_3_compromise = get_node(scenario.attack_graph, "User:3:compromise")
+    host_0_authenticate = get_node(scenario.attack_graph, "Host:0:authenticate")
+    host_0_access = get_node(scenario.attack_graph, "Host:0:access")
+    host_0_notPresent = get_node(scenario.attack_graph, "Host:0:notPresent")
+    data_2_read = get_node(scenario.attack_graph, "Data:2:read")
 
     # Step with attacker action
     obs, rew, _, _, _ = env.step({

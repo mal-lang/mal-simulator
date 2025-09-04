@@ -101,8 +101,8 @@ def test_simulator_initialize_agents(
     ) -> None:
     """Test _initialize_agents"""
 
-    ag, _ = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
-    sim = MalSimulator(ag)
+    scenario = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
+    sim = MalSimulator.from_scenario(scenario, register_agents=False)
 
     # Register the agents
     attacker_name = "attacker"
@@ -188,7 +188,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
         ttc_mode=TTCMode.LIVE_SAMPLE
     )
     # Create simulator and register agents
-    sim = MalSimulator(attack_graph, mss)
+    sim = MalSimulator(attack_graph, sim_settings=mss)
     attacker_name = 'attacker'
     defender_name = 'defender'
     sim.register_attacker(attacker_name, {entry_point})
@@ -310,10 +310,10 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
 
 
 def test_step_attacker_defender_action_surface_updates() -> None:
-    ag, _ = load_scenario(
+    scenario = load_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml')
 
-    sim = MalSimulator(ag)
+    sim = MalSimulator.from_scenario(scenario)
     # Register the agents
     attacker_agent_id = "attacker"
     defender_agent_id = "defender"
