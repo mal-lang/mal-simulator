@@ -293,7 +293,7 @@ class MalSimulator():
         scenario: Scenario,
         sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
         max_iter: int = ITERATIONS_LIMIT,
-        register_agents = True,
+        register_agents: bool = True,
         **kwargs: Any
     ) -> MalSimulator:
         """Create a MalSimulator object from a Scenario"""
@@ -643,19 +643,27 @@ class MalSimulator():
             for name, agent in self._agent_states.items()
         }
 
-    def _get_attacker_agents(self) -> list[MalSimAttackerState]:
-        """Return list of mutable attacker agent states of alive attackers"""
+    def _get_attacker_agents(
+            self, only_alive: bool = False
+        ) -> list[MalSimAttackerState]:
+        """Return list of mutable attacker agent states of attackers.
+        If `only_alive` is set to True, only return the agents that are alive.
+        """
         return [
             a for a in self._agent_states.values()
-            if a.name in self._alive_agents
+            if (a.name in self._alive_agents or not only_alive)
             and isinstance(a, MalSimAttackerState)
         ]
 
-    def _get_defender_agents(self) -> list[MalSimDefenderState]:
-        """Return list of mutable defender agent states of alive defenders"""
+    def _get_defender_agents(
+            self, only_alive: bool = False
+        ) -> list[MalSimDefenderState]:
+        """Return list of mutable defender agent states of defenders.
+        If `only_alive` is set to True, only return the agents that are alive.
+        """
         return [
             a for a in self._agent_states.values()
-            if a.name in self._alive_agents
+            if (a.name in self._alive_agents or not only_alive)
             and isinstance(a, MalSimDefenderState)
         ]
 
@@ -883,7 +891,7 @@ class MalSimulator():
         step_nodes_made_unviable: set[AttackGraphNode] = set()
 
         # Perform defender actions first
-        for defender_state in self._get_defender_agents():
+        for defender_state in self._get_defender_agents(only_alive=True):
             enabled, unviable = self._defender_step(
                 defender_state, actions.get(defender_state.name, [])
             )
@@ -891,7 +899,7 @@ class MalSimulator():
             step_nodes_made_unviable |= unviable
 
         # Perform attacker actions afterwards
-        for attacker_state in self._get_attacker_agents():
+        for attacker_state in self._get_attacker_agents(only_alive=True):
             agent_compromised = self._attacker_step(
                 attacker_state, actions.get(attacker_state.name, [])
             )

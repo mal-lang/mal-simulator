@@ -102,7 +102,7 @@ def test_simulator_initialize_agents(
     """Test _initialize_agents"""
 
     scenario = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
-    sim = MalSimulator.from_scenario(scenario)
+    sim = MalSimulator.from_scenario(scenario, register_agents=False)
 
     # Register the agents
     attacker_name = "attacker"

@@ -531,19 +531,6 @@ def create_simulator_from_scenario(
 
     scenario = load_scenario(scenario_file)
     sim = MalSimulator.from_scenario(scenario, **kwargs)
-
-    # Register agents in simulator
-    for agent_dict in scenario.agents:
-        if agent_dict['type'] == AgentType.ATTACKER:
-            sim.register_attacker(
-                agent_dict['name'],
-                agent_dict['entry_points']
-            )
-        elif agent_dict['type'] == AgentType.DEFENDER:
-            sim.register_defender(
-                agent_dict['name']
-            )
-
     return sim, scenario.agents
 
 

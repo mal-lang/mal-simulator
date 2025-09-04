@@ -312,7 +312,9 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
     scenario = load_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml')
     # Create the simulator
-    env = MalSimVectorizedObsEnv(MalSimulator.from_scenario(scenario))
+    env = MalSimVectorizedObsEnv(
+        MalSimulator.from_scenario(scenario, register_agents=False)
+    )
 
     user3_phish = get_node(scenario.attack_graph, "User:3:phishing")
     host0_connect = get_node(scenario.attack_graph, "Host:0:connect")
