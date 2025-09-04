@@ -824,7 +824,7 @@ class MalSimulator():
             reward_mode: RewardMode
         ) -> float:
         """
-        Calculate current attacker either cumulative or one-off.
+        Calculate current attacker reward either cumulative or one-off.
         If cumulative, sum previous and one-off reward, otherwise
         just return the one-off reward.
 
@@ -852,14 +852,13 @@ class MalSimulator():
             reward_mode: RewardMode
         ) -> float:
         """
-        Calculate current defender reward by subtracting this steps
-        compromised/enabled node rewards from the previous defender reward.
-        Can be overridden by subclass to implement custom reward function.
+        Calculate current defender reward either cumulative or one-off.
+        If cumulative, sum previous and one-off reward, otherwise
+        just return the one-off reward.
 
         Args:
         - defender_state: the defender state before defenses were enabled
-        - step_enabled_defenses: set of defenses enabled since last reward was
-          calculated
+        - reward_mode: which way to calculate reward
         """
         step_enabled_defenses = defender_state.step_performed_nodes
         step_compromised_nodes = defender_state.step_all_compromised_nodes
