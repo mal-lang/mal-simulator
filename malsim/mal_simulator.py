@@ -293,16 +293,30 @@ class MalSimulator():
         scenario: Scenario,
         sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
         max_iter: int = ITERATIONS_LIMIT,
+        register_agents = True,
         **kwargs: Any
     ) -> MalSimulator:
         """Create a MalSimulator object from a Scenario"""
-        return cls(
+        sim = cls(
             scenario.attack_graph,
             node_rewards=scenario.rewards,
             sim_settings=sim_settings,
             max_iter=max_iter,
             **kwargs
         )
+
+        # Register agents
+        if register_agents:
+            for agent_info in scenario.agents:
+                if agent_info['type'] == AgentType.ATTACKER:
+                    sim.register_attacker(
+                        agent_info['name'],
+                        agent_info['entry_points']
+                    )
+                elif agent_info['type'] == AgentType.DEFENDER:
+                    sim.register_defender(agent_info['name'])
+
+        return sim
 
     def node_is_viable(self, node: AttackGraphNode) -> bool:
         """Get viability of a node"""
