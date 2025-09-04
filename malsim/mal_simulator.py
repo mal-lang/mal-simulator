@@ -171,6 +171,11 @@ class TTCMode(Enum):
     EXPECTED = 3
     DISABLED = 4
 
+class RewardMode(Enum):
+    """Two different ways to generate rewards"""
+    CUMULATIVE = 1  # Reward calculated on all previous steps actions
+    ONE_OFF = 2     # Reward calculated only for current step actions
+
 @dataclass
 class MalSimulatorSettings():
     """Contains settings used in MalSimulator"""
@@ -199,6 +204,10 @@ class MalSimulatorSettings():
     # run_defense_step_bernoullis
     # - if true, sample defenses bernoullis to decide their initial states
     run_defense_step_bernoullis: bool = True
+
+    # Reward settings
+    attacker_reward_mode: RewardMode = RewardMode.CUMULATIVE
+    defender_reward_mode: RewardMode = RewardMode.CUMULATIVE
 
 class MalSimulator():
     """A MAL Simulator that works on the AttackGraph
@@ -506,7 +515,9 @@ class MalSimulator():
         attacker_state.entry_points = set(entry_points)
         if self.sim_settings.ttc_mode != TTCMode.LIVE_SAMPLE:
             attacker_state.ttcs = dict(self._ttc_values)
-        attacker_state.reward = self._attacker_reward(attacker_state)
+        attacker_state.reward = self._attacker_reward(
+            attacker_state, self.sim_settings.attacker_reward_mode
+        )
         return attacker_state
 
     def _create_defender_state(self, name: str) -> MalSimDefenderState:
@@ -525,7 +536,9 @@ class MalSimulator():
             set(defender_state.action_surface)
         )
         defender_state.step_action_surface_removals = set()
-        defender_state.reward = self._defender_reward(defender_state)
+        defender_state.reward = self._defender_reward(
+            defender_state, self.sim_settings.defender_reward_mode
+        )
         return defender_state
 
     def _update_attacker_state(
@@ -564,7 +577,9 @@ class MalSimulator():
         attacker_state.step_action_surface_additions = action_surface_additions
         attacker_state.step_action_surface_removals = action_surface_removals
         attacker_state.action_surface = new_action_surface
-        attacker_state.reward = self._attacker_reward(attacker_state)
+        attacker_state.reward = self._attacker_reward(
+            attacker_state, self.sim_settings.attacker_reward_mode
+        )
         attacker_state.truncated = self.cur_iter >= self.max_iter
         attacker_state.terminated = (
             self._attacker_is_terminated(attacker_state)
@@ -588,7 +603,9 @@ class MalSimulator():
         defender_state.step_unviable_nodes = step_nodes_made_unviable
         defender_state.step_performed_nodes = step_enabled_defenses
         defender_state.performed_nodes |= step_enabled_defenses
-        defender_state.reward = self._defender_reward(defender_state)
+        defender_state.reward = self._defender_reward(
+            defender_state, self.sim_settings.defender_reward_mode
+        )
         defender_state.truncated = self.cur_iter >= self.max_iter
         defender_state.terminated = self._defender_is_terminated(
             self._get_attacker_agents()
@@ -801,41 +818,62 @@ class MalSimulator():
 
         return enabled_defenses, attack_steps_made_unviable
 
-    def _attacker_reward(self, attacker_state: MalSimAttackerState) -> float:
+    def _attacker_reward(
+            self,
+            attacker_state: MalSimAttackerState,
+            reward_mode: RewardMode
+        ) -> float:
         """
-        Calculate current attacker reward by adding this steps
-        compromised node rewards to the previous attacker reward.
-        Can be overridden by subclass to implement custom reward function.
+        Calculate current attacker reward either cumulative or one-off.
+        If cumulative, sum previous and one-off reward, otherwise
+        just return the one-off reward.
 
         Args:
-        - attacker_state: the attacker state before nodes were compromised
-        - step_agent_compromised_nodes: set of nodes compromised
-          since last reward was calculated
+        - attacker_state: the current attacker state
+        - reward_mode: which way to calculate reward
         """
+
         # Attacker is rewarded for compromised nodes
-        return attacker_state.reward + sum(
+        step_reward = sum(
             self.node_reward(n)
             for n in attacker_state.step_performed_nodes
         )
 
-    def _defender_reward(self, defender_state: MalSimDefenderState) -> float:
+        if reward_mode == RewardMode.CUMULATIVE:
+            # To make it cumulative, add previous step reward
+            step_reward += attacker_state.reward
+
+        return step_reward
+
+
+    def _defender_reward(
+            self,
+            defender_state: MalSimDefenderState,
+            reward_mode: RewardMode
+        ) -> float:
         """
-        Calculate current defender reward by subtracting this steps
-        compromised/enabled node rewards from the previous defender reward.
-        Can be overridden by subclass to implement custom reward function.
+        Calculate current defender reward either cumulative or one-off.
+        If cumulative, sum previous and one-off reward, otherwise
+        just return the one-off reward.
 
         Args:
         - defender_state: the defender state before defenses were enabled
-        - step_enabled_defenses: set of defenses enabled since last reward was
-          calculated
+        - reward_mode: which way to calculate reward
         """
-        # Defender is penalized for compromised nodes and enabled defenses
         step_enabled_defenses = defender_state.step_performed_nodes
         step_compromised_nodes = defender_state.step_all_compromised_nodes
-        return defender_state.reward - sum(
+
+        # Defender is penalized for compromised steps and enabled defenses
+        step_reward = - sum(
             self.node_reward(n)
             for n in step_enabled_defenses | step_compromised_nodes
         )
+
+        if reward_mode == RewardMode.CUMULATIVE:
+            # To make it cumulative add previous step reward
+            step_reward += defender_state.reward
+
+        return step_reward
 
     @staticmethod
     def _attacker_is_terminated(attacker_state: MalSimAttackerState) -> bool:
