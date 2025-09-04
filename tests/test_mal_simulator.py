@@ -9,7 +9,7 @@ from maltoolbox.attackgraph import AttackGraphNode, AttackGraph
 from malsim.mal_simulator import (
     MalSimulator, MalSimulatorSettings,
     MalSimDefenderState, MalSimAttackerState,
-    TTCMode
+    TTCMode, RewardMode
 )
 from malsim.scenario import load_scenario, create_simulator_from_scenario
 
@@ -174,6 +174,167 @@ def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
     enabled, made_unviable = sim._defender_step(defender_agent, [attack_step])
     assert enabled == set()
     assert not made_unviable
+
+
+def test_attacker_step_rewards_cumulative(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+
+    entry_point = get_node(attack_graph, 'OS App:fullAccess')
+    attempt_read = get_node(attack_graph, 'OS App:attemptRead')
+    access_network_and_conn = get_node(
+        attack_graph, 'OS App:accessNetworkAndConnections'
+    )
+
+    node_rewards = {
+        entry_point: 10.0,
+        attempt_read: 100.0,
+        access_network_and_conn: 50.4
+    }
+    sim = MalSimulator(attack_graph, node_rewards=node_rewards)
+
+    attacker_name = "Test Attacker"
+    sim.register_attacker(attacker_name, {entry_point})
+    sim.reset()
+
+    states = sim.step({attacker_name: [attempt_read]})
+    attacker_state = states[attacker_name]
+    assert attacker_state.reward == (
+        node_rewards[entry_point] + node_rewards[attempt_read]
+    )
+
+    states = sim.step({attacker_name: [access_network_and_conn]})
+    assert attacker_state.reward == (
+        node_rewards[entry_point]
+        + node_rewards[attempt_read]
+        + node_rewards[access_network_and_conn]
+    )
+
+def test_attacker_step_rewards_one_off(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+
+    entry_point = get_node(attack_graph, 'OS App:fullAccess')
+    attempt_read = get_node(attack_graph, 'OS App:attemptRead')
+    access_network_and_conn = get_node(
+        attack_graph, 'OS App:accessNetworkAndConnections'
+    )
+
+    node_rewards = {
+        entry_point: 10.0,
+        attempt_read: 100.0,
+        access_network_and_conn: 50.4
+    }
+    sim = MalSimulator(
+        attack_graph,
+        node_rewards=node_rewards,
+        sim_settings=MalSimulatorSettings(
+            attacker_reward_mode=RewardMode.ONE_OFF
+        )
+    )
+
+    attacker_name = "Test Attacker"
+    sim.register_attacker(attacker_name, {entry_point})
+    sim.reset()
+
+    states = sim.step({attacker_name: [attempt_read]})
+    attacker_state = states[attacker_name]
+    assert attacker_state.reward == node_rewards[attempt_read]
+
+    states = sim.step({attacker_name: [access_network_and_conn]})
+    assert attacker_state.reward == node_rewards[access_network_and_conn]
+
+
+def test_defender_step_rewards_cumulative(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+
+    entry_point = get_node(attack_graph, 'OS App:fullAccess')
+    attempt_read = get_node(attack_graph, 'OS App:attemptRead')
+    not_present = get_node(attack_graph, 'OS App:notPresent')
+    access_network_and_conn = get_node(
+        attack_graph, 'OS App:accessNetworkAndConnections'
+    )
+
+    node_rewards = {
+        not_present: 100,
+        entry_point: 10.0,
+        attempt_read: 105.0,
+        access_network_and_conn: 35.04
+    }
+    sim = MalSimulator(attack_graph, node_rewards=node_rewards)
+
+    defender_name = "defender"
+    sim.register_defender(defender_name)
+    attacker_name = "Test Attacker" # To be able to step
+    sim.register_attacker(attacker_name, {entry_point})
+    sim.reset()
+
+    states = sim.step({
+        attacker_name: [attempt_read]
+    })
+    defender_state = states[defender_name]
+    assert defender_state.reward == - (
+        node_rewards[entry_point] + node_rewards[attempt_read]
+    )
+
+    states = sim.step({
+        attacker_name: [access_network_and_conn]
+    })
+    defender_state = states[defender_name]
+    assert defender_state.reward == - (
+        node_rewards[entry_point]
+        + node_rewards[attempt_read]
+        + node_rewards[access_network_and_conn]
+    )
+
+def test_defender_step_rewards_one_off(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+
+    entry_point = get_node(attack_graph, 'OS App:fullAccess')
+    attempt_read = get_node(attack_graph, 'OS App:attemptRead')
+    not_present = get_node(attack_graph, 'OS App:notPresent')
+    access_network_and_conn = get_node(
+        attack_graph, 'OS App:accessNetworkAndConnections'
+    )
+
+    node_rewards = {
+        not_present: 100,
+        entry_point: 10.0,
+        attempt_read: 105.0,
+        access_network_and_conn: 35.04
+    }
+    sim = MalSimulator(
+        attack_graph,
+        node_rewards=node_rewards,
+        sim_settings=MalSimulatorSettings(
+            defender_reward_mode=RewardMode.ONE_OFF
+        )
+    )
+
+    defender_name = "defender"
+    sim.register_defender(defender_name)
+    attacker_name = "Test Attacker" # To be able to step
+    sim.register_attacker(attacker_name, {entry_point})
+    sim.reset()
+
+    states = sim.step({
+        attacker_name: [attempt_read]
+    })
+    defender_state = states[defender_name]
+    assert defender_state.reward == - node_rewards[attempt_read]
+
+    states = sim.step({
+        attacker_name: [access_network_and_conn]
+    })
+    defender_state = states[defender_name]
+    assert defender_state.reward == - node_rewards[access_network_and_conn]
+
 
 # TODO: Some of the assert values in this test have changed when updating the
 # attacker logic. We should check to see if the behaviour is the new behaviour
