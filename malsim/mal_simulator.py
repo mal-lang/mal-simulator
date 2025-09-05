@@ -727,13 +727,17 @@ class MalSimulator():
 
             # Compromise node if possible
             if self._is_node_traversable(agent, node):
+
                 if self.sim_settings.ttc_mode == TTCMode.LIVE_SAMPLE:
+                    # Live sample means we sample each time
+                    # an agent tries to take a step
                     agent.ttcs[node] = calculate_prob(
                         node,
                         node.ttc,
                         ProbCalculationMethod.SAMPLE,
                         self._calculated_bernoullis
                     )
+
                 agent.ttcs[node] -= 1.0
 
                 # Because we are working on a unit basis this check yields
