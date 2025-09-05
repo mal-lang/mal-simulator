@@ -167,8 +167,7 @@ def test_bfs_vs_bfs_basic_state_and_reward() -> None:
     The point of this test is to see that the basic scenario runs
     deterministically.
 
-    Unlike the test above this use both a sensible model/scenario and default
-    settings.
+    Unlike the test above this use TTCs and a seed.
 
     The test creates a simulator, two agents and runs them both with
     BFS Agents against each other.
@@ -179,7 +178,7 @@ def test_bfs_vs_bfs_basic_state_and_reward() -> None:
     sim, agents = create_simulator_from_scenario(
         "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml",
         sim_settings = MalSimulatorSettings(
-            seed=13,
+            seed=23,
             ttc_mode=TTCMode.LIVE_SAMPLE
         )
     )
@@ -249,42 +248,39 @@ def test_bfs_vs_bfs_basic_state_and_reward() -> None:
         'Program 1:accessNetworkAndConnections',
         'Program 1:attemptModify',
         'Program 1:specificAccess',
+        'ConnectionRule:1:attemptAccessNetworksUninspected',
+        'ConnectionRule:1:attemptConnectToApplicationsUninspected',
         'ConnectionRule:1:attemptAccessNetworksInspected',
         'ConnectionRule:1:attemptConnectToApplicationsInspected',
-        'ConnectionRule:1:successfulAccessNetworksInspected',
         'ConnectionRule:1:bypassRestricted',
+        'ConnectionRule:1:successfulAccessNetworksInspected',
         'ConnectionRule:1:connectToApplicationsInspected',
         'ConnectionRule:1:accessNetworksInspected',
         'Program 1:networkConnectInspected',
         'Network:2:accessInspected',
-        'Program 1:networkConnect',
         'Program 1:specificAccessNetworkConnect',
-        'Network:2:deny',
-        'Network:2:networkForwardingInspected',
+        'Program 1:networkConnect',
         'Network:2:accessNetworkData',
+        'Network:2:networkForwardingInspected',
+        'Network:2:deny',
         'ConnectionRule:3:attemptConnectToApplicationsInspected',
-        'ConnectionRule:1:attemptDeny',
-        'ConnectionRule:3:attemptDeny',
-        'ConnectionRule:3:attemptAccessNetworksInspected',
         'Network:2:attemptEavesdrop',
         'Network:2:attemptAdversaryInTheMiddle',
+        'ConnectionRule:3:attemptAccessNetworksInspected',
+        'ConnectionRule:1:attemptDeny',
+        'ConnectionRule:3:attemptDeny',
         'ConnectionRule:3:connectToApplicationsInspected',
         'ConnectionRule:3:bypassRestricted',
+        'ConnectionRule:3:successfulAccessNetworksInspected',
         'ConnectionRule:1:deny',
         'ConnectionRule:3:deny',
-        'ConnectionRule:3:successfulAccessNetworksInspected',
-        'Network:2:successfulEavesdrop',
-        'Network:2:bypassEavesdropDefense',
-        'Network:2:successfulAdversaryInTheMiddle',
         'Program 2:networkConnectInspected',
+        'ConnectionRule:3:accessNetworksInspected',
         'Program 1:denyFromNetworkingAsset',
         'Program 2:denyFromNetworkingAsset',
-        'ConnectionRule:3:accessNetworksInspected',
-        'Network:2:eavesdrop',
-        'Network:2:adversaryInTheMiddle',
-        'Program 2:networkConnect',
         'Program 2:specificAccessNetworkConnect',
-        'Program 2:attemptDeny',
+        'Program 2:networkConnect',
+        'Program 2:attemptDeny'
     ]
 
     assert defender_actions == [
@@ -315,4 +311,4 @@ def test_bfs_vs_bfs_basic_state_and_reward() -> None:
     assert defender_agent_state.reward == -19
 
     assert total_reward_attacker == 0
-    assert total_reward_defender == -3824.0
+    assert total_reward_defender == -3425.0

@@ -1,0 +1,28 @@
+// vim:ft=mal
+#id: "test"
+#version: "0.0.0"
+
+category Test{
+    asset Asset_A {
+      # shutdown
+        -> initialAccess
+
+      & initialAccess
+        -> b_of_a.access
+    }
+
+    asset Asset_B {
+      # shutdown
+        -> access,
+           hack
+
+      | access [HardAndUncertain]
+        -> hack
+
+      & hack [Exponential(0.1)]
+    }
+}
+
+associations {
+  Asset_A [a_of_b] * <-- Assoc1 --> * [b_of_a] Asset_B
+}

@@ -1,11 +1,12 @@
 """Test MalSimulator class"""
 from __future__ import annotations
-from typing import TYPE_CHECKING
 import copy
 import math
 
-
-from maltoolbox.attackgraph import AttackGraphNode, AttackGraph
+from maltoolbox.model import Model
+from maltoolbox.language import LanguageGraph
+from maltoolbox.language.compiler import MalCompiler
+from maltoolbox.attackgraph import AttackGraph, create_attack_graph
 from malsim.mal_simulator import (
     MalSimulator, MalSimulatorSettings,
     MalSimDefenderState, MalSimAttackerState,
@@ -15,9 +16,6 @@ from malsim.scenario import load_scenario, create_simulator_from_scenario
 
 from .conftest import get_node
 
-if TYPE_CHECKING:
-    from maltoolbox.language import LanguageGraph
-    from maltoolbox.model import Model
 
 def test_init(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
@@ -336,16 +334,13 @@ def test_defender_step_rewards_one_off(
     assert defender_state.reward == - node_rewards[access_network_and_conn]
 
 
-# TODO: Some of the assert values in this test have changed when updating the
-# attacker logic. We should check to see if the behaviour is the new behaviour
-# is correct.
 def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Model) -> None:
-
+    """With TTC mode live sample and seed"""
     attack_graph = AttackGraph(corelang_lang_graph, model)
     entry_point = get_node(attack_graph, 'OS App:fullAccess')
 
     mss = MalSimulatorSettings(
-        seed=13,
+        seed=10,
         ttc_mode=TTCMode.LIVE_SAMPLE
     )
     # Create simulator and register agents
@@ -430,7 +425,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert os_app_attempt_deny not in asv.action_surface
     assert dsv.step_action_surface_removals == {program2_not_present}
     assert dsv.step_all_compromised_nodes == {os_app_attempt_deny}
-    assert len(dsv.step_unviable_nodes) == 48
+    assert len(dsv.step_unviable_nodes) == 49
 
     # Go through an attack step that already has some children in the attack
     # surface(OS App:accessNetworkAndConnections in this case)
@@ -464,10 +459,10 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert dsv.step_performed_nodes == {os_app_not_present}
     assert asv.step_action_surface_additions == set()
     assert dsv.step_action_surface_additions == set()
-    assert len(asv.step_action_surface_removals) == 12
+    assert len(asv.step_action_surface_removals) == 13
     assert dsv.step_action_surface_removals == {os_app_not_present}
     assert dsv.step_all_compromised_nodes == set()
-    assert len(dsv.step_unviable_nodes) == 63
+    assert len(dsv.step_unviable_nodes) == 64
 
 
 def test_step_attacker_defender_action_surface_updates() -> None:
@@ -566,31 +561,26 @@ def test_default_simulator_default_settings_eviction() -> None:
 def test_simulator_ttcs() -> None:
     """Create a simulator and check TTCs, then reset and check TTCs again"""
 
-    def get_node(sim: MalSimulator, full_name: str) -> AttackGraphNode:
-        node = sim.attack_graph.get_node_by_full_name(full_name)
-        assert node
-        return node
-
     sim, _ = create_simulator_from_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml',
         sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.LIVE_SAMPLE)
     )
 
-    host_0_notPresent = get_node(sim, "Host:0:notPresent")
-    host_0_auth = get_node(sim, "Host:0:authenticate")
-    host_0_connect = get_node(sim, "Host:0:connect")
-    host_0_access = get_node(sim, "Host:0:access")
-    host_1_notPresent = get_node(sim, "Host:1:notPresent")
-    host_1_auth = get_node(sim, "Host:1:authenticate")
-    host_1_connect = get_node(sim, "Host:1:connect")
-    host_1_access = get_node(sim, "Host:1:access")
-    data_2_notPresent = get_node(sim, "Data:2:notPresent")
-    data_2_read = get_node(sim, "Data:2:read")
-    data_2_modify = get_node(sim, "Data:2:modify")
-    user_3_notPresent = get_node(sim, "User:3:notPresent")
-    user_3_compromise = get_node(sim, "User:3:compromise")
-    user_3_phishing = get_node(sim, "User:3:phishing")
-    network_3_access = get_node(sim, "Network:3:access")
+    host_0_notPresent = get_node(sim.attack_graph, "Host:0:notPresent")
+    host_0_auth = get_node(sim.attack_graph, "Host:0:authenticate")
+    host_0_connect = get_node(sim.attack_graph, "Host:0:connect")
+    host_0_access = get_node(sim.attack_graph, "Host:0:access")
+    host_1_notPresent = get_node(sim.attack_graph, "Host:1:notPresent")
+    host_1_auth = get_node(sim.attack_graph, "Host:1:authenticate")
+    host_1_connect = get_node(sim.attack_graph, "Host:1:connect")
+    host_1_access = get_node(sim.attack_graph, "Host:1:access")
+    data_2_notPresent = get_node(sim.attack_graph, "Data:2:notPresent")
+    data_2_read = get_node(sim.attack_graph, "Data:2:read")
+    data_2_modify = get_node(sim.attack_graph, "Data:2:modify")
+    user_3_notPresent = get_node(sim.attack_graph, "User:3:notPresent")
+    user_3_compromise = get_node(sim.attack_graph, "User:3:compromise")
+    user_3_phishing = get_node(sim.attack_graph, "User:3:phishing")
+    network_3_access = get_node(sim.attack_graph, "Network:3:access")
 
     expected_bernoullis = {
         host_0_notPresent: math.inf,
@@ -615,3 +605,56 @@ def test_simulator_ttcs() -> None:
     sim.reset()
 
     assert sim._calculated_bernoullis == expected_bernoullis
+
+
+def test_simulator_ttcs_attacker() -> None:
+    """Create a simulator and check TTCs, then reset and check TTCs again"""
+    compiler = MalCompiler() # type: ignore
+    lang_graph = LanguageGraph(
+        compiler.compile('tests/testdata/langs/ttc_lang.mal')
+    )
+    model = Model("ttc model", lang_graph)
+    asset_a = model.add_asset('Asset_A', 'Asset_A')
+    asset_b = model.add_asset('Asset_B', 'Asset_B')
+    asset_a.add_associated_assets('b_of_a', {asset_b})
+    ag = create_attack_graph(lang_graph, model)
+
+    sim = MalSimulator(
+        ag,
+        sim_settings=MalSimulatorSettings(
+            ttc_mode=TTCMode.LIVE_SAMPLE,
+            attack_surface_skip_unnecessary=False,
+            seed=34
+        )
+    )
+    asset_a_initial_access = get_node(ag, 'Asset_A:initialAccess')
+    asset_b_access = get_node(ag, 'Asset_B:access')
+    asset_b_hack = get_node(ag, 'Asset_B:hack')
+
+    attacker_name = 'attacker1'
+    sim.register_attacker(attacker_name, {asset_a_initial_access})
+    defender_name = 'defender1'
+    sim.register_defender(defender_name)
+    states = sim.reset()
+
+    time_taken_to_compromise = 0
+    while asset_b_access in states[attacker_name].action_surface:
+        states = sim.step(
+            {
+                attacker_name: [asset_b_access],
+                defender_name: []
+            }
+        )
+        time_taken_to_compromise += 1
+    assert time_taken_to_compromise == 19
+
+    time_taken_to_compromise = 0
+    while asset_b_hack in states[attacker_name].action_surface:
+        states = sim.step(
+            {
+                attacker_name: [asset_b_hack],
+                defender_name: []
+            }
+        )
+        time_taken_to_compromise += 1
+    assert time_taken_to_compromise == 3

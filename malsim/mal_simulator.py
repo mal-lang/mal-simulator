@@ -3,21 +3,21 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import logging
 import math
-import random
+
 from enum import Enum
 from types import MappingProxyType
 from typing import Any, Optional, TYPE_CHECKING
+
+from numpy.random import default_rng
 
 from maltoolbox.attackgraph import (
     AttackGraph,
     AttackGraphNode
 )
-
 from malsim.probs_utils import (
     calculate_prob,
     ProbCalculationMethod,
 )
-
 from malsim.graph_processing import (
     calculate_viability_and_necessity,
     propagate_viability_from_node,
@@ -240,6 +240,8 @@ class MalSimulator():
         self.max_iter = max_iter  # Max iterations before stopping simulation
         self.cur_iter = 0         # Keep track on current iteration
 
+        self.rng = default_rng(self.sim_settings.seed)
+
         # All internal agent states (dead or alive)
         self._agent_states: dict[str, MalSimAgentState] = {}
 
@@ -268,14 +270,16 @@ class MalSimulator():
                         node,
                         node.ttc,
                         ProbCalculationMethod.SAMPLE,
-                        self._calculated_bernoullis
+                        self._calculated_bernoullis,
+                        self.rng
                     )
                 case TTCMode.EXPECTED:
                     ttc_value = calculate_prob(
                         node,
                         node.ttc,
                         ProbCalculationMethod.EXPECTED,
-                        self._calculated_bernoullis
+                        self._calculated_bernoullis,
+                        self.rng
                     )
             if node.type in ['and', 'or']:
                 ttc_values[node] = ttc_value
@@ -291,7 +295,8 @@ class MalSimulator():
                     node,
                     node.ttc,
                     ProbCalculationMethod.SAMPLE,
-                    self._calculated_bernoullis
+                    self._calculated_bernoullis,
+                    self.rng
                 )
                 if ttc_value != math.inf:
                     pre_enabled_defenses.add(node)
@@ -353,7 +358,6 @@ class MalSimulator():
         - calculate the viability and necessity of nodes
         - in the future this should also handle initial TTC evaluations
         """
-        random.seed(self.sim_settings.seed)
         self._ttc_values = self._attack_step_ttcs()
 
         if self.sim_settings.run_defense_step_bernoullis:
@@ -376,6 +380,7 @@ class MalSimulator():
         """Reset attack graph, iteration and reinitialize agents"""
 
         logger.info("Resetting MAL Simulator.")
+        self.rng = default_rng(self.sim_settings.seed)
 
         # Reset nodes
         self._calculated_bernoullis.clear()
@@ -732,7 +737,8 @@ class MalSimulator():
                         node,
                         node.ttc,
                         ProbCalculationMethod.SAMPLE,
-                        self._calculated_bernoullis
+                        self._calculated_bernoullis,
+                        self.rng
                     )
                 agent.ttcs[node] -= 1.0
 
@@ -746,6 +752,11 @@ class MalSimulator():
                     logger.info(
                         'Attacker agent "%s" compromised "%s"(%d).',
                         agent.name, node.full_name, node.id
+                    )
+                else:
+                    logger.info(
+                        'Attacker agent "%s" decreased TTC for "%s" to %d',
+                        agent.name, node.full_name, agent.ttcs[node]
                     )
             else:
                 logger.warning(
@@ -953,8 +964,9 @@ class MalSimulator():
             # Remove agents that are terminated or truncated
             if agent_state.terminated or agent_state.truncated:
                 logger.info(
-                    "Removing agent %s since it is terminated or truncated",
-                    agent_state.name
+                    "Removing agent %s since it is %s",
+                    agent_state.name,
+                    "terminated" if agent_state.terminated else "truncated"
                 )
                 self._alive_agents.remove(agent_state.name)
 
