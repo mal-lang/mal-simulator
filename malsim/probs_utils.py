@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import math
 
-from numpy.random import default_rng
+from numpy.random import default_rng, Generator
 from enum import Enum
 
 from typing import Any, Optional, TYPE_CHECKING
@@ -23,7 +23,7 @@ def sample_prob(
         node: AttackGraphNode,
         probs_dict: dict[str, Any],
         calculated_bernoullis: dict[AttackGraphNode, float],
-        rng = None
+        rng: Optional[Generator] = None
     ) -> float:
 
     if not rng:
@@ -154,7 +154,7 @@ def calculate_prob(
     probs_dict: Optional[dict[str, Any]],
     method: ProbCalculationMethod,
     calculated_bernoullis: dict[AttackGraphNode, float],
-    rng = None
+    rng: Optional[Generator] = None
 ) -> float:
     """Calculate the value from a probability distribution
     Arguments:
