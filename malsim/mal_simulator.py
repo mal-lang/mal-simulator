@@ -556,25 +556,14 @@ class MalSimulator():
         attacker_state.performed_nodes |= step_agent_compromised_nodes
         attacker_state.step_unviable_nodes = step_nodes_made_unviable
 
-        # Find what new steps attacker can reach this step
-        action_surface_additions = (
-            self._get_attack_surface(
-                attacker_state,
-                from_nodes=step_agent_compromised_nodes,
-            ) # Exclude nodes already in the action surface
-            - attacker_state.action_surface
-        )
-        # Remove nodes agent compromised and nodes made unviable
+        # Find what nodes attacker can reach this step
+        new_action_surface = self._get_attack_surface(attacker_state)
         action_surface_removals = (
-            attacker_state.action_surface &
-            (step_nodes_made_unviable | step_agent_compromised_nodes)
+            attacker_state.action_surface - new_action_surface
         )
-        # New action surface is the old one plus the additions, minus removals
-        new_action_surface = (
-            (attacker_state.action_surface | action_surface_additions)
-            - action_surface_removals
+        action_surface_additions = (
+            new_action_surface - attacker_state.action_surface
         )
-
         attacker_state.step_action_surface_additions = action_surface_additions
         attacker_state.step_action_surface_removals = action_surface_removals
         attacker_state.action_surface = new_action_surface
