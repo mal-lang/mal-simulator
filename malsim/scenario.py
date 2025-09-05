@@ -197,9 +197,7 @@ def apply_scenario_node_property(
         attack_graph: AttackGraph,
         node_prop: str,
         prop_config: dict[str, dict[str, Any]],
-        assumed_value: Optional[Any] = None,
         default_value: Optional[Any] = None,
-        set_as_extras: bool = True
 ) -> dict[AttackGraphNode, Any]:
     """Apply node property values from scenario configuration.
 
@@ -211,16 +209,10 @@ def apply_scenario_node_property(
     - node_prop:        Property name in string format (i.e. 'false_positive_rate')
     - prop_config:      Settings from scenario file with keys `by_asset_name`
                         and/or `by_asset_type`
-    - assumed_value:    The assumed value to set for the property for all
-                        nodes if property is entirely omitted in the
-                        configuration. If None no values will be set.
     - default_value:    The default value to set for the property for nodes
                         where no value is given in the configuration. If None
                         no values will be set. This is only relevant if the
                         property is included in the scenario configuration.
-    - set_as_extras:    Whether or not to save the property values in the
-                        extras field or set them as a property of the nodes
-                        themselves.
 
     Return dict mapping from attack graph node to the value it is given
     for the requested property.
@@ -255,6 +247,10 @@ def apply_scenario_node_property(
 
 
     property_dict: dict[AttackGraphNode, Any] = {}
+
+    if not prop_config:
+        return property_dict
+
     _validate_scenario_node_property_config(attack_graph, prop_config)
 
     for step in attack_graph.nodes.values():
@@ -262,15 +258,6 @@ def apply_scenario_node_property(
         if default_value is not None:
             property_dict[step] = default_value
             step.extras[node_prop] = default_value # legacy
-
-        if not prop_config:
-            # If the property is not present in the configuration at all,
-            # apply the default to all nodes if provided.
-            if assumed_value is not None:
-                for step in attack_graph.nodes.values():
-                    step.extras[node_prop] = assumed_value # legacy
-                    property_dict[step] = assumed_value
-
 
         # Check for matching asset type property configuration entry
         prop_asset_type_entries = (
@@ -473,14 +460,12 @@ def load_scenario(scenario_file: str) -> Scenario:
             attack_graph,
             'observable',
             scenario_dict.get('observable_steps', {}),
-            assumed_value = 1,
             default_value = 0
         ),
         apply_scenario_node_property(
             attack_graph,
             'actionable',
             scenario_dict.get('actionable_steps', {}),
-            assumed_value = 1,
             default_value = 0
         )
     )

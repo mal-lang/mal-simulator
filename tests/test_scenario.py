@@ -191,10 +191,8 @@ def test_load_scenario_observability_not_given() -> None:
             './testdata/scenarios/simple_scenario.yml'
         )
     )
-    # Make sure all attack steps are observable
-    # if no observability settings are given
-    for node in scenario.attack_graph.nodes.values():
-        assert node.extras['observable']
+
+    assert not scenario.is_observable
 
 
 def test_apply_scenario_observability() -> None:
@@ -219,11 +217,10 @@ def test_apply_scenario_observability() -> None:
     }
 
     # Apply observability rules
-    apply_scenario_node_property(
+    observable = apply_scenario_node_property(
         scenario.attack_graph,
         'observable',
         observability_rules,
-        assumed_value = 1,
         default_value = 0
     )
 
@@ -231,13 +228,13 @@ def test_apply_scenario_observability() -> None:
     # if no observability settings are given
     for node in scenario.attack_graph.nodes.values():
         if node.lg_attack_step.asset.name == 'Data' and node.name in ('read', 'write', 'delete'):
-            assert node.extras['observable']
+            assert observable[node]
         elif node.lg_attack_step.asset.name == 'Application' and node.name in ('fullAccess', 'notPresent'):
-            assert node.extras['observable']
+            assert observable[node]
         elif node.model_asset and node.model_asset.name == 'OS App' and node.name in ('read'):
-            assert node.extras['observable']
+            assert observable[node]
         else:
-            assert not node.extras['observable']
+            assert not observable[node]
 
 def test_apply_scenario_observability_faulty() -> None:
     """Try different failing cases for observability settings"""
@@ -254,7 +251,6 @@ def test_apply_scenario_observability_faulty() -> None:
             scenario.attack_graph,
             'observable',
             {'NotAllowedKey': {'Data': ['read', 'write', 'delete']}},
-            assumed_value = 1,
             default_value = 0
         )
 
@@ -263,7 +259,6 @@ def test_apply_scenario_observability_faulty() -> None:
         scenario.attack_graph,
         'observable',
         {'by_asset_type': { 'Application': ['read']}},
-        assumed_value = 1,
         default_value = 0
     )
 
@@ -273,7 +268,6 @@ def test_apply_scenario_observability_faulty() -> None:
             scenario.attack_graph,
             'observable',
             {'by_asset_type': {'NonExistingType': ['read']}},
-            assumed_value = 1,
             default_value = 0
         )
 
@@ -283,7 +277,6 @@ def test_apply_scenario_observability_faulty() -> None:
             scenario.attack_graph,
             'observable',
             {'by_asset_type': {'Data': ['nonExistingAttackStep']}},
-            assumed_value = 1,
             default_value = 0
         )
 
@@ -292,7 +285,6 @@ def test_apply_scenario_observability_faulty() -> None:
         scenario.attack_graph,
         'observable',
         {'by_asset_name': { 'OS App': ['read']}},
-        assumed_value = 1,
         default_value = 0
     )
 
@@ -302,7 +294,6 @@ def test_apply_scenario_observability_faulty() -> None:
             scenario.attack_graph,
             'observable',
             {'by_asset_name': { 'NonExistingName': ['read']}},
-            assumed_value = 1,
             default_value = 0
         )
 
@@ -312,7 +303,6 @@ def test_apply_scenario_observability_faulty() -> None:
             scenario.attack_graph,
             'observable',
             {'by_asset_name': {'OS App': ['nonExistingAttackStep']}},
-            assumed_value = 1,
             default_value = 0
         )
 
