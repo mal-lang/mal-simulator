@@ -3,7 +3,8 @@
 from __future__ import annotations
 import logging
 import math
-import random
+
+from numpy.random import default_rng
 from enum import Enum
 
 from typing import Any, Optional, TYPE_CHECKING
@@ -21,17 +22,12 @@ class ProbCalculationMethod(Enum):
 def sample_prob(
         node: AttackGraphNode,
         probs_dict: dict[str, Any],
-        calculated_bernoullis: dict[AttackGraphNode, float]
+        calculated_bernoullis: dict[AttackGraphNode, float],
+        rng = None
     ) -> float:
-    """Calculate the sampled value from a probability distribution function
-    Arguments:
-    probs_dict      - a dictionary containing the probability distribution
-                      function
 
-    Return:
-    The float value obtained from calculating the sampled value corresponding
-    to the function provided.
-    """
+    if not rng:
+        rng = default_rng()
 
     if probs_dict is None:
         raise ValueError('Probabilities dictionary was missing.')
@@ -44,37 +40,35 @@ def sample_prob(
         case 'Bernoulli':
             if node in calculated_bernoullis:
                 return calculated_bernoullis[node]
-            value = random.random()
             threshold = float(probs_dict['arguments'][0])
+            value = rng.random()
             res = math.inf if value > threshold else 1.0
             calculated_bernoullis[node] = res
             return res
 
         case 'Exponential':
             lambd = float(probs_dict['arguments'][0])
-            return random.expovariate(lambd)
+            return float(rng.exponential(1 / lambd))
 
         case 'Binomial':
             n = int(probs_dict['arguments'][0])
             p = float(probs_dict['arguments'][1])
-            # TODO: Someone with basic probabilities competences should
-            # actually check if this is correct.
-            return random.binomialvariate(n, p)
+            return float(rng.binomial(n, p))
 
         case 'Gamma':
             alpha = float(probs_dict['arguments'][0])
             beta = float(probs_dict['arguments'][1])
-            return random.gammavariate(alpha, beta)
+            return float(rng.gamma(alpha, beta))
 
         case 'LogNormal':
             mu = float(probs_dict['arguments'][0])
             sigma = float(probs_dict['arguments'][1])
-            return random.lognormvariate(mu, sigma)
+            return float(rng.lognormal(mu, sigma))
 
         case 'Uniform':
             a = float(probs_dict['arguments'][0])
             b = float(probs_dict['arguments'][1])
-            return random.uniform(a, b)
+            return float(rng.uniform(a, b))
 
         case 'Pareto' | 'Truncated Normal':
             raise NotImplementedError(f'"{probs_dict["name"]}" '
@@ -84,7 +78,6 @@ def sample_prob(
         case _:
             raise ValueError('Unknown probability distribution '
                 f'function encountered "{probs_dict["name"]}"!')
-
 
 def expected_prob(node: AttackGraphNode, probs_dict: dict[str, Any]) -> float:
     """Calculate the expected value from a probability distribution function
@@ -160,7 +153,8 @@ def calculate_prob(
     node: AttackGraphNode,
     probs_dict: Optional[dict[str, Any]],
     method: ProbCalculationMethod,
-    calculated_bernoullis: dict[AttackGraphNode, float]
+    calculated_bernoullis: dict[AttackGraphNode, float],
+    rng = None
 ) -> float:
     """Calculate the value from a probability distribution
     Arguments:
@@ -182,10 +176,10 @@ def calculate_prob(
         case 'addition' | 'subtraction' | 'multiplication' | \
                 'division' | 'exponentiation':
             lv = calculate_prob(
-                node, probs_dict['lhs'], method, calculated_bernoullis
+                node, probs_dict['lhs'], method, calculated_bernoullis, rng
             )
             rv = calculate_prob(
-                node, probs_dict['rhs'], method, calculated_bernoullis
+                node, probs_dict['rhs'], method, calculated_bernoullis, rng
             )
             match(probs_dict['type']):
                 case 'addition':
@@ -202,7 +196,7 @@ def calculate_prob(
         case 'function':
             match(method):
                 case ProbCalculationMethod.SAMPLE:
-                    return sample_prob(node, probs_dict, calculated_bernoullis)
+                    return sample_prob(node, probs_dict, calculated_bernoullis, rng)
                 case ProbCalculationMethod.EXPECTED:
                     return expected_prob(node, probs_dict)
                 case _:
