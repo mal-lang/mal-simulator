@@ -4,7 +4,7 @@ import os
 from unittest.mock import patch
 from typing import Any
 
-from malsim.__main__ import run_simulation
+from malsim.mal_simulator import run_simulation
 from malsim.scenario import create_simulator_from_scenario
 
 def path_relative_to_tests(filename: str) -> str:

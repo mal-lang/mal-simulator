@@ -17,7 +17,7 @@
 
 import logging
 
-from malsim.mal_simulator import MalSimulator
+from malsim.mal_simulator import MalSimulator, run_simulation
 
 """
 MAL Simulator
@@ -29,7 +29,7 @@ __authors__ = ["Andrei Buhaiu", "Joakim Loxdal", "Jakob Nyberg", "Nikolaos Kakou
 __license__ = "Apache 2.0"
 __docformat__ = "restructuredtext en"
 
-__all__ = ["MalSimulator"]
+__all__ = ["MalSimulator", "run_simulation"]
 
 
 # TODO: Make sure logging dir exists and make it configurable (or use same as maltoolbox)
