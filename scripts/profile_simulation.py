@@ -10,7 +10,7 @@ import cProfile
 import pstats
 
 from malsim.scenario import create_simulator_from_scenario
-from malsim.__main__ import run_simulation
+from malsim.mal_simulator import run_simulation
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

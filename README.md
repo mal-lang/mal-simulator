@@ -206,7 +206,7 @@ mal_simulator, agents = create_simulator_from_scenario(scenario_file)
 The returned MalSimulator contains the attackgraph created from
 the scenario, as well as registered agents. At this point, simulator and sim_config
 (which contains the decision agents) can be used for running a simulation
-(refer to `malsim.__main__.run_simulation` to see example of this).
+(refer to `malsim.mal_simulator.run_simulation` to see example of this).
 
 
 ## CLI
