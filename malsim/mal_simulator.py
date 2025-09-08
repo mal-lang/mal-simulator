@@ -80,8 +80,6 @@ class MalSimAttackerState(MalSimAgentState):
     def __init__(self, name: str):
         super().__init__(name, AgentType.ATTACKER)
         self.entry_points: set[AttackGraphNode] = set()
-        # TTC values, contains latest sample results in LIVE_SAMPLE mode
-        self.ttcs: dict[AttackGraphNode, float] = {}
         self.num_attempts: dict[AttackGraphNode, int] = {}
 
 
@@ -506,8 +504,6 @@ class MalSimulator():
         )
         attacker_state.step_action_surface_removals = set()
         attacker_state.entry_points = set(entry_points)
-        if self.sim_settings.ttc_mode != TTCMode.LIVE_SAMPLE:
-            attacker_state.ttcs = dict(self._ttc_values)
         attacker_state.reward = self._attacker_reward(
             attacker_state, self.sim_settings.attacker_reward_mode
         )
@@ -722,8 +718,10 @@ class MalSimulator():
 
             # Compromise node if possible
             if self.node_is_traversable(agent, node):
+                node_ttc_value = self._ttc_values[node]
+
                 if self.sim_settings.ttc_mode == TTCMode.LIVE_SAMPLE:
-                    agent.ttcs[node] = calculate_prob(
+                    node_ttc_value = calculate_prob(
                         node,
                         node.ttc,
                         ProbCalculationMethod.SAMPLE,
@@ -731,8 +729,7 @@ class MalSimulator():
                     )
 
                 agent.num_attempts[node] += 1
-
-                if agent.num_attempts[node] >= agent.ttcs[node]:
+                if agent.num_attempts[node] >= node_ttc_value:
                     compromised_nodes.add(node)
                     logger.info(
                         'Attacker agent "%s" compromised "%s"(%d).',
