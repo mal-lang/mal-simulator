@@ -315,4 +315,4 @@ def test_bfs_vs_bfs_basic_state_and_reward() -> None:
     assert defender_agent_state.reward == -19
 
     assert total_reward_attacker == 0
-    assert total_reward_defender == -3824.0
+    assert total_reward_defender == -1430.0

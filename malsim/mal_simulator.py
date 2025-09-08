@@ -77,20 +77,18 @@ class MalSimAgentState:
 class MalSimAttackerState(MalSimAgentState):
     """Stores the state of an attacker in the simulator"""
 
-    # Current TTCs, for live sampled mode it will just be the latest sample
-    # result
-    ttcs: dict[AttackGraphNode, float] = dict()
-
     def __init__(self, name: str):
         super().__init__(name, AgentType.ATTACKER)
         self.entry_points: set[AttackGraphNode] = set()
+        # TTC values, contains latest sample results in LIVE_SAMPLE mode
+        self.ttcs: dict[AttackGraphNode, float] = {}
+        self.num_attempts: dict[AttackGraphNode, int] = {}
 
 
 class MalSimDefenderState(MalSimAgentState):
     """Stores the state of a defender in the simulator"""
 
-    # Contains the steps performed successfully by all of the attacker agents
-    # in the last step
+    # Steps compromised successfully by any attacker in the last step
     step_all_compromised_nodes: set[AttackGraphNode] = set()
 
     def __init__(self, name: str):
@@ -513,6 +511,9 @@ class MalSimulator():
         attacker_state.reward = self._attacker_reward(
             attacker_state, self.sim_settings.attacker_reward_mode
         )
+        attacker_state.num_attempts = {
+            n: 0 for n in self.attack_graph.nodes.values()
+        }
         return attacker_state
 
     def _create_defender_state(self, name: str) -> MalSimDefenderState:
@@ -728,14 +729,10 @@ class MalSimulator():
                         ProbCalculationMethod.SAMPLE,
                         self._calculated_bernoullis
                     )
-                agent.ttcs[node] -= 1.0
 
-                # Because we are working on a unit basis this check yields
-                # slightly odd values on average because any leftover
-                # fractional remainder will take up one entire step. This is a
-                # reasonable assumption, but might seem odd when looking at
-                # the average times it takes to compromise steps.
-                if agent.ttcs[node] <= 0.0:
+                agent.num_attempts[node] += 1
+
+                if agent.num_attempts[node] >= agent.ttcs[node]:
                     compromised_nodes.add(node)
                     logger.info(
                         'Attacker agent "%s" compromised "%s"(%d).',
