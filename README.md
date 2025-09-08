@@ -70,6 +70,9 @@ In the MalSimulator, TTCs can be used in different ways (set through malsim sett
   - Sample the distribution for each attack step at the beginning of a simulation and decrement it every step an agent tries to compromise it
   - Let agent compromise a node if the ttc value is < 1
 
+4. DISABLED
+  - Don't use TTCs, all attack steps are compromised on the agents first attempt (as long as they are allowed to)
+
 #### Bernoullis in attack steps
 
 If an attack step has a Bernoulli in its TTC, it will be sampled at the start of the simulation.
