@@ -19,8 +19,9 @@ from malsim.probs_utils import (
 )
 
 from malsim.graph_processing import (
-    calculate_viability_and_necessity,
-    propagate_viability_from_node,
+    calculate_necessity,
+    calculate_viability,
+    make_node_unviable,
 )
 
 if TYPE_CHECKING:
@@ -232,11 +233,12 @@ class MalSimulator():
             max_iter                    -   Max iterations in simulation
         """
         logger.info("Creating Base MAL Simulator.")
+        self.sim_settings = sim_settings
+        random.seed(self.sim_settings.seed)
 
         # Initialize all values
         self.attack_graph = attack_graph
 
-        self.sim_settings = sim_settings
         self.max_iter = max_iter  # Max iterations before stopping simulation
         self.cur_iter = 0         # Keep track on current iteration
 
@@ -245,16 +247,24 @@ class MalSimulator():
 
         # Store properties of each AttackGraphNode
         self._node_rewards: dict[AttackGraphNode, float] = node_rewards or {}
-        self._viable_nodes: set[AttackGraphNode] = set()
-        self._necessary_nodes: set[AttackGraphNode] = set()
         self._enabled_defenses: set[AttackGraphNode] = set()
-        self._ttc_values: dict[AttackGraphNode, float] = {}
         self._calculated_bernoullis: dict[AttackGraphNode, float] = {}
 
         # Keep track on all 'living' agents sorted by order to step in
         self._alive_agents: set[str] = set()
 
-        self.prepare_attack_graph()
+        # Do initial calculations
+        self._ttc_values = self._attack_step_ttcs()
+
+        if self.sim_settings.run_defense_step_bernoullis:
+            self._enabled_defenses = self._pre_enabled_defenses()
+
+        self._viability_per_node = calculate_viability(
+            self.attack_graph, self._enabled_defenses, self._ttc_values
+        )
+        self._necessity_per_node = calculate_necessity(
+            self.attack_graph, self._enabled_defenses
+        )
 
     def _attack_step_ttcs(self) -> dict[AttackGraphNode, float]:
         """Calculate and return attack steps TTCs"""
@@ -330,11 +340,11 @@ class MalSimulator():
 
     def node_is_viable(self, node: AttackGraphNode) -> bool:
         """Get viability of a node"""
-        return node in self._viable_nodes
+        return self._viability_per_node[node]
 
     def node_is_necessary(self, node: AttackGraphNode) -> bool:
         """Get necessity of a node"""
-        return node in self._necessary_nodes
+        return self._necessity_per_node[node]
 
     def node_is_enabled_defense(self, node: AttackGraphNode) -> bool:
         """Get a nodes defense status"""
@@ -344,48 +354,32 @@ class MalSimulator():
         """Get reward for a node"""
         return self._node_rewards.get(node, 0.0)
 
-    def prepare_attack_graph(
-        self
-    ) -> None:
-        """
-        Prepare the node properties for running the simulation:
-        - assign defense values to the defenses
-        - calculate the viability and necessity of nodes
-        - in the future this should also handle initial TTC evaluations
-        """
-        random.seed(self.sim_settings.seed)
-        self._ttc_values = self._attack_step_ttcs()
-
-        if self.sim_settings.run_defense_step_bernoullis:
-            self._enabled_defenses = self._pre_enabled_defenses()
-
-        # Calculate viability and necessity and optionally prune graph
-        self._viable_nodes, self._necessary_nodes = (
-            calculate_viability_and_necessity(
-                self.attack_graph,
-                self._enabled_defenses,
-                self._ttc_values
-            )
-        )
-
-
     def reset(
         self,
         options: Optional[dict[str, Any]] = None
     ) -> dict[str, MalSimAgentStateView]:
         """Reset attack graph, iteration and reinitialize agents"""
 
+        random.seed(self.sim_settings.seed)
         logger.info("Resetting MAL Simulator.")
 
         # Reset nodes
         self._calculated_bernoullis.clear()
         self._enabled_defenses = set()
 
-        self.prepare_attack_graph()
+        self._ttc_values = self._attack_step_ttcs()
 
-        # Reset current iteration
+        if self.sim_settings.run_defense_step_bernoullis:
+            self._enabled_defenses = self._pre_enabled_defenses()
+
+        self._viability_per_node = calculate_viability(
+            self.attack_graph, self._enabled_defenses, self._ttc_values
+        )
+        self._necessity_per_node = calculate_necessity(
+            self.attack_graph, self._enabled_defenses
+        )
+
         self.cur_iter = 0
-        # Reset agents
         self._reset_agents()
 
         return self.agent_states
@@ -399,13 +393,13 @@ class MalSimulator():
         """
         return {
             node for node in self.attack_graph.nodes.values()
-            if node in self._viable_nodes
+            if self.node_is_viable(node)
             and node.type == 'defense'
             and 'suppress' not in node.tags
             and not self.node_is_enabled_defense(node)
         }
 
-    def _is_node_traversable(
+    def node_is_traversable(
             self,
             attacker_state: MalSimAttackerState,
             node: AttackGraphNode
@@ -423,7 +417,7 @@ class MalSimulator():
         node        - the node we wish to evalute
         """
 
-        if node not in self._viable_nodes:
+        if not self.node_is_viable(node):
             return False
 
         match(node.type):
@@ -483,17 +477,17 @@ class MalSimulator():
                     continue
                 if (
                     self.sim_settings.attack_surface_skip_unviable
-                    and child not in self._viable_nodes
+                    and not self.node_is_viable(child)
                 ):
                     continue
                 if (
                     self.sim_settings.attack_surface_skip_unnecessary
-                    and child not in self._necessary_nodes
+                    and not self.node_is_necessary(child)
                 ):
                     continue
                 if (
                     child not in attack_surface and
-                    self._is_node_traversable(attacker_state, child)
+                    self.node_is_traversable(attacker_state, child)
                 ):
                     attack_surface.add(child)
 
@@ -726,7 +720,7 @@ class MalSimulator():
             )
 
             # Compromise node if possible
-            if self._is_node_traversable(agent, node):
+            if self.node_is_traversable(agent, node):
                 if self.sim_settings.ttc_mode == TTCMode.LIVE_SAMPLE:
                     agent.ttcs[node] = calculate_prob(
                         node,
@@ -791,13 +785,11 @@ class MalSimulator():
 
             # Enable defense if possible
             if node in agent.action_surface:
-                self._viable_nodes.remove(node)
-                attack_steps_made_unviable |= (
-                    propagate_viability_from_node(
-                        node, self._viable_nodes, self._ttc_values
-                    )
-                )
                 enabled_defenses.add(node)
+                self._viability_per_node, made_unviable = make_node_unviable(
+                    node, self._viability_per_node, self._ttc_values
+                )
+                attack_steps_made_unviable |= made_unviable
                 logger.info(
                     'Defender agent "%s" enabled "%s"(%d).',
                     agent.name, node.full_name, node.id
@@ -907,7 +899,9 @@ class MalSimulator():
         logger.debug("Performing actions: %s", actions)
 
         if not self._alive_agents:
-            logger.warning("No agents are alive anymore, step will have no effect")
+            logger.warning(
+                "No agents are alive anymore, step will have no effect"
+            )
 
         for agent_name in actions:
             if agent_name not in self._agent_states:
@@ -964,6 +958,7 @@ class MalSimulator():
     def render(self) -> None:
         pass
 
+
 def run_simulation(sim: MalSimulator, agents: list[dict[str, Any]]) -> None:
     """Run a simulation with agents"""
 
@@ -995,7 +990,8 @@ def run_simulation(sim: MalSimulator, agents: list[dict[str, Any]]) -> None:
             if agent_action:
                 actions[agent_name] = [agent_action]
                 print(
-                    f'Agent {agent_name} chose action: {agent_action.full_name}'
+                    f'Agent {agent_name} chose action: '
+                    f'{agent_action.full_name}'
                 )
 
         # Perform next step of simulation
