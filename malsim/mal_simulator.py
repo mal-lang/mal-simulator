@@ -5,7 +5,6 @@ import logging
 import math
 import random
 from enum import Enum
-from types import MappingProxyType
 from typing import Any, Optional, TYPE_CHECKING
 
 from numpy.random import default_rng
@@ -46,7 +45,6 @@ class MalSimAgentState:
 
     # Identifier of the agent, used in MalSimulator for lookup
     name: str
-    type: AgentType
 
     # Contains current agent reward in the simulation
     # Attackers get positive rewards, defenders negative
@@ -76,92 +74,24 @@ class MalSimAgentState:
     truncated: bool = False
     terminated: bool = False
 
-
+@dataclass
 class MalSimAttackerState(MalSimAgentState):
     """Stores the state of an attacker in the simulator"""
 
-    def __init__(self, name: str):
-        super().__init__(name, AgentType.ATTACKER)
-        self.entry_points: set[AttackGraphNode] = set()
-        self.num_attempts: dict[AttackGraphNode, int] = {}
+    # The starting points of an attacker agent
+    entry_points: set[AttackGraphNode] = field(default_factory=set)
+    # Number of attempts to compromise a step (used for ttc caculations)
+    num_attempts: dict[AttackGraphNode, int] = field(default_factory=dict)
 
-
+@dataclass
 class MalSimDefenderState(MalSimAgentState):
     """Stores the state of a defender in the simulator"""
 
-    # Steps compromised successfully by any attacker in the last step
-    step_all_compromised_nodes: set[AttackGraphNode] = set()
-
-    def __init__(self, name: str):
-        super().__init__(name, AgentType.DEFENDER)
-
-
-class MalSimAgentStateView(MalSimAttackerState, MalSimDefenderState):
-    """Read-only interface to MalSimAgentState.
-
-    Subclassing from State classes only to satisfy static analysis and support
-    autocompletion that would otherwise be unavailable due to the dynamic
-    __getattr(ibute)__ method.
-    """
-
-    _frozen = False
-
-    def __init__(self, agent: MalSimAgentState):
-        self._agent = agent
-        self._frozen = True
-
-    def __setattr__(self, key: str, value: Any) -> None:
-        if self._frozen:
-            raise AttributeError("Cannot modify agent state view")
-        super().__setattr__(key, value)
-
-    def __delattr__(self, key: str) -> None:
-        if self._frozen:
-            raise AttributeError("Cannot modify agent state view")
-        super().__delattr__(key)
-
-    def __getattribute__(self, attr: str) -> Any:
-        """Return read-only version of proxied agent's properties.
-
-        If the attribute exists in the View only return it from there. Using
-        __getattribute__ instead of __getattr__ as the latter is called only for
-        missing properties; since this class is a subclass of State, it will
-        have all state properties and those would be returned from self, not
-        self._agent. Using __getattribute__ allows use to filter which
-        properties to return from self and which from self._agent.
-        """
-        if attr in ("_agent", "_frozen") or \
-                attr.startswith("__") and attr.endswith("__"):
-            return super().__getattribute__(attr)
-
-        agent = super().__getattribute__('_agent')
-        value = getattr(agent, attr)
-
-        if attr == '_agent':
-            return agent
-
-        value = getattr(agent, attr)
-
-        if isinstance(value, dict):
-            return MappingProxyType(value)
-        if isinstance(value, list):
-            return tuple(value)
-        if isinstance(value, set):
-            return frozenset(value)
-
-        return value
-
-    def __dir__(self) -> list[str]:
-        """Dynamically resolve attribute names for REPL autocompletion."""
-        dunder_attrs = [
-            attr
-            for attr in dir(self.__class__)
-            if attr.startswith("__") and attr.endswith("__")
-        ]
-
-        props = list(vars(self._agent).keys()) + ["_agent", "_frozen"]
-
-        return dunder_attrs + props
+    # Contains steps successfully performed by any
+    # attacker agent in the last step
+    step_all_compromised_nodes: set[AttackGraphNode] = (
+        field(default_factory=set)
+    )
 
 class TTCMode(Enum):
     """
@@ -390,7 +320,7 @@ class MalSimulator():
     def reset(
         self,
         options: Optional[dict[str, Any]] = None
-    ) -> dict[str, MalSimAgentStateView]:
+    ) -> dict[str, MalSimAgentState]:
         """Reset attack graph, iteration and reinitialize agents"""
 
         self.rng = default_rng(self.sim_settings.seed)
@@ -679,10 +609,10 @@ class MalSimulator():
         self._alive_agents.add(name)
 
     @property
-    def agent_states(self) -> dict[str, MalSimAgentStateView]:
+    def agent_states(self) -> dict[str, MalSimAgentState]:
         """Return read only agent state for all dead and alive agents"""
         return {
-            name: MalSimAgentStateView(agent)
+            name: agent
             for name, agent in self._agent_states.items()
         }
 
@@ -950,7 +880,7 @@ class MalSimulator():
 
     def step(
         self, actions: dict[str, list[AttackGraphNode]]
-    ) -> dict[str, MalSimAgentStateView]:
+    ) -> dict[str, MalSimAgentState]:
         """Take a step in the simulation
 
         Args:

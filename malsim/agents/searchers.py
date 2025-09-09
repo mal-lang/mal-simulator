@@ -6,7 +6,7 @@ from collections import deque
 from typing import Optional, TYPE_CHECKING, Any
 
 from .decision_agent import DecisionAgent
-from ..mal_simulator import MalSimAgentStateView
+from ..mal_simulator import MalSimAgentState
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
@@ -47,7 +47,7 @@ class BreadthFirstAttacker(DecisionAgent):
         self._started = False
 
     def get_next_action(
-        self, agent_state: MalSimAgentStateView, **kwargs: Any
+        self, agent_state: MalSimAgentState, **kwargs: Any
     ) -> Optional[AttackGraphNode]:
         """Receive the next action according to agent policy (bfs/dfs)"""
 

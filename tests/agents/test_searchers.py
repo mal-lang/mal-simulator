@@ -1,6 +1,6 @@
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.language import LanguageGraph
-from malsim.mal_simulator import MalSimulator, MalSimAgentStateView
+from malsim.mal_simulator import MalSimulator, MalSimAgentState
 from malsim.agents import BreadthFirstAttacker, DepthFirstAttacker
 
 
@@ -51,8 +51,7 @@ def test_breadth_first_traversal_simple(
     actual_order = []
     for _ in expected_order:
         # Get next action
-        agent_view = MalSimAgentStateView(agent_state)
-        action_node = attacker_ai.get_next_action(agent_view)
+        action_node = attacker_ai.get_next_action(agent_state)
         assert action_node
 
         # Get next action
@@ -127,8 +126,7 @@ def test_breadth_first_traversal_complicated(
     actual_order = []
     for _ in expected_order:
         # Get next action
-        agent_view = MalSimAgentStateView(agent_state)
-        action_node = attacker_ai.get_next_action(agent_view)
+        action_node = attacker_ai.get_next_action(agent_state)
         assert action_node
 
         # Get next action

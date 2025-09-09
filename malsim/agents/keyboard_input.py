@@ -3,7 +3,7 @@ import logging
 from typing import TYPE_CHECKING, Optional, Any
 
 from .decision_agent import DecisionAgent
-from ..mal_simulator import MalSimAgentStateView
+from ..mal_simulator import MalSimAgentState
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
@@ -19,7 +19,7 @@ class KeyboardAgent(DecisionAgent):
 
     def get_next_action(
             self,
-            agent_state: MalSimAgentStateView,
+            agent_state: MalSimAgentState,
             **kwargs: Any
         ) -> Optional[AttackGraphNode]:
         """Compute action from action_surface"""
