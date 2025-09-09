@@ -3,10 +3,11 @@
 import math
 
 from malsim.graph_processing import (
-    propagate_viability_from_node,
-    propagate_necessity_from_node,
+    _propagate_viability_from_node,
+    _propagate_necessity_from_node,
     prune_unviable_and_unnecessary_nodes,
-    calculate_viability_and_necessity,
+    calculate_necessity,
+    calculate_viability
 )
 from maltoolbox.language import LanguageGraph
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
@@ -59,7 +60,7 @@ def test_viability_viable_nodes(dummy_lang_graph: LanguageGraph) -> None:
 
     # Make sure viable
     enabled_defenses: set[AttackGraphNode] = set()
-    viable_nodes, _ = calculate_viability_and_necessity(
+    viable_nodes = calculate_viability(
         attack_graph, enabled_defenses, ttc_values
     )
     assert exist_node in viable_nodes
@@ -115,19 +116,19 @@ def test_viability_unviable_nodes(dummy_lang_graph: LanguageGraph) -> None:
 
     # Make sure unviable
     enabled_defenses = {defense_step_node}
-    viable_nodes, _ = calculate_viability_and_necessity(
+    viability_per_node = calculate_viability(
         attack_graph, enabled_defenses, ttc_values
     )
 
-    assert unviable_or_node_parent not in viable_nodes
-    assert unviable_and_node_parent1 not in viable_nodes
-    assert unviable_and_node_parent2 not in viable_nodes
+    assert not viability_per_node[unviable_or_node_parent]
+    assert not viability_per_node[unviable_and_node_parent1]
+    assert not viability_per_node[unviable_and_node_parent2]
 
-    assert exist_node not in viable_nodes
-    assert not_exist_node not in viable_nodes
-    assert defense_step_node not in viable_nodes
-    assert or_node not in viable_nodes
-    assert and_node not in viable_nodes
+    assert not viability_per_node[exist_node]
+    assert not viability_per_node[not_exist_node]
+    assert not viability_per_node[defense_step_node]
+    assert not viability_per_node[or_node]
+    assert not viability_per_node[and_node]
 
 # def test_necessity_necessary(dummy_lang_graph: LanguageGraph) -> None:
 #     """Make sure expected necessary nodes are necessary"""
@@ -210,14 +211,13 @@ def test_analyzers_apriori_prune_unviable_and_unnecessary_nodes(
         if node.type == 'and'
     )
 
-    viable, necessary = calculate_viability_and_necessity(
-        example_attackgraph, set(), dict()
-    )
-    necessary.remove(node_to_make_unnecessary)
-    viable.remove(node_to_make_unviable)
+    viability_per_node = calculate_viability(example_attackgraph, set(), {})
+    necessity_per_node = calculate_necessity(example_attackgraph, set())
+    necessity_per_node[node_to_make_unnecessary] = False
+    viability_per_node[node_to_make_unviable] = False
 
     prune_unviable_and_unnecessary_nodes(
-        example_attackgraph, viable, necessary
+        example_attackgraph, viability_per_node, necessity_per_node
     )
 
     # Make sure the node was pruned
@@ -274,27 +274,25 @@ def test_analyzers_apriori_propagate_viability(dummy_lang_graph: LanguageGraph) 
     uvp1.children = {or_1vp, or_2uvp, and_1uvp}
     uvp2.children = {or_2uvp}
 
-    viable_nodes, _ = calculate_viability_and_necessity(
-        attack_graph, set(), dict()
-    )
+    viability_per_node = calculate_viability(attack_graph, set(), dict())
 
     # Make unviable
-    viable_nodes.remove(uvp1)
-    viable_nodes.remove(uvp2)
+    viability_per_node[uvp1] = False
+    viability_per_node[uvp2] = False
 
     changed_nodes = set()
     for parent in [vp1, vp2, uvp1, uvp2]:
-        changed_nodes |= propagate_viability_from_node(
-            parent, viable_nodes, dict()
+        changed_nodes |= _propagate_viability_from_node(
+            parent, viability_per_node, dict()
         )
 
     assert changed_nodes == {or_2uvp, and_1uvp}
 
     for node in [vp1, vp2, or_1vp, and_2vp]:
-        assert node in viable_nodes
+        assert viability_per_node[node]
 
     for node in [uvp1, uvp2, or_2uvp, and_1uvp]:
-        assert node not in viable_nodes
+        assert not viability_per_node[node]
 
 def test_analyzers_apriori_propagate_necessity(dummy_lang_graph: LanguageGraph) -> None:
     r"""Create a graph from nodes
@@ -343,23 +341,20 @@ def test_analyzers_apriori_propagate_necessity(dummy_lang_graph: LanguageGraph) 
     unp1.children = {or_1unp, and_1np, and_2unp}
     unp2.children = {and_2unp}
 
-    _, necessary_nodes = calculate_viability_and_necessity(
-        attack_graph, set(), dict()
-    )
+    necessity_per_node = calculate_necessity(attack_graph, set())
     # Make unnecessary
-    necessary_nodes.remove(unp1)
-    necessary_nodes.remove(unp2)
-
+    necessity_per_node[unp1] = False
+    necessity_per_node[unp2] = False
 
     changed_nodes = set()
     for parent in [np1, np2, unp1, unp2]:
         changed_nodes |= (
-            propagate_necessity_from_node(parent, necessary_nodes)
+            _propagate_necessity_from_node(parent, necessity_per_node)
         )
     assert changed_nodes == {or_1unp, and_2unp}
 
     for node in [np1, np2, or_2np, and_1np]:
-        assert node in necessary_nodes
+        assert necessity_per_node[node]
 
     for node in [unp1, unp2, or_1unp, and_2unp]:
-        assert node not in necessary_nodes
+        assert not necessity_per_node[node]
