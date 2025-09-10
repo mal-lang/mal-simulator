@@ -72,6 +72,7 @@ class MalSimAttackerState(MalSimAgentState):
 
     # The starting points of an attacker agent
     entry_points: frozenset[AttackGraphNode]
+
     # Number of attempts to compromise a step (used for ttc caculations)
     num_attempts: MappingProxyType[AttackGraphNode, int]
 
@@ -175,14 +176,14 @@ class MalSimulator():
         self._node_rewards: dict[AttackGraphNode, float] = node_rewards or {}
         self._enabled_defenses: set[AttackGraphNode] = set()
         self._impossible_attack_steps: set[AttackGraphNode] = set()
-        self._calculated_bernoullis: dict[AttackGraphNode, float] = {}
 
         # Keep track on all 'living' agents sorted by order to step in
         self._alive_agents: set[str] = set()
 
-        # Do initial calculations
+        self._calculated_bernoullis: dict[AttackGraphNode, float] = {}
         self._ttc_values = self._attack_step_ttcs()
 
+        # Do initial calculations
         if self.sim_settings.run_defense_step_bernoullis:
             self._enabled_defenses = self._get_pre_enabled_defenses()
 
@@ -210,6 +211,7 @@ class MalSimulator():
         **kwargs: Any
     ) -> MalSimulator:
         """Create a MalSimulator object from a Scenario"""
+
         sim = cls(
             scenario.attack_graph,
             node_rewards=scenario.rewards,
@@ -218,7 +220,6 @@ class MalSimulator():
             **kwargs
         )
 
-        # Register agents
         if register_agents:
             for agent_info in scenario.agents:
                 if agent_info['type'] == AgentType.ATTACKER:
@@ -743,8 +744,8 @@ class MalSimulator():
                 if self._attempt_attacker_step(agent, node):
                     successful_compromises.add(node)
                     logger.info(
-                        'Attacker agent "%s" compromised "%s" (id: %d).',
-                        agent.name, node.full_name, node.id
+                        'Attacker agent "%s" compromised "%s" (reward: %d).',
+                        agent.name, node.full_name, self.node_reward(node)
                     )
                 else:
                     logger.info(
@@ -782,10 +783,6 @@ class MalSimulator():
                 "of this simulators attack_graph. Make sure the node "
                 "comes from the agents action surface."
             )
-            logger.info(
-                'Defender agent "%s" stepping through "%s"(%d).',
-                agent.name, node.full_name, node.id
-            )
 
             if node not in agent.action_surface:
                 logger.warning(
@@ -793,10 +790,7 @@ class MalSimulator():
                     'which is not part of its defense surface. Defender '
                     'step will skip!', agent.name, node.full_name, node.id
                 )
-                continue
-
-            # Enable defense if possible
-            if node in agent.action_surface:
+            else:
                 enabled_defenses.add(node)
                 self._viability_per_node, made_unviable = make_node_unviable(
                     node,
@@ -805,8 +799,8 @@ class MalSimulator():
                 )
                 attack_steps_made_unviable |= made_unviable
                 logger.info(
-                    'Defender agent "%s" enabled "%s"(%d).',
-                    agent.name, node.full_name, node.id
+                    'Defender agent "%s" enabled "%s" (reward: %d).',
+                    agent.name, node.full_name, self.node_reward(node)
                 )
 
         return enabled_defenses, attack_steps_made_unviable
@@ -1025,7 +1019,7 @@ def run_simulation(sim: MalSimulator, agents: list[dict[str, Any]]) -> None:
 
         print("---")
 
-    print(f"Simulation Over after {sim.cur_iter} steps.")
+    print(f"Simulation over after {sim.cur_iter} steps.")
 
     # Print total rewards
     for agent_dict in agents:
