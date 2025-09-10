@@ -7,6 +7,10 @@ import random
 from enum import Enum
 
 from typing import Any, Optional, TYPE_CHECKING
+from numbers import Number
+
+import numpy as np
+from scipy.stats import expon
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
@@ -212,3 +216,94 @@ def calculate_prob(
         case _:
             raise ValueError('Unknown probability distribution type '
             f'encountered "{probs_dict["type"]}"!')
+
+### SANDOR TTC IMPLEMENTATION
+
+def attempt_step_ttc(
+    node: AttackGraphNode,
+    step_working_time: int, rng: np.random.Generator
+) -> bool:
+    """Attempt to compromise a step by sampling a Bernoulli"""
+    assert node.ttc, f"Node {node} has no ttc"
+    success_prob = (
+        get_time_distribution(node.ttc)
+        .success_probability(step_working_time)
+    )
+    return success_prob > rng.random()
+
+
+class TTCDist:
+    def __init__(self, obj):
+        self.obj = obj
+        self.is_scalar = isinstance(obj, Number)
+
+    def rvs(self, size=None, **kwargs):
+        if self.is_scalar:
+            return self.obj if size is None else np.full(size, self.obj)
+        return self.obj.rvs(size=size, **kwargs)
+
+    def success_probability(self, t: int) -> float:
+        if self.is_scalar:
+            return 1.0 if t >= self.obj else 0.0
+        return self.obj.cdf(t)
+
+
+def get_time_distribution(ttc: Optional[dict]) -> TTCDist:
+    """Get TTC Distribution from predefined names in MAL"""
+    if not ttc:
+        return TTCDist(0.0)
+
+    name = ttc.get("name")
+    arguments = ttc.get("arguments", [])
+
+    if name == "VeryHardAndUncertain":
+        # Ber(0.5) * Exp(0.01)
+        return TTCDist(expon(scale=1 / 0.01))
+
+    elif name == "HardAndUncertain":
+        # Ber(0.5) * Exp(0.1)
+        return TTCDist(expon(scale=1 / 0.1))
+
+    elif name == "EasyAndCertain":
+        # Exp(1.0)
+        return TTCDist(expon(scale=1 / 1.0))
+
+    elif name == "EasyAndUncertain":
+        # Ber(0.5)
+        return TTCDist(0.0)
+
+    elif name == "HardAndCertain":
+        # Exp(0.1)
+        return TTCDist(expon(scale=1 / 0.1))
+
+    elif name == "VeryHardAndCertain":
+        # Exp(0.01)
+        return TTCDist(expon(scale=1 / 0.01))
+
+    elif name == "Infinity":
+        # No sampling, effectively infinity
+        return TTCDist(float("inf"))
+
+    elif name == "Zero":
+        # No sampling, effectively zero
+        return TTCDist(0.0)
+
+    elif name == "Enabled":
+        # Always 1
+        return TTCDist(1.0)
+
+    elif name == "Disabled":
+        # Always 0
+        return TTCDist(0.0)
+
+    elif name == "Exponential":
+        # Exponential distribution with lambda
+        if len(arguments) != 1:
+            raise ValueError(
+                "Exponential requires exactly one argument (lambda)."
+            )
+        lam = arguments[0]
+        return TTCDist(expon(scale=1 / lam))
+
+    else:
+        raise ValueError(f"Unsupported distribution name: {name}")

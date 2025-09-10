@@ -346,7 +346,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
 
     mss = MalSimulatorSettings(
         seed=13,
-        ttc_mode=TTCMode.LIVE_SAMPLE
+        ttc_mode=TTCMode.PER_STEP_SAMPLE
     )
     # Create simulator and register agents
     sim = MalSimulator(attack_graph, sim_settings=mss)
@@ -573,7 +573,7 @@ def test_simulator_ttcs() -> None:
 
     sim, _ = create_simulator_from_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml',
-        sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.LIVE_SAMPLE)
+        sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.PER_STEP_SAMPLE)
     )
 
     host_0_notPresent = get_node(sim, "Host:0:notPresent")

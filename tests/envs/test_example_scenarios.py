@@ -180,7 +180,7 @@ def test_bfs_vs_bfs_basic_state_and_reward() -> None:
         "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml",
         sim_settings = MalSimulatorSettings(
             seed=13,
-            ttc_mode=TTCMode.LIVE_SAMPLE
+            ttc_mode=TTCMode.PER_STEP_SAMPLE
         )
     )
     sim.reset()

@@ -8,12 +8,15 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Any, Optional, TYPE_CHECKING
 
+from numpy.random import default_rng
+
 from maltoolbox.attackgraph import (
     AttackGraph,
     AttackGraphNode
 )
 
 from malsim.probs_utils import (
+    attempt_step_ttc,
     calculate_prob,
     ProbCalculationMethod,
 )
@@ -164,9 +167,10 @@ class TTCMode(Enum):
     """
     Describes how to use the probability distributions in the attack graph.
     """
-    LIVE_SAMPLE = 1
-    PRESAMPLE = 2
-    EXPECTED = 3
+    PER_STEP_SAMPLE = 0
+    PER_STEP_BERNOULLI = 1
+    PRE_SAMPLE = 2
+    EXPECTED_VALUE = 3
     DISABLED = 4
 
 class RewardMode(Enum):
@@ -230,6 +234,7 @@ class MalSimulator():
         """
         logger.info("Creating Base MAL Simulator.")
         self.sim_settings = sim_settings
+        self.rng = default_rng(self.sim_settings.seed)
         random.seed(self.sim_settings.seed)
 
         # Initialize all values
@@ -269,14 +274,14 @@ class MalSimulator():
             match(self.sim_settings.ttc_mode):
                 case TTCMode.DISABLED:
                     ttc_value = 1.0
-                case TTCMode.LIVE_SAMPLE | TTCMode.PRESAMPLE:
+                case TTCMode.PER_STEP_SAMPLE | TTCMode.PRE_SAMPLE:
                     ttc_value = calculate_prob(
                         node,
                         node.ttc,
                         ProbCalculationMethod.SAMPLE,
                         self._calculated_bernoullis
                     )
-                case TTCMode.EXPECTED:
+                case TTCMode.EXPECTED_VALUE:
                     ttc_value = calculate_prob(
                         node,
                         node.ttc,
@@ -690,6 +695,36 @@ class MalSimulator():
                     # Uncompromise node if requested
                     attacker_agent.performed_nodes.remove(unviable_node)
 
+    def _attempt_attacker_step(
+            self, agent: MalSimAttackerState, node: AttackGraphNode
+        ) -> bool:
+        """Attempt a step with a TTC distribution.
+
+        Return True if the attempt was successful.
+        """
+
+        agent.num_attempts[node] += 1
+        if self.sim_settings.ttc_mode == TTCMode.PER_STEP_BERNOULLI:
+            # Run Bernoulli to decide success if config says so
+            # This is the SANDOR MODE
+            return attempt_step_ttc(
+                node, agent.num_attempts[node], self.rng
+            )
+
+        node_ttc_value = self._ttc_values.get(node, 0)
+        if self.sim_settings.ttc_mode == TTCMode.PER_STEP_SAMPLE:
+            # Sample ttc every time if config says so
+            node_ttc_value = calculate_prob(
+                node,
+                node.ttc,
+                ProbCalculationMethod.SAMPLE,
+                self._calculated_bernoullis
+            )
+
+        # Otherwise compare num attempts to the ttc value
+        return agent.num_attempts[node] >= node_ttc_value
+
+
     def _attacker_step(
         self, agent: MalSimAttackerState, nodes: list[AttackGraphNode]
     ) -> set[AttackGraphNode]:
@@ -705,36 +740,28 @@ class MalSimulator():
         compromised_nodes = set()
 
         for node in nodes:
+
             assert node == self.attack_graph.nodes[node.id], (
                 f"{agent.name} tried to enable a node that is not part "
                 "of this simulators attack_graph. Make sure the node "
                 "comes from the agents action surface."
             )
 
-            logger.info(
-                'Attacker agent "%s" stepping through "%s"(%d).',
-                agent.name, node.full_name, node.id
-            )
-
             # Compromise node if possible
             if self.node_is_traversable(agent, node):
-                node_ttc_value = self._ttc_values[node]
 
-                if self.sim_settings.ttc_mode == TTCMode.LIVE_SAMPLE:
-                    node_ttc_value = calculate_prob(
-                        node,
-                        node.ttc,
-                        ProbCalculationMethod.SAMPLE,
-                        self._calculated_bernoullis
-                    )
-
-                agent.num_attempts[node] += 1
-                if agent.num_attempts[node] >= node_ttc_value:
+                if self._attempt_attacker_step(agent, node):
                     compromised_nodes.add(node)
                     logger.info(
-                        'Attacker agent "%s" compromised "%s"(%d).',
+                        'Attacker agent "%s" compromised "%s" (id: %d).',
                         agent.name, node.full_name, node.id
                     )
+                else:
+                    logger.info(
+                        'Attacker agent "%s" attempted "%s" (attempt %d).',
+                        agent.name, node.full_name, agent.num_attempts[node]
+                    )
+
             else:
                 logger.warning(
                     "Attacker could not compromise %s", node.full_name
