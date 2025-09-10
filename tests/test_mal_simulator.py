@@ -144,11 +144,11 @@ def test_attacker_step(
 
     # Can not attack the notPresent step
     defense_step = get_node(attack_graph, 'OS App:notPresent')
-    actions = sim._attacker_step(attacker_agent, [defense_step])
+    actions, _ = sim._attacker_step(attacker_agent, [defense_step])
     assert not actions
 
     attack_step = get_node(attack_graph, 'OS App:attemptRead')
-    actions = sim._attacker_step(attacker_agent, [attack_step])
+    actions, _ = sim._attacker_step(attacker_agent, [attack_step])
     assert actions  == {attack_step}
 
 
@@ -200,13 +200,13 @@ def test_attacker_step_rewards_cumulative(
 
     states = sim.step({attacker_name: [attempt_read]})
     attacker_state = states[attacker_name]
-    assert attacker_state.reward == (
+    assert sim.agent_reward(attacker_state.name) == (
         node_rewards[entry_point] + node_rewards[attempt_read]
     )
 
     states = sim.step({attacker_name: [access_network_and_conn]})
     attacker_state = states[attacker_name]
-    assert attacker_state.reward == (
+    assert sim.agent_reward(attacker_state.name) == (
         node_rewards[entry_point]
         + node_rewards[attempt_read]
         + node_rewards[access_network_and_conn]
@@ -240,13 +240,11 @@ def test_attacker_step_rewards_one_off(
     sim.register_attacker(attacker_name, {entry_point})
     sim.reset()
 
-    states = sim.step({attacker_name: [attempt_read]})
-    attacker_state = states[attacker_name]
-    assert attacker_state.reward == node_rewards[attempt_read]
+    sim.step({attacker_name: [attempt_read]})
+    assert sim.agent_reward(attacker_name) == node_rewards[attempt_read]
 
-    states = sim.step({attacker_name: [access_network_and_conn]})
-    attacker_state = states[attacker_name]
-    assert attacker_state.reward == node_rewards[access_network_and_conn]
+    sim.step({attacker_name: [access_network_and_conn]})
+    assert sim.agent_reward(attacker_name) == node_rewards[access_network_and_conn]
 
 
 def test_defender_step_rewards_cumulative(
@@ -275,19 +273,17 @@ def test_defender_step_rewards_cumulative(
     sim.register_attacker(attacker_name, {entry_point})
     sim.reset()
 
-    states = sim.step({
+    sim.step({
         attacker_name: [attempt_read]
     })
-    defender_state = states[defender_name]
-    assert defender_state.reward == - (
+    assert sim.agent_reward(defender_name) == - (
         node_rewards[entry_point] + node_rewards[attempt_read]
     )
 
-    states = sim.step({
+    sim.step({
         attacker_name: [access_network_and_conn]
     })
-    defender_state = states[defender_name]
-    assert defender_state.reward == - (
+    assert sim.agent_reward(defender_name) == - (
         node_rewards[entry_point]
         + node_rewards[attempt_read]
         + node_rewards[access_network_and_conn]
@@ -329,13 +325,13 @@ def test_defender_step_rewards_one_off(
         attacker_name: [attempt_read]
     })
     defender_state = states[defender_name]
-    assert defender_state.reward == - node_rewards[attempt_read]
+    assert sim.agent_reward(defender_state.name) == - node_rewards[attempt_read]
 
     states = sim.step({
         attacker_name: [access_network_and_conn]
     })
     defender_state = states[defender_name]
-    assert defender_state.reward == - node_rewards[access_network_and_conn]
+    assert sim.agent_reward(defender_state.name) == - node_rewards[access_network_and_conn]
 
 
 # TODO: Some of the assert values in this test have changed when updating the

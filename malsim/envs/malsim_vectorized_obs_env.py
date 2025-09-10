@@ -592,7 +592,7 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
         infos = self._agent_infos
 
         for agent in self.sim.agent_states.values():
-            rewards[agent.name] = agent.reward
+            rewards[agent.name] = self.sim.agent_reward(agent.name)
             terminations[agent.name] = self.sim.agent_is_terminated(agent.name)
             truncations[agent.name] = self.sim.done()
 

@@ -73,8 +73,8 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         if defender_node and defender_node in defender_state.step_performed_nodes:
             defender_actions.append(defender_node.full_name)
 
-        total_reward_defender += defender_state.reward
-        total_reward_attacker += attacker_state.reward
+        total_reward_defender += sim.agent_reward(defender_state.name)
+        total_reward_attacker += sim.agent_reward(attacker_state.name)
 
     assert sim.cur_iter == 44
 
@@ -150,8 +150,8 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         assert node in defender_state.performed_nodes
 
     # Verify rewards in latest run and total rewards
-    assert attacker_state.reward == 0
-    assert defender_state.reward == -50
+    assert sim.agent_reward(attacker_state.name) == 0
+    assert sim.agent_reward(defender_state.name) == -50
 
     assert total_reward_attacker == 0
     assert total_reward_defender == -2200
@@ -223,8 +223,8 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
                 states['defender1'].step_performed_nodes:
             defender_actions.append(defender_node.full_name)
 
-        total_reward_defender += defender_state.reward
-        total_reward_attacker += attacker_state.reward
+        total_reward_defender += sim.agent_reward(defender_state.name)
+        total_reward_attacker += sim.agent_reward(attacker_state.name)
 
     assert sim.cur_iter == 637
 
@@ -302,8 +302,8 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         assert node in defender_state.performed_nodes
 
     # Verify rewards in latest run and total rewards
-    assert attacker_state.reward == 0
-    assert defender_state.reward == -19
+    assert sim.agent_reward(attacker_state.name) == 0
+    assert sim.agent_reward(defender_state.name) == -19
 
     assert total_reward_attacker == 0
     assert total_reward_defender == -11994.0  # It ran for a while

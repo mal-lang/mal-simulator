@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import logging
 import math
 import random
 from enum import Enum
 from typing import Any, Optional, TYPE_CHECKING
+from collections.abc import Set
+from types import MappingProxyType # For immutable dict
 
 from numpy.random import default_rng
 
@@ -39,55 +41,47 @@ class AgentType(Enum):
     DEFENDER = 'defender'
 
 
-@dataclass
+@dataclass(frozen=True)
 class MalSimAgentState:
     """Stores the state of an agent in the simulator"""
 
     # Identifier of the agent, used in MalSimulator for lookup
     name: str
 
-    # Contains current agent reward in the simulation
-    # Attackers get positive rewards, defenders negative
-    reward: float = 0
-
     # Contains possible actions for the agent in the next step
-    action_surface: set[AttackGraphNode] = field(default_factory=set)
+    action_surface: frozenset[AttackGraphNode]
 
     # Contains all nodes that this agent has performed successfully
-    performed_nodes: set[AttackGraphNode] = field(default_factory=set)
+    performed_nodes: frozenset[AttackGraphNode]
 
     # Contains the nodes performed successfully in the last step
-    step_performed_nodes: set[AttackGraphNode] = field(default_factory=set)
+    step_performed_nodes: frozenset[AttackGraphNode]
 
     # Contains possible nodes that became available in the last step
-    step_action_surface_additions: set[AttackGraphNode] = (
-        field(default_factory = set))
+    step_action_surface_additions: frozenset[AttackGraphNode]
 
     # Contains nodes that became unavailable in the last step
-    step_action_surface_removals: set[AttackGraphNode] = (
-        field(default_factory = set))
+    step_action_surface_removals: frozenset[AttackGraphNode]
 
     # Contains nodes that became unviable in the last step by defender actions
-    step_unviable_nodes: set[AttackGraphNode] = field(default_factory=set)
+    step_unviable_nodes: frozenset[AttackGraphNode]
 
-@dataclass
+@dataclass(frozen=True)
 class MalSimAttackerState(MalSimAgentState):
     """Stores the state of an attacker in the simulator"""
 
     # The starting points of an attacker agent
-    entry_points: set[AttackGraphNode] = field(default_factory=set)
+    entry_points: frozenset[AttackGraphNode]
     # Number of attempts to compromise a step (used for ttc caculations)
-    num_attempts: dict[AttackGraphNode, int] = field(default_factory=dict)
+    num_attempts: MappingProxyType[AttackGraphNode, int]
 
-@dataclass
+@dataclass(frozen=True)
 class MalSimDefenderState(MalSimAgentState):
     """Stores the state of a defender in the simulator"""
 
     # Contains steps successfully performed by any
     # attacker agent in the last step
-    step_all_compromised_nodes: set[AttackGraphNode] = (
-        field(default_factory=set)
-    )
+    step_all_compromised_nodes: frozenset[AttackGraphNode]
 
 class TTCMode(Enum):
     """
@@ -175,6 +169,7 @@ class MalSimulator():
 
         # All internal agent states (dead or alive)
         self._agent_states: dict[str, MalSimAgentState] = {}
+        self._agent_rewards: dict[str, float] = {}
 
         # Store properties of each AttackGraphNode
         self._node_rewards: dict[AttackGraphNode, float] = node_rewards or {}
@@ -254,7 +249,7 @@ class MalSimulator():
 
     def node_is_traversable(
             self,
-            performed_nodes: set[AttackGraphNode],
+            performed_nodes: Set[AttackGraphNode],
             node: AttackGraphNode
         ) -> bool:
         """
@@ -294,6 +289,10 @@ class MalSimulator():
                 )
         return traversable
 
+    def agent_reward(self, agent_name) -> float:
+        """Get an agents current reward"""
+        return self._agent_rewards.get(agent_name, 0)
+
     def node_reward(self, node: AttackGraphNode) -> float:
         """Get reward for a node"""
         return self._node_rewards.get(node, 0.0)
@@ -309,8 +308,7 @@ class MalSimulator():
             raise TypeError(f"Unknown agent state for {agent_name}")
 
     def reset(
-        self,
-        options: Optional[dict[str, Any]] = None
+        self, options: Optional[dict[str, Any]] = None
     ) -> dict[str, MalSimAgentState]:
         """Reset attack graph, iteration and reinitialize agents"""
 
@@ -321,7 +319,7 @@ class MalSimulator():
         # Reset nodes
         self._calculated_bernoullis.clear()
         self._enabled_defenses = set()
-
+        self._agent_rewards = {}
         self._ttc_values = self._attack_step_ttcs()
 
         if self.sim_settings.run_defense_step_bernoullis:
@@ -424,9 +422,9 @@ class MalSimulator():
 
     def _get_attack_surface(
             self,
-            performed_nodes: set[AttackGraphNode],
-            from_nodes: Optional[set[AttackGraphNode]] = None
-    ) -> set[AttackGraphNode]:
+            performed_nodes: Set[AttackGraphNode],
+            from_nodes: Optional[Set[AttackGraphNode]] = None
+    ) -> frozenset[AttackGraphNode]:
         """
         Calculate the attack surface of the attacker.
         If from_nodes are provided only calculate the attack surface
@@ -470,39 +468,36 @@ class MalSimulator():
                 ):
                     attack_surface.add(child)
 
-        return attack_surface
+        return frozenset(attack_surface)
 
     def _create_attacker_state(
         self,
         name: str,
-        entry_points: set[AttackGraphNode]
+        entry_points: Set[AttackGraphNode]
     ) -> MalSimAttackerState:
         """Create a new defender state, initialize values"""
         attack_surface = self._get_attack_surface(entry_points)
         attacker_state = MalSimAttackerState(
             name,
-            step_performed_nodes = set(entry_points),
-            performed_nodes = set(entry_points),
-            action_surface = set(attack_surface),
-            step_action_surface_additions = set(attack_surface),
-            step_action_surface_removals = set(),
-            entry_points = set(entry_points),
-            num_attempts = {
+            entry_points = frozenset(entry_points),
+            performed_nodes = frozenset(entry_points),
+            action_surface = frozenset(attack_surface),
+            step_action_surface_additions = frozenset(attack_surface),
+            step_action_surface_removals = frozenset(),
+            step_performed_nodes = frozenset(entry_points),
+            step_unviable_nodes=frozenset(),
+            num_attempts = MappingProxyType({
                 n: 0 for n in self.attack_graph.nodes.values()
-            },
-            reward = self._attacker_step_reward(
-                entry_points, self.sim_settings.attacker_reward_mode
-            )
+            }),
         )
-
         return attacker_state
-
 
     def _update_attacker_state(
         self,
         attacker_state: MalSimAttackerState,
-        step_agent_compromised_nodes: set[AttackGraphNode],
-        step_nodes_made_unviable: set[AttackGraphNode]
+        step_agent_compromised_nodes: Set[AttackGraphNode],
+        step_agent_attempted_nodes: Set[AttackGraphNode],
+        step_nodes_made_unviable: Set[AttackGraphNode]
     ) -> MalSimAttackerState:
         """
         Update a previous attacker state based on what the agent compromised
@@ -513,56 +508,53 @@ class MalSimulator():
         new_action_surface = self._get_attack_surface(
             attacker_state.performed_nodes | step_agent_compromised_nodes
         )
-        action_surface_removals = (
+        action_surface_removals = frozenset(
             attacker_state.action_surface - new_action_surface
         )
-        action_surface_additions = (
+        action_surface_additions = frozenset(
             new_action_surface - attacker_state.action_surface
         )
 
+        num_attempts = dict(attacker_state.num_attempts)
+        for node in step_agent_attempted_nodes:
+            num_attempts[node] += 1
+
         updated_attacker_state = MalSimAttackerState(
             attacker_state.name,
-            step_performed_nodes = step_agent_compromised_nodes,
             performed_nodes = (
                 attacker_state.performed_nodes | step_agent_compromised_nodes
             ),
-            step_unviable_nodes = step_nodes_made_unviable,
             action_surface = new_action_surface,
             step_action_surface_additions = action_surface_additions,
             step_action_surface_removals = action_surface_removals,
+            step_performed_nodes = frozenset(step_agent_compromised_nodes),
+            step_unviable_nodes = frozenset(step_nodes_made_unviable),
             entry_points = attacker_state.entry_points,
-            reward = self._attacker_step_reward(
-                step_agent_compromised_nodes,
-                self.sim_settings.attacker_reward_mode,
-                previous_step_reward=attacker_state.reward
-            ),
-            num_attempts = attacker_state.num_attempts,
+            num_attempts = MappingProxyType(num_attempts),
         )
 
         return updated_attacker_state
 
-
     def _create_defender_state(self, name: str) -> MalSimDefenderState:
         """Create a new defender state, initialize values"""
 
-        defender_state = MalSimDefenderState(name)
-        # Defender needs these for its initial state
         compromised_steps = set()
         for attacker_state in self._get_attacker_agents():
             compromised_steps |= attacker_state.performed_nodes
-        defender_state.step_performed_nodes = self._enabled_defenses
-        defender_state.performed_nodes = self._enabled_defenses
-        defender_state.step_all_compromised_nodes = compromised_steps
-        defender_state.action_surface = self._get_defense_surface()
-        defender_state.step_action_surface_additions = (
-            set(defender_state.action_surface)
-        )
-        defender_state.step_action_surface_removals = set()
-        defender_state.reward = self._defender_reward(
-            defender_state, self.sim_settings.defender_reward_mode
-        )
-        return defender_state
 
+        defense_surface = self._get_defense_surface()
+        defender_state = MalSimDefenderState(
+            name,
+            performed_nodes = frozenset(self._enabled_defenses),
+            action_surface = frozenset(defense_surface),
+            step_action_surface_additions = frozenset(defense_surface),
+            step_action_surface_removals = frozenset(),
+            step_performed_nodes = frozenset(self._enabled_defenses),
+            step_all_compromised_nodes = frozenset(compromised_steps),
+            step_unviable_nodes=frozenset()
+        )
+
+        return defender_state
 
     def _update_defender_state(
         self,
@@ -570,41 +562,62 @@ class MalSimulator():
         step_all_compromised_nodes: set[AttackGraphNode],
         step_enabled_defenses: set[AttackGraphNode],
         step_nodes_made_unviable: set[AttackGraphNode],
-    ) -> None:
+    ) -> MalSimDefenderState:
         """
         Update a previous defender state based on what steps
         were enabled/compromised during last step
         """
-        defender_state.step_action_surface_additions = set()
-        defender_state.step_action_surface_removals = step_enabled_defenses
-        defender_state.action_surface -= step_enabled_defenses
-        defender_state.step_all_compromised_nodes = step_all_compromised_nodes
-        defender_state.step_unviable_nodes = step_nodes_made_unviable
-        defender_state.step_performed_nodes = step_enabled_defenses
-        defender_state.performed_nodes |= step_enabled_defenses
-        defender_state.reward = self._defender_reward(
-            defender_state, self.sim_settings.defender_reward_mode
+
+        updated_defender_state = MalSimDefenderState(
+            defender_state.name,
+            performed_nodes = (
+                defender_state.performed_nodes | step_enabled_defenses
+            ),
+            step_action_surface_additions = frozenset(),
+            step_action_surface_removals = frozenset(step_enabled_defenses),
+            action_surface = frozenset(self._get_defense_surface()),
+            step_performed_nodes = frozenset(step_enabled_defenses),
+            step_all_compromised_nodes = frozenset(step_all_compromised_nodes),
+            step_unviable_nodes = frozenset(step_nodes_made_unviable)
         )
+
+        return updated_defender_state
 
     def _reset_agents(self) -> None:
         """Reset agent states to a fresh start"""
 
-        # Revive all agents
+        # Revive all agents and reset reward
         self._alive_agents = set(self._agent_states.keys())
+        self._agent_rewards = {}
 
         # Create new attacker agent states
         for attacker_state in self._get_attacker_agents():
-            self._agent_states[attacker_state.name] = (
+            new_attacker_state = (
                 self._create_attacker_state(
                     attacker_state.name,
                     attacker_state.entry_points
                 )
             )
+            self._agent_states[attacker_state.name] = new_attacker_state
 
+            # Set to initial reward
+            self._agent_rewards[attacker_state.name] = (
+                self._attacker_step_reward(
+                    new_attacker_state, self.sim_settings.attacker_reward_mode
+                )
+            )
         # Create new defender agent states
         for defender_state in self._get_defender_agents():
-            self._agent_states[defender_state.name] = (
+            new_defender_state = (
                 self._create_defender_state(defender_state.name)
+            )
+            self._agent_states[defender_state.name] = new_defender_state
+
+            # Set to initial reward
+            self._agent_rewards[defender_state.name] = (
+                self._defender_step_reward(
+                    new_defender_state, self.sim_settings.defender_reward_mode
+                )
             )
 
     def register_attacker(
@@ -617,6 +630,14 @@ class MalSimulator():
         agent_state = self._create_attacker_state(name, entry_points)
         self._agent_states[name] = agent_state
         self._alive_agents.add(name)
+        self._agent_rewards[name] = self._attacker_step_reward(
+            agent_state, self.sim_settings.attacker_reward_mode
+        )
+
+        if len(self._get_defender_agents()) > 0:
+            # Need to reset defender agents when attacker agent is added
+            # Since the defender stores attackers performed steps/entrypoints
+            self._reset_agents()
 
     def register_defender(self, name: str) -> None:
         """Register a mal sim defender agent"""
@@ -626,14 +647,14 @@ class MalSimulator():
         agent_state = self._create_defender_state(name)
         self._agent_states[name] = agent_state
         self._alive_agents.add(name)
+        self._agent_rewards[name] = self._defender_step_reward(
+            agent_state, self.sim_settings.defender_reward_mode
+        )
 
     @property
     def agent_states(self) -> dict[str, MalSimAgentState]:
         """Return read only agent state for all dead and alive agents"""
-        return {
-            name: agent
-            for name, agent in self._agent_states.items()
-        }
+        return self._agent_states
 
     def _get_attacker_agents(
             self, only_alive: bool = False
@@ -659,31 +680,6 @@ class MalSimulator():
             and isinstance(a, MalSimDefenderState)
         ]
 
-    def _uncompromise_attack_steps(
-        self, attack_steps_to_uncompromise: set[AttackGraphNode]
-    ) -> None:
-        """Uncompromise nodes for each attacker agent
-
-        Go through the nodes in `attack_steps_to_uncompromise` for each
-        attacker agent. If a node is compromised by the attacker agent:
-            - Uncompromise the node and remove rewards for it.
-        """
-        for attacker_agent in self._get_attacker_agents():
-
-            for unviable_node in attack_steps_to_uncompromise:
-                if unviable_node in attacker_agent.performed_nodes:
-
-                    # Reward is no longer present for attacker
-                    node_reward = self.node_reward(unviable_node)
-                    attacker_agent.reward -= node_reward
-
-                    # Reward is no longer present for defenders
-                    for defender_agent in self._get_defender_agents():
-                        defender_agent.reward += node_reward
-
-                    # Uncompromise node if requested
-                    attacker_agent.performed_nodes.remove(unviable_node)
-
     def _attempt_attacker_step(
             self, agent: MalSimAttackerState, node: AttackGraphNode
         ) -> bool:
@@ -692,7 +688,7 @@ class MalSimulator():
         Return True if the attempt was successful.
         """
 
-        agent.num_attempts[node] += 1
+        num_attempts = agent.num_attempts[node] + 1
 
         if self.sim_settings.ttc_mode == TTCMode.DISABLED:
             # Always suceed if disabled TTCs
@@ -701,7 +697,7 @@ class MalSimulator():
         if self.sim_settings.ttc_mode == TTCMode.EFFORT_BASED_PER_STEP_SAMPLE:
             # Run trial to decide success if config says so (SANDOR mode)
             return attempt_step_ttc(
-                node, agent.num_attempts[node], self.rng
+                node, num_attempts, self.rng
             )
 
         if self.sim_settings.ttc_mode == TTCMode.PER_STEP_SAMPLE:
@@ -716,11 +712,11 @@ class MalSimulator():
         # Compare attempts to ttc expected value in EXPECTED_VALUE mode
         # or presampled ttcs in PRE_SAMPLE mode
         node_ttc_value = self._ttc_values.get(node, 0)
-        return agent.num_attempts[node] >= node_ttc_value
+        return num_attempts + 1 >= node_ttc_value
 
     def _attacker_step(
         self, agent: MalSimAttackerState, nodes: list[AttackGraphNode]
-    ) -> set[AttackGraphNode]:
+    ) -> tuple[set[AttackGraphNode], set[AttackGraphNode]]:
         """Compromise attack step nodes with attacker
 
         Args:
@@ -730,7 +726,8 @@ class MalSimulator():
         Returns: set of nodes that were compromised.
         """
 
-        compromised_nodes = set()
+        successful_compromises = set()
+        attempted_compromises = set()
 
         for node in nodes:
 
@@ -744,7 +741,7 @@ class MalSimulator():
             if self.node_is_traversable(agent.performed_nodes, node):
 
                 if self._attempt_attacker_step(agent, node):
-                    compromised_nodes.add(node)
+                    successful_compromises.add(node)
                     logger.info(
                         'Attacker agent "%s" compromised "%s" (id: %d).',
                         agent.name, node.full_name, node.id
@@ -754,13 +751,14 @@ class MalSimulator():
                         'Attacker agent "%s" attempted "%s" (attempt %d).',
                         agent.name, node.full_name, agent.num_attempts[node]
                     )
+                    attempted_compromises.add(node)
 
             else:
                 logger.warning(
                     "Attacker could not compromise %s", node.full_name
                 )
 
-        return compromised_nodes
+        return successful_compromises, attempted_compromises
 
     def _defender_step(
         self, agent: MalSimDefenderState, nodes: list[AttackGraphNode]
@@ -811,16 +809,12 @@ class MalSimulator():
                     agent.name, node.full_name, node.id
                 )
 
-        if self.sim_settings.uncompromise_untraversable_steps:
-            self._uncompromise_attack_steps(attack_steps_made_unviable)
-
         return enabled_defenses, attack_steps_made_unviable
 
     def _attacker_step_reward(
             self,
-            step_performed_nodes: set[AttackGraphNode],
+            attacker_state: MalSimAttackerState,
             reward_mode: RewardMode,
-            previous_step_reward: float = 0.0
         ) -> float:
         """
         Calculate current attacker reward either cumulative or one-off.
@@ -835,17 +829,16 @@ class MalSimulator():
         # Attacker is rewarded for compromised nodes
         step_reward = sum(
             self.node_reward(n)
-            for n in step_performed_nodes
+            for n in attacker_state.step_performed_nodes
         )
 
         if reward_mode == RewardMode.CUMULATIVE:
             # To make it cumulative, add previous step reward
-            step_reward += previous_step_reward
+            step_reward += self.agent_reward(attacker_state.name)
 
         return step_reward
 
-
-    def _defender_reward(
+    def _defender_step_reward(
             self,
             defender_state: MalSimDefenderState,
             reward_mode: RewardMode
@@ -870,7 +863,7 @@ class MalSimulator():
 
         if reward_mode == RewardMode.CUMULATIVE:
             # To make it cumulative add previous step reward
-            step_reward += defender_state.reward
+            step_reward += self.agent_reward(defender_state.name)
 
         return step_reward
 
@@ -936,17 +929,25 @@ class MalSimulator():
 
         # Perform attacker actions afterwards
         for attacker_state in self._get_attacker_agents(only_alive=True):
-            agent_compromised = self._attacker_step(
+            agent_compromised, agent_attempted = self._attacker_step(
                 attacker_state, actions.get(attacker_state.name, [])
             )
             step_all_compromised_nodes |= agent_compromised
 
             # Update attacker state
-            self._agent_states[attacker_state.name] = (
-                self._update_attacker_state(
-                    attacker_state,
-                    agent_compromised,
-                    step_nodes_made_unviable
+            updated_attacker_state = self._update_attacker_state(
+                attacker_state,
+                agent_compromised,
+                agent_attempted,
+                step_nodes_made_unviable
+            )
+            self._agent_states[attacker_state.name] = updated_attacker_state
+
+            # Update attacker reward
+            self._agent_rewards[attacker_state.name] = (
+                self._attacker_step_reward(
+                    updated_attacker_state,
+                    self.sim_settings.attacker_reward_mode,
                 )
             )
 
@@ -955,11 +956,21 @@ class MalSimulator():
             agent_state = self._agent_states[agent_name]
 
             if isinstance(agent_state, MalSimDefenderState):
-                self._update_defender_state(
+                # Update defender state
+                updated_defender_state = self._update_defender_state(
                     agent_state,
                     step_all_compromised_nodes,
                     step_enabled_defenses,
                     step_nodes_made_unviable
+                )
+                self._agent_states[agent_name] = updated_defender_state
+
+                # Update defender reward
+                self._agent_rewards[agent_state.name] = (
+                    self._defender_step_reward(
+                        updated_defender_state,
+                        self.sim_settings.defender_reward_mode,
+                    )
                 )
 
             # Remove agents that are terminated
@@ -978,14 +989,12 @@ class MalSimulator():
 
 def run_simulation(sim: MalSimulator, agents: list[dict[str, Any]]) -> None:
     """Run a simulation with agents"""
-
-    states = sim.reset()
     total_rewards = {agent_dict['name']: 0.0 for agent_dict in agents}
     logger.info("Starting CLI env simulator.")
+    states = sim.reset()
 
-    i = 1
     while not sim.done():
-        print(f"Iteration {i}")
+        print(f"Iteration {sim.cur_iter}")
         actions = {}
 
         # Select actions for each agent
@@ -1010,16 +1019,13 @@ def run_simulation(sim: MalSimulator, agents: list[dict[str, Any]]) -> None:
 
         # Perform next step of simulation
         states = sim.step(actions)
-
         for agent_dict in agents:
             agent_name = agent_dict['name']
-            agent_state = states[agent_name]
-            total_rewards[agent_name] += agent_state.reward
+            total_rewards[agent_name] += sim.agent_reward(agent_name)
 
         print("---")
-        i += 1
 
-    print(f"Game Over after {i} steps.")
+    print(f"Simulation Over after {sim.cur_iter} steps.")
 
     # Print total rewards
     for agent_dict in agents:
