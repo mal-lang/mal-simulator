@@ -55,7 +55,8 @@ def test_breadth_first_traversal_simple(
         assert action_node
 
         # Get next action
-        sim.step({'bfs': [action_node]})
+        states = sim.step({'bfs': [action_node]})
+        agent_state = states['bfs']
 
         # Store the ID for verification
         actual_order.append(next(iter(agent_state.step_performed_nodes)).id)
@@ -130,7 +131,8 @@ def test_breadth_first_traversal_complicated(
         assert action_node
 
         # Get next action
-        sim.step({'bfs': [action_node]})
+        states = sim.step({'bfs': [action_node]})
+        agent_state = states['bfs']
 
         # Store the ID for verification
         actual_order.append(next(iter(agent_state.step_performed_nodes)).id)
@@ -203,7 +205,8 @@ def test_depth_first_traversal_complicated(
         assert action_node
 
         # Get next action
-        sim.step({'dfs': [action_node]})
+        states = sim.step({'dfs': [action_node]})
+        agent_state = states['dfs']
 
         # Store the ID for verification
         actual_order.append(next(iter(agent_state.step_performed_nodes)).id)

@@ -205,6 +205,7 @@ def test_attacker_step_rewards_cumulative(
     )
 
     states = sim.step({attacker_name: [access_network_and_conn]})
+    attacker_state = states[attacker_name]
     assert attacker_state.reward == (
         node_rewards[entry_point]
         + node_rewards[attempt_read]
@@ -244,6 +245,7 @@ def test_attacker_step_rewards_one_off(
     assert attacker_state.reward == node_rewards[attempt_read]
 
     states = sim.step({attacker_name: [access_network_and_conn]})
+    attacker_state = states[attacker_name]
     assert attacker_state.reward == node_rewards[access_network_and_conn]
 
 
@@ -487,10 +489,10 @@ def test_step_attacker_defender_action_surface_updates() -> None:
     )
     sim.register_defender(defender_agent_id)
 
-    sim.reset()
+    states = sim.reset()
 
-    attacker_agent = sim.agent_states[attacker_agent_id]
-    defender_agent = sim.agent_states[defender_agent_id]
+    attacker_agent = states[attacker_agent_id]
+    defender_agent = states[defender_agent_id]
 
     # Run step() with action crafted in test
     attacker_step = sim.attack_graph.get_node_by_full_name('User:3:compromise')
@@ -504,7 +506,9 @@ def test_step_attacker_defender_action_surface_updates() -> None:
         defender_agent.name: [defender_step]
     }
 
-    sim.step(actions)
+    states = sim.step(actions)
+    attacker_agent = states[attacker_agent_id]
+    defender_agent = states[defender_agent_id]
 
     # Make sure no nodes added to action surface
     assert not attacker_agent.step_action_surface_additions
@@ -546,22 +550,23 @@ def test_default_simulator_default_settings_eviction() -> None:
         attacker_agent_id: [user_3_compromise],
         defender_agent_id: []
     }
-    sim.step(actions)
+    states = sim.step(actions)
 
     # Check that the compromise happened and that the defense did not
-    assert user_3_compromise in attacker_agent.performed_nodes
-    assert user_3_compromise_defense not in defender_agent.performed_nodes
+    assert user_3_compromise in states[attacker_agent_id].performed_nodes
+    assert user_3_compromise_defense not in states[defender_agent_id].performed_nodes
 
     # Now let the defender defend, and the attacker waits
     actions = {
         attacker_agent_id: [],
         defender_agent_id: [user_3_compromise_defense]
     }
-    sim.step(actions)
+    states = sim.step(actions)
 
     # Verify defense was performed and attacker NOT kicked out
-    assert user_3_compromise in attacker_agent.performed_nodes
-    assert user_3_compromise_defense in defender_agent.performed_nodes
+    assert user_3_compromise in states[attacker_agent_id].performed_nodes
+    assert user_3_compromise_defense in states[defender_agent_id].performed_nodes
+
 
 def test_simulator_ttcs() -> None:
     """Create a simulator and check TTCs, then reset and check TTCs again"""

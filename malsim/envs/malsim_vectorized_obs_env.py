@@ -19,7 +19,6 @@ from maltoolbox.attackgraph import AttackGraphNode
 
 from ..mal_simulator import (
     MalSimulator,
-    AgentType,
     MalSimAgentState,
     MalSimAttackerState,
     MalSimDefenderState
@@ -594,7 +593,7 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
 
         for agent in self.sim.agent_states.values():
             rewards[agent.name] = agent.reward
-            terminations[agent.name] = agent.terminated
-            truncations[agent.name] = agent.truncated
+            terminations[agent.name] = self.sim.agent_is_terminated(agent.name)
+            truncations[agent.name] = self.sim.done()
 
         return observations, rewards, terminations, truncations, infos
