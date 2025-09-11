@@ -9,6 +9,7 @@ from enum import Enum
 from typing import Any, Optional, TYPE_CHECKING
 
 import numpy as np
+from numpy.typing import ArrayLike, NDArray
 from scipy.stats import expon
 
 if TYPE_CHECKING:
@@ -366,22 +367,21 @@ def attempt_step_ttc(
     )
     return success_prob > rng.random()
 
-
 class TTCDist:
     def __init__(
             self, obj: float | rv_continuous_frozen | rv_discrete_frozen
         ) -> None:
         self.obj = obj
 
-    def rvs(self, size: Optional[int] = None, **kwargs: Any):
+    def rvs(self, size: Optional[int] = None, **kwargs: Any) -> NDArray[np.float64] | NDArray[np.int64] | float:
         if isinstance(self.obj, float):
             return self.obj if size is None else np.full(size, self.obj)
-        return self.obj.rvs(size=size, **kwargs)
+        return self.obj.rvs(size=size, **kwargs) # type: ignore
 
-    def success_probability(self, t: float):
+    def success_probability(self, t: float) -> float:
         if isinstance(self.obj, float):
             return 1.0 if t >= self.obj else 0.0
-        return self.obj.cdf(t)
+        return self.obj.cdf(t) # type: ignore
 
 
 def get_time_distribution(ttc: Optional[dict[str, Any]]) -> TTCDist:
