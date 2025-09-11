@@ -16,6 +16,8 @@ For additional dev tools:
 
 ```pip install mal-simulator[dev]```
 
+Note for contributers: The CI pipeline runs `mypy` and `ruff` for linting and type checking, and PRs will only be merged if pipeline succeeds.
+
 ## MalSimulator
 
 A `mal_simulator.MalSimulator` can be created to be able to run simulations.
