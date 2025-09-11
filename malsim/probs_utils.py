@@ -359,7 +359,7 @@ def attempt_step_ttc(
     node: AttackGraphNode,
     step_working_time: int, rng: np.random.Generator
 ) -> bool:
-    """Attempt to compromise a step by sampling an Exponential"""
+    """Attempt to compromise a step by sampling a success probability proportional to the TTC distribution, given previous attempts."""
 
     success_prob = (
         get_time_distribution(node.ttc)
