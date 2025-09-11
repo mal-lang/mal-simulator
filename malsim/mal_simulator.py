@@ -17,7 +17,7 @@ from maltoolbox.attackgraph import (
 
 from malsim.probs_utils import (
     attempt_step_ttc,
-    calculate_prob,
+    ttc_value_from_node,
     ProbCalculationMethod,
 )
 
@@ -271,24 +271,24 @@ class MalSimulator():
         """Calculate and return attack steps TTCs"""
         ttc_values = {}
         for node in self.attack_graph.nodes.values():
+            ttc_value = None
             match(self.sim_settings.ttc_mode):
                 case TTCMode.DISABLED:
                     ttc_value = 1.0
-                case TTCMode.PER_STEP_SAMPLE | TTCMode.PRE_SAMPLE:
-                    ttc_value = calculate_prob(
-                        node,
-                        node.ttc,
-                        ProbCalculationMethod.SAMPLE,
-                        self._calculated_bernoullis
-                    )
                 case TTCMode.EXPECTED_VALUE:
-                    ttc_value = calculate_prob(
+                    ttc_value = ttc_value_from_node(
                         node,
-                        node.ttc,
                         ProbCalculationMethod.EXPECTED,
                         self._calculated_bernoullis
                     )
-            if node.type in ['and', 'or']:
+                case _:
+                    # Otherwise sample
+                    ttc_value = ttc_value_from_node(
+                        node,
+                        ProbCalculationMethod.SAMPLE,
+                        self._calculated_bernoullis
+                    )
+            if node.type in ['and', 'or'] and ttc_value:
                 ttc_values[node] = ttc_value
 
         return ttc_values
@@ -298,9 +298,8 @@ class MalSimulator():
         pre_enabled_defenses = set()
         for node in self.attack_graph.nodes.values():
             if node.type == 'defense':
-                ttc_value = calculate_prob(
+                ttc_value = ttc_value_from_node(
                     node,
-                    node.ttc,
                     ProbCalculationMethod.SAMPLE,
                     self._calculated_bernoullis
                 )
@@ -714,9 +713,8 @@ class MalSimulator():
         node_ttc_value = self._ttc_values.get(node, 0)
         if self.sim_settings.ttc_mode == TTCMode.PER_STEP_SAMPLE:
             # Sample ttc every time if config says so
-            node_ttc_value = calculate_prob(
+            node_ttc_value = ttc_value_from_node(
                 node,
-                node.ttc,
                 ProbCalculationMethod.SAMPLE,
                 self._calculated_bernoullis
             )

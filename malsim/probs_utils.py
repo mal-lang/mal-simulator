@@ -17,12 +17,129 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
+predef_ttcs: dict[str, dict] = {
+    'EasyAndUncertain':
+    {
+        'arguments': [0.5],
+        'name': 'Bernoulli',
+        'type': 'function'
+    },
+    'HardAndUncertain':
+    {
+        'lhs':
+        {
+            'arguments': [0.1],
+            'name': 'Exponential',
+            'type': 'function'
+        },
+        'rhs':
+        {
+            'arguments': [0.5],
+            'name': 'Bernoulli',
+            'type': 'function'
+        },
+        'type': 'multiplication'
+    },
+    'VeryHardAndUncertain':
+    {
+        'lhs':
+        {
+            'arguments': [0.01],
+            'name': 'Exponential',
+            'type': 'function'
+        },
+        'rhs':
+        {
+            'arguments': [0.5],
+            'name': 'Bernoulli',
+            'type': 'function'
+        },
+        'type': 'multiplication'
+    },
+    'EasyAndCertain':
+    {
+        'arguments': [1.0],
+        'name': 'Exponential',
+        'type': 'function'
+    },
+    'HardAndCertain':
+    {
+        'arguments': [0.1],
+        'name': 'Exponential',
+        'type': 'function'
+    },
+    'VeryHardAndCertain':
+    {
+        'arguments': [0.01],
+        'name': 'Exponential',
+        'type': 'function'
+    },
+    'Enabled':
+    {
+        'arguments': [1.0],
+        'name': 'Bernoulli',
+        'type': 'function'
+    },
+    'Instant':
+    {
+        'arguments': [1.0],
+        'name': 'Bernoulli',
+        'type': 'function'
+    },
+    'Disabled':
+    {
+        'arguments': [0.0],
+        'name': 'Bernoulli',
+        'type': 'function'
+    },
+}
+
+
+def default_ttc(node: AttackGraphNode) -> Optional[dict[str, Any]]:
+    """ttc distribution if no ttc is set in lang or model"""
+    if node.type == 'defense':
+        return predef_ttcs['Disabled']
+    if node.type in ('or', 'and'):
+        return predef_ttcs['Instant']
+
+    # Other steps have no ttc
+    return None
+
+
+def get_ttc_dict(
+        node: AttackGraphNode,
+    ) -> Optional[dict[str, Any]]:
+    """Convert step TTC to a TTC distribution dict if needed
+
+    - If the TTC provided is a predefined name replace it with the
+      ttc distribution dict it corresponds to.
+    - Otherwise return the TTC distribution as is.
+
+    Arguments:
+    node - Attack graph node to get ttc dict for
+
+    Returns:
+    A dict with the steps TTC distribution or None if no ttc applies
+    """
+
+    step_ttc = node.ttc or default_ttc(node)
+    if not step_ttc:
+        return None
+
+    if 'name' in step_ttc and step_ttc['name'] in predef_ttcs:
+        # Predefined step ttc set in language, fetch from dict
+        step_ttc = predef_ttcs[step_ttc['name']].copy()
+
+    return step_ttc
+
+
 class ProbCalculationMethod(Enum):
     SAMPLE = 1
     EXPECTED = 2
 
 
-def sample_prob(
+def _sample_value(
         node: AttackGraphNode,
         probs_dict: dict[str, Any],
         calculated_bernoullis: dict[AttackGraphNode, float]
@@ -90,7 +207,7 @@ def sample_prob(
                 f'function encountered "{probs_dict["name"]}"!')
 
 
-def expected_prob(node: AttackGraphNode, probs_dict: dict[str, Any]) -> float:
+def _expected_value(probs_dict: dict[str, Any]) -> float:
     """Calculate the expected value from a probability distribution function
     Arguments:
     probs_dict      - a dictionary containing the probability distribution
@@ -160,7 +277,7 @@ def expected_prob(node: AttackGraphNode, probs_dict: dict[str, Any]) -> float:
                 f'function encountered "{probs_dict["name"]}"!')
 
 
-def calculate_prob(
+def ttc_value_from_ttc_dict(
     node: AttackGraphNode,
     probs_dict: Optional[dict[str, Any]],
     method: ProbCalculationMethod,
@@ -185,10 +302,10 @@ def calculate_prob(
     match(probs_dict['type']):
         case 'addition' | 'subtraction' | 'multiplication' | \
                 'division' | 'exponentiation':
-            lv = calculate_prob(
+            lv = ttc_value_from_ttc_dict(
                 node, probs_dict['lhs'], method, calculated_bernoullis
             )
-            rv = calculate_prob(
+            rv = ttc_value_from_ttc_dict(
                 node, probs_dict['rhs'], method, calculated_bernoullis
             )
             match(probs_dict['type']):
@@ -206,16 +323,30 @@ def calculate_prob(
         case 'function':
             match(method):
                 case ProbCalculationMethod.SAMPLE:
-                    return sample_prob(node, probs_dict, calculated_bernoullis)
+                    return _sample_value(
+                        node, probs_dict, calculated_bernoullis
+                    )
                 case ProbCalculationMethod.EXPECTED:
-                    return expected_prob(node, probs_dict)
+                    return _expected_value(probs_dict)
                 case _:
                     raise ValueError('Unknown Probability Calculation method '
                     f'encountered "{method}"!')
 
         case _:
-            raise ValueError('Unknown probability distribution type '
-            f'encountered "{probs_dict["type"]}"!')
+            raise ValueError(
+                'Unknown probability distribution type '
+                f'encountered "{probs_dict["type"]}"!'
+            )
+
+def ttc_value_from_node(
+    node: AttackGraphNode,
+    method: ProbCalculationMethod,
+    calculated_bernoullis: dict[AttackGraphNode, float]
+):
+    ttc_dict = get_ttc_dict(node)
+    return ttc_value_from_ttc_dict(
+        node, ttc_dict, method, calculated_bernoullis
+    )
 
 ### SANDOR TTC IMPLEMENTATION
 
@@ -224,7 +355,7 @@ def attempt_step_ttc(
     step_working_time: int, rng: np.random.Generator
 ) -> bool:
     """Attempt to compromise a step by sampling a Bernoulli"""
-    assert node.ttc, f"Node {node} has no ttc"
+
     success_prob = (
         get_time_distribution(node.ttc)
         .success_probability(step_working_time)

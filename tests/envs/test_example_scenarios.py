@@ -83,6 +83,8 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         if defender_agent_state.truncated or attacker_agent_state.truncated:
             break
 
+    assert sim.cur_iter == 44
+
     # Make sure the actions performed were as expected
     assert attacker_actions == [
         'Internet:attemptReverseReach',
@@ -162,13 +164,10 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     assert total_reward_defender == -2200
 
 
-def test_bfs_vs_bfs_basic_state_and_reward() -> None:
+def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     """
     The point of this test is to see that the basic scenario runs
-    deterministically.
-
-    Unlike the test above this use both a sensible model/scenario and default
-    settings.
+    deterministically with ttcs.
 
     The test creates a simulator, two agents and runs them both with
     BFS Agents against each other.
@@ -240,6 +239,8 @@ def test_bfs_vs_bfs_basic_state_and_reward() -> None:
             break
         if defender_agent_state.truncated or attacker_agent_state.truncated:
             break
+
+    assert sim.cur_iter == 81
 
     # Make sure the actions performed were as expected
     assert attacker_actions == [
@@ -316,3 +317,154 @@ def test_bfs_vs_bfs_basic_state_and_reward() -> None:
 
     assert total_reward_attacker == 0
     assert total_reward_defender == -1430.0
+
+
+def test_bfs_vs_bfs_state_and_reward_per_step_bernoulli() -> None:
+    """
+    The point of this test is to see that the basic scenario runs
+    deterministically with ttcs.
+
+    The test creates a simulator, two agents and runs them both with
+    BFS Agents against each other.
+
+    It then verifies that rewards and actions performed are what we expected.
+    """
+
+    sim, agents = create_simulator_from_scenario(
+        "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml",
+        sim_settings = MalSimulatorSettings(
+            seed=13,
+            ttc_mode=TTCMode.PER_STEP_BERNOULLI
+        )
+    )
+
+    defender_agent_name = "defender1"
+    attacker_agent_name = "attacker1"
+
+    attacker_agent = next(
+        agent_info['agent'] for agent_info in agents
+        if agent_info["name"] == attacker_agent_name
+    )
+    defender_agent = next(
+        agent_info['agent'] for agent_info in agents
+        if agent_info["name"] == defender_agent_name
+    )
+
+    total_reward_defender = 0.0
+    total_reward_attacker = 0.0
+
+    attacker_actions = []
+    defender_actions = []
+
+    states = sim.reset()
+    attacker_state = states[attacker_agent_name]
+    defender_state = states[defender_agent_name]
+
+    while True:
+        # Run the simulation until agents are terminated/truncated
+        attacker_node = attacker_agent.get_next_action(attacker_state)
+        defender_node = defender_agent.get_next_action(defender_state)
+
+        # Step
+        actions = {
+            defender_agent_name: [defender_node] if defender_node else [],
+            attacker_agent_name: [attacker_node] if attacker_node else []
+        }
+        states = sim.step(actions)
+        defender_state = states[defender_agent_name]
+        attacker_state = states[attacker_agent_name]
+
+        # If actions were performed, add them to respective list
+        if attacker_node and attacker_node in attacker_state.step_performed_nodes:
+            attacker_actions.append(attacker_node.full_name)
+            assert attacker_node in defender_state.step_all_compromised_nodes
+
+        if defender_node and defender_node in defender_state.step_performed_nodes:
+            defender_actions.append(defender_node.full_name)
+
+        total_reward_defender += defender_state.reward
+        total_reward_attacker += attacker_state.reward
+
+        # Break simulation if trunc or term
+        if defender_state.terminated or attacker_state.terminated:
+            break
+        if defender_state.truncated or attacker_state.truncated:
+            break
+
+    assert sim.cur_iter == 88
+
+    # Make sure the actions performed were as expected
+    assert attacker_actions == [
+        'Program 1:attemptApplicationRespondConnectThroughData',
+        'Program 1:attemptRead',
+        'Program 1:attemptDeny',
+        'Program 1:accessNetworkAndConnections',
+        'Program 1:attemptModify',
+        'Program 1:specificAccess',
+        'ConnectionRule:1:attemptAccessNetworksInspected',
+        'ConnectionRule:1:attemptConnectToApplicationsInspected',
+        'ConnectionRule:1:successfulAccessNetworksInspected',
+        'ConnectionRule:1:bypassRestricted',
+        'ConnectionRule:1:connectToApplicationsInspected',
+        'ConnectionRule:1:accessNetworksInspected',
+        'Program 1:networkConnectInspected',
+        'Network:2:accessInspected',
+        'Program 1:networkConnect',
+        'Program 1:specificAccessNetworkConnect',
+        'Network:2:deny',
+        'Network:2:networkForwardingInspected',
+        'Network:2:accessNetworkData',
+        'ConnectionRule:3:attemptConnectToApplicationsInspected',
+        'ConnectionRule:1:attemptDeny',
+        'ConnectionRule:3:attemptDeny',
+        'ConnectionRule:3:attemptAccessNetworksInspected',
+        'Network:2:attemptEavesdrop',
+        'Network:2:attemptAdversaryInTheMiddle',
+        'ConnectionRule:3:connectToApplicationsInspected',
+        'ConnectionRule:3:bypassRestricted',
+        'ConnectionRule:1:deny',
+        'ConnectionRule:3:deny',
+        'ConnectionRule:3:successfulAccessNetworksInspected',
+        'Network:2:successfulEavesdrop',
+        'Network:2:bypassEavesdropDefense',
+        'Network:2:successfulAdversaryInTheMiddle',
+        'Program 2:networkConnectInspected',
+        'Program 1:denyFromNetworkingAsset',
+        'Program 2:denyFromNetworkingAsset',
+        'ConnectionRule:3:accessNetworksInspected',
+        'Network:2:eavesdrop',
+        'Network:2:adversaryInTheMiddle',
+        'Program 2:networkConnect',
+        'Program 2:specificAccessNetworkConnect',
+        'Program 2:attemptDeny',
+    ]
+
+    assert defender_actions == [
+        'Network:2:adversaryInTheMiddleDefense',
+        'ConnectionRule:3:payloadInspection',
+        'Program 2:supplyChainAuditing',
+        'ConnectionRule:3:restricted',
+        'Network:2:eavesdropDefense',
+        'ConnectionRule:1:payloadInspection',
+        'Program 1:notPresent',
+        'Network:2:networkAccessControl',
+        'Program 1:supplyChainAuditing',
+        'Program 2:notPresent',
+        'ConnectionRule:1:restricted',
+    ]
+    for step_id in attacker_actions:
+        # Make sure that all attacker actions led to compromise
+        node = sim.attack_graph.get_node_by_full_name(step_id)
+        assert node in attacker_state.performed_nodes
+
+    for step_id in defender_actions:
+        # Make sure that all defender actions let to defense enabled
+        node = sim.attack_graph.get_node_by_full_name(step_id)
+        assert node in defender_state.performed_nodes
+
+    # Verify rewards in latest run and total rewards
+    assert attacker_state.reward == 0
+    assert defender_state.reward == -19
+
+    assert total_reward_attacker == 0
+    assert total_reward_defender == -1563.0
