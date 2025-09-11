@@ -7,18 +7,18 @@ import random
 from enum import Enum
 
 from typing import Any, Optional, TYPE_CHECKING
-from numbers import Number
 
 import numpy as np
 from scipy.stats import expon
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
+    from scipy.stats._distn_infrastructure import rv_continuous_frozen, rv_discrete_frozen
 
 logger = logging.getLogger(__name__)
 
 
-predef_ttcs: dict[str, dict] = {
+predef_ttcs: dict[str, dict[str, Any]] = {
     'EasyAndUncertain':
     {
         'arguments': [0.5],
@@ -342,7 +342,8 @@ def ttc_value_from_node(
     node: AttackGraphNode,
     method: ProbCalculationMethod,
     calculated_bernoullis: dict[AttackGraphNode, float]
-):
+) -> float:
+    """Return a value (sampled or expected) from a nodes ttc distribution"""
     ttc_dict = get_ttc_dict(node)
     return ttc_value_from_ttc_dict(
         node, ttc_dict, method, calculated_bernoullis
@@ -364,22 +365,23 @@ def attempt_step_ttc(
 
 
 class TTCDist:
-    def __init__(self, obj):
+    def __init__(
+            self, obj: float | rv_continuous_frozen | rv_discrete_frozen
+        ) -> None:
         self.obj = obj
-        self.is_scalar = isinstance(obj, Number)
 
-    def rvs(self, size=None, **kwargs):
-        if self.is_scalar:
+    def rvs(self, size: Optional[int] = None, **kwargs: Any):
+        if isinstance(self.obj, float):
             return self.obj if size is None else np.full(size, self.obj)
         return self.obj.rvs(size=size, **kwargs)
 
-    def success_probability(self, t: int) -> float:
-        if self.is_scalar:
+    def success_probability(self, t: float):
+        if isinstance(self.obj, float):
             return 1.0 if t >= self.obj else 0.0
         return self.obj.cdf(t)
 
 
-def get_time_distribution(ttc: Optional[dict]) -> TTCDist:
+def get_time_distribution(ttc: Optional[dict[str, Any]]) -> TTCDist:
     """Get TTC Distribution from predefined names in MAL"""
     if not ttc:
         return TTCDist(0.0)

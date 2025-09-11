@@ -31,7 +31,7 @@ def test_probs_utils(model: Model) -> None:
         ttc_value_from_node(node, ProbCalculationMethod.EXPECTED, {})
 
 
-def test_get_ttc_dict_defenses(corelang_lang_graph: LanguageGraph):
+def test_get_ttc_dict_defenses(corelang_lang_graph: LanguageGraph) -> None:
     """Make sure TTCs are set correctly for defenses"""
 
     model = Model.load_from_file(
@@ -90,7 +90,7 @@ def test_get_ttc_dict_defenses(corelang_lang_graph: LanguageGraph):
             assert node.full_name in expected_bernoulli_0_defenses
 
 
-def test_get_ttc_dict_attacksteps(corelang_lang_graph: LanguageGraph):
+def test_get_ttc_dict_attacksteps(corelang_lang_graph: LanguageGraph) -> None:
     """Make sure TTCs are set correctly for attacks"""
 
     model = Model.load_from_file(
