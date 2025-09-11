@@ -13,7 +13,10 @@ from scipy.stats import expon
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
-    from scipy.stats._distn_infrastructure import rv_continuous_frozen, rv_discrete_frozen
+    from scipy.stats._distn_infrastructure import (
+        rv_continuous_frozen,
+        rv_discrete_frozen
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -355,7 +358,7 @@ def attempt_step_ttc(
     node: AttackGraphNode,
     step_working_time: int, rng: np.random.Generator
 ) -> bool:
-    """Attempt to compromise a step by sampling a Bernoulli"""
+    """Attempt to compromise a step by sampling an Exponential"""
 
     success_prob = (
         get_time_distribution(node.ttc)
