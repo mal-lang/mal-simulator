@@ -173,3 +173,6 @@ cython_debug/
 
 # Allow .json/.yml files in testdata
 !tests/testdata/**
+
+# UV lock file
+uv.lock
