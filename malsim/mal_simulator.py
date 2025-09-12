@@ -283,25 +283,24 @@ class MalSimulator():
         """Calculate and return attack steps TTCs"""
         ttc_values = {}
         for node in self.attack_graph.nodes.values():
-            ttc_value = None
+
+            if node.type not in ('or', 'and'):
+                continue
+
             match(self.sim_settings.ttc_mode):
-                case TTCMode.DISABLED:
-                    ttc_value = 1.0
                 case TTCMode.EXPECTED_VALUE:
-                    ttc_value = ttc_value_from_node(
+                    ttc_values[node] = ttc_value_from_node(
                         node,
                         ProbCalculationMethod.EXPECTED,
                         self._calculated_bernoullis
                     )
-                case _:
+                case TTCMode.PRE_SAMPLE:
                     # Otherwise sample
-                    ttc_value = ttc_value_from_node(
+                    ttc_values[node] = ttc_value_from_node(
                         node,
                         ProbCalculationMethod.SAMPLE,
                         self._calculated_bernoullis
                     )
-            if node.type in ['and', 'or'] and ttc_value:
-                ttc_values[node] = ttc_value
 
         return ttc_values
 

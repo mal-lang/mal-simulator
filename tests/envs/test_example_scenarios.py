@@ -181,7 +181,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     sim, agents = create_simulator_from_scenario(
         "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml",
         sim_settings = MalSimulatorSettings(
-            seed=13,
+            seed=100,
             ttc_mode=TTCMode.PER_STEP_SAMPLE
         )
     )
@@ -243,7 +243,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         if defender_agent_state.truncated or attacker_agent_state.truncated:
             break
 
-    assert sim.cur_iter == 84
+    assert sim.cur_iter == 79
 
     # Make sure the actions performed were as expected
     assert attacker_actions == [
@@ -253,42 +253,46 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         'Program 1:accessNetworkAndConnections',
         'Program 1:attemptModify',
         'Program 1:specificAccess',
+        'ConnectionRule:1:attemptAccessNetworksUninspected',
+        'ConnectionRule:1:attemptConnectToApplicationsUninspected',
         'ConnectionRule:1:attemptAccessNetworksInspected',
         'ConnectionRule:1:attemptConnectToApplicationsInspected',
-        'ConnectionRule:1:successfulAccessNetworksInspected',
         'ConnectionRule:1:bypassRestricted',
+        'ConnectionRule:1:successfulAccessNetworksInspected',
         'ConnectionRule:1:connectToApplicationsInspected',
         'ConnectionRule:1:accessNetworksInspected',
         'Program 1:networkConnectInspected',
         'Network:2:accessInspected',
-        'Program 1:networkConnect',
         'Program 1:specificAccessNetworkConnect',
-        'Network:2:deny',
-        'Network:2:networkForwardingInspected',
+        'Program 1:networkConnect',
         'Network:2:accessNetworkData',
+        'Network:2:networkForwardingInspected',
+        'Network:2:deny',
         'ConnectionRule:3:attemptConnectToApplicationsInspected',
-        'ConnectionRule:1:attemptDeny',
-        'ConnectionRule:3:attemptDeny',
-        'ConnectionRule:3:attemptAccessNetworksInspected',
         'Network:2:attemptEavesdrop',
         'Network:2:attemptAdversaryInTheMiddle',
-        'ConnectionRule:3:connectToApplicationsInspected',
+        'ConnectionRule:3:attemptAccessNetworksInspected',
+        'ConnectionRule:1:attemptDeny',
+        'ConnectionRule:3:attemptDeny',
+        'ConnectionRule:3:bypassPayloadInspection',
         'ConnectionRule:3:bypassRestricted',
-        'ConnectionRule:1:deny',
-        'ConnectionRule:3:deny',
-        'ConnectionRule:3:successfulAccessNetworksInspected',
+        'ConnectionRule:3:connectToApplicationsInspected',
         'Network:2:successfulEavesdrop',
         'Network:2:bypassEavesdropDefense',
+        'Network:2:bypassAdversaryInTheMiddleDefense',
         'Network:2:successfulAdversaryInTheMiddle',
+        'ConnectionRule:3:successfulAccessNetworksInspected',
+        'ConnectionRule:1:deny',
+        'ConnectionRule:3:deny',
         'Program 2:networkConnectInspected',
-        'Program 1:denyFromNetworkingAsset',
-        'Program 2:denyFromNetworkingAsset',
-        'ConnectionRule:3:accessNetworksInspected',
         'Network:2:eavesdrop',
         'Network:2:adversaryInTheMiddle',
-        'Program 2:networkConnect',
+        'ConnectionRule:3:accessNetworksInspected',
+        'Program 1:denyFromNetworkingAsset',
+        'Program 2:denyFromNetworkingAsset',
         'Program 2:specificAccessNetworkConnect',
-        'Program 2:attemptDeny',
+        'Program 2:networkConnect',
+        'Program 2:attemptDeny'
     ]
 
     assert defender_actions == [
@@ -319,7 +323,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     assert defender_agent_state.reward == -19
 
     assert total_reward_attacker == 0
-    assert total_reward_defender == -1487.0
+    assert total_reward_defender == -1392.0
 
 
 def test_bfs_vs_bfs_state_and_reward_PER_STEP_TRIAL() -> None:
@@ -327,7 +331,7 @@ def test_bfs_vs_bfs_state_and_reward_PER_STEP_TRIAL() -> None:
     sim, agents = create_simulator_from_scenario(
         "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml",
         sim_settings = MalSimulatorSettings(
-            seed=13,
+            seed=100,
             ttc_mode=TTCMode.PER_STEP_TRIAL
         )
     )
@@ -385,7 +389,7 @@ def test_bfs_vs_bfs_state_and_reward_PER_STEP_TRIAL() -> None:
         if defender_state.truncated or attacker_state.truncated:
             break
 
-    assert sim.cur_iter == 88
+    assert sim.cur_iter == 118
 
     # Make sure the actions performed were as expected
     assert attacker_actions == [
@@ -395,42 +399,46 @@ def test_bfs_vs_bfs_state_and_reward_PER_STEP_TRIAL() -> None:
         'Program 1:accessNetworkAndConnections',
         'Program 1:attemptModify',
         'Program 1:specificAccess',
+        'ConnectionRule:1:attemptAccessNetworksUninspected',
+        'ConnectionRule:1:attemptConnectToApplicationsUninspected',
         'ConnectionRule:1:attemptAccessNetworksInspected',
         'ConnectionRule:1:attemptConnectToApplicationsInspected',
-        'ConnectionRule:1:successfulAccessNetworksInspected',
         'ConnectionRule:1:bypassRestricted',
+        'ConnectionRule:1:successfulAccessNetworksInspected',
         'ConnectionRule:1:connectToApplicationsInspected',
         'ConnectionRule:1:accessNetworksInspected',
         'Program 1:networkConnectInspected',
         'Network:2:accessInspected',
-        'Program 1:networkConnect',
         'Program 1:specificAccessNetworkConnect',
-        'Network:2:deny',
-        'Network:2:networkForwardingInspected',
+        'Program 1:networkConnect',
         'Network:2:accessNetworkData',
+        'Network:2:networkForwardingInspected',
+        'Network:2:deny',
         'ConnectionRule:3:attemptConnectToApplicationsInspected',
-        'ConnectionRule:1:attemptDeny',
-        'ConnectionRule:3:attemptDeny',
-        'ConnectionRule:3:attemptAccessNetworksInspected',
         'Network:2:attemptEavesdrop',
         'Network:2:attemptAdversaryInTheMiddle',
-        'ConnectionRule:3:connectToApplicationsInspected',
+        'ConnectionRule:3:attemptAccessNetworksInspected',
+        'ConnectionRule:1:attemptDeny',
+        'ConnectionRule:3:attemptDeny',
+        'ConnectionRule:3:bypassPayloadInspection',
         'ConnectionRule:3:bypassRestricted',
-        'ConnectionRule:1:deny',
-        'ConnectionRule:3:deny',
-        'ConnectionRule:3:successfulAccessNetworksInspected',
+        'ConnectionRule:3:connectToApplicationsInspected',
         'Network:2:successfulEavesdrop',
         'Network:2:bypassEavesdropDefense',
+        'Network:2:bypassAdversaryInTheMiddleDefense',
         'Network:2:successfulAdversaryInTheMiddle',
+        'ConnectionRule:3:successfulAccessNetworksInspected',
+        'ConnectionRule:1:deny',
+        'ConnectionRule:3:deny',
         'Program 2:networkConnectInspected',
-        'Program 1:denyFromNetworkingAsset',
-        'Program 2:denyFromNetworkingAsset',
-        'ConnectionRule:3:accessNetworksInspected',
         'Network:2:eavesdrop',
         'Network:2:adversaryInTheMiddle',
-        'Program 2:networkConnect',
+        'ConnectionRule:3:accessNetworksInspected',
+        'Program 1:denyFromNetworkingAsset',
+        'Program 2:denyFromNetworkingAsset',
         'Program 2:specificAccessNetworkConnect',
-        'Program 2:attemptDeny',
+        'Program 2:networkConnect',
+        'Program 2:attemptDeny'
     ]
 
     assert defender_actions == [
@@ -461,7 +469,7 @@ def test_bfs_vs_bfs_state_and_reward_PER_STEP_TRIAL() -> None:
     assert defender_state.reward == -19
 
     assert total_reward_attacker == 0
-    assert total_reward_defender == -1563.0
+    assert total_reward_defender == -2133.0
 
 
 def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
