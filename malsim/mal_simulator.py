@@ -167,8 +167,8 @@ class TTCMode(Enum):
     """
     Describes how to use the probability distributions in the attack graph.
     """
-    PER_STEP_SAMPLE = 0
-    PER_STEP_BERNOULLI = 1
+    PER_STEP_TRIAL = 0
+    PER_STEP_SAMPLE = 1
     PRE_SAMPLE = 2
     EXPECTED_VALUE = 3
     DISABLED = 4
@@ -703,7 +703,7 @@ class MalSimulator():
         """
 
         agent.num_attempts[node] += 1
-        if self.sim_settings.ttc_mode == TTCMode.PER_STEP_BERNOULLI:
+        if self.sim_settings.ttc_mode == TTCMode.PER_STEP_TRIAL:
             # Run Bernoulli to decide success if config says so
             # This is the SANDOR MODE
             return attempt_step_ttc(

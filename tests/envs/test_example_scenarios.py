@@ -319,7 +319,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     assert total_reward_defender == -1430.0
 
 
-def test_bfs_vs_bfs_state_and_reward_per_step_bernoulli() -> None:
+def test_bfs_vs_bfs_state_and_reward_PER_STEP_TRIAL() -> None:
     """
     The point of this test is to see that the basic scenario runs
     deterministically with ttcs.
@@ -334,7 +334,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_bernoulli() -> None:
         "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml",
         sim_settings = MalSimulatorSettings(
             seed=13,
-            ttc_mode=TTCMode.PER_STEP_BERNOULLI
+            ttc_mode=TTCMode.PER_STEP_TRIAL
         )
     )
 

@@ -366,7 +366,6 @@ def attempt_step_ttc(
     Attempt to compromise a step by sampling a success probability
     proportional to the TTC distribution, given previous attempts.
     """
-
     success_prob = (
         _get_time_distribution(node.ttc)
         .success_probability(step_working_time)
@@ -376,11 +375,13 @@ def attempt_step_ttc(
 
 class TTCDist:
     def __init__(
-            self, obj: float | rv_continuous_frozen | rv_discrete_frozen
-        ) -> None:
+        self, obj: float | rv_continuous_frozen | rv_discrete_frozen
+    ) -> None:
         self.obj = obj
 
-    def rvs(self, size: Optional[int] = None, **kwargs: Any) -> NDArray[np.float64] | NDArray[np.int64] | float:
+    def rvs(
+        self, size: Optional[int] = None, **kwargs: Any
+    ) -> NDArray[np.float64] | NDArray[np.int64] | float:
         if isinstance(self.obj, float):
             return self.obj if size is None else np.full(size, self.obj)
         return self.obj.rvs(size=size, **kwargs) # type: ignore
