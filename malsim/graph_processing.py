@@ -114,7 +114,7 @@ def calculate_necessity(
 def _propagate_viability_from_node(
         node: AttackGraphNode,
         viability_per_node: dict[AttackGraphNode, bool],
-        impossible_attacksteps: set[AttackGraphNode]
+        impossible_attack_steps: set[AttackGraphNode]
     ) -> set[AttackGraphNode]:
     """
     Update viability of children of node given as parameter. Propagate
@@ -132,13 +132,13 @@ def _propagate_viability_from_node(
     changed_nodes = set()
     for child in node.children:
         is_viable = evaluate_viability(
-            child, viability_per_node, set(), impossible_attacksteps
+            child, viability_per_node, set(), impossible_attack_steps
         )
         if is_viable != viability_per_node[child]:
             viability_per_node[child] = is_viable
             changed_nodes |= (
                 {child} | _propagate_viability_from_node(
-                    child, viability_per_node, impossible_attacksteps
+                    child, viability_per_node, impossible_attack_steps
                 )
             )
     return changed_nodes
@@ -148,7 +148,7 @@ def evaluate_viability(
         node: AttackGraphNode,
         viability_per_node: dict[AttackGraphNode, bool],
         enabled_defenses: set[AttackGraphNode],
-        impossible_attacksteps: set[AttackGraphNode]
+        impossible_attack_steps: set[AttackGraphNode]
     ) -> bool:
     """
     Arguments:
@@ -157,7 +157,7 @@ def evaluate_viability(
     enabled_defenses    - set of all enabled defenses
     ttc_values          - a dictionary containing the ttc values of each node
     """
-    if node in impossible_attacksteps:
+    if node in impossible_attack_steps:
         # Impossible step is not viable
         return False
 
@@ -190,7 +190,7 @@ def evaluate_viability(
 def calculate_viability(
     graph: AttackGraph,
     enabled_defenses: set[AttackGraphNode],
-    impossible_attacksteps: set[AttackGraphNode]
+    impossible_attack_steps: set[AttackGraphNode]
 ) -> dict[AttackGraphNode, bool]:
     """Calculate viability for an attack graph
     
@@ -203,11 +203,13 @@ def calculate_viability(
     viability_per_node = {n: True for n in graph.nodes.values()}
     for node in graph.nodes.values():
         viability_per_node[node] = evaluate_viability(
-            node, viability_per_node, enabled_defenses, impossible_attacksteps
+            node, viability_per_node,
+            enabled_defenses,
+            impossible_attack_steps
         )
         if not viability_per_node[node]:
             _propagate_viability_from_node(
-                node, viability_per_node, impossible_attacksteps
+                node, viability_per_node, impossible_attack_steps
             )
     return viability_per_node
 
