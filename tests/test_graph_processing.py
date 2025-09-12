@@ -1,7 +1,5 @@
 """Tests for analyzers"""
 
-import math
-
 from malsim.graph_processing import (
     _propagate_viability_from_node,
     _propagate_necessity_from_node,
