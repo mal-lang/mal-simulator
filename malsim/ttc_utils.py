@@ -362,12 +362,16 @@ def ttc_value_from_node(
 
 def attempt_step_ttc(
     node: AttackGraphNode,
-    step_working_time: int, rng: np.random.Generator
+    step_working_time: int,
+    rng: Optional[np.random.Generator] = None
 ) -> bool:
     """
     Attempt to compromise a step by sampling a success probability
     proportional to the TTC distribution, given previous attempts.
     """
+    if not rng:
+        rng = np.random.default_rng()
+
     success_prob = (
         _get_time_distribution(node.ttc)
         .success_probability(step_working_time)
