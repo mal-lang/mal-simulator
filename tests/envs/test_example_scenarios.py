@@ -1,6 +1,9 @@
 """
 Run a scenario and make sure expected actions are chosen and
-expected reward is given to agents
+expected reward is given to agents.
+
+These tests are to make sure the whole simulator maintains expected behavior.
+Determinism, ttcs, agents, action surfaces, step etc.
 """
 
 from malsim.scenario import create_simulator_from_scenario
@@ -20,9 +23,9 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     sim, agents = create_simulator_from_scenario(
         "tests/testdata/scenarios/bfs_vs_bfs_network_app_data_scenario.yml",
         sim_settings = MalSimulatorSettings(
-            ttc_mode=TTCMode.DISABLED,
             attack_surface_skip_unnecessary=False,
-            run_defense_step_bernoullis=False
+            run_defense_step_bernoullis=False,
+            infinity_ttc_attack_step_unviable=False
         )
     )
     sim.reset()
@@ -240,7 +243,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         if defender_agent_state.truncated or attacker_agent_state.truncated:
             break
 
-    assert sim.cur_iter == 81
+    assert sim.cur_iter == 84
 
     # Make sure the actions performed were as expected
     assert attacker_actions == [
@@ -316,19 +319,10 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     assert defender_agent_state.reward == -19
 
     assert total_reward_attacker == 0
-    assert total_reward_defender == -1430.0
+    assert total_reward_defender == -1487.0
 
 
 def test_bfs_vs_bfs_state_and_reward_PER_STEP_TRIAL() -> None:
-    """
-    The point of this test is to see that the basic scenario runs
-    deterministically with ttcs.
-
-    The test creates a simulator, two agents and runs them both with
-    BFS Agents against each other.
-
-    It then verifies that rewards and actions performed are what we expected.
-    """
 
     sim, agents = create_simulator_from_scenario(
         "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml",
@@ -468,3 +462,113 @@ def test_bfs_vs_bfs_state_and_reward_PER_STEP_TRIAL() -> None:
 
     assert total_reward_attacker == 0
     assert total_reward_defender == -1563.0
+
+
+def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
+
+    sim, agents = create_simulator_from_scenario(
+        "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml",
+        sim_settings = MalSimulatorSettings(
+            seed=13,
+            ttc_mode=TTCMode.EXPECTED_VALUE
+        )
+    )
+
+    defender_agent_name = "defender1"
+    attacker_agent_name = "attacker1"
+
+    attacker_agent = next(
+        agent_info['agent'] for agent_info in agents
+        if agent_info["name"] == attacker_agent_name
+    )
+    defender_agent = next(
+        agent_info['agent'] for agent_info in agents
+        if agent_info["name"] == defender_agent_name
+    )
+
+    total_reward_defender = 0.0
+    total_reward_attacker = 0.0
+
+    attacker_actions = []
+    defender_actions = []
+
+    states = sim.reset()
+    attacker_state = states[attacker_agent_name]
+    defender_state = states[defender_agent_name]
+
+    while True:
+        # Run the simulation until agents are terminated/truncated
+        attacker_node = attacker_agent.get_next_action(attacker_state)
+        defender_node = defender_agent.get_next_action(defender_state)
+
+        # Step
+        actions = {
+            defender_agent_name: [defender_node] if defender_node else [],
+            attacker_agent_name: [attacker_node] if attacker_node else []
+        }
+        states = sim.step(actions)
+        defender_state = states[defender_agent_name]
+        attacker_state = states[attacker_agent_name]
+
+        # If actions were performed, add them to respective list
+        if attacker_node and attacker_node in attacker_state.step_performed_nodes:
+            attacker_actions.append(attacker_node.full_name)
+            assert attacker_node in defender_state.step_all_compromised_nodes
+
+        if defender_node and defender_node in defender_state.step_performed_nodes:
+            defender_actions.append(defender_node.full_name)
+
+        total_reward_defender += defender_state.reward
+        total_reward_attacker += attacker_state.reward
+
+        # Break simulation if trunc or term
+        if defender_state.terminated or attacker_state.terminated:
+            break
+        if defender_state.truncated or attacker_state.truncated:
+            break
+
+    assert sim.cur_iter == 11
+
+    # Make sure the actions performed were as expected
+    assert attacker_actions == [
+        'Program 1:attemptApplicationRespondConnectThroughData',
+        'Program 1:attemptRead',
+        'Program 1:attemptDeny',
+        'Program 1:accessNetworkAndConnections',
+        'Program 1:attemptModify',
+        'Program 1:specificAccess',
+        'ConnectionRule:1:attemptAccessNetworksUninspected',
+        'ConnectionRule:1:attemptConnectToApplicationsUninspected',
+        'ConnectionRule:1:attemptAccessNetworksInspected',
+        'ConnectionRule:1:attemptConnectToApplicationsInspected'
+    ]
+
+    assert defender_actions == [
+        'Network:2:adversaryInTheMiddleDefense',
+        'ConnectionRule:3:payloadInspection',
+        'Program 2:supplyChainAuditing',
+        'ConnectionRule:3:restricted',
+        'Network:2:eavesdropDefense',
+        'ConnectionRule:1:payloadInspection',
+        'Program 1:notPresent',
+        'Network:2:networkAccessControl',
+        'Program 1:supplyChainAuditing',
+        'Program 2:notPresent',
+        'ConnectionRule:1:restricted'
+    ]
+    for step_id in attacker_actions:
+        # Make sure that all attacker actions led to compromise
+        node = sim.attack_graph.get_node_by_full_name(step_id)
+        assert node in attacker_state.performed_nodes
+
+    for step_id in defender_actions:
+        # Make sure that all defender actions let to defense enabled
+        node = sim.attack_graph.get_node_by_full_name(step_id)
+        assert node in defender_state.performed_nodes
+
+    # Verify rewards in latest run and total rewards
+    assert attacker_state.reward == 0
+    assert defender_state.reward == -19
+
+    assert total_reward_attacker == 0
+    assert total_reward_defender == -100.0

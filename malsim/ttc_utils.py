@@ -202,13 +202,15 @@ def _sample_value(
             return random.uniform(a, b)
 
         case 'Pareto' | 'Truncated Normal':
-            raise NotImplementedError(f'"{probs_dict["name"]}" '
-                'probability distribution is not currently '
-                'supported!')
+            raise NotImplementedError(
+                f'"{probs_dict["name"]}" probability'
+                ' distribution not supported!')
 
         case _:
-            raise ValueError('Unknown probability distribution '
-                f'function encountered "{probs_dict["name"]}"!')
+            raise ValueError(
+                'Unknown probability distribution '
+                f'function encountered "{probs_dict["name"]}"!'
+            )
 
 
 def _expected_value(probs_dict: dict[str, Any]) -> float:

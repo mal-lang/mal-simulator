@@ -188,9 +188,13 @@ class MalSimulatorSettings():
     # otherwise:
     # - Leave the node/step compromised even after it becomes untraversable
     uncompromise_untraversable_steps: bool = False
+
     # ttc_mode
     # - mode to sample TTCs on attack steps
     ttc_mode: TTCMode = TTCMode.DISABLED
+    # Make an attack graph node unviable if it has TTC infinity
+    infinity_ttc_attack_step_unviable: bool = True
+
     # seed
     # - optionally run deterministic simulations with seed
     seed: Optional[int] = None
@@ -249,6 +253,7 @@ class MalSimulator():
         # Store properties of each AttackGraphNode
         self._node_rewards: dict[AttackGraphNode, float] = node_rewards or {}
         self._enabled_defenses: set[AttackGraphNode] = set()
+        self._impossible_attack_steps: set[AttackGraphNode] = set()
         self._calculated_bernoullis: dict[AttackGraphNode, float] = {}
 
         # Keep track on all 'living' agents sorted by order to step in
@@ -258,10 +263,17 @@ class MalSimulator():
         self._ttc_values = self._attack_step_ttcs()
 
         if self.sim_settings.run_defense_step_bernoullis:
-            self._enabled_defenses = self._pre_enabled_defenses()
+            self._enabled_defenses = self._get_pre_enabled_defenses()
+
+        if self.sim_settings.infinity_ttc_attack_step_unviable:
+            self._impossible_attack_steps = (
+                self._get_impossible_attack_steps()
+            )
 
         self._viability_per_node = calculate_viability(
-            self.attack_graph, self._enabled_defenses, self._ttc_values
+            self.attack_graph,
+            self._enabled_defenses,
+            self._impossible_attack_steps
         )
         self._necessity_per_node = calculate_necessity(
             self.attack_graph, self._enabled_defenses
@@ -293,8 +305,11 @@ class MalSimulator():
 
         return ttc_values
 
-    def _pre_enabled_defenses(self) -> set[AttackGraphNode]:
-        """Calculate and return pre enabled defenses"""
+    def _get_pre_enabled_defenses(self) -> set[AttackGraphNode]:
+        """
+        Calculate and return pre defenses that got a non-infinite
+        ttc value sample, which means they will be pre enabled
+        """
         pre_enabled_defenses = set()
         for node in self.attack_graph.nodes.values():
             if node.type == 'defense':
@@ -306,6 +321,25 @@ class MalSimulator():
                 if ttc_value != math.inf:
                     pre_enabled_defenses.add(node)
         return pre_enabled_defenses
+
+    def _get_impossible_attack_steps(self) -> set[AttackGraphNode]:
+        """
+        Calculate and return attack steps with that got
+        infintity TTC in sample which means they are impossible
+        """
+        impossible_attack_steps = set()
+
+        for node in self.attack_graph.nodes.values():
+            if node.type in ('or', 'and'):
+                ttc_value = ttc_value_from_node(
+                    node,
+                    ProbCalculationMethod.SAMPLE,
+                    self._calculated_bernoullis
+                )
+                if ttc_value == math.inf:
+                    impossible_attack_steps.add(node)
+
+        return impossible_attack_steps
 
     @classmethod
     def from_scenario(
@@ -360,6 +394,7 @@ class MalSimulator():
     ) -> dict[str, MalSimAgentStateView]:
         """Reset attack graph, iteration and reinitialize agents"""
 
+        self.rng = default_rng(self.sim_settings.seed)
         random.seed(self.sim_settings.seed)
         logger.info("Resetting MAL Simulator.")
 
@@ -370,10 +405,17 @@ class MalSimulator():
         self._ttc_values = self._attack_step_ttcs()
 
         if self.sim_settings.run_defense_step_bernoullis:
-            self._enabled_defenses = self._pre_enabled_defenses()
+            self._enabled_defenses = self._get_pre_enabled_defenses()
+
+        if self.sim_settings.infinity_ttc_attack_step_unviable:
+            self._impossible_attack_steps = (
+                self._get_impossible_attack_steps()
+            )
 
         self._viability_per_node = calculate_viability(
-            self.attack_graph, self._enabled_defenses, self._ttc_values
+            self.attack_graph,
+            self._enabled_defenses,
+            self._impossible_attack_steps
         )
         self._necessity_per_node = calculate_necessity(
             self.attack_graph, self._enabled_defenses
@@ -704,22 +746,21 @@ class MalSimulator():
 
         agent.num_attempts[node] += 1
         if self.sim_settings.ttc_mode == TTCMode.PER_STEP_TRIAL:
-            # Run Bernoulli to decide success if config says so
-            # This is the SANDOR MODE
+            # Run trial to decide success if config says so (SANDOR mode)
             return attempt_step_ttc(
                 node, agent.num_attempts[node], self.rng
             )
 
         node_ttc_value = self._ttc_values.get(node, 0)
         if self.sim_settings.ttc_mode == TTCMode.PER_STEP_SAMPLE:
-            # Sample ttc every time if config says so
+            # Sample ttc every time if config says so (ANDREI mode)
             node_ttc_value = ttc_value_from_node(
                 node,
                 ProbCalculationMethod.SAMPLE,
                 self._calculated_bernoullis
             )
 
-        # Otherwise compare num attempts to the ttc value
+        # Compare attempts to ttc (sampled or expected) value
         return agent.num_attempts[node] >= node_ttc_value
 
 
@@ -806,7 +847,9 @@ class MalSimulator():
             if node in agent.action_surface:
                 enabled_defenses.add(node)
                 self._viability_per_node, made_unviable = make_node_unviable(
-                    node, self._viability_per_node, self._ttc_values
+                    node,
+                    self._viability_per_node,
+                    self._impossible_attack_steps
                 )
                 attack_steps_made_unviable |= made_unviable
                 logger.info(
