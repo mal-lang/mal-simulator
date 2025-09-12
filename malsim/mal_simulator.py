@@ -15,7 +15,7 @@ from maltoolbox.attackgraph import (
     AttackGraphNode
 )
 
-from malsim.probs_utils import (
+from malsim.ttc_utils import (
     attempt_step_ttc,
     ttc_value_from_node,
     ProbCalculationMethod,

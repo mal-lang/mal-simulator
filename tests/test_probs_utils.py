@@ -3,7 +3,12 @@
 from maltoolbox.model import Model
 from maltoolbox.attackgraph.attackgraph import AttackGraph
 from maltoolbox.language.languagegraph import LanguageGraph
-from malsim.probs_utils import ttc_value_from_node, ProbCalculationMethod, predef_ttcs, get_ttc_dict
+from malsim.ttc_utils import (
+    ttc_value_from_node,
+    ProbCalculationMethod,
+    predef_ttcs,
+    get_ttc_dict
+)
 from .conftest import path_testdata
 
 def test_probs_utils(model: Model) -> None:

@@ -226,9 +226,11 @@ def _expected_value(probs_dict: dict[str, Any]) -> float:
         raise ValueError('Probabilities dictionary was missing.')
 
     if probs_dict['type'] != 'function':
-        raise ValueError('Expected value probability method requires a '
+        raise ValueError(
+            'Expected value probability method requires a '
             'function probability distribution, but got '
-            f'"{probs_dict["type"]}"')
+            f'"{probs_dict["type"]}"'
+        )
 
     match(probs_dict['name']):
         case 'Bernoulli':
@@ -281,7 +283,7 @@ def _expected_value(probs_dict: dict[str, Any]) -> float:
                 f'function encountered "{probs_dict["name"]}"!')
 
 
-def ttc_value_from_ttc_dict(
+def _ttc_value_from_ttc_dict(
     node: AttackGraphNode,
     probs_dict: Optional[dict[str, Any]],
     method: ProbCalculationMethod,
@@ -306,10 +308,10 @@ def ttc_value_from_ttc_dict(
     match(probs_dict['type']):
         case 'addition' | 'subtraction' | 'multiplication' | \
                 'division' | 'exponentiation':
-            lv = ttc_value_from_ttc_dict(
+            lv = _ttc_value_from_ttc_dict(
                 node, probs_dict['lhs'], method, calculated_bernoullis
             )
-            rv = ttc_value_from_ttc_dict(
+            rv = _ttc_value_from_ttc_dict(
                 node, probs_dict['rhs'], method, calculated_bernoullis
             )
             match(probs_dict['type']):
@@ -342,6 +344,7 @@ def ttc_value_from_ttc_dict(
                 f'encountered "{probs_dict["type"]}"!'
             )
 
+
 def ttc_value_from_node(
     node: AttackGraphNode,
     method: ProbCalculationMethod,
@@ -349,7 +352,7 @@ def ttc_value_from_node(
 ) -> float:
     """Return a value (sampled or expected) from a nodes ttc distribution"""
     ttc_dict = get_ttc_dict(node)
-    return ttc_value_from_ttc_dict(
+    return _ttc_value_from_ttc_dict(
         node, ttc_dict, method, calculated_bernoullis
     )
 
@@ -359,13 +362,17 @@ def attempt_step_ttc(
     node: AttackGraphNode,
     step_working_time: int, rng: np.random.Generator
 ) -> bool:
-    """Attempt to compromise a step by sampling a success probability proportional to the TTC distribution, given previous attempts."""
+    """
+    Attempt to compromise a step by sampling a success probability
+    proportional to the TTC distribution, given previous attempts.
+    """
 
     success_prob = (
-        get_time_distribution(node.ttc)
+        _get_time_distribution(node.ttc)
         .success_probability(step_working_time)
     )
     return success_prob > rng.random()
+
 
 class TTCDist:
     def __init__(
@@ -384,7 +391,7 @@ class TTCDist:
         return self.obj.cdf(t) # type: ignore
 
 
-def get_time_distribution(ttc: Optional[dict[str, Any]]) -> TTCDist:
+def _get_time_distribution(ttc: Optional[dict[str, Any]]) -> TTCDist:
     """Get TTC Distribution from predefined names in MAL"""
     if not ttc:
         return TTCDist(0.0)
