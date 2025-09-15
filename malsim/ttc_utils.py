@@ -3,7 +3,6 @@
 from __future__ import annotations
 import logging
 import math
-import random
 from enum import Enum
 
 from typing import Any, Optional, TYPE_CHECKING
@@ -142,34 +141,36 @@ class ProbCalculationMethod(Enum):
     SAMPLE = 1
     EXPECTED = 2
 
-
 def _sample_value(
         node: AttackGraphNode,
         probs_dict: dict[str, Any],
-        calculated_bernoullis: dict[AttackGraphNode, float]
+        calculated_bernoullis: dict[AttackGraphNode, float],
+        rng: np.random.Generator
     ) -> float:
     """Calculate the sampled value from a probability distribution function
+
     Arguments:
-    probs_dict      - a dictionary containing the probability distribution
-                      function
+    probs_dict  - a dictionary containing the probability
+                  distribution function
 
     Return:
-    The float value obtained from calculating the sampled value corresponding
-    to the function provided.
+    The float value obtained from sampling the function provided.
     """
 
     if probs_dict is None:
         raise ValueError('Probabilities dictionary was missing.')
 
     if probs_dict['type'] != 'function':
-        raise ValueError('Sample probability method requires a function '
-            f'probability distribution, but got "{probs_dict["type"]}"')
+        raise ValueError(
+            'Sample probability method requires a function '
+            f'probability distribution, but got "{probs_dict["type"]}"'
+        )
 
     match(probs_dict['name']):
         case 'Bernoulli':
             if node in calculated_bernoullis:
                 return calculated_bernoullis[node]
-            value = random.random()
+            value = rng.random()
             threshold = float(probs_dict['arguments'][0])
             res = math.inf if value > threshold else 1.0
             calculated_bernoullis[node] = res
@@ -177,34 +178,32 @@ def _sample_value(
 
         case 'Exponential':
             lambd = float(probs_dict['arguments'][0])
-            return random.expovariate(lambd)
+            return rng.exponential(scale=1.0 / lambd)
 
         case 'Binomial':
             n = int(probs_dict['arguments'][0])
             p = float(probs_dict['arguments'][1])
-            # TODO: Someone with basic probabilities competences should
-            # actually check if this is correct.
-            return random.binomialvariate(n, p)
+            return rng.binomial(n, p)
 
         case 'Gamma':
             alpha = float(probs_dict['arguments'][0])
             beta = float(probs_dict['arguments'][1])
-            return random.gammavariate(alpha, beta)
+            return rng.gamma(shape=alpha, scale=beta)
 
         case 'LogNormal':
             mu = float(probs_dict['arguments'][0])
             sigma = float(probs_dict['arguments'][1])
-            return random.lognormvariate(mu, sigma)
+            return rng.lognormal(mean=mu, sigma=sigma)
 
         case 'Uniform':
             a = float(probs_dict['arguments'][0])
             b = float(probs_dict['arguments'][1])
-            return random.uniform(a, b)
+            return rng.uniform(a, b)
 
         case 'Pareto' | 'Truncated Normal':
             raise NotImplementedError(
-                f'"{probs_dict["name"]}" probability'
-                ' distribution not supported!')
+                f'"{probs_dict["name"]}" distribution not supported!'
+            )
 
         case _:
             raise ValueError(
@@ -289,7 +288,8 @@ def _ttc_value_from_ttc_dict(
     node: AttackGraphNode,
     probs_dict: Optional[dict[str, Any]],
     method: ProbCalculationMethod,
-    calculated_bernoullis: dict[AttackGraphNode, float]
+    calculated_bernoullis: dict[AttackGraphNode, float],
+    rng: np.random.Generator
 ) -> float:
     """Calculate the value from a probability distribution
     Arguments:
@@ -311,10 +311,10 @@ def _ttc_value_from_ttc_dict(
         case 'addition' | 'subtraction' | 'multiplication' | \
                 'division' | 'exponentiation':
             lv = _ttc_value_from_ttc_dict(
-                node, probs_dict['lhs'], method, calculated_bernoullis
+                node, probs_dict['lhs'], method, calculated_bernoullis, rng
             )
             rv = _ttc_value_from_ttc_dict(
-                node, probs_dict['rhs'], method, calculated_bernoullis
+                node, probs_dict['rhs'], method, calculated_bernoullis, rng
             )
             match(probs_dict['type']):
                 case 'addition':
@@ -332,7 +332,7 @@ def _ttc_value_from_ttc_dict(
             match(method):
                 case ProbCalculationMethod.SAMPLE:
                     return _sample_value(
-                        node, probs_dict, calculated_bernoullis
+                        node, probs_dict, calculated_bernoullis, rng
                     )
                 case ProbCalculationMethod.EXPECTED:
                     return _expected_value(probs_dict)
@@ -350,12 +350,13 @@ def _ttc_value_from_ttc_dict(
 def ttc_value_from_node(
     node: AttackGraphNode,
     method: ProbCalculationMethod,
-    calculated_bernoullis: dict[AttackGraphNode, float]
+    calculated_bernoullis: dict[AttackGraphNode, float],
+    rng: np.random.Generator
 ) -> float:
     """Return a value (sampled or expected) from a nodes ttc distribution"""
     ttc_dict = get_ttc_dict(node)
     return _ttc_value_from_ttc_dict(
-        node, ttc_dict, method, calculated_bernoullis
+        node, ttc_dict, method, calculated_bernoullis, rng
     )
 
 ### SANDOR TTC IMPLEMENTATION

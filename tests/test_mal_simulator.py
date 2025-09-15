@@ -482,12 +482,13 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
         'OS App:specificAccessRead',
         'OS App:successfulDeny',
         'Program 1:localConnect',
-        'Program 2:localConnect'
+        'Program 2:localConnect',
+        'IDPS 1:localConnect'
     }
-    assert len(asv.step_action_surface_removals) == 11
+    assert len(asv.step_action_surface_removals) == 12
     assert dsv.step_action_surface_removals == {os_app_not_present}
     assert dsv.step_all_compromised_nodes == set()
-    assert len(dsv.step_unviable_nodes) == 54
+    assert len(dsv.step_unviable_nodes) == 63
 
 
 def test_step_attacker_defender_action_surface_updates() -> None:
