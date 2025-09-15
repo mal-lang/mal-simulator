@@ -341,7 +341,7 @@ def test_bfs_vs_bfs_state_and_reward_PER_STEP_TRIAL() -> None:
     attacker_state = states[attacker_agent_name]
     defender_state = states[defender_agent_name]
 
-    while True:
+    while not sim.done():
         # Run the simulation until agents are terminated/truncated
         attacker_node = attacker_agent.get_next_action(attacker_state)
         defender_node = defender_agent.get_next_action(defender_state)
@@ -363,14 +363,8 @@ def test_bfs_vs_bfs_state_and_reward_PER_STEP_TRIAL() -> None:
         if defender_node and defender_node in defender_state.step_performed_nodes:
             defender_actions.append(defender_node.full_name)
 
-        total_reward_defender += defender_state.reward
-        total_reward_attacker += attacker_state.reward
-
-        # Break simulation if trunc or term
-        if defender_state.terminated or attacker_state.terminated:
-            break
-        if defender_state.truncated or attacker_state.truncated:
-            break
+        total_reward_defender += sim.agent_reward(defender_state.name)
+        total_reward_attacker += sim.agent_reward(attacker_state.name)
 
     assert sim.cur_iter == 118
 
@@ -448,8 +442,8 @@ def test_bfs_vs_bfs_state_and_reward_PER_STEP_TRIAL() -> None:
         assert node in defender_state.performed_nodes
 
     # Verify rewards in latest run and total rewards
-    assert attacker_state.reward == 0
-    assert defender_state.reward == -19
+    assert sim.agent_reward(attacker_state.name) == 0
+    assert sim.agent_reward(defender_state.name) == -19
 
     assert total_reward_attacker == 0
     assert total_reward_defender == -2133.0
@@ -487,7 +481,7 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
     attacker_state = states[attacker_agent_name]
     defender_state = states[defender_agent_name]
 
-    while True:
+    while not sim.done():
         # Run the simulation until agents are terminated/truncated
         attacker_node = attacker_agent.get_next_action(attacker_state)
         defender_node = defender_agent.get_next_action(defender_state)
@@ -509,14 +503,8 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         if defender_node and defender_node in defender_state.step_performed_nodes:
             defender_actions.append(defender_node.full_name)
 
-        total_reward_defender += defender_state.reward
-        total_reward_attacker += attacker_state.reward
-
-        # Break simulation if trunc or term
-        if defender_state.terminated or attacker_state.terminated:
-            break
-        if defender_state.truncated or attacker_state.truncated:
-            break
+        total_reward_defender += sim.agent_reward(defender_state.name)
+        total_reward_attacker += sim.agent_reward(attacker_state.name)
 
     assert sim.cur_iter == 11
 
@@ -558,8 +546,8 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         assert node in defender_state.performed_nodes
 
     # Verify rewards in latest run and total rewards
-    assert attacker_state.reward == 0
-    assert defender_state.reward == -19
+    assert sim.agent_reward(attacker_state.name) == 0
+    assert sim.agent_reward(defender_state.name) == -19
 
     assert total_reward_attacker == 0
     assert total_reward_defender == -100.0
