@@ -261,14 +261,13 @@ The regular simulator works with attack graph nodes and keeps track on agents st
 import logging
 
 from malsim.scenario import create_simulator_from_scenario
-from malsim.envs import MalSimVectorizedObsEnv
-from malsim import MalSimulator, run_simulator
+from malsim import run_simulation
 
 logging.basicConfig() # Enable logging
 
 scenario_file = "tests/testdata/scenarios/traininglang_scenario.yml"
 sim, agents = create_simulator_from_scenario(scenario_file)
-run_simulator(sim, agents)
+run_simulation(sim, agents)
 
 ```
 
@@ -283,34 +282,26 @@ from typing import Optional
 
 from malsim.scenario import load_scenario
 from malsim.envs import MalSimVectorizedObsEnv
-from malsim.mal_simulator import MalSimulator, AgentType
+from malsim.mal_simulator import MalSimulator
 
 logging.basicConfig() # Enable logging
 
 scenario_file = "tests/testdata/scenarios/traininglang_scenario.yml"
-attack_graph, agents = load_scenario(scenario_file)
+scenario = load_scenario(scenario_file)
 
 # The vectorized obs env is a wrapper that creates serialized observations
 # for the simulator, similar to how the old simulator used to work, tailored
 # for use in gym envs.
-vectorized_env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
-
-# You need to register the agents manually.
-for agent in agents:
-    if agent['type'] == AgentType.ATTACKER:
-        vectorized_env.register_attacker(agent['name'], agent['attacker_id'])
-    elif agent['type'] == AgentType.DEFENDER:
-        vectorized_env.register_defender(agent['name'])
+vectorized_env = MalSimVectorizedObsEnv(MalSimulator.from_scenario(scenario))
 
 # Run reset after agents are registered
 obs, info = vectorized_env.reset()
 
 # You need to write your own simulator loop:
-done = False
-while not done:
+while not vectorized_env.sim.done():
     actions: dict[str, tuple[int, Optional[int]]] = {}
 
-    for agent in agents:
+    for agent in scenario.agents:
         vectorized_agent_info = info[agent['name']] # Contains action mask which can be used
         regular_agent_info = vectorized_env.sim.agent_states[agent['name']] # Also contains action mask
         action = next(iter(regular_agent_info.action_surface))
@@ -322,8 +313,6 @@ while not done:
 
     obs, rew, term, trunc, info = vectorized_env.step(actions)
 
-    for agent in agents:
-        done = all(term.values()) or all(trunc.values())
 
 ```
 
