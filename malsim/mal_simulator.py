@@ -290,7 +290,7 @@ class MalSimulator():
                 )
         return traversable
 
-    def agent_reward(self, agent_name) -> float:
+    def agent_reward(self, agent_name: str) -> float:
         """Get an agents current reward"""
         return self._agent_rewards.get(agent_name, 0)
 
@@ -539,7 +539,7 @@ class MalSimulator():
     def _create_defender_state(self, name: str) -> MalSimDefenderState:
         """Create a new defender state, initialize values"""
 
-        compromised_steps = set()
+        compromised_steps: set[AttackGraphNode] = set()
         for attacker_state in self._get_attacker_agents():
             compromised_steps |= attacker_state.performed_nodes
 

@@ -513,7 +513,7 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
             "Attack graph in simulator needs to have a model attached to it"
         )
 
-        pre_enabled_nodes = set()
+        pre_enabled_nodes: set[AttackGraphNode] = set()
         for agent in self.sim.agent_states.values():
             # Reset observation and action mask for agents
             self._agent_observations[agent.name] = \
@@ -583,7 +583,7 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
         disabled_nodes = next(iter(states.values())).step_unviable_nodes
 
         self._update_agent_infos() # Update action masks
-        self._update_observations(all_actioned, disabled_nodes)
+        self._update_observations(all_actioned, set(disabled_nodes))
 
         observations = self._agent_observations
         rewards = {}

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from maltoolbox.attackgraph import AttackGraph
-from malsim.mal_simulator import MalSimulator
+from malsim.mal_simulator import MalSimulator, MalSimAttackerState
 from malsim.envs import MalSimVectorizedObsEnv
 from malsim.scenario import load_scenario
 
@@ -524,6 +524,8 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
         ):
 
         attacker_state = env.get_agent_state(attacker_name)
+        assert isinstance(attacker_state, MalSimAttackerState)
+
         node = env.index_to_node(index)
         if state == -1:
             assert node not in attacker_state.entry_points

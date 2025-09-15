@@ -1,6 +1,6 @@
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.language import LanguageGraph
-from malsim.mal_simulator import MalSimAgentState, MalSimulator
+from malsim.mal_simulator import MalSimulator, MalSimDefenderState
 from malsim.agents import (
     DefendCompromisedDefender,
     DefendFutureCompromisedDefender,
@@ -73,6 +73,7 @@ def test_defend_compromised_defender(
     node2.extras['reward'] = 10
 
     # Get next action
+    assert isinstance(agent_state, MalSimDefenderState)
     action_node = defender_ai.get_next_action(agent_state)
     assert action_node is not None, "Action node shouldn't be None"
     assert action_node.id == node2.id
@@ -157,6 +158,7 @@ def test_defend_future_compromised_defender(
     defender_ai = DefendFutureCompromisedDefender(agent_config)
 
     # Should pick node 2 either way
+    assert isinstance(agent_state, MalSimDefenderState)
     action_node = defender_ai.get_next_action(agent_state)
     assert action_node is not None, "Action node shouldn't be None"
     assert action_node.id == node2.id

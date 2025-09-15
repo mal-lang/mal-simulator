@@ -1,6 +1,6 @@
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.language import LanguageGraph
-from malsim.mal_simulator import MalSimulator, MalSimAgentState
+from malsim.mal_simulator import MalSimulator
 from malsim.agents import BreadthFirstAttacker, DepthFirstAttacker
 
 

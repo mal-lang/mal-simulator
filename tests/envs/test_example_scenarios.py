@@ -7,7 +7,11 @@ Determinism, ttcs, agents, action surfaces, step etc.
 """
 
 from malsim.scenario import create_simulator_from_scenario
-from malsim.mal_simulator import MalSimulatorSettings, TTCMode
+from malsim.mal_simulator import (
+    MalSimulatorSettings,
+    TTCMode,
+    MalSimDefenderState
+)
 
 def test_bfs_vs_bfs_state_and_reward() -> None:
     """
@@ -43,8 +47,8 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     total_reward_defender = 0.0
     total_reward_attacker = 0.0
 
-    attacker_actions = []
-    defender_actions = []
+    attacker_actions: list[str] = []
+    defender_actions: list[str] = []
 
     states = sim.reset()
 
@@ -64,6 +68,7 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         states = sim.step(actions)
         attacker_state = states[attacker_agent_name]
         defender_state = states[defender_agent_name]
+        assert isinstance(defender_state, MalSimDefenderState)
 
         # If actions were performed, add them to respective list
         if attacker_node and attacker_node in attacker_state.step_performed_nodes:
@@ -212,12 +217,12 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         states = sim.step(actions)
         attacker_state = states[attacker_agent_name]
         defender_state = states[defender_agent_name]
+        assert isinstance(defender_state, MalSimDefenderState)
 
         # If actions were performed, add them to respective list
-        if attacker_node and attacker_node in \
-                states['attacker1'].step_performed_nodes:
+        if attacker_node and attacker_node in attacker_state.step_performed_nodes:
             attacker_actions.append(attacker_node.full_name)
-            assert attacker_node in states['defender1'].step_all_compromised_nodes
+            assert attacker_node in defender_state.step_all_compromised_nodes
 
         if defender_node and defender_node in \
                 states['defender1'].step_performed_nodes:
@@ -354,6 +359,7 @@ def test_bfs_vs_bfs_state_and_reward_PER_STEP_TRIAL() -> None:
         states = sim.step(actions)
         defender_state = states[defender_agent_name]
         attacker_state = states[attacker_agent_name]
+        assert isinstance(defender_state, MalSimDefenderState)
 
         # If actions were performed, add them to respective list
         if attacker_node and attacker_node in attacker_state.step_performed_nodes:
@@ -494,6 +500,7 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         states = sim.step(actions)
         defender_state = states[defender_agent_name]
         attacker_state = states[attacker_agent_name]
+        assert isinstance(defender_state, MalSimDefenderState)
 
         # If actions were performed, add them to respective list
         if attacker_node and attacker_node in attacker_state.step_performed_nodes:

@@ -416,6 +416,9 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     })
     asv = state_views['attacker']
     dsv = state_views['defender']
+    assert isinstance(asv, MalSimAttackerState)
+    assert isinstance(dsv, MalSimDefenderState)
+
     assert asv.step_performed_nodes == {os_app_attempt_deny}
     assert dsv.step_performed_nodes == {program2_not_present}
 
@@ -439,6 +442,9 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     })
     asv = state_views['attacker']
     dsv = state_views['defender']
+    assert isinstance(asv, MalSimAttackerState)
+    assert isinstance(dsv, MalSimDefenderState)
+
     assert asv.step_performed_nodes == {os_app_spec_access}
     assert dsv.step_performed_nodes == set()
     assert os_app_access_netcon in asv.action_surface
@@ -458,6 +464,9 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     })
     asv = state_views['attacker']
     dsv = state_views['defender']
+    assert isinstance(asv, MalSimAttackerState)
+    assert isinstance(dsv, MalSimDefenderState)
+
     assert asv.step_performed_nodes == set()
     assert dsv.step_performed_nodes == {os_app_not_present}
     assert asv.step_action_surface_additions == set()

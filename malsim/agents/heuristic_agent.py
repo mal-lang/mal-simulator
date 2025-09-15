@@ -5,15 +5,13 @@ import math
 
 import numpy as np
 
-from .decision_agent import DecisionAgent
-
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
-    from ..mal_simulator import MalSimAgentState, MalSimDefenderState
+    from ..mal_simulator import MalSimDefenderState
 
 logger = logging.getLogger(__name__)
 
-class DefendCompromisedDefender(DecisionAgent):
+class DefendCompromisedDefender:
     """A defender that defends compromised assets using notPresent"""
 
     def __init__(self, agent_config: dict[str, Any], **_: Any):
@@ -71,7 +69,7 @@ class DefendCompromisedDefender(DecisionAgent):
         return selected_node
 
 
-class DefendFutureCompromisedDefender(DecisionAgent):
+class DefendFutureCompromisedDefender:
     """A defender that defends compromised assets using notPresent"""
 
     def __init__(self, agent_config: dict[str, Any], **_: Any):

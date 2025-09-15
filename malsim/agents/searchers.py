@@ -52,11 +52,11 @@ class BreadthFirstAttacker(DecisionAgent):
         """Receive the next action according to agent policy (bfs/dfs)"""
 
         self._update_targets(
-            new_nodes=(
+            new_nodes=set(
                 agent_state.step_action_surface_additions
                 if self._started else agent_state.action_surface
             ),
-            disabled_nodes=(
+            disabled_nodes=set(
                 agent_state.step_action_surface_removals |
                 agent_state.step_performed_nodes
             )
