@@ -346,7 +346,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
 
     mss = MalSimulatorSettings(
         seed=13,
-        ttc_mode=TTCMode.LIVE_SAMPLE
+        ttc_mode=TTCMode.PER_STEP_SAMPLE
     )
     # Create simulator and register agents
     sim = MalSimulator(attack_graph, sim_settings=mss)
@@ -430,7 +430,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert os_app_attempt_deny not in asv.action_surface
     assert dsv.step_action_surface_removals == {program2_not_present}
     assert dsv.step_all_compromised_nodes == {os_app_attempt_deny}
-    assert len(dsv.step_unviable_nodes) == 48
+    assert len(dsv.step_unviable_nodes) == 47
 
     # Go through an attack step that already has some children in the attack
     # surface(OS App:accessNetworkAndConnections in this case)
@@ -464,10 +464,10 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert dsv.step_performed_nodes == {os_app_not_present}
     assert asv.step_action_surface_additions == set()
     assert dsv.step_action_surface_additions == set()
-    assert len(asv.step_action_surface_removals) == 12
+    assert len(asv.step_action_surface_removals) == 11
     assert dsv.step_action_surface_removals == {os_app_not_present}
     assert dsv.step_all_compromised_nodes == set()
-    assert len(dsv.step_unviable_nodes) == 63
+    assert len(dsv.step_unviable_nodes) == 54
 
 
 def test_step_attacker_defender_action_surface_updates() -> None:
@@ -573,7 +573,7 @@ def test_simulator_ttcs() -> None:
 
     sim, _ = create_simulator_from_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml',
-        sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.LIVE_SAMPLE)
+        sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.PER_STEP_SAMPLE)
     )
 
     host_0_notPresent = get_node(sim, "Host:0:notPresent")

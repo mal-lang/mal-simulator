@@ -201,8 +201,7 @@ def test_depth_first_traversal_complicated(
     actual_order = []
     for _ in range(0,7):
         # Get next action
-        agent_view = MalSimAgentStateView(agent_state)
-        action_node = attacker_ai.get_next_action(agent_view)
+        action_node = attacker_ai.get_next_action(agent_state)
         assert action_node
 
         # Get next action

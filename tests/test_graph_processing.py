@@ -1,7 +1,5 @@
 """Tests for analyzers"""
 
-import math
-
 from malsim.graph_processing import (
     _propagate_viability_from_node,
     _propagate_necessity_from_node,
@@ -41,8 +39,6 @@ def test_viability_viable_nodes(dummy_lang_graph: LanguageGraph) -> None:
     or_node = attack_graph.add_node(or_attack_step_type)
     or_node_parent = attack_graph.add_node(or_attack_step_type)
     or_node.parents.add(or_node_parent)
-    ttc_values[or_node] = 1.0
-    ttc_values[or_node_parent] = 1.0
 
     # and-node with no parents -> viable
     and_attack_step_type = dummy_attack_steps['DummyAndAttackStep']
@@ -54,14 +50,11 @@ def test_viability_viable_nodes(dummy_lang_graph: LanguageGraph) -> None:
     and_node_parent1 = attack_graph.add_node(and_attack_step_type)
     and_node_parent2 = attack_graph.add_node(and_attack_step_type)
     and_node2.parents = {and_node_parent1, and_node_parent2}
-    ttc_values[and_node2] = 1.0
-    ttc_values[and_node_parent1] = 1.0
-    ttc_values[and_node_parent2] = 1.0
 
     # Make sure viable
     enabled_defenses: set[AttackGraphNode] = set()
     viable_nodes = calculate_viability(
-        attack_graph, enabled_defenses, ttc_values
+        attack_graph, enabled_defenses, set()
     )
     assert exist_node in viable_nodes
     assert not_exist_node in viable_nodes
@@ -74,7 +67,7 @@ def test_viability_viable_nodes(dummy_lang_graph: LanguageGraph) -> None:
 def test_viability_unviable_nodes(dummy_lang_graph: LanguageGraph) -> None:
     """Make sure expected unviable nodes are actually unviable"""
 
-    ttc_values = {}
+    impossible_attack_steps = set()
     attack_graph = AttackGraph(dummy_lang_graph)
     dummy_attack_steps = dummy_lang_graph.assets['DummyAsset'].attack_steps
 
@@ -98,8 +91,7 @@ def test_viability_unviable_nodes(dummy_lang_graph: LanguageGraph) -> None:
     unviable_or_node_parent = attack_graph.add_node(or_attack_step_type)
     or_node.parents.add(unviable_or_node_parent)
     unviable_or_node_parent.children.add(or_node)
-    ttc_values[or_node] = 1.0
-    ttc_values[unviable_or_node_parent] = math.inf
+    impossible_attack_steps.add(unviable_or_node_parent)
 
     # and-node with two non-viable parents -> non viable
     and_attack_step_type = dummy_attack_steps['DummyAndAttackStep']
@@ -110,14 +102,13 @@ def test_viability_unviable_nodes(dummy_lang_graph: LanguageGraph) -> None:
     and_node.parents = {unviable_and_node_parent1, unviable_and_node_parent2}
     unviable_and_node_parent1.children.add(and_node)
     unviable_and_node_parent1.children.add(and_node)
-    ttc_values[and_node] = 1.0
-    ttc_values[unviable_and_node_parent1] = math.inf
-    ttc_values[unviable_and_node_parent2] = math.inf
+    impossible_attack_steps.add(unviable_and_node_parent1)
+    impossible_attack_steps.add(unviable_and_node_parent2)
 
     # Make sure unviable
     enabled_defenses = {defense_step_node}
     viability_per_node = calculate_viability(
-        attack_graph, enabled_defenses, ttc_values
+        attack_graph, enabled_defenses, impossible_attack_steps
     )
 
     assert not viability_per_node[unviable_or_node_parent]
@@ -211,7 +202,7 @@ def test_analyzers_apriori_prune_unviable_and_unnecessary_nodes(
         if node.type == 'and'
     )
 
-    viability_per_node = calculate_viability(example_attackgraph, set(), {})
+    viability_per_node = calculate_viability(example_attackgraph, set(), set())
     necessity_per_node = calculate_necessity(example_attackgraph, set())
     necessity_per_node[node_to_make_unnecessary] = False
     viability_per_node[node_to_make_unviable] = False
@@ -274,7 +265,7 @@ def test_analyzers_apriori_propagate_viability(dummy_lang_graph: LanguageGraph) 
     uvp1.children = {or_1vp, or_2uvp, and_1uvp}
     uvp2.children = {or_2uvp}
 
-    viability_per_node = calculate_viability(attack_graph, set(), dict())
+    viability_per_node = calculate_viability(attack_graph, set(), set())
 
     # Make unviable
     viability_per_node[uvp1] = False
@@ -283,7 +274,7 @@ def test_analyzers_apriori_propagate_viability(dummy_lang_graph: LanguageGraph) 
     changed_nodes = set()
     for parent in [vp1, vp2, uvp1, uvp2]:
         changed_nodes |= _propagate_viability_from_node(
-            parent, viability_per_node, dict()
+            parent, viability_per_node, set()
         )
 
     assert changed_nodes == {or_2uvp, and_1uvp}

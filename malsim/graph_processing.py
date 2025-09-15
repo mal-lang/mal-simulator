@@ -14,7 +14,6 @@ Currently it adds the following information to nodes:
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import logging
-import math
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
@@ -115,7 +114,7 @@ def calculate_necessity(
 def _propagate_viability_from_node(
         node: AttackGraphNode,
         viability_per_node: dict[AttackGraphNode, bool],
-        ttc_values: dict[AttackGraphNode, float]
+        impossible_attack_steps: set[AttackGraphNode]
     ) -> set[AttackGraphNode]:
     """
     Update viability of children of node given as parameter. Propagate
@@ -132,17 +131,14 @@ def _propagate_viability_from_node(
     """
     changed_nodes = set()
     for child in node.children:
-        if ttc_values.get(child) == math.inf:
-            # If a node has an infinite TTC value it means that it is
-            # intrinsically unviable due to a Bernoulli probability.
-            continue
-
-        is_viable = evaluate_viability(child, viability_per_node, set(), {})
+        is_viable = evaluate_viability(
+            child, viability_per_node, set(), impossible_attack_steps
+        )
         if is_viable != viability_per_node[child]:
             viability_per_node[child] = is_viable
             changed_nodes |= (
                 {child} | _propagate_viability_from_node(
-                    child, viability_per_node, ttc_values
+                    child, viability_per_node, impossible_attack_steps
                 )
             )
     return changed_nodes
@@ -152,7 +148,7 @@ def evaluate_viability(
         node: AttackGraphNode,
         viability_per_node: dict[AttackGraphNode, bool],
         enabled_defenses: set[AttackGraphNode],
-        ttc_values: dict[AttackGraphNode, float]
+        impossible_attack_steps: set[AttackGraphNode]
     ) -> bool:
     """
     Arguments:
@@ -161,10 +157,8 @@ def evaluate_viability(
     enabled_defenses    - set of all enabled defenses
     ttc_values          - a dictionary containing the ttc values of each node
     """
-    if ttc_values.get(node) == math.inf:
-        # If a node has an infinite TTC value it means that it is
-        # intrinsically unviable due to a Bernoulli probability. Only 'and'
-        # and 'or' nodes have TTC values
+    if node in impossible_attack_steps:
+        # Impossible step is not viable
         return False
 
     match (node.type):
@@ -196,7 +190,7 @@ def evaluate_viability(
 def calculate_viability(
     graph: AttackGraph,
     enabled_defenses: set[AttackGraphNode],
-    ttc_values: dict[AttackGraphNode, float]
+    impossible_attack_steps: set[AttackGraphNode]
 ) -> dict[AttackGraphNode, bool]:
     """Calculate viability for an attack graph
     
@@ -209,11 +203,13 @@ def calculate_viability(
     viability_per_node = {n: True for n in graph.nodes.values()}
     for node in graph.nodes.values():
         viability_per_node[node] = evaluate_viability(
-            node, viability_per_node, enabled_defenses, ttc_values
+            node, viability_per_node,
+            enabled_defenses,
+            impossible_attack_steps
         )
         if not viability_per_node[node]:
             _propagate_viability_from_node(
-                node, viability_per_node, ttc_values
+                node, viability_per_node, impossible_attack_steps
             )
     return viability_per_node
 
@@ -221,7 +217,7 @@ def calculate_viability(
 def make_node_unviable(
         node: AttackGraphNode,
         viability_per_node: dict[AttackGraphNode, bool],
-        ttc_values: dict[AttackGraphNode, float]
+        impossible_attacksteps: set[AttackGraphNode]
     ) -> tuple[dict[AttackGraphNode, bool], set[AttackGraphNode]]:
     """Make a node unviable
 
@@ -230,7 +226,7 @@ def make_node_unviable(
     """
     viability_per_node[node] = False
     nodes_made_unviable = _propagate_viability_from_node(
-        node, viability_per_node, ttc_values
+        node, viability_per_node, impossible_attacksteps
     )
     return viability_per_node, nodes_made_unviable
 
