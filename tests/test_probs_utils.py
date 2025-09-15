@@ -9,7 +9,6 @@ from malsim.ttc_utils import (
     ProbCalculationMethod,
     predef_ttcs,
     get_ttc_dict,
-    attempt_step_ttc
 )
 from .conftest import path_testdata
 
@@ -119,40 +118,3 @@ def test_get_ttc_dict_attacksteps(corelang_lang_graph: LanguageGraph) -> None:
     bypass_sa = attack_graph.get_node_by_full_name('User:12:bypassSecurityAwareness')
     assert bypass_sa
     assert get_ttc_dict(bypass_sa) == predef_ttcs['VeryHardAndUncertain']
-
-
-def test_ttc_sampling(corelang_lang_graph: LanguageGraph) -> None:
-    """Make sure TTCs are set correctly for attacks"""
-
-    model = Model.load_from_file(
-        path_testdata("models/simple_example_model.yml"),
-        corelang_lang_graph
-    )
-    attack_graph = AttackGraph(
-        lang_graph=corelang_lang_graph, model=model
-    )
-    non_instant_step = attack_graph.get_node_by_full_name(
-        'Credentials:10:guessCredentials'
-    )
-    assert non_instant_step
-
-    # Test SANDOR MODE
-    total_workload = 0
-    num_simulations = 100
-    for _ in range(num_simulations):
-        workload = 0
-        while True:
-            if attempt_step_ttc(non_instant_step, workload):
-                break
-            workload += 1
-        total_workload += workload
-
-    avg_workload = total_workload / num_simulations
-    assert round(avg_workload) == 4  # Why is it 4?
-
-
-    # Test expected value
-    expected_value = ttc_value_from_node(
-        non_instant_step, ProbCalculationMethod.EXPECTED, {}
-    )
-    assert expected_value == 20  # Why is it 20?

@@ -243,7 +243,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         if defender_agent_state.truncated or attacker_agent_state.truncated:
             break
 
-    assert sim.cur_iter == 79
+    assert sim.cur_iter == 637
 
     # Make sure the actions performed were as expected
     assert attacker_actions == [
@@ -323,7 +323,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     assert defender_agent_state.reward == -19
 
     assert total_reward_attacker == 0
-    assert total_reward_defender == -1392.0
+    assert total_reward_defender == -11994.0  # It ran for a while
 
 
 def test_bfs_vs_bfs_state_and_reward_PER_STEP_TRIAL() -> None:
@@ -332,7 +332,7 @@ def test_bfs_vs_bfs_state_and_reward_PER_STEP_TRIAL() -> None:
         "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml",
         sim_settings = MalSimulatorSettings(
             seed=100,
-            ttc_mode=TTCMode.PER_STEP_TRIAL
+            ttc_mode=TTCMode.EFFORT_BASED_PER_STEP_SAMPLE
         )
     )
 

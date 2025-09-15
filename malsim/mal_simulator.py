@@ -167,7 +167,7 @@ class TTCMode(Enum):
     """
     Describes how to use the probability distributions in the attack graph.
     """
-    PER_STEP_TRIAL = 0
+    EFFORT_BASED_PER_STEP_SAMPLE = 0
     PER_STEP_SAMPLE = 1
     PRE_SAMPLE = 2
     EXPECTED_VALUE = 3
@@ -744,24 +744,30 @@ class MalSimulator():
         """
 
         agent.num_attempts[node] += 1
-        if self.sim_settings.ttc_mode == TTCMode.PER_STEP_TRIAL:
+
+        if self.sim_settings.ttc_mode == TTCMode.DISABLED:
+            # Always suceed if disabled TTCs
+            return True
+
+        if self.sim_settings.ttc_mode == TTCMode.EFFORT_BASED_PER_STEP_SAMPLE:
             # Run trial to decide success if config says so (SANDOR mode)
             return attempt_step_ttc(
                 node, agent.num_attempts[node], self.rng
             )
 
-        node_ttc_value = self._ttc_values.get(node, 0)
         if self.sim_settings.ttc_mode == TTCMode.PER_STEP_SAMPLE:
-            # Sample ttc every time if config says so (ANDREI mode)
+            # Sample ttc value every time if config says so (ANDREI mode)
             node_ttc_value = ttc_value_from_node(
                 node,
                 ProbCalculationMethod.SAMPLE,
                 self._calculated_bernoullis
             )
+            return node_ttc_value <= 1
 
-        # Compare attempts to ttc (sampled or expected) value
+        # Compare attempts to ttc expected value in EXPECTED_VALUE mode
+        # or presampled ttcs in PRE_SAMPLE mode
+        node_ttc_value = self._ttc_values.get(node, 0)
         return agent.num_attempts[node] >= node_ttc_value
-
 
     def _attacker_step(
         self, agent: MalSimAttackerState, nodes: list[AttackGraphNode]
