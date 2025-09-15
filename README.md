@@ -8,7 +8,7 @@ A MAL compliant simulator.
 
 ```pip install mal-simulator```
 
-To also get ML dependencies (numpy, pettingzoo, gymnasium):
+To also get ML dependencies (pettingzoo, gymnasium):
 
 ```pip install mal-simulator[ml]```
 
@@ -23,23 +23,71 @@ Note for contributers: The CI pipeline runs `mypy` and `ruff` for linting and ty
 A `mal_simulator.MalSimulator` can be created to be able to run simulations.
 
 ### MalSimulatorSettings
-The constructor of MalSimulator can be given a settings object (`mal_simulator.MalSimulatorSettings`)
+The MalSimulator can be given a settings (`mal_simulator.MalSimulatorSettings`)
 through the parameter 'sim_settings'. Giving sim_settings is optional, otherwise default settings are used.
 
 ```python
 
 settings = MalSimulatorSettings(
-  uncompromise_untraversable_steps=True, # default is False
-  cumulative_defender_obs=False # default is True
+    # Default values
+    uncompromise_untraversable_steps: bool = False
+    ttc_mode: TTCMode = TTCMode.DISABLED
+    seed: Optional[int] = None
+    attack_surface_skip_compromised: bool = True
+    attack_surface_skip_unviable: bool = True
+    attack_surface_skip_unnecessary: bool = True
+    run_defense_step_bernoullis: bool = True
+    attacker_reward_mode: RewardMode = RewardMode.CUMULATIVE
+    defender_reward_mode: RewardMode = RewardMode.CUMULATIVE
 )
 sim = MalSimulator(lang_graph, model, attack_graph, sim_settings=settings)
 
 ```
 
+### TTCs
+
+TTC (Time to compromise) can be enabled with the `sim_settings` ttc_mode option.
+TTCs can be defined in the MAL language for attack steps as probability distributions.
+- TTCs for attack steps tells the difficulty to compromise a step in the mal-simulator.
+
+Defense steps can also have TTCs, but they are interpreted differently.
+- TTCs for defense steps tells the probability that the defense is enabled at the start of a simulation.
+- Always Bernoullis. (Enabled = Bernoulli(1), Disabled=Bernoulli(0))
+
+[Read more about TTCs](https://github.com/mal-lang/malcompiler/wiki/Supported-distribution-functions)
+
+In the MalSimulator, TTCs can be used in different ways (set through malsim settings)
+
+1. EFFORT_BASED_PER_STEP_SAMPLE
+  - Run a random trial and compare with the success probability of an attack step after n attempts.
+  - Let the agent compromise if the trial succeeds
+
+2. PER_STEP_SAMPLE
+  - Sample the distribution for an attack step each time an agent tries to compromise a step
+  - Let agent compromise a node if the sampled value is <= 1
+
+3. PRE_SAMPLE
+  - Sample the distribution for each attack step at the beginning of a simulation and decrement it every step an agent tries to compromise it
+  - Let agent compromise a node if the ttc value is < 1
+
+4. EXPECTED VALUE
+  - Set the ttc value of a step to the expected value at the beginning of a simulation and decrement it every step an agent tries to compromise it
+  - Let agent compromise a node if the ttc value is < 1
+
+5. DISABLED (default)
+  - Don't use TTCs, all attack steps are compromised on the agents first attempt (as long as they are allowed to)
+
+#### Bernoullis in attack steps
+
+If an attack step has a Bernoulli in its TTC, it will be sampled at the start of the simulation.
+If the Bernoulli does not succeed, the step will not be compromisable.
+
+This is to match the  https://github.com/mal-lang/malcompiler/wiki/Supported-distribution-functions#bernoulli-behaviour
+
 ## Scenarios
 
-To make it easier to define simulation environment you can use scenarios defined in yml-files.
-Scenarios consist of MAL language, model, rewards, agent classes and attacker entrypoints,
+To make it easier to define simulation environment you can use scenarios defined in yml-files, or create `malsim.scenario.Scenario` objects.
+Scenarios consist of MAL language, model, rewards, agents and some other values.
 they are a setup for running a simulation. This is how the format looks like:
 
 ```yml
@@ -48,8 +96,6 @@ lang_file: <path to .mar-archive>
 model_file: <path to json/yml model>
 
 # Add agents / entry points to simulator / attack graph
-# Note: When defining attackers and entrypoints in a scenario,
-#       these override attackers in the model.
 # Possible values for AGENT_CLASS:
 # PassiveAgent | DecisionAgent | KeyboardAgent | BreadthFirstAttacker |
 # DepthFirstAttacker | DefendCompromisedDefender | DefendFutureCompromisedDefender
@@ -91,7 +137,7 @@ rewards:
 # Optionally add observability rules that are applied to AttackGrapNodes
 # to make only certain steps observable.
 # Note: These do not change the behavior of the simulator.
-#       Instead, they just add the value to each nodes '.extras' field.
+#       Instead, they just create a dict in the scenario object.
 #
 # If 'observable_steps' are set:
 # - Nodes that match any rule will be marked as observable
@@ -107,8 +153,7 @@ observable_steps:
       - <step name>
 
 # Optionally add actionability rules that are applied to AttackGrapNodes
-# to make only certain steps actionable
-# Works exactly as observability
+# to make only certain steps actionable. Works exactly as observability.
 actionable_steps:
   by_asset_type:
     <asset_type>:
@@ -131,47 +176,6 @@ actionable_steps:
 #     ...
 
 
-# Optionally add false positive/negative rates to observations.
-#
-# False positive/negative `rate` is a number between 0.0 and 1.0.
-#  - A false positive rate of x for means that an inactive attack step
-#    will be observed as active at a rate of x in each observation
-#  - A false negative rate of x for means that an active attack step
-#    will be observed as inactive at a rate of x in each observation
-# Default false positive/negative rate is 0, which is assumed if none are given.
-# Note: False positives/negatives rates will not generate in the
-#       current version of the MAL Simulator.
-# Set false positive rates per attack step (default 0)
-false_positive_rates:
-  by_asset_type:
-    <asset_type>:
-      <step name>: rate (float)
-  by_asset_name:
-    <asset_name>:
-      <step name>: rate (float)
-
-# Set false negative rates per attack step (default 0)
-false_negative_rates:
-  by_asset_type:
-    <asset_type>:
-      <step name>: rate (float)
-  by_asset_name:
-    <asset_name>:
-      <step name>: rate (float)
-
-# Example:
-#   by_asset_type:
-#     Host:
-#       access: 0.1
-#       authenticate: 0.4
-#     Data:
-#       read: 0.1
-
-#   by_asset_name:
-#     User_3:
-#       phishing: 0.3
-#     ...
-
 ```
 
 ## Extend
@@ -190,7 +194,20 @@ If you just want to load a resulting attack graph from a scenario, use `malsim.s
 from malsim.scenarios import load_scenario
 
 scenario_file = "scenario.yml"
-attack_graph, sim_config = load_scenario(scenario_file)
+scenario: Scenario = load_scenario(scenario_file)
+
+# Scenario is a dataclass defined as:
+class Scenario:
+    """Scenarios defines everything needed to run a simulation"""
+    attack_graph: AttackGraph
+    agents: list[dict[str, Any]]
+
+    # Node properties
+    rewards: dict[AttackGraphNode, float]
+    false_positive_rates: dict[AttackGraphNode, float] # experimental
+    false_negative_rates: dict[AttackGraphNode, float] # experimental
+    is_observable: dict[AttackGraphNode, bool]         # experimental
+    is_actionable: dict[AttackGraphNode, bool]         # experimental
 
 ```
 
@@ -208,7 +225,7 @@ mal_simulator, agents = create_simulator_from_scenario(scenario_file)
 The returned MalSimulator contains the attackgraph created from
 the scenario, as well as registered agents. At this point, simulator and sim_config
 (which contains the decision agents) can be used for running a simulation
-(refer to `malsim.mal_simulator.run_simulation` to see example of this).
+(use or refer to function `malsim.mal_simulator.run_simulation` to create your own simulation loop).
 
 
 ## CLI
@@ -245,57 +262,14 @@ import logging
 
 from malsim.scenario import create_simulator_from_scenario
 from malsim.envs import MalSimVectorizedObsEnv
-from malsim import MalSimulator
+from malsim import MalSimulator, run_simulator
 
 logging.basicConfig() # Enable logging
 
 scenario_file = "tests/testdata/scenarios/traininglang_scenario.yml"
 sim, agents = create_simulator_from_scenario(scenario_file)
+run_simulator(sim, agents)
 
-# `sim` is the actual MALSimulator
-assert isinstance(sim, MalSimulator)
-
-# `agents` is a list of the scenario agents which are
-# automatically registered when you use `create_simulator_from_scenario``
-assert isinstance(agents, list)
-
-agent_states = sim.reset()
-
-# `agent_states` is a dict of agent names mapping to agent states
-# agent states contain info about the agents current state
-assert isinstance(agent_states, dict)
-
-# You can run simulations with the MalSimulator,
-# but you need to write a simulation loop:
-
-# Termination condition for our simulation loop
-all_agents_term_or_trunc = False
-
-i = 1
-while not all_agents_term_or_trunc:
-    all_agents_term_or_trunc = True
-    actions = {}
-
-    # Select actions for each agent
-    for agent_dict in agents:
-        agent_name = agent_dict['name']
-        # Generate actions - empty list is none action
-        # In this case we just pick the first action from the action surface
-        action = next(iter(agent_states[agent_name].action_surface))
-        actions[agent_dict['name']] = [action] if action else []
-
-    # Perform next step of simulation
-    agent_states = sim.step(actions)
-
-    for agent_dict in agents:
-        agent_state = agent_states[agent_dict['name']]
-        if not agent_state.terminated and not agent_state.truncated:
-            all_agents_term_or_trunc = False
-
-    print("---\n")
-    i += 1
-
-print("Game Over.")
 ```
 
 ## Running the VectorizedEnv (serialized observations)
