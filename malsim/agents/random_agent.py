@@ -6,7 +6,7 @@ from .decision_agent import DecisionAgent
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
-    from ..mal_simulator import MalSimAgentStateView
+    from ..mal_simulator import MalSimAgentState
 
 class RandomAgent(DecisionAgent):
     """An agent that selects random actions"""
@@ -16,7 +16,7 @@ class RandomAgent(DecisionAgent):
         self.rng = random.Random(seed)
 
     def get_next_action(
-        self, agent_state: MalSimAgentStateView, **kwargs: Any
+        self, agent_state: MalSimAgentState, **kwargs: Any
     ) -> Optional[AttackGraphNode]:
         """Return a random node from the action surface"""
         possible_choices = list(agent_state.action_surface)

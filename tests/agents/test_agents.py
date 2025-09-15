@@ -1,6 +1,6 @@
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.language import LanguageGraph
-from malsim.mal_simulator import MalSimAgentStateView, MalSimulator
+from malsim.mal_simulator import MalSimulator, MalSimDefenderState
 from malsim.agents import (
     DefendCompromisedDefender,
     DefendFutureCompromisedDefender,
@@ -63,7 +63,6 @@ def test_defend_compromised_defender(
     # Set up a defender
     sim.register_defender('def_comp')
     agent_state = sim.agent_states['def_comp']
-    agent_view = MalSimAgentStateView(agent_state)
 
     # Configure BreadthFirstAttacker
     agent_config = {"seed": 42, "randomize": False}
@@ -74,7 +73,8 @@ def test_defend_compromised_defender(
     node2.extras['reward'] = 10
 
     # Get next action
-    action_node = defender_ai.get_next_action(agent_view)
+    assert isinstance(agent_state, MalSimDefenderState)
+    action_node = defender_ai.get_next_action(agent_state)
     assert action_node is not None, "Action node shouldn't be None"
     assert action_node.id == node2.id
 
@@ -83,7 +83,7 @@ def test_defend_compromised_defender(
     node2.extras['reward'] = 100
 
     # Get next action
-    action_node = defender_ai.get_next_action(agent_view)
+    action_node = defender_ai.get_next_action(agent_state)
     assert action_node is not None, "Action node shouldn't be None"
     assert action_node.id == node1.id
 
@@ -152,14 +152,14 @@ def test_defend_future_compromised_defender(
     # Set up a defender
     sim.register_defender('def_future_comp')
     agent_state = sim.agent_states['def_future_comp']
-    agent_view = MalSimAgentStateView(agent_state)
 
     # Configure BreadthFirstAttacker
     agent_config = {"seed": 42, "randomize": False}
     defender_ai = DefendFutureCompromisedDefender(agent_config)
 
     # Should pick node 2 either way
-    action_node = defender_ai.get_next_action(agent_view)
+    assert isinstance(agent_state, MalSimDefenderState)
+    action_node = defender_ai.get_next_action(agent_state)
     assert action_node is not None, "Action node shouldn't be None"
     assert action_node.id == node2.id
 

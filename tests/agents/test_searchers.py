@@ -1,6 +1,6 @@
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.language import LanguageGraph
-from malsim.mal_simulator import MalSimulator, MalSimAgentStateView
+from malsim.mal_simulator import MalSimulator
 from malsim.agents import BreadthFirstAttacker, DepthFirstAttacker
 
 
@@ -51,12 +51,12 @@ def test_breadth_first_traversal_simple(
     actual_order = []
     for _ in expected_order:
         # Get next action
-        agent_view = MalSimAgentStateView(agent_state)
-        action_node = attacker_ai.get_next_action(agent_view)
+        action_node = attacker_ai.get_next_action(agent_state)
         assert action_node
 
         # Get next action
-        sim.step({'bfs': [action_node]})
+        states = sim.step({'bfs': [action_node]})
+        agent_state = states['bfs']
 
         # Store the ID for verification
         actual_order.append(next(iter(agent_state.step_performed_nodes)).id)
@@ -127,12 +127,12 @@ def test_breadth_first_traversal_complicated(
     actual_order = []
     for _ in expected_order:
         # Get next action
-        agent_view = MalSimAgentStateView(agent_state)
-        action_node = attacker_ai.get_next_action(agent_view)
+        action_node = attacker_ai.get_next_action(agent_state)
         assert action_node
 
         # Get next action
-        sim.step({'bfs': [action_node]})
+        states = sim.step({'bfs': [action_node]})
+        agent_state = states['bfs']
 
         # Store the ID for verification
         actual_order.append(next(iter(agent_state.step_performed_nodes)).id)
@@ -205,7 +205,8 @@ def test_depth_first_traversal_complicated(
         assert action_node
 
         # Get next action
-        sim.step({'dfs': [action_node]})
+        states = sim.step({'dfs': [action_node]})
+        agent_state = states['dfs']
 
         # Store the ID for verification
         actual_order.append(next(iter(agent_state.step_performed_nodes)).id)

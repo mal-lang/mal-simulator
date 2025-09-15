@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional
 
 from maltoolbox.attackgraph import AttackGraphNode
-from ..mal_simulator import MalSimulator, MalSimAgentStateView
+from ..mal_simulator import MalSimulator, MalSimAgentState
 
 class MalSimEnv(ABC):
 
@@ -32,7 +32,7 @@ class MalSimEnv(ABC):
         ) -> None:
         self.sim.register_defender(defender_name)
 
-    def get_agent_state(self, agent_name: str) -> MalSimAgentStateView:
+    def get_agent_state(self, agent_name: str) -> MalSimAgentState:
         return self.sim.agent_states[agent_name]
 
     def render(self) -> None:
