@@ -464,6 +464,18 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert dsv.step_performed_nodes == {os_app_not_present}
     assert asv.step_action_surface_additions == set()
     assert dsv.step_action_surface_additions == set()
+    assert {a.name for a in asv.step_action_surface_removals} == {
+        'accessNetworkAndConnections',
+        'attemptApplicationRespondConnectThroughData',
+        'attemptAuthorizedApplicationRespondConnectThroughData',
+        'attemptModify',
+        'attemptRead',
+        'localConnect',
+        'specificAccessDelete',
+        'specificAccessModify',
+        'specificAccessRead',
+        'successfulDeny'
+    }
     assert len(asv.step_action_surface_removals) == 11
     assert dsv.step_action_surface_removals == {os_app_not_present}
     assert dsv.step_all_compromised_nodes == set()
