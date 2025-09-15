@@ -425,7 +425,6 @@ class MalSimulator():
     def _get_attack_surface(
             self,
             performed_nodes: Set[AttackGraphNode],
-            from_nodes: Optional[Set[AttackGraphNode]] = None
     ) -> frozenset[AttackGraphNode]:
         """
         Calculate the attack surface of the attacker.
@@ -443,11 +442,7 @@ class MalSimulator():
         """
 
         attack_surface = set()
-        frontier = (
-            from_nodes if from_nodes is not None
-            else performed_nodes
-        )
-        for attack_step in frontier:
+        for attack_step in performed_nodes:
             for child in attack_step.children:
                 if (
                     self.sim_settings.attack_surface_skip_compromised
@@ -1010,8 +1005,9 @@ def run_simulation(
                 )
                 continue
 
-            sim_agent_state = states[agent_name]
-            agent_action = decision_agent.get_next_action(sim_agent_state)
+            agent_state = states[agent_name]
+            agent_action = decision_agent.get_next_action(agent_state)
+
             if agent_action:
                 actions[agent_name] = [agent_action]
                 print(
