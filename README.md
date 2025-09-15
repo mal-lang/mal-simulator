@@ -265,9 +265,9 @@ from malsim import run_simulation
 
 logging.basicConfig() # Enable logging
 
-scenario_file = "tests/testdata/scenarios/traininglang_scenario.yml"
-sim, agents = create_simulator_from_scenario(scenario_file)
-run_simulation(sim, agents)
+SCENARIO_FILE = "tests/testdata/scenarios/traininglang_scenario.yml"
+sim, agents = create_simulator_from_scenario(SCENARIO_FILE)
+agent_actions = run_simulation(sim, agents)
 
 ```
 

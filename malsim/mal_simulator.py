@@ -983,8 +983,14 @@ class MalSimulator():
         pass
 
 
-def run_simulation(sim: MalSimulator, agents: list[dict[str, Any]]) -> None:
-    """Run a simulation with agents"""
+def run_simulation(
+        sim: MalSimulator, agents: list[dict[str, Any]]
+    ) -> dict[str, list[AttackGraphNode]]:
+    """Run a simulation with agents
+
+    Return selected actions by each agent in each step
+    """
+    agent_actions = {}
     total_rewards = {agent_dict['name']: 0.0 for agent_dict in agents}
     logger.info("Starting CLI env simulator.")
     states = sim.reset()
@@ -1013,6 +1019,9 @@ def run_simulation(sim: MalSimulator, agents: list[dict[str, Any]]) -> None:
                     f'{agent_action.full_name}'
                 )
 
+                # Store agent action
+                agent_actions.setdefault(agent_name, []).append(agent_action)
+
         # Perform next step of simulation
         states = sim.step(actions)
         for agent_dict in agents:
@@ -1027,3 +1036,5 @@ def run_simulation(sim: MalSimulator, agents: list[dict[str, Any]]) -> None:
     for agent_dict in agents:
         agent_name = agent_dict['name']
         print(f'Total reward "{agent_name}"', total_rewards[agent_name])
+
+    return agent_actions
