@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 import logging
 import math
-import random
 from enum import Enum
 from typing import Any, Optional, TYPE_CHECKING
 from collections.abc import Set
@@ -160,7 +159,6 @@ class MalSimulator():
         logger.info("Creating Base MAL Simulator.")
         self.sim_settings = sim_settings
         self.rng = default_rng(self.sim_settings.seed)
-        random.seed(self.sim_settings.seed)
 
         # Initialize all values
         self.attack_graph = attack_graph
@@ -314,7 +312,6 @@ class MalSimulator():
         """Reset attack graph, iteration and reinitialize agents"""
 
         self.rng = default_rng(self.sim_settings.seed)
-        random.seed(self.sim_settings.seed)
         logger.info("Resetting MAL Simulator.")
 
         # Reset nodes
@@ -358,14 +355,16 @@ class MalSimulator():
                     ttc_values[node] = ttc_value_from_node(
                         node,
                         ProbCalculationMethod.EXPECTED,
-                        self._calculated_bernoullis
+                        self._calculated_bernoullis,
+                        self.rng
                     )
                 case TTCMode.PRE_SAMPLE:
                     # Otherwise sample
                     ttc_values[node] = ttc_value_from_node(
                         node,
                         ProbCalculationMethod.SAMPLE,
-                        self._calculated_bernoullis
+                        self._calculated_bernoullis,
+                        self.rng
                     )
 
         return ttc_values
@@ -381,7 +380,8 @@ class MalSimulator():
                 ttc_value = ttc_value_from_node(
                     node,
                     ProbCalculationMethod.SAMPLE,
-                    self._calculated_bernoullis
+                    self._calculated_bernoullis,
+                    self.rng
                 )
                 if ttc_value != math.inf:
                     pre_enabled_defenses.add(node)
@@ -399,7 +399,8 @@ class MalSimulator():
                 ttc_value = ttc_value_from_node(
                     node,
                     ProbCalculationMethod.SAMPLE,
-                    self._calculated_bernoullis
+                    self._calculated_bernoullis,
+                    self.rng
                 )
                 if ttc_value == math.inf:
                     impossible_attack_steps.add(node)
@@ -706,7 +707,8 @@ class MalSimulator():
             node_ttc_value = ttc_value_from_node(
                 node,
                 ProbCalculationMethod.SAMPLE,
-                self._calculated_bernoullis
+                self._calculated_bernoullis,
+                self.rng
             )
             return node_ttc_value <= 1
 

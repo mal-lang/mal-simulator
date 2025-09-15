@@ -1,5 +1,7 @@
 """Unit tests for the probabilities utilities module"""
 
+import numpy as np
+
 from maltoolbox.model import Model
 from maltoolbox.attackgraph.attackgraph import AttackGraph
 from maltoolbox.language.languagegraph import LanguageGraph
@@ -30,11 +32,21 @@ def test_probs_utils(model: Model) -> None:
 
     for node in attack_graph.nodes.values():
         #TODO: Actually check some of the results
-        ttc_value_from_node(node, ProbCalculationMethod.SAMPLE, {})
+        ttc_value_from_node(
+            node,
+            ProbCalculationMethod.SAMPLE,
+            {},
+            np.random.default_rng(10)
+        )
 
     for node in attack_graph.nodes.values():
         #TODO: Actually check some of the results
-        ttc_value_from_node(node, ProbCalculationMethod.EXPECTED, {})
+        ttc_value_from_node(
+            node,
+            ProbCalculationMethod.EXPECTED,
+            {},
+            np.random.default_rng(10)
+        )
 
 
 def test_get_ttc_dict_defenses(corelang_lang_graph: LanguageGraph) -> None:
