@@ -58,19 +58,23 @@ Defense steps can also have TTCs, but they are interpreted differently.
 
 In the MalSimulator, TTCs can be used in different ways (set through malsim settings)
 
-1. LIVE_SAMPLE
+1. EFFORT_BASED_PER_STEP_SAMPLE
+  - Run a random trial and compare with the success probability of an attack step after n attempts.
+  - Let the agent compromise if the trial succeeds
+
+2. PER_STEP_SAMPLE
   - Sample the distribution for an attack step each time an agent tries to compromise a step
-  - Let agent compromise a node if the sampled value is < 1
+  - Let agent compromise a node if the sampled value is <= 1
 
-2. EXPECTED
-  - Set the ttc value of a step to the expected value at the beginning of a simulation and decrement it every step an agent tries to compromise it
-  - Let agent compromise a node if the ttc value is < 1
-
-3. PRESAMPLE
+3. PRE_SAMPLE
   - Sample the distribution for each attack step at the beginning of a simulation and decrement it every step an agent tries to compromise it
   - Let agent compromise a node if the ttc value is < 1
 
-4. DISABLED
+4. EXPECTED VALUE
+  - Set the ttc value of a step to the expected value at the beginning of a simulation and decrement it every step an agent tries to compromise it
+  - Let agent compromise a node if the ttc value is < 1
+
+5. DISABLED (default)
   - Don't use TTCs, all attack steps are compromised on the agents first attempt (as long as they are allowed to)
 
 #### Bernoullis in attack steps
