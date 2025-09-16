@@ -4,15 +4,16 @@ from typing import TYPE_CHECKING
 import copy
 import math
 
-
 from maltoolbox.attackgraph import AttackGraphNode, AttackGraph
 from malsim.mal_simulator import (
-    MalSimulator, MalSimulatorSettings,
-    MalSimDefenderState, MalSimAttackerState,
-    TTCMode, RewardMode
+    MalSimulator,
+    MalSimulatorSettings,
+    MalSimDefenderState,
+    MalSimAttackerState,
+    TTCMode,
+    RewardMode
 )
-from malsim.scenario import load_scenario, create_simulator_from_scenario
-
+from malsim.scenario import load_scenario
 from .conftest import get_node
 
 if TYPE_CHECKING:
@@ -118,9 +119,8 @@ def test_simulator_initialize_agents(
 def test_get_agents() -> None:
     """Test _get_attacker_agents and _get_defender_agents"""
 
-    sim, _ = create_simulator_from_scenario(
-        'tests/testdata/scenarios/simple_scenario.yml'
-    )
+    scenario = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
+    sim = MalSimulator.from_scenario(scenario)
     sim.reset()
 
     assert [a.name for a in sim._get_attacker_agents()] == ['Attacker1']
@@ -544,9 +544,10 @@ def test_step_attacker_defender_action_surface_updates() -> None:
 def test_default_simulator_default_settings_eviction() -> None:
     """Test attacker node eviction using MalSimulatorSettings default"""
 
-    sim, _ = create_simulator_from_scenario(
+    scenario = load_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml'
     )
+    sim = MalSimulator.from_scenario(scenario)
 
     # Register the agents
     attacker_agent_id = "Attacker1"
@@ -595,9 +596,13 @@ def test_simulator_ttcs() -> None:
         assert node
         return node
 
-    sim, _ = create_simulator_from_scenario(
-        'tests/testdata/scenarios/traininglang_scenario.yml',
-        sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.PER_STEP_SAMPLE)
+    scenario = load_scenario(
+        'tests/testdata/scenarios/traininglang_scenario.yml'
+    )
+    sim = MalSimulator.from_scenario(
+        scenario, sim_settings=MalSimulatorSettings(
+            ttc_mode=TTCMode.PER_STEP_SAMPLE
+        )
     )
 
     host_0_notPresent = get_node(sim, "Host:0:notPresent")

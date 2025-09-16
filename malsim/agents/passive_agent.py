@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Any
 
 from .decision_agent import DecisionAgent
-from ..mal_simulator import MalSimAgentState
 
 if TYPE_CHECKING:
     from ..mal_simulator import MalSimAgentState

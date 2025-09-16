@@ -27,17 +27,14 @@ from malsim.graph_processing import (
     make_node_unviable,
 )
 
+from malsim.scenario import AgentType, load_scenario
+
 if TYPE_CHECKING:
     from .scenario import Scenario
     from malsim.agents import DecisionAgent
 
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
-
-class AgentType(Enum):
-    """Enum for agent types"""
-    ATTACKER = 'attacker'
-    DEFENDER = 'defender'
 
 
 @dataclass(frozen=True)
@@ -202,13 +199,17 @@ class MalSimulator():
     @classmethod
     def from_scenario(
         cls,
-        scenario: Scenario,
+        scenario: Scenario | str,
         sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
         max_iter: int = ITERATIONS_LIMIT,
         register_agents: bool = True,
         **kwargs: Any
     ) -> MalSimulator:
         """Create a MalSimulator object from a Scenario"""
+
+        if isinstance(scenario, str):
+            # Load scenario if file was given
+            scenario = load_scenario(scenario)
 
         sim = cls(
             scenario.attack_graph,
@@ -425,7 +426,6 @@ class MalSimulator():
     def _get_attack_surface(
             self,
             performed_nodes: Set[AttackGraphNode],
-            from_nodes: Optional[Set[AttackGraphNode]] = None
     ) -> frozenset[AttackGraphNode]:
         """
         Calculate the attack surface of the attacker.
@@ -443,11 +443,7 @@ class MalSimulator():
         """
 
         attack_surface = set()
-        frontier = (
-            from_nodes if from_nodes is not None
-            else performed_nodes
-        )
-        for attack_step in frontier:
+        for attack_step in performed_nodes:
             for child in attack_step.children:
                 if (
                     self.sim_settings.attack_surface_skip_compromised
@@ -990,8 +986,9 @@ def run_simulation(
 
     Return selected actions by each agent in each step
     """
-    agent_actions = {}
+    agent_actions: dict[str, list[AttackGraphNode]] = {}
     total_rewards = {agent_dict['name']: 0.0 for agent_dict in agents}
+
     logger.info("Starting CLI env simulator.")
     states = sim.reset()
 
@@ -1010,8 +1007,9 @@ def run_simulation(
                 )
                 continue
 
-            sim_agent_state = states[agent_name]
-            agent_action = decision_agent.get_next_action(sim_agent_state)
+            agent_state = states[agent_name]
+            agent_action = decision_agent.get_next_action(agent_state)
+
             if agent_action:
                 actions[agent_name] = [agent_action]
                 print(

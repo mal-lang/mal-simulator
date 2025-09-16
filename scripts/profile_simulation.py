@@ -9,8 +9,8 @@ import logging
 import cProfile
 import pstats
 
-from malsim.scenario import create_simulator_from_scenario
-from malsim.mal_simulator import run_simulation
+from malsim.scenario import load_scenario
+from malsim.mal_simulator import MalSimulator, run_simulation
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,15 +39,14 @@ def main():
     )
 
     args = parser.parse_args()
-    sim, agents = create_simulator_from_scenario(
-        args.scenario_file, max_iter=args.max_iter
-    )
+    scenario = load_scenario(args.scenario_file)
+    sim = MalSimulator.from_scenario(scenario, max_iter=args.max_iter)
 
     # Run the profiler
     profiler = cProfile.Profile()
     profiler.enable()
 
-    run_simulation(sim, agents)
+    run_simulation(sim, scenario.agents)
 
     profiler.disable()
 

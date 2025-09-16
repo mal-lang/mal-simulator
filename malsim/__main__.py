@@ -4,8 +4,12 @@ from __future__ import annotations
 import argparse
 import logging
 
-from .mal_simulator import run_simulation
-from .scenario import create_simulator_from_scenario
+from . import (
+    MalSimulator,
+    MalSimulatorSettings,
+    run_simulation,
+    load_scenario
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,14 +28,20 @@ def main() -> None:
         '-o', '--output-attack-graph', type=str,
         help="If set to a path, attack graph will be dumped there",
     )
+    parser.add_argument(
+        '-s', '--seed', type=int,
+        help="If set to a seed, simulator will use it as setting",
+    )
     args = parser.parse_args()
-
-    sim, agents = create_simulator_from_scenario(args.scenario_file)
+    scenario = load_scenario(args.scenario_file)
+    sim = MalSimulator.from_scenario(
+        scenario, MalSimulatorSettings(seed=args.seed)
+    )
 
     if args.output_attack_graph:
         sim.attack_graph.save_to_file(args.output_attack_graph)
 
-    run_simulation(sim, agents)
+    run_simulation(sim, scenario.agents)
 
 
 if __name__ == '__main__':

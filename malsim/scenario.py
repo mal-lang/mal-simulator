@@ -14,6 +14,7 @@ A scenario is a combination of:
 import os
 from dataclasses import dataclass
 from typing import Any, Optional, TextIO
+from enum import Enum
 
 import yaml
 
@@ -35,7 +36,11 @@ from .agents import (
     RandomAgent
 )
 
-from .mal_simulator import AgentType, MalSimulator
+
+class AgentType(Enum):
+    """Enum for agent types"""
+    ATTACKER = 'attacker'
+    DEFENDER = 'defender'
 
 agent_class_name_to_class = {
     'DepthFirstAttacker': DepthFirstAttacker,
@@ -475,24 +480,9 @@ def load_scenario(scenario_file: str) -> Scenario:
 def create_simulator_from_scenario(
         scenario_file: str,
         **kwargs: Any,
-    ) -> tuple[MalSimulator, list[dict[str, Any]]]:
-    """Creates and returns a MalSimulator created according to scenario file
-
-    A wrapper that loads the graph and configuration from the scenario file
-    and returns a MalSimulator object with registered agents according to the
-    configuration.
-
-    Args:
-    - scenario_file: the file name of the scenario
-
-    Returns:
-    - sim: the resulting simulator
-    - agents: the agent infos as a list of dicts
-    """
-
-    scenario = load_scenario(scenario_file)
-    sim = MalSimulator.from_scenario(scenario, **kwargs)
-    return sim, scenario.agents
+    ) -> None:
+    """Deprecated"""
+    raise DeprecationWarning("Use MalSimulator.from_scenario instead")
 
 
 def create_scenario_dict(
