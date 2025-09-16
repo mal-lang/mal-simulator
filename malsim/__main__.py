@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import logging
 
-from .mal_simulator import (
+from . import (
     MalSimulator,
     MalSimulatorSettings,
     run_simulation,
