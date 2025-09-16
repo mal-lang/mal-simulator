@@ -6,8 +6,9 @@ These tests are to make sure the whole simulator maintains expected behavior.
 Determinism, ttcs, agents, action surfaces, step etc.
 """
 
-from malsim.scenario import create_simulator_from_scenario
+from malsim.scenario import load_scenario
 from malsim.mal_simulator import (
+    MalSimulator,
     MalSimulatorSettings,
     TTCMode,
     MalSimDefenderState
@@ -24,9 +25,13 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     It then verifies that rewards and actions performed are what we expected.
     """
 
-    sim, agents = create_simulator_from_scenario(
-        "tests/testdata/scenarios/bfs_vs_bfs_network_app_data_scenario.yml",
-        sim_settings = MalSimulatorSettings(
+
+    scenario_file = (
+        "tests/testdata/scenarios/bfs_vs_bfs_network_app_data_scenario.yml"
+    )
+    scenario = load_scenario(scenario_file)
+    sim = MalSimulator.from_scenario(
+        scenario, sim_settings = MalSimulatorSettings(
             attack_surface_skip_unnecessary=False,
             run_defense_step_bernoullis=False,
             infinity_ttc_attack_step_unviable=False
@@ -36,10 +41,12 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     attacker_agent_name = "attacker1"
 
     attacker_agent_info = next(
-        agent for agent in agents if agent["name"] == attacker_agent_name
+        agent for agent in scenario.agents
+        if agent["name"] == attacker_agent_name
     )
     defender_agent_info = next(
-        agent for agent in agents if agent["name"] == defender_agent_name
+        agent for agent in scenario.agents
+        if agent["name"] == defender_agent_name
     )
     attacker_agent = attacker_agent_info["agent"]
     defender_agent = defender_agent_info["agent"]
@@ -173,8 +180,12 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     It then verifies that rewards and actions performed are what we expected.
     """
 
-    sim, agents = create_simulator_from_scenario(
-        "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml",
+    scenario_file = (
+        "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml"
+    )
+    scenario = load_scenario(scenario_file)
+    sim = MalSimulator.from_scenario(
+        scenario,
         sim_settings = MalSimulatorSettings(
             seed=48,
             ttc_mode=TTCMode.PER_STEP_SAMPLE
@@ -185,10 +196,12 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     attacker_agent_name = "attacker1"
 
     attacker_agent_info = next(
-        agent for agent in agents if agent["name"] == attacker_agent_name
+        agent for agent in scenario.agents
+        if agent["name"] == attacker_agent_name
     )
     defender_agent_info = next(
-        agent for agent in agents if agent["name"] == defender_agent_name
+        agent for agent in scenario.agents
+        if agent["name"] == defender_agent_name
     )
 
     attacker_agent = attacker_agent_info["agent"]
@@ -302,9 +315,13 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
 
 def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
 
-    sim, agents = create_simulator_from_scenario(
-        "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml",
-        sim_settings = MalSimulatorSettings(
+
+    scenario_file = (
+        "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml"
+    )
+    scenario = load_scenario(scenario_file)
+    sim = MalSimulator.from_scenario(
+        scenario, sim_settings = MalSimulatorSettings(
             seed=100,
             ttc_mode=TTCMode.EFFORT_BASED_PER_STEP_SAMPLE
         )
@@ -314,11 +331,11 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
     attacker_agent_name = "attacker1"
 
     attacker_agent = next(
-        agent_info['agent'] for agent_info in agents
+        agent_info['agent'] for agent_info in scenario.agents
         if agent_info["name"] == attacker_agent_name
     )
     defender_agent = next(
-        agent_info['agent'] for agent_info in agents
+        agent_info['agent'] for agent_info in scenario.agents
         if agent_info["name"] == defender_agent_name
     )
 
@@ -405,9 +422,13 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
 
 def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
 
-    sim, agents = create_simulator_from_scenario(
-        "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml",
-        sim_settings = MalSimulatorSettings(
+    scenario_file = (
+        "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml"
+    )
+    scenario = load_scenario(scenario_file)
+
+    sim = MalSimulator.from_scenario(
+        scenario, sim_settings = MalSimulatorSettings(
             seed=13,
             ttc_mode=TTCMode.EXPECTED_VALUE
         )
@@ -417,11 +438,11 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
     attacker_agent_name = "attacker1"
 
     attacker_agent = next(
-        agent_info['agent'] for agent_info in agents
+        agent_info['agent'] for agent_info in scenario.agents
         if agent_info["name"] == attacker_agent_name
     )
     defender_agent = next(
-        agent_info['agent'] for agent_info in agents
+        agent_info['agent'] for agent_info in scenario.agents
         if agent_info["name"] == defender_agent_name
     )
 

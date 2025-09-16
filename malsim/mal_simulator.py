@@ -27,17 +27,14 @@ from malsim.graph_processing import (
     make_node_unviable,
 )
 
+from malsim.scenario import AgentType, load_scenario
+
 if TYPE_CHECKING:
     from .scenario import Scenario
     from malsim.agents import DecisionAgent
 
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
-
-class AgentType(Enum):
-    """Enum for agent types"""
-    ATTACKER = 'attacker'
-    DEFENDER = 'defender'
 
 
 @dataclass(frozen=True)
@@ -202,13 +199,17 @@ class MalSimulator():
     @classmethod
     def from_scenario(
         cls,
-        scenario: Scenario,
+        scenario: Scenario | str,
         sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
         max_iter: int = ITERATIONS_LIMIT,
         register_agents: bool = True,
         **kwargs: Any
     ) -> MalSimulator:
         """Create a MalSimulator object from a Scenario"""
+
+        if isinstance(scenario, str):
+            # Load scenario if file was given
+            scenario = load_scenario(scenario)
 
         sim = cls(
             scenario.attack_graph,

@@ -3,10 +3,10 @@ import logging
 from typing import TYPE_CHECKING, Optional, Any
 
 from .decision_agent import DecisionAgent
-from ..mal_simulator import MalSimAgentState
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
+    from ..mal_simulator import MalSimAgentState
 
 logger = logging.getLogger(__name__)
 

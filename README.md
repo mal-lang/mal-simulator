@@ -105,6 +105,8 @@ agents:
     agent_class: <AGENT_CLASS>
     entry_points:
     - 'Credentials:6:attemptCredentialsReuse'
+    config:
+      seed: 1
 
   '<agent_name>':
     type: 'defender'
@@ -188,15 +190,15 @@ scenario will override the settings in the original (extended) scenario when you
 
 #### Load attack graph and config
 
-If you just want to load a resulting attack graph from a scenario, use `malsim.scenarios.load_scenario`.
+If you just want to load a scenario from a file, use `malsim.scenarios.load_scenario`.
 
 ```python
-from malsim.scenarios import load_scenario
+from malsim import load_scenario
 
 scenario_file = "scenario.yml"
 scenario: Scenario = load_scenario(scenario_file)
 
-# Scenario is a dataclass defined as:
+# Scenario is a dataclass containing:
 class Scenario:
     """Scenarios defines everything needed to run a simulation"""
     attack_graph: AttackGraph
@@ -213,27 +215,48 @@ class Scenario:
 
 #### Load simulator and config
 
-If you instead want to load a simulator, use `malsim.scenarios.create_simulator_from_scenario`.
+If you want to create a simulator from a scenario, use `MalSimulator.from_scenario`.
 
 ```python
-from malsim.scenarios import create_simulator_from_scenario
+from malsim import load_scenario, MalSimulator
 
 scenario_file = "scenario.yml"
-mal_simulator, agents = create_simulator_from_scenario(scenario_file)
+scenario = load_scenario(scenario_file)
+mal_simulator = MalSimulator.from_scenario(scenario)
 
 ```
 The returned MalSimulator contains the attackgraph created from
-the scenario, as well as registered agents. At this point, simulator and sim_config
-(which contains the decision agents) can be used for running a simulation
-(use or refer to function `malsim.mal_simulator.run_simulation` to create your own simulation loop).
+the scenario, as well as registered agents. At this point, the simulator and the scenario agents
+can be used for running a simulation
 
+(use or refer to function `malsim.mal_simulator.run_simulation` to create your own simulation loop).
+`run_simulation` will return the paths each agent took during the simulation.
+
+If you want deterministic simulations, give `sim_settings` with a seed to the MalSimulator,
+and seed to agents in the scenario files.
+
+```python
+from malsim import (
+  MalSimulator,
+  MalSimulatorSettings,
+  run_simulation,
+  load_scenario
+)
+
+SCENARIO_FILE = "tests/testdata/scenarios/traininglang_scenario.yml"
+scenario = load_scenario(SCENARIO_FILE)
+mal_simulator = MalSimulator.from_scenario(
+  scenario, sim_settings=MalSimulatorSettings(seed=10)
+)
+run_simulation(mal_simulator, scenario.agents)
+```
 
 ## CLI
 
 ### Running a scenario simulation with the CLI
 
 ```
-usage: malsim [-h] [-o OUTPUT_ATTACK_GRAPH] scenario_file
+usage: malsim [-h] [-o OUTPUT_ATTACK_GRAPH] [-s SEED] scenario_file
 
 positional arguments:
   scenario_file         Can be found in https://github.com/mal-lang/malsim-scenarios/
@@ -242,10 +265,10 @@ options:
   -h, --help            show this help message and exit
   -o OUTPUT_ATTACK_GRAPH, --output-attack-graph OUTPUT_ATTACK_GRAPH
                         If set to a path, attack graph will be dumped there
+  -s SEED, --seed SEED  If set to a seed, simulator will use it as setting
 ```
 
-This will create an attack graph using the configuration in the scenarios file, apply the rewards, add the attacker and run the simulation with the attacker.
-Currently having more than one attacker in the scenario file will have no effect to how the simulation is run, it will only run the first one as an agent.
+This will create an attack graph using the configuration in the scenarios file, apply the rewards, register the agents and run the simulation.
 
 ## Running the simulator without the CLI
 
@@ -258,16 +281,14 @@ To initialize the MalSimulator you either need a scenario file or an attack grap
 The regular simulator works with attack graph nodes and keeps track on agents state with those.
 
 ```python
-import logging
-
-from malsim.scenario import create_simulator_from_scenario
-from malsim import run_simulation
+from malsim import MalSimulator, run_simulation, load_scenario
 
 logging.basicConfig() # Enable logging
 
 SCENARIO_FILE = "tests/testdata/scenarios/traininglang_scenario.yml"
-sim, agents = create_simulator_from_scenario(SCENARIO_FILE)
-agent_actions = run_simulation(sim, agents)
+scenario = load_scenario(SCENARIO_FILE)
+sim = MalSimulator.from_scenario(scenario) # Can provide settings here
+agent_actions = run_simulation(sim, scenario.agents)
 
 ```
 
@@ -280,9 +301,8 @@ You can run the vectorized without gymnasium to receive serialized observations.
 import logging
 from typing import Optional
 
-from malsim.scenario import load_scenario
+from malsim import load_scenario, MalSimulator
 from malsim.envs import MalSimVectorizedObsEnv
-from malsim.mal_simulator import MalSimulator
 
 logging.basicConfig() # Enable logging
 
@@ -323,9 +343,10 @@ You can run the gym envs.
 ```python
 import logging
 
-from malsim.envs.gym_envs import register_envs
 import gymnasium as gym
 from gymnasium.spaces import MultiDiscrete, Dict
+
+from malsim.envs.gym_envs import register_envs
 
 # Enable logging to stdout
 logging.basicConfig()
