@@ -315,7 +315,6 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
 
 def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
 
-
     scenario_file = (
         "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml"
     )

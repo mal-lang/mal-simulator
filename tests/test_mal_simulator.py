@@ -1,7 +1,6 @@
 """Test MalSimulator class"""
 from __future__ import annotations
 from typing import TYPE_CHECKING
-import copy
 import math
 
 from maltoolbox.attackgraph import AttackGraphNode, AttackGraph
@@ -32,29 +31,60 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     agent_entry_point = get_node(attack_graph, 'OS App:localConnect')
     attacker_name = "testagent"
 
-    sim = MalSimulator(attack_graph)
+    sim = MalSimulator(attack_graph, sim_settings=MalSimulatorSettings(seed=10))
 
-    attack_graph_before = copy.deepcopy(sim.attack_graph)
+    viability_before = {
+        n.full_name: v for n, v in sim._viability_per_node.items()
+    }
+    necessity_before = {
+        n.full_name: v for n, v in sim._necessity_per_node.items()
+    }
+    enabled_defenses = {
+        n.full_name for n in sim._enabled_defenses
+    }
     sim.register_attacker(attacker_name, {agent_entry_point})
     assert attacker_name in sim.agent_states
     assert len(sim.agent_states) == 1
+    attacker_state = sim.agent_states[attacker_name]
+    action_surface_before = {
+        n.full_name for n in attacker_state.action_surface
+    }
 
     sim.reset()
 
-    attack_graph_after = sim.attack_graph
+    attacker_state = sim.agent_states[attacker_name]
+    assert action_surface_before == {
+        n.full_name for n in attacker_state.action_surface
+    }
 
-    # Make sure agent was added (and not removed)
-    assert attacker_name in sim.agent_states
-    # Make sure the attack graph is not the same object but identical
-    assert id(attack_graph_before) != id(attack_graph_after)
+    for node, viable in sim._viability_per_node.items():
+        # viability is the same after reset
+        assert viability_before[node.full_name] == viable
 
-    for node in attack_graph_after.nodes.values():
-        # Entry points are added to the nodes after backup is created
-        # So they have to be removed for the graphs to be compared as identical
-        if 'entrypoint' in node.extras:
-            del node.extras['entrypoint']
+    for node, necessary in sim._necessity_per_node.items():
+        # viability is the same after reset
+        assert necessity_before[node.full_name] == necessary
 
-    assert attack_graph_before._to_dict() == attack_graph_after._to_dict()
+    assert enabled_defenses == {
+        n.full_name for n in sim._enabled_defenses
+    }
+
+    sim.reset()
+    attacker_state = sim.agent_states[attacker_name]
+    assert action_surface_before == {
+        n.full_name for n in attacker_state.action_surface
+    }
+
+    # Step with action surface
+    sim.step({attacker_name: list(attacker_state.action_surface)})
+
+    # Make sure action surface back to normal
+    sim.reset()
+    attacker_state = sim.agent_states[attacker_name]
+    assert action_surface_before == {
+        n.full_name for n in attacker_state.action_surface
+    }
+
 
 def test_register_agent_attacker(
         corelang_lang_graph: LanguageGraph, model: Model
