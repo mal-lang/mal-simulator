@@ -44,46 +44,6 @@ sim = MalSimulator(attack_graph, sim_settings=settings, ...)
 
 ```
 
-### TTCs
-
-TTC (Time to compromise) can be enabled with the `sim_settings` ttc_mode option.
-TTCs can be defined in the MAL language for attack steps as probability distributions.
-- TTCs for attack steps tells the difficulty to compromise a step in the mal-simulator.
-
-Defense steps can also have TTCs, but they are interpreted differently.
-- TTCs for defense steps tells the probability that the defense is enabled at the start of a simulation.
-- Always Bernoullis. (Enabled = Bernoulli(1), Disabled=Bernoulli(0))
-
-[Read more about TTCs](https://github.com/mal-lang/malcompiler/wiki/Supported-distribution-functions)
-
-In the MalSimulator, TTCs can be used in different ways (set through malsim settings)
-
-1. EFFORT_BASED_PER_STEP_SAMPLE
-  - Run a random trial and compare with the success probability of an attack step after n attempts.
-  - Let the agent compromise if the trial succeeds
-
-2. PER_STEP_SAMPLE
-  - Sample the distribution for an attack step each time an agent tries to compromise a step
-  - Let agent compromise a node if the sampled value is <= 1
-
-3. PRE_SAMPLE
-  - Sample the distribution for each attack step at the beginning of a simulation and decrement it every step an agent tries to compromise it
-  - Let agent compromise a node if the ttc value is < 1
-
-4. EXPECTED VALUE
-  - Set the ttc value of a step to the expected value at the beginning of a simulation and decrement it every step an agent tries to compromise it
-  - Let agent compromise a node if the ttc value is < 1
-
-5. DISABLED (default)
-  - Don't use TTCs, all attack steps are compromised on the agents first attempt (as long as they are allowed to)
-
-#### Bernoullis in attack steps
-
-If an attack step has a Bernoulli in its TTC, it will be sampled at the start of the simulation.
-If the Bernoulli does not succeed, the step will not be compromisable.
-
-This is to match the  https://github.com/mal-lang/malcompiler/wiki/Supported-distribution-functions#bernoulli-behaviour
-
 ## Scenarios
 
 To make it easier to define simulation environment you can use scenarios defined in yml-files, or create `malsim.scenario.Scenario` objects.
@@ -369,3 +329,44 @@ while not term:
     serialized_action = env.action_space.sample(info['action_mask'])
     obs, rew, term, trunc, info = env.step(serialized_action)
 ```
+
+
+## TTCs
+
+TTC (Time to compromise) can be enabled with the `sim_settings` ttc_mode option.
+TTCs can be defined in the MAL language for attack steps as probability distributions.
+- TTCs for attack steps tells the difficulty to compromise a step in the mal-simulator.
+
+Defense steps can also have TTCs, but they are interpreted differently.
+- TTCs for defense steps tells the probability that the defense is enabled at the start of a simulation.
+- Always Bernoullis. (Enabled = Bernoulli(1), Disabled=Bernoulli(0))
+
+[Read more about TTCs](https://github.com/mal-lang/malcompiler/wiki/Supported-distribution-functions)
+
+In the MalSimulator, TTCs can be used in different ways (set through malsim settings)
+
+1. EFFORT_BASED_PER_STEP_SAMPLE
+  - Run a random trial and compare with the success probability of an attack step after n attempts.
+  - Let the agent compromise if the trial succeeds
+
+2. PER_STEP_SAMPLE
+  - Sample the distribution for an attack step each time an agent tries to compromise a step
+  - Let agent compromise a node if the sampled value is <= 1
+
+3. PRE_SAMPLE
+  - Sample the distribution for each attack step at the beginning of a simulation and decrement it every step an agent tries to compromise it
+  - Let agent compromise a node if the ttc value is < 1
+
+4. EXPECTED VALUE
+  - Set the ttc value of a step to the expected value at the beginning of a simulation and decrement it every step an agent tries to compromise it
+  - Let agent compromise a node if the ttc value is < 1
+
+5. DISABLED (default)
+  - Don't use TTCs, all attack steps are compromised on the agents first attempt (as long as they are allowed to)
+
+#### Bernoullis in attack steps
+
+If an attack step has a Bernoulli in its TTC, it will be sampled at the start of the simulation.
+If the Bernoulli does not succeed, the step will not be compromisable.
+
+This is to match the  https://github.com/mal-lang/malcompiler/wiki/Supported-distribution-functions#bernoulli-behaviour
