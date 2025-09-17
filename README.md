@@ -40,7 +40,7 @@ settings = MalSimulatorSettings(
     attacker_reward_mode: RewardMode = RewardMode.CUMULATIVE
     defender_reward_mode: RewardMode = RewardMode.CUMULATIVE
 )
-sim = MalSimulator(lang_graph, model, attack_graph, sim_settings=settings)
+sim = MalSimulator(attack_graph, sim_settings=settings, ...)
 
 ```
 
