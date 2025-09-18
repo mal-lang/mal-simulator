@@ -44,6 +44,9 @@ class MalSimAgentState:
     # Identifier of the agent, used in MalSimulator for lookup
     name: str
 
+    # Reference to the simulator
+    sim: MalSimulator
+
     # Contains possible actions for the agent in the next step
     action_surface: frozenset[AttackGraphNode]
 
@@ -79,6 +82,7 @@ class MalSimDefenderState(MalSimAgentState):
     # Contains steps successfully performed by any
     # attacker agent in the last step
     step_all_compromised_nodes: frozenset[AttackGraphNode]
+
 
 class TTCMode(Enum):
     """
@@ -235,6 +239,17 @@ class MalSimulator():
         """Return True if simulation run is done"""
         return len(self._alive_agents) == 0 or self.cur_iter > self.max_iter
 
+    def node_ttc_value(self, node: AttackGraphNode) -> float:
+        """Return ttc value of node if it has been sampled"""
+        assert self.sim_settings.ttc_mode in (
+            TTCMode.PRE_SAMPLE, TTCMode.EXPECTED_VALUE
+        ), "TTC value only when TTCMode is PRE_SAMPLE or EXPECTED_VALUE"
+
+        assert node in self._ttc_values, (
+            f"Node {node.full_name} does not have a ttc value"
+        )
+        return self._ttc_values[node]
+
     def node_is_viable(self, node: AttackGraphNode) -> bool:
         """Get viability of a node"""
         return self._viability_per_node[node]
@@ -344,7 +359,10 @@ class MalSimulator():
         return self.agent_states
 
     def _attack_step_ttcs(self) -> dict[AttackGraphNode, float]:
-        """Calculate and return attack steps TTCs"""
+        """
+        Calculate and return attack steps TTCs if settings use
+        pre sample or expected value
+        """
         ttc_values = {}
         for node in self.attack_graph.nodes.values():
 
@@ -477,6 +495,7 @@ class MalSimulator():
         attack_surface = self._get_attack_surface(entry_points)
         attacker_state = MalSimAttackerState(
             name,
+            sim=self,
             entry_points = frozenset(entry_points),
             performed_nodes = frozenset(entry_points),
             action_surface = frozenset(attack_surface),
@@ -519,6 +538,7 @@ class MalSimulator():
 
         updated_attacker_state = MalSimAttackerState(
             attacker_state.name,
+            sim = self,
             performed_nodes = (
                 attacker_state.performed_nodes | step_agent_compromised_nodes
             ),
@@ -543,6 +563,7 @@ class MalSimulator():
         defense_surface = self._get_defense_surface()
         defender_state = MalSimDefenderState(
             name,
+            sim = self,
             performed_nodes = frozenset(self._enabled_defenses),
             action_surface = frozenset(defense_surface),
             step_action_surface_additions = frozenset(defense_surface),
@@ -568,6 +589,7 @@ class MalSimulator():
 
         updated_defender_state = MalSimDefenderState(
             defender_state.name,
+            sim=self,
             performed_nodes = (
                 defender_state.performed_nodes | step_enabled_defenses
             ),
