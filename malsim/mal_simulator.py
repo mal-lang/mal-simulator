@@ -30,7 +30,7 @@ from malsim.graph_processing import (
 from malsim.scenario import AgentType, load_scenario
 
 if TYPE_CHECKING:
-    from .scenario import Scenario
+    from malsim.scenario import Scenario
     from malsim.agents import DecisionAgent
 
 ITERATIONS_LIMIT = int(1e9)
