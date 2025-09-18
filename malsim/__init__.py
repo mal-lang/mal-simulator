@@ -20,7 +20,7 @@ import logging
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
-    run_simulation
+    run_simulation,
 )
 
 from malsim.scenario import (

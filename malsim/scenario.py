@@ -33,7 +33,8 @@ from .agents import (
     PassiveAgent,
     DefendCompromisedDefender,
     DefendFutureCompromisedDefender,
-    RandomAgent
+    RandomAgent,
+    TTCSoftMinAttacker
 )
 
 
@@ -43,13 +44,14 @@ class AgentType(Enum):
     DEFENDER = 'defender'
 
 agent_class_name_to_class = {
-    'DepthFirstAttacker': DepthFirstAttacker,
-    'BreadthFirstAttacker': BreadthFirstAttacker,
     'KeyboardAgent': KeyboardAgent,
     'PassiveAgent': PassiveAgent,
+    'DepthFirstAttacker': DepthFirstAttacker,
+    'BreadthFirstAttacker': BreadthFirstAttacker,
+    'TTCSoftMinAttacker': TTCSoftMinAttacker,
     'DefendCompromisedDefender': DefendCompromisedDefender,
     'DefendFutureCompromisedDefender': DefendFutureCompromisedDefender,
-    'RandomAgent': RandomAgent
+    'RandomAgent': RandomAgent,
 }
 
 deprecated_fields = [
