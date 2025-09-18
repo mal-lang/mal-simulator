@@ -166,6 +166,7 @@ class MalSimulator():
 
         self.max_iter = max_iter  # Max iterations before stopping simulation
         self.cur_iter = 0         # Keep track on current iteration
+        self.recording: dict[int, dict[str, list[AttackGraphNode]]] = {}
 
         # All internal agent states (dead or alive)
         self._agent_states: dict[str, MalSimAgentState] = {}
@@ -354,6 +355,7 @@ class MalSimulator():
         )
 
         self.cur_iter = 0
+        self.recording = {}
         self._reset_agents()
 
         return self.agent_states
@@ -928,6 +930,8 @@ class MalSimulator():
             if agent_name not in self._agent_states:
                 raise KeyError(f"No agent has name '{agent_name}'")
 
+        self.recording[self.cur_iter] = {}
+
         # Populate these from the results for all agents' actions.
         step_all_compromised_nodes: set[AttackGraphNode] = set()
         step_enabled_defenses: set[AttackGraphNode] = set()
@@ -938,6 +942,7 @@ class MalSimulator():
             enabled, unviable = self._defender_step(
                 defender_state, actions.get(defender_state.name, [])
             )
+            self.recording[self.cur_iter][defender_state.name] = list(enabled)
             step_enabled_defenses |= enabled
             step_nodes_made_unviable |= unviable
 
@@ -947,6 +952,9 @@ class MalSimulator():
                 attacker_state, actions.get(attacker_state.name, [])
             )
             step_all_compromised_nodes |= agent_compromised
+            self.recording[self.cur_iter][attacker_state.name] = (
+                list(agent_compromised)
+            )
 
             # Update attacker state
             updated_attacker_state = self._update_attacker_state(
