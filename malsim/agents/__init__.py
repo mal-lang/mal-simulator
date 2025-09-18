@@ -6,6 +6,7 @@ from .heuristic_agent import (
     DefendCompromisedDefender, DefendFutureCompromisedDefender
 )
 from .random_agent import RandomAgent
+from .attackers.ttc_soft_min import TTCSoftMinAttacker
 
 __all__ = [
     'PassiveAgent',
@@ -13,7 +14,8 @@ __all__ = [
     'KeyboardAgent',
     'BreadthFirstAttacker',
     'DepthFirstAttacker',
+    'TTCSoftMinAttacker',
+    'RandomAgent',
     'DefendCompromisedDefender',
     'DefendFutureCompromisedDefender',
-    'RandomAgent'
 ]
