@@ -8,8 +8,9 @@ from . import (
     MalSimulator,
     MalSimulatorSettings,
     run_simulation,
-    load_scenario
+    load_scenario,
 )
+from .mal_simulator import TTCMode
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,10 +33,22 @@ def main() -> None:
         '-s', '--seed', type=int,
         help="If set to a seed, simulator will use it as setting",
     )
+    parser.add_argument(
+        '-t', '--ttc-mode', type=int,
+        help=(
+            "\t\n".join(
+                [f"{e.value}: {e.name}" for e in TTCMode]
+            )
+        ),
+        default=TTCMode.DISABLED.value
+    )
     args = parser.parse_args()
     scenario = load_scenario(args.scenario_file)
     sim = MalSimulator.from_scenario(
-        scenario, MalSimulatorSettings(seed=args.seed)
+        scenario, MalSimulatorSettings(
+            seed=args.seed,
+            ttc_mode=TTCMode(args.ttc_mode)
+        )
     )
 
     if args.output_attack_graph:

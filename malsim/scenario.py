@@ -345,32 +345,32 @@ def load_simulator_agents(
     scenario_agents = scenario.get('agents', {})
 
     for agent_name, agent_info in scenario_agents.items():
-        class_name = agent_info.get('agent_class')
+        agent_class_name = agent_info.get('agent_class')
         agent_type = AgentType(agent_info.get('type'))
         agent_dict = {'name': agent_name, 'type': agent_type}
         agent_config = agent_info.get('config', {})
 
         if agent_type == AgentType.ATTACKER:
             # Attacker has entrypoints
-            entry_points = agent_info.get('entry_points')
+            entry_points = agent_info['entry_points']
             entry_nodes = get_entry_point_nodes(attack_graph, entry_points)
             agent_dict['entry_points'] = entry_nodes
 
         # TODO: What is the expected behavior here? If there is no good
         # usecase for this scenario we should just remove it.
-        if class_name is None:
+        if agent_class_name is None:
             # No class name - no agent object created
             agents.append(agent_dict)
             continue
 
-        if class_name not in agent_class_name_to_class:
+        if agent_class_name not in agent_class_name_to_class:
             # Illegal class agent
             raise LookupError(
-                f"Agent class '{class_name}' not supported"
+                f"Agent class '{agent_class_name}' not supported"
             )
 
         # Initialize the agent object
-        agent_class = agent_class_name_to_class[class_name]
+        agent_class = agent_class_name_to_class[agent_class_name]
         agent = agent_class(agent_config)
         agent_dict['agent_class'] = agent_class
         agent_dict['agent'] = agent

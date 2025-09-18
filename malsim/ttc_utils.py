@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 predef_ttcs: dict[str, dict[str, Any]] = {
     'EasyAndUncertain':
     {
