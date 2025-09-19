@@ -242,6 +242,16 @@ def test_attacker_step_rewards_cumulative(
         + node_rewards[access_network_and_conn]
     )
 
+    # Recording of the simulation
+    assert sim.recording == {
+        0: {
+            attacker_name: [attempt_read]
+        },
+        1: {
+            attacker_name: [access_network_and_conn]
+        }
+    }
+
 def test_attacker_step_rewards_one_off(
         corelang_lang_graph: LanguageGraph, model: Model
     ) -> None:
@@ -519,6 +529,22 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert dsv.step_action_surface_removals == {os_app_not_present}
     assert dsv.step_all_compromised_nodes == set()
     assert len(dsv.step_unviable_nodes) == 63
+
+    # Recording of the simulation
+    assert sim.recording == {
+        0: {
+            'defender': [program2_not_present],
+            'attacker': [os_app_attempt_deny]
+        },
+        1: {
+            'defender': [],
+            'attacker': [os_app_spec_access]
+        },
+        2: {
+            'defender': [os_app_not_present],
+            'attacker': []
+        }
+    }
 
 
 def test_step_attacker_defender_action_surface_updates() -> None:
