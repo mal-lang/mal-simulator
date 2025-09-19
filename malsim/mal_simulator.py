@@ -136,6 +136,10 @@ class MalSimulatorSettings():
     attacker_reward_mode: RewardMode = RewardMode.CUMULATIVE
     defender_reward_mode: RewardMode = RewardMode.CUMULATIVE
 
+    # Use TTC values as attacker rewards
+    # - if True, use TTCs as attacker negative reward
+    ttc_values_as_attacker_penalty: bool = False
+
 class MalSimulator():
     """A MAL Simulator that works on the AttackGraph
 
@@ -712,6 +716,11 @@ class MalSimulator():
 
         num_attempts = agent.num_attempts[node] + 1
 
+        if self.sim_settings.ttc_values_as_attacker_penalty:
+            # If ttc is used as attacker penalty, we let the step happen
+            # and give penalty instead of having it take multiple steps
+            return True
+
         if self.sim_settings.ttc_mode == TTCMode.DISABLED:
             # Always suceed if disabled TTCs
             return True
@@ -837,13 +846,25 @@ class MalSimulator():
         If cumulative, sum previous and one-off reward, otherwise
         just return the one-off reward.
 
+        If setting `ttc_values_as_attacker_penalty` is set, use ttc values
+        as negative reward as well.
+
         Args:
         - attacker_state: the current attacker state
         - reward_mode: which way to calculate reward
         """
 
         # Attacker is rewarded for compromised nodes
-        step_reward = sum(
+        step_reward = 0.0
+
+        if self.sim_settings.ttc_values_as_attacker_penalty:
+            # Use TTCs as attack step penalty if setting says so
+            step_reward -= sum(
+                self.node_ttc_value(n)
+                for n in attacker_state.step_performed_nodes
+            )
+
+        step_reward += sum(
             self.node_reward(n)
             for n in attacker_state.step_performed_nodes
         )
