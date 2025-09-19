@@ -716,6 +716,11 @@ class MalSimulator():
 
         num_attempts = agent.num_attempts[node] + 1
 
+        if self.sim_settings.ttc_values_as_attacker_penalty:
+            # If ttc is used as attacker penalty, we let the step happen
+            # and give penalty instead of having it take multiple steps
+            return True
+
         if self.sim_settings.ttc_mode == TTCMode.DISABLED:
             # Always suceed if disabled TTCs
             return True
