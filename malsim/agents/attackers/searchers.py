@@ -5,11 +5,11 @@ import random
 from collections import deque
 from typing import Optional, TYPE_CHECKING, Any
 
-from .decision_agent import DecisionAgent
+from ..decision_agent import DecisionAgent
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
-    from ..mal_simulator import MalSimAgentState
+    from ...mal_simulator import MalSimAgentState
 
 logger = logging.getLogger(__name__)
 

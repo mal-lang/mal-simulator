@@ -27,10 +27,6 @@ from malsim.scenario import (
     load_scenario
 )
 
-"""
-MAL Simulator
-"""
-
 __title__ = "malsim"
 __version__ = "1.0.2"
 __authors__ = ["Andrei Buhaiu", "Joakim Loxdal", "Jakob Nyberg", "Nikolaos Kakouros"]

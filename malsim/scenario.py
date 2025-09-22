@@ -368,7 +368,8 @@ def load_simulator_agents(
         if agent_class_name not in agent_class_name_to_class:
             # Illegal class agent
             raise LookupError(
-                f"Agent class '{agent_class_name}' not supported"
+                f"Agent class '{agent_class_name}' not supported.\n"
+                f"Must be one of: {agent_class_name_to_class.values()}"
             )
 
         # Initialize the agent object

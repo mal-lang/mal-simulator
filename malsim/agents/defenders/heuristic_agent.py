@@ -7,7 +7,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
-    from ..mal_simulator import MalSimDefenderState
+    from ...mal_simulator import MalSimDefenderState
 
 logger = logging.getLogger(__name__)
 

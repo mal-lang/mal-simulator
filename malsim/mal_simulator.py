@@ -323,6 +323,24 @@ class MalSimulator():
         """Get reward for a node"""
         return self._node_rewards.get(node, 0.0)
 
+    def get_node(
+        self, full_name: Optional[str] = None, node_id: Optional[int] = None
+    ) -> AttackGraphNode:
+        """Get node from attack graph by either full name or id"""
+        assert full_name or node_id, (
+            "Give either full_name or node_id to 'get_node'"
+        )
+        if full_name and not node_id:
+            node = self.attack_graph.get_node_by_full_name(full_name)
+            assert node, f"Node with full_name {full_name} does not exist"
+            return node
+        if node_id and not full_name:
+            node = self.attack_graph.nodes[node_id]
+            assert node, f"Node with id {node_id} does not exist"
+            return node
+
+        raise ValueError("Provide either full_name or node_id 'get_node'")
+
     def agent_is_terminated(self, agent_name: str) -> bool:
         """Return True if agent was terminated"""
         agent_state = self._agent_states[agent_name]
