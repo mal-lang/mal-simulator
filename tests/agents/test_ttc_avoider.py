@@ -31,6 +31,8 @@ def test_ttc_avoider() -> None:
         # Run the simulation until agents are terminated/truncated
         assert isinstance(attacker_state, MalSimAttackerState)
         attacker_node = attacker_agent.get_next_action(attacker_state)
+
+        assert attacker_node
         # Should always pick the easy path or the goal
         assert 'easy' in attacker_node.name or attacker_node == goal
 

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 def attack_graph_to_nx_graph(
     attack_graph: AttackGraph,
     ttc_values: dict[AttackGraphNode, float]
-):
+) -> nx.DiGraph:
     """
     Convert an AttackGraph object into a NetworkX directed graph.
     Add TTC value if given.
@@ -113,7 +113,7 @@ def get_shortest_path_to(
 ) -> list[AttackGraphNode]:
     """Find shortest valid attack path from compromised nodes to goal"""
 
-    total_path = []
+    total_path: list[AttackGraphNode] = []
     nx_graph = attack_graph_to_nx_graph(attack_graph, ttc_values)
 
     try:
@@ -198,7 +198,7 @@ def _validate_path(
     return path, ttc_cost
 
 
-def _add_unique(path: list, item: AttackGraphNode) -> int:
+def _add_unique(path: list[AttackGraphNode], item: AttackGraphNode) -> int:
     if item not in path:
         path.append(item)
         return True
