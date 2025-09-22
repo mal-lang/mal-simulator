@@ -75,6 +75,9 @@ class MalSimAttackerState(MalSimAgentState):
     # Number of attempts to compromise a step (used for ttc caculations)
     num_attempts: MappingProxyType[AttackGraphNode, int]
 
+    # Goals affect simulation termination but is optional
+    goals: Optional[frozenset[AttackGraphNode]] = None
+
 @dataclass(frozen=True)
 class MalSimDefenderState(MalSimAgentState):
     """Stores the state of a defender in the simulator"""
@@ -232,7 +235,8 @@ class MalSimulator():
                 if agent_info['type'] == AgentType.ATTACKER:
                     sim.register_attacker(
                         agent_info['name'],
-                        agent_info['entry_points']
+                        agent_info['entry_points'],
+                        agent_info.get('goals')
                     )
                 elif agent_info['type'] == AgentType.DEFENDER:
                     sim.register_defender(agent_info['name'])
@@ -519,7 +523,8 @@ class MalSimulator():
     def _create_attacker_state(
         self,
         name: str,
-        entry_points: Set[AttackGraphNode]
+        entry_points: Set[AttackGraphNode],
+        goals: Optional[Set[AttackGraphNode]] = None
     ) -> MalSimAttackerState:
         """Create a new defender state, initialize values"""
         attack_surface = self._get_attack_surface(entry_points)
@@ -527,6 +532,7 @@ class MalSimulator():
             name,
             sim=self,
             entry_points = frozenset(entry_points),
+            goals=frozenset(goals) if goals else None,
             performed_nodes = frozenset(entry_points),
             action_surface = frozenset(attack_surface),
             step_action_surface_additions = frozenset(attack_surface),
@@ -578,6 +584,7 @@ class MalSimulator():
             step_performed_nodes = frozenset(step_agent_compromised_nodes),
             step_unviable_nodes = frozenset(step_nodes_made_unviable),
             entry_points = attacker_state.entry_points,
+            goals = attacker_state.goals,
             num_attempts = MappingProxyType(num_attempts),
         )
 
@@ -649,7 +656,8 @@ class MalSimulator():
             new_attacker_state = (
                 self._create_attacker_state(
                     attacker_state.name,
-                    attacker_state.entry_points
+                    attacker_state.entry_points,
+                    attacker_state.goals
                 )
             )
             self._agent_states[attacker_state.name] = new_attacker_state
@@ -675,13 +683,18 @@ class MalSimulator():
             )
 
     def register_attacker(
-        self, name: str, entry_points: set[AttackGraphNode]
+        self,
+        name: str,
+        entry_points: set[AttackGraphNode],
+        goals: Optional[set[AttackGraphNode]] = None
     ) -> None:
         """Register a mal sim attacker agent"""
         assert name not in self._agent_states, \
             f"Duplicate agent named {name} not allowed"
 
-        agent_state = self._create_attacker_state(name, entry_points)
+        agent_state = self._create_attacker_state(
+            name, entry_points, goals=goals
+        )
         self._agent_states[name] = agent_state
         self._alive_agents.add(name)
         self._agent_rewards[name] = self._attacker_step_reward(
@@ -923,8 +936,18 @@ class MalSimulator():
         Args:
         - attacker_state: the attacker state to check for termination
         """
-        # Attacker is terminated if it has no more actions to take
-        return len(attacker_state.action_surface) == 0
+
+        if len(attacker_state.action_surface) == 0:
+            # Attacker is terminated if it has no more actions to take
+            return True
+        if attacker_state.goals:
+            # Attacker is terminated if it has goals and all goals are met
+            return (
+                attacker_state.goals & attacker_state.performed_nodes
+                == attacker_state.goals
+            )
+        # Otherwise not terminated
+        return False
 
     def _defender_is_terminated(self) -> bool:
         """Check if defender is terminated

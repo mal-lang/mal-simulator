@@ -357,6 +357,13 @@ def load_simulator_agents(
             entry_points = agent_info['entry_points']
             entry_nodes = get_entry_point_nodes(attack_graph, entry_points)
             agent_dict['entry_points'] = entry_nodes
+            # Optionally has goals
+            goals = agent_info.get('goals')
+            if goals:
+                agent_dict['goals'] = (
+                    get_entry_point_nodes(attack_graph, goals)
+                )
+
 
         # TODO: What is the expected behavior here? If there is no good
         # usecase for this scenario we should just remove it.
