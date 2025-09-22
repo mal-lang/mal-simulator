@@ -1,4 +1,4 @@
-lang_file: /home/mrkickling/Documents/github/mal-simulator/tests/testdata/langs/ttc_lang.mal
+lang_file: ../langs/ttc_lang.mal
 model:
   metadata:
     name: ttc_lang_model
