@@ -34,7 +34,8 @@ from .agents import (
     DefendCompromisedDefender,
     DefendFutureCompromisedDefender,
     RandomAgent,
-    TTCSoftMinAttacker
+    TTCSoftMinAttacker,
+    ShortestPathAttacker
 )
 
 
@@ -49,6 +50,7 @@ agent_class_name_to_class = {
     'DepthFirstAttacker': DepthFirstAttacker,
     'BreadthFirstAttacker': BreadthFirstAttacker,
     'TTCSoftMinAttacker': TTCSoftMinAttacker,
+    'ShortestPathAttacker': ShortestPathAttacker,
     'DefendCompromisedDefender': DefendCompromisedDefender,
     'DefendFutureCompromisedDefender': DefendFutureCompromisedDefender,
     'RandomAgent': RandomAgent,
