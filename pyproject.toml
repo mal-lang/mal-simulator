@@ -14,7 +14,8 @@ dependencies = [
   "mal-toolbox==1.*",
   "PyYAML>=6.0.1",
   "numpy>=1.21.4",
-  "scipy"
+  "scipy",
+  "networkx"
 ]
 license = {text = "Apache Software License"}
 keywords = ["mal"]
