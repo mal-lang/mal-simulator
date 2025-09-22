@@ -1,0 +1,122 @@
+// vim:ft=mal
+#id: "test"
+#version: "0.0.0"
+
+category TestAssets{
+    asset Network {
+        # shutDown
+            -> easyAccess,
+               hardAccess
+
+        | easyAccess
+            -> toNets.easyAccess,
+               toNets.hardAccess,
+               computers.easyConnect,
+               computers.hardConnect
+
+
+        | hardAccess [VeryHardAndCertain]
+            -> toNets.easyAccess,
+               toNets.hardAccess,
+               computers.easyConnect,
+               computers.hardConnect
+    }
+
+    asset Computer {
+        # shutDown
+            -> easyAccess,
+               hardAccess
+
+        & easyAccess
+            -> datas.easyRead,
+               datas.hardRead,
+               networks.easyAccess,
+               networks.hardAccess
+        & hardAccess [VeryHardAndCertain]
+            -> datas.easyRead,
+               datas.hardRead,
+               networks.easyAccess,
+               networks.hardAccess
+
+        | easyConnect
+            -> softwares.easyScan,
+               softwares.hardScan,
+               users.easyAssume,
+               users.hardAssume
+        | hardConnect [VeryHardAndCertain]
+            -> softwares.easyScan,
+               softwares.hardScan,
+               users.easyAssume,
+               users.hardAssume
+    }
+
+    asset Software {
+        # remove
+            -> easyAccess,
+               hardAccess,
+               easyScan,
+               hardScan
+
+        | easyAccess
+            -> computer.easyAccess,
+               computer.hardAccess
+        | hardAccess [VeryHardAndCertain]
+            -> computer.easyAccess,
+               computer.hardAccess
+        | easyScan
+            -> vulns.easyExploit,
+               vulns.hardExploit
+        | hardScan [VeryHardAndCertain]
+            -> vulns.easyExploit,
+               vulns.hardExploit
+    }
+
+    asset User {
+        # lockout
+            -> easyAssume,
+               hardAssume
+
+        | easyAssume
+            -> computer.easyAccess,
+               computer.hardAccess
+
+        | hardAssume [VeryHardAndCertain]
+            -> computer.easyAccess,
+               computer.hardAccess
+
+    }
+
+    asset SoftwareVuln {
+        # patch
+            -> easyExploit,
+               hardExploit
+
+        | easyExploit
+            -> software.easyAccess,
+               software.hardAccess
+        | hardExploit [VeryHardAndCertain]
+            -> software.easyAccess,
+               software.hardAccess
+    }
+
+    asset Data {
+        # remove
+            -> easyRead,
+               hardRead
+
+        | easyRead
+            -> read
+        | hardRead [VeryHardAndCertain]
+            -> read
+        | read
+    }
+}
+
+associations {
+  Network       [fromNets] *    <-- NetToNet -->                * [toNets] Network
+  Network       [networks] *    <-- NetToComputers -->          * [computers] Computer
+  Software      [softwares] *   <-- SoftwareOnComputer -->      1 [computer] Computer
+  User          [users] *       <-- UserOnComputer -->          1 [computer] Computer
+  SoftwareVuln  [vulns] *       <-- VulnOnSoftware -->          1 [software] Software
+  Data          [datas] *       <-- DataOnComputer -->          1 [computer] Computer
+}

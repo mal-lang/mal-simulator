@@ -47,7 +47,8 @@ def main() -> None:
     sim = MalSimulator.from_scenario(
         scenario, MalSimulatorSettings(
             seed=args.seed,
-            ttc_mode=TTCMode(args.ttc_mode)
+            ttc_mode=TTCMode(args.ttc_mode),
+            attack_surface_skip_unnecessary=False
         )
     )
 
