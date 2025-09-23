@@ -263,6 +263,13 @@ class MalSimulator():
         """Get a nodes defense status"""
         return node in self._enabled_defenses
 
+    def node_is_compromised(self, node: AttackGraphNode) -> bool:
+        """Return True if node is compromised by any attacker agent"""
+        for attacker_agent in self._get_attacker_agents():
+            if node in attacker_agent.performed_nodes:
+                return True
+        return False
+
     def node_is_traversable(
             self,
             performed_nodes: Set[AttackGraphNode],
