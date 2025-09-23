@@ -79,6 +79,9 @@ class MalSimAttackerState(MalSimAgentState):
 class MalSimDefenderState(MalSimAgentState):
     """Stores the state of a defender in the simulator"""
 
+    # Contains all steps performed by any attacker
+    compromised_nodes: frozenset[AttackGraphNode]
+
     # Contains steps successfully performed by any
     # attacker agent in the last step
     step_all_compromised_nodes: frozenset[AttackGraphNode]
@@ -574,6 +577,7 @@ class MalSimulator():
             name,
             sim = self,
             performed_nodes = frozenset(self._enabled_defenses),
+            compromised_nodes = frozenset(compromised_steps),
             action_surface = frozenset(defense_surface),
             step_action_surface_additions = frozenset(defense_surface),
             step_action_surface_removals = frozenset(),
@@ -601,6 +605,9 @@ class MalSimulator():
             sim=self,
             performed_nodes = (
                 defender_state.performed_nodes | step_enabled_defenses
+            ),
+            compromised_nodes = frozenset(
+                defender_state.compromised_nodes | step_all_compromised_nodes
             ),
             step_action_surface_additions = frozenset(),
             step_action_surface_removals = frozenset(step_enabled_defenses),
