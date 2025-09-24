@@ -65,8 +65,10 @@ agents:
     agent_class: <AGENT_CLASS>
     entry_points:
     - 'Credentials:6:attemptCredentialsReuse'
-    config:
+    config:                   # optional
       seed: 1
+    goals:                    # optional
+      - 'Host A:fullAccess'
 
   '<agent_name>':
     type: 'defender'
@@ -140,6 +142,30 @@ actionable_steps:
 
 ```
 
+## Agents
+
+Attacker and defender agents are important for running simulations in the MAL Simulator.
+
+### Attacker agent
+`type` - 'attacker'
+
+`entry_points` - Where the agent starts off
+
+`goals` - Optional setting telling where the agent wants to end up. If the goal is fulfilled the simulator will terminate the attacker agent.
+
+`config` - A dictionary given to the Agent class on initialization if running simulations with `malsim.mal_simulator.run_simulation` or CLI.
+
+`agent_class` - Name of the class for the agent used when running simulations with `run_simulation` or CLI, can be left empty or set to PassiveAgent if the agent should not act.
+
+### Defender agent
+
+`type` - 'defender'
+
+`config` - A dictionary given to the Agent class on initialization if running simulations with `malsim.mal_simulator.run_simulation` or CLI.
+
+`agent_class` - Name of the class for the agent used when running simulations with `run_simulation` or CLI, can be left empty or set to PassiveAgent if the agent should not act.
+
+
 ## Extend
 
 Instead of copy pasting an entire scenario it is possible to extend the scenario and only override
@@ -185,9 +211,8 @@ scenario = load_scenario(scenario_file)
 mal_simulator = MalSimulator.from_scenario(scenario)
 
 ```
-The returned MalSimulator contains the attackgraph created from
-the scenario, as well as registered agents. At this point, the simulator and the scenario agents
-can be used for running a simulation
+The returned MalSimulator contains the attackgraph created from the scenario, as well as registered agents.
+At this point, the simulator and the scenario agents can be used for running a simulation
 
 (use or refer to function `malsim.mal_simulator.run_simulation` to create your own simulation loop).
 `run_simulation` will return the paths each agent took during the simulation.
