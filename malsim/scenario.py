@@ -437,6 +437,7 @@ def load_scenario(scenario_file: str) -> Scenario:
     """Load a scenario from a scenario file to an AttackGraph"""
 
     scenario_dict = load_scenario_dict(scenario_file)
+    _validate_scenario_dict(scenario_dict)
     lang_graph = LanguageGraph.load_from_file(scenario_dict['lang_file'])
     model = None
 
