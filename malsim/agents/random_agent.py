@@ -21,4 +21,6 @@ class RandomAgent(DecisionAgent):
         """Return a random node from the action surface"""
         possible_choices = list(agent_state.action_surface)
         possible_choices.sort(key=lambda n: n.id)
+        if not possible_choices:
+            return None
         return self.rng.choice(possible_choices)
