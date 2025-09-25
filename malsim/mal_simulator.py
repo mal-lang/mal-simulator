@@ -30,7 +30,7 @@ from malsim.graph_processing import (
 from malsim.scenario import AgentType, load_scenario
 
 if TYPE_CHECKING:
-    from .scenario import Scenario
+    from malsim.scenario import Scenario
     from malsim.agents import DecisionAgent
 
 ITERATIONS_LIMIT = int(1e9)
@@ -74,6 +74,9 @@ class MalSimAttackerState(MalSimAgentState):
 
     # Number of attempts to compromise a step (used for ttc caculations)
     num_attempts: MappingProxyType[AttackGraphNode, int]
+
+    # Goals affect simulation termination but is optional
+    goals: Optional[frozenset[AttackGraphNode]] = None
 
 @dataclass(frozen=True)
 class MalSimDefenderState(MalSimAgentState):
@@ -232,7 +235,8 @@ class MalSimulator():
                 if agent_info['type'] == AgentType.ATTACKER:
                     sim.register_attacker(
                         agent_info['name'],
-                        agent_info['entry_points']
+                        agent_info['entry_points'],
+                        agent_info.get('goals')
                     )
                 elif agent_info['type'] == AgentType.DEFENDER:
                     sim.register_defender(agent_info['name'])
@@ -322,6 +326,24 @@ class MalSimulator():
     def node_reward(self, node: AttackGraphNode) -> float:
         """Get reward for a node"""
         return self._node_rewards.get(node, 0.0)
+
+    def get_node(
+        self, full_name: Optional[str] = None, node_id: Optional[int] = None
+    ) -> AttackGraphNode:
+        """Get node from attack graph by either full name or id"""
+        assert full_name or node_id, (
+            "Give either full_name or node_id to 'get_node'"
+        )
+        if full_name and not node_id:
+            node = self.attack_graph.get_node_by_full_name(full_name)
+            assert node, f"Node with full_name {full_name} does not exist"
+            return node
+        if node_id and not full_name:
+            node = self.attack_graph.nodes[node_id]
+            assert node, f"Node with id {node_id} does not exist"
+            return node
+
+        raise ValueError("Provide either full_name or node_id 'get_node'")
 
     def agent_is_terminated(self, agent_name: str) -> bool:
         """Return True if agent was terminated"""
@@ -501,7 +523,8 @@ class MalSimulator():
     def _create_attacker_state(
         self,
         name: str,
-        entry_points: Set[AttackGraphNode]
+        entry_points: Set[AttackGraphNode],
+        goals: Optional[Set[AttackGraphNode]] = None
     ) -> MalSimAttackerState:
         """Create a new defender state, initialize values"""
         attack_surface = self._get_attack_surface(entry_points)
@@ -509,6 +532,7 @@ class MalSimulator():
             name,
             sim=self,
             entry_points = frozenset(entry_points),
+            goals=frozenset(goals) if goals else None,
             performed_nodes = frozenset(entry_points),
             action_surface = frozenset(attack_surface),
             step_action_surface_additions = frozenset(attack_surface),
@@ -560,6 +584,7 @@ class MalSimulator():
             step_performed_nodes = frozenset(step_agent_compromised_nodes),
             step_unviable_nodes = frozenset(step_nodes_made_unviable),
             entry_points = attacker_state.entry_points,
+            goals = attacker_state.goals,
             num_attempts = MappingProxyType(num_attempts),
         )
 
@@ -631,7 +656,8 @@ class MalSimulator():
             new_attacker_state = (
                 self._create_attacker_state(
                     attacker_state.name,
-                    attacker_state.entry_points
+                    attacker_state.entry_points,
+                    attacker_state.goals
                 )
             )
             self._agent_states[attacker_state.name] = new_attacker_state
@@ -657,13 +683,18 @@ class MalSimulator():
             )
 
     def register_attacker(
-        self, name: str, entry_points: set[AttackGraphNode]
+        self,
+        name: str,
+        entry_points: set[AttackGraphNode],
+        goals: Optional[set[AttackGraphNode]] = None
     ) -> None:
         """Register a mal sim attacker agent"""
         assert name not in self._agent_states, \
             f"Duplicate agent named {name} not allowed"
 
-        agent_state = self._create_attacker_state(name, entry_points)
+        agent_state = self._create_attacker_state(
+            name, entry_points, goals=goals
+        )
         self._agent_states[name] = agent_state
         self._alive_agents.add(name)
         self._agent_rewards[name] = self._attacker_step_reward(
@@ -905,8 +936,18 @@ class MalSimulator():
         Args:
         - attacker_state: the attacker state to check for termination
         """
-        # Attacker is terminated if it has no more actions to take
-        return len(attacker_state.action_surface) == 0
+
+        if len(attacker_state.action_surface) == 0:
+            # Attacker is terminated if it has no more actions to take
+            return True
+        if attacker_state.goals:
+            # Attacker is terminated if it has goals and all goals are met
+            return (
+                attacker_state.goals & attacker_state.performed_nodes
+                == attacker_state.goals
+            )
+        # Otherwise not terminated
+        return False
 
     def _defender_is_terminated(self) -> bool:
         """Check if defender is terminated

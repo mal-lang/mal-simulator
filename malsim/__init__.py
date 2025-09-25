@@ -20,16 +20,12 @@ import logging
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
-    run_simulation
+    run_simulation,
 )
 
 from malsim.scenario import (
     load_scenario
 )
-
-"""
-MAL Simulator
-"""
 
 __title__ = "malsim"
 __version__ = "1.0.2"

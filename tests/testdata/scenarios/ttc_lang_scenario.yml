@@ -1,0 +1,181 @@
+lang_file: ../langs/ttc_lang.mal
+model:
+  metadata:
+    name: ttc_lang_model
+    langVersion: 0.0.0
+    langID: test
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 1.0.4
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: Net1
+      type: Network
+      associated_assets:
+        toNets:
+          1: Net2
+        computers:
+          3: ComputerA
+      extras:
+        position:
+          x: -432.0
+          y: -258.0
+    1:
+      name: Net2
+      type: Network
+      associated_assets:
+        fromNets:
+          0: Net1
+        toNets:
+          2: Net3
+        computers:
+          5: ComputerB
+          7: ComputerC
+      extras:
+        position:
+          x: -66.0
+          y: -256.0
+    2:
+      name: Net3
+      type: Network
+      associated_assets:
+        fromNets:
+          1: Net2
+        computers:
+          6: ComputerD
+      extras:
+        position:
+          x: 298.5
+          y: -259.5
+    3:
+      name: ComputerA
+      type: Computer
+      associated_assets:
+        networks:
+          0: Net1
+        softwares:
+          8: SoftwareA
+        users:
+          10: UserA
+      extras:
+        position:
+          x: -819.0
+          y: -259.5
+    5:
+      name: ComputerB
+      type: Computer
+      associated_assets:
+        networks:
+          1: Net2
+      extras:
+        position:
+          x: -63.0
+          y: -447.0
+    6:
+      name: ComputerD
+      type: Computer
+      associated_assets:
+        networks:
+          2: Net3
+        softwares:
+          9: SoftwareD
+        users:
+          11: UserD
+        datas:
+          14: DataD
+      extras:
+        position:
+          x: 702.0
+          y: -249.0
+    7:
+      name: ComputerC
+      type: Computer
+      associated_assets:
+        networks:
+          1: Net2
+      extras:
+        position:
+          x: -64.5
+          y: -43.5
+    8:
+      name: SoftwareA
+      type: Software
+      associated_assets:
+        computer:
+          3: ComputerA
+        vulns:
+          12: SWVulnA
+      extras:
+        position:
+          x: -835.5
+          y: -460.5
+    9:
+      name: SoftwareD
+      type: Software
+      associated_assets:
+        computer:
+          6: ComputerD
+        vulns:
+          13: SWVulnD
+      extras:
+        position:
+          x: 705.0
+          y: -426.0
+    10:
+      name: UserA
+      type: User
+      associated_assets:
+        computer:
+          3: ComputerA
+      extras:
+        position:
+          x: -847.5
+          y: -99.0
+    11:
+      name: UserD
+      type: User
+      associated_assets:
+        computer:
+          6: ComputerD
+      extras:
+        position:
+          x: 721.5
+          y: -87.0
+    12:
+      name: SWVulnA
+      type: SoftwareVuln
+      associated_assets:
+        software:
+          8: SoftwareA
+      extras:
+        position:
+          x: -873.0
+          y: -622.5
+    13:
+      name: SWVulnD
+      type: SoftwareVuln
+      associated_assets:
+        software:
+          9: SoftwareD
+      extras:
+        position:
+          x: 699.0
+          y: -552.0
+    14:
+      name: DataD
+      type: Data
+      associated_assets:
+        computer:
+          6: ComputerD
+      extras:
+        position:
+          x: 1033.5
+          y: -256.5
+agents:
+  Attacker:
+    type: attacker
+    entry_points:
+    - ComputerA:easyAccess
+    goals:
+    - DataD:read
+    agent_class: ShortestPathAttacker

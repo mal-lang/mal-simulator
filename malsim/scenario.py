@@ -33,7 +33,9 @@ from .agents import (
     PassiveAgent,
     DefendCompromisedDefender,
     DefendFutureCompromisedDefender,
-    RandomAgent
+    RandomAgent,
+    TTCSoftMinAttacker,
+    ShortestPathAttacker
 )
 
 
@@ -43,13 +45,15 @@ class AgentType(Enum):
     DEFENDER = 'defender'
 
 agent_class_name_to_class = {
-    'DepthFirstAttacker': DepthFirstAttacker,
-    'BreadthFirstAttacker': BreadthFirstAttacker,
     'KeyboardAgent': KeyboardAgent,
     'PassiveAgent': PassiveAgent,
+    'DepthFirstAttacker': DepthFirstAttacker,
+    'BreadthFirstAttacker': BreadthFirstAttacker,
+    'TTCSoftMinAttacker': TTCSoftMinAttacker,
+    'ShortestPathAttacker': ShortestPathAttacker,
     'DefendCompromisedDefender': DefendCompromisedDefender,
     'DefendFutureCompromisedDefender': DefendFutureCompromisedDefender,
-    'RandomAgent': RandomAgent
+    'RandomAgent': RandomAgent,
 }
 
 deprecated_fields = [
@@ -355,6 +359,13 @@ def load_simulator_agents(
             entry_points = agent_info['entry_points']
             entry_nodes = get_entry_point_nodes(attack_graph, entry_points)
             agent_dict['entry_points'] = entry_nodes
+            # Optionally has goals
+            goals = agent_info.get('goals')
+            if goals:
+                agent_dict['goals'] = (
+                    get_entry_point_nodes(attack_graph, goals)
+                )
+
 
         # TODO: What is the expected behavior here? If there is no good
         # usecase for this scenario we should just remove it.
@@ -366,7 +377,8 @@ def load_simulator_agents(
         if agent_class_name not in agent_class_name_to_class:
             # Illegal class agent
             raise LookupError(
-                f"Agent class '{agent_class_name}' not supported"
+                f"Agent class '{agent_class_name}' not supported.\n"
+                f"Must be one of: {agent_class_name_to_class.values()}"
             )
 
         # Initialize the agent object
