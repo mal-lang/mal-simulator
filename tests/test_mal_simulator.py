@@ -12,7 +12,7 @@ from malsim.mal_simulator import (
     TTCMode,
     RewardMode
 )
-from malsim.scenario import load_scenario
+from malsim import load_scenario, run_simulation
 from .conftest import get_node
 
 if TYPE_CHECKING:
@@ -642,6 +642,77 @@ def test_default_simulator_default_settings_eviction() -> None:
     # Verify defense was performed and attacker NOT kicked out
     assert user_3_compromise in states[attacker_agent_id].performed_nodes
     assert user_3_compromise_defense in states[defender_agent_id].performed_nodes
+
+
+def test_simulator_false_positives() -> None:
+    """Create a simulator with false positives"""
+
+    scenario = load_scenario(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
+    )
+
+    sim = MalSimulator.from_scenario(
+        scenario, sim_settings=MalSimulatorSettings(
+            enable_false_positives=True,
+            seed=100
+        ), max_iter=100
+    )
+    run_simulation(sim, scenario.agents)
+
+    defender_state = sim.agent_states['defender']
+    assert isinstance(defender_state, MalSimDefenderState)
+    attacker_state = sim.agent_states['Attacker1']
+    assert isinstance(attacker_state, MalSimAttackerState)
+
+    # Should be false positive in defender state
+    assert defender_state.compromised_nodes > attacker_state.performed_nodes
+
+
+def test_simulator_false_negatives() -> None:
+    """Create a simulator with false negatives"""
+
+    scenario = load_scenario(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
+    )
+
+    sim = MalSimulator.from_scenario(
+        scenario, sim_settings=MalSimulatorSettings(
+            enable_false_negatives=True,
+            seed=100
+        ), max_iter=100
+    )
+    run_simulation(sim, scenario.agents)
+
+    defender_state = sim.agent_states['defender']
+    assert isinstance(defender_state, MalSimDefenderState)
+    attacker_state = sim.agent_states['Attacker1']
+    assert isinstance(attacker_state, MalSimAttackerState)
+
+    # Should be false negatives in defender state
+    assert defender_state.compromised_nodes < attacker_state.performed_nodes
+
+
+def test_simulator_no_fpr_fnr() -> None:
+    """Create a simulator with no fnr fpr"""
+
+    scenario = load_scenario(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
+    )
+
+    sim = MalSimulator.from_scenario(
+        scenario, sim_settings=MalSimulatorSettings(
+            seed=100
+        ), max_iter=100
+    )
+    run_simulation(sim, scenario.agents)
+
+    defender_state = sim.agent_states['defender']
+    assert isinstance(defender_state, MalSimDefenderState)
+    attacker_state = sim.agent_states['Attacker1']
+    assert isinstance(attacker_state, MalSimAttackerState)
+
+    # No false positives or negatives
+    assert defender_state.compromised_nodes == attacker_state.performed_nodes
 
 
 def test_simulator_ttcs() -> None:

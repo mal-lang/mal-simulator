@@ -624,14 +624,14 @@ class MalSimulator():
         """Decide if a node that was compromised is a false negative"""
         if not self.sim_settings.enable_false_negatives:
             return False
-        fnr = self._false_negative_rates[node]
+        fnr = self._false_negative_rates.get(node, 0.0)
         return self.rng.random() < fnr
 
     def _false_positive(self, node: AttackGraphNode) -> bool:
         """Decide if a node that was not compromised is a false positive"""
         if not self.sim_settings.enable_false_positives:
             return False
-        fpr = self._false_positive_rates[node]
+        fpr = self._false_positive_rates.get(node, 0.0)
         return self.rng.random() < fpr
 
     def _generate_false_negatives(

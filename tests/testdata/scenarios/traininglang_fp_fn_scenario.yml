@@ -42,4 +42,4 @@ agents:
       - 'Host:0:connect'
   defender:
     type: defender
-    agent_class: 'KeyboardAgent'
+    agent_class: 'PassiveAgent'
