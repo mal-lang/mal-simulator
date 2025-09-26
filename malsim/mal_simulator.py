@@ -84,10 +84,22 @@ class MalSimDefenderState(MalSimAgentState):
 
     # Contains all steps performed by any attacker
     compromised_nodes: frozenset[AttackGraphNode]
+    # Contains steps performed by any attacker in last step
+    step_compromised_nodes: frozenset[AttackGraphNode]
 
-    # Contains steps successfully performed by any
-    # attacker agent in the last step
-    step_all_compromised_nodes: frozenset[AttackGraphNode]
+    # Contains all observed step by any attacker
+    # in regards to false positives/negatives and observability
+    observed_nodes: frozenset[AttackGraphNode]
+    # Contains observed steps made by any attacker in last step
+    step_observed_nodes: frozenset[AttackGraphNode]
+
+    @property
+    def step_all_compromised_nodes(self) -> frozenset[AttackGraphNode]:
+        print(
+            "Deprecated in mal-simulator 1.1.0, "
+            "please use 'step_compromised_nodes'"
+        )
+        return self.step_compromised_nodes
 
 
 class TTCMode(Enum):
@@ -662,15 +674,39 @@ class MalSimulator():
             sim = self,
             performed_nodes = frozenset(self._enabled_defenses),
             compromised_nodes = frozenset(compromised_steps),
+            step_compromised_nodes = frozenset(compromised_steps),
+            observed_nodes = frozenset(compromised_steps),
+            step_observed_nodes = frozenset(compromised_steps),
             action_surface = frozenset(defense_surface),
             step_action_surface_additions = frozenset(defense_surface),
             step_action_surface_removals = frozenset(),
             step_performed_nodes = frozenset(self._enabled_defenses),
-            step_all_compromised_nodes = frozenset(compromised_steps),
             step_unviable_nodes=frozenset()
         )
 
         return defender_state
+
+    def _defender_observed_nodes(
+            self, compromised_nodes: set[AttackGraphNode]
+    ) -> set[AttackGraphNode]:
+        """Generate set of observed compromised nodes
+        From set of compromised nodes, generate observed nodes for a defender
+        in regards to observability, false negatives and false positives.
+        """
+        observable_nodes = set(
+            n for n in compromised_nodes if self.node_is_observable(n)
+        )
+        false_negatives = (
+            self._generate_false_negatives(compromised_nodes)
+            if self.sim_settings.enable_false_negatives else set()
+        )
+        false_positives = (
+            self._generate_false_positives()
+            if self.sim_settings.enable_false_positives else set()
+        )
+
+        observed_nodes = (observable_nodes - false_negatives) | false_positives
+        return observed_nodes
 
     def _update_defender_state(
         self,
@@ -684,16 +720,9 @@ class MalSimulator():
         were enabled/compromised during last step
         """
 
-        false_negatives = (
-            self._generate_false_negatives(step_compromised_nodes)
-            if self.sim_settings.enable_false_negatives else set()
+        step_observed_nodes = (
+            self._defender_observed_nodes(step_compromised_nodes)
         )
-        false_positives = (
-            self._generate_false_positives()
-            if self.sim_settings.enable_false_positives else set()
-        )
-        step_observed_nodes = (step_compromised_nodes - false_negatives) | false_positives
-
         updated_defender_state = MalSimDefenderState(
             defender_state.name,
             sim=self,
@@ -701,13 +730,17 @@ class MalSimulator():
                 defender_state.performed_nodes | step_enabled_defenses
             ),
             compromised_nodes = frozenset(
-                defender_state.compromised_nodes | step_observed_nodes
+                defender_state.compromised_nodes | step_compromised_nodes
             ),
+            step_compromised_nodes = frozenset(step_compromised_nodes),
+            observed_nodes = frozenset(
+                defender_state.observed_nodes | step_observed_nodes
+            ),
+            step_observed_nodes = frozenset(step_observed_nodes),
             step_action_surface_additions = frozenset(),
             step_action_surface_removals = frozenset(step_enabled_defenses),
             action_surface = frozenset(self._get_defense_surface()),
             step_performed_nodes = frozenset(step_enabled_defenses),
-            step_all_compromised_nodes = frozenset(step_observed_nodes),
             step_unviable_nodes = frozenset(step_nodes_made_unviable)
         )
 

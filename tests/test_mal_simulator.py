@@ -665,7 +665,7 @@ def test_simulator_false_positives() -> None:
     assert isinstance(attacker_state, MalSimAttackerState)
 
     # Should be false positive in defender state
-    assert defender_state.compromised_nodes > attacker_state.performed_nodes
+    assert len(defender_state.observed_nodes) > len(defender_state.compromised_nodes)
 
 
 def test_simulator_false_negatives() -> None:
@@ -689,7 +689,7 @@ def test_simulator_false_negatives() -> None:
     assert isinstance(attacker_state, MalSimAttackerState)
 
     # Should be false negatives in defender state
-    assert defender_state.compromised_nodes < attacker_state.performed_nodes
+    assert len(defender_state.observed_nodes) < len(defender_state.compromised_nodes)
 
 
 def test_simulator_no_fpr_fnr() -> None:
