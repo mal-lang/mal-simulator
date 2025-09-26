@@ -40,16 +40,14 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     defender_agent_name = "defender1"
     attacker_agent_name = "attacker1"
 
-    attacker_agent_info = next(
-        agent for agent in scenario.agents
-        if agent["name"] == attacker_agent_name
+    attacker_agent = next(
+        agent.agent for agent in scenario.agents
+        if agent.name == attacker_agent_name
     )
-    defender_agent_info = next(
-        agent for agent in scenario.agents
-        if agent["name"] == defender_agent_name
+    defender_agent = next(
+        agent.agent for agent in scenario.agents
+        if agent.name == defender_agent_name
     )
-    attacker_agent = attacker_agent_info["agent"]
-    defender_agent = defender_agent_info["agent"]
 
     total_reward_defender = 0.0
     total_reward_attacker = 0.0
@@ -195,17 +193,14 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     defender_agent_name = "defender1"
     attacker_agent_name = "attacker1"
 
-    attacker_agent_info = next(
-        agent for agent in scenario.agents
-        if agent["name"] == attacker_agent_name
+    attacker_agent = next(
+        agent.agent for agent in scenario.agents
+        if agent.name == attacker_agent_name
     )
-    defender_agent_info = next(
-        agent for agent in scenario.agents
-        if agent["name"] == defender_agent_name
+    defender_agent = next(
+        agent.agent for agent in scenario.agents
+        if agent.name == defender_agent_name
     )
-
-    attacker_agent = attacker_agent_info["agent"]
-    defender_agent = defender_agent_info["agent"]
 
     total_reward_defender = 0.0
     total_reward_attacker = 0.0
@@ -330,12 +325,12 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
     attacker_agent_name = "attacker1"
 
     attacker_agent = next(
-        agent_info['agent'] for agent_info in scenario.agents
-        if agent_info["name"] == attacker_agent_name
+        agent_info.agent for agent_info in scenario.agents
+        if agent_info.name == attacker_agent_name
     )
     defender_agent = next(
-        agent_info['agent'] for agent_info in scenario.agents
-        if agent_info["name"] == defender_agent_name
+        agent_info.agent for agent_info in scenario.agents
+        if agent_info.name == defender_agent_name
     )
 
     total_reward_defender = 0.0
@@ -437,12 +432,12 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
     attacker_agent_name = "attacker1"
 
     attacker_agent = next(
-        agent_info['agent'] for agent_info in scenario.agents
-        if agent_info["name"] == attacker_agent_name
+        agent_info.agent for agent_info in scenario.agents
+        if agent_info.name == attacker_agent_name
     )
     defender_agent = next(
-        agent_info['agent'] for agent_info in scenario.agents
-        if agent_info["name"] == defender_agent_name
+        agent_info.agent for agent_info in scenario.agents
+        if agent_info.name == defender_agent_name
     )
 
     total_reward_defender = 0.0

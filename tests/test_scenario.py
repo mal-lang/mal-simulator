@@ -53,10 +53,10 @@ def test_load_scenario() -> None:
 
     # Verify attacker entrypoint was added
     attack_step = get_node(scenario.attack_graph, 'OS App:fullAccess')
-    assert attack_step in scenario.agents[0]['entry_points']
+    assert attack_step in scenario.agents[0].entry_points
 
-    assert isinstance(scenario.agents[0]['agent'], BreadthFirstAttacker)
-    assert isinstance(scenario.agents[1]['agent'], PassiveAgent)
+    assert isinstance(scenario.agents[0].agent, BreadthFirstAttacker)
+    assert isinstance(scenario.agents[1].agent, PassiveAgent)
 
 
 def test_extend_scenario() -> None:
@@ -158,8 +158,8 @@ def test_load_scenario_no_defender_agent() -> None:
             './testdata/scenarios/no_defender_agent_scenario.yml'
         )
     )
-    assert 'defender' not in [a['name'] for a  in scenario.agents]
-    assert isinstance(scenario.agents[0]['agent'], BreadthFirstAttacker)
+    assert 'defender' not in [a.name for a  in scenario.agents]
+    assert isinstance(scenario.agents[0].agent, BreadthFirstAttacker)
 
 
 def test_load_scenario_agent_class_error() -> None:
