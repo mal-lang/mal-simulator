@@ -204,7 +204,6 @@ def _validate_scenario_node_property_config(
 
 def apply_scenario_node_property(
         attack_graph: AttackGraph,
-        node_prop: str,
         prop_config: dict[str, dict[str, Any]],
         default_value: Optional[Any] = None,
 ) -> dict[AttackGraphNode, Any]:
@@ -458,29 +457,19 @@ def load_scenario(scenario_file: str) -> Scenario:
         attack_graph,
         scenario_agents,
         apply_scenario_node_property(
-            attack_graph, 'reward', scenario_dict.get('rewards', {})
+            attack_graph, scenario_dict.get('rewards', {})
         ),
         apply_scenario_node_property(
-            attack_graph,
-            'false_positive_rate',
-            scenario_dict.get('false_positive_rates', {})
+            attack_graph, scenario_dict.get('false_positive_rates', {})
         ),
         apply_scenario_node_property(
-            attack_graph,
-            'false_negative_rate',
-            scenario_dict.get('false_negative_rates', {})
+            attack_graph, scenario_dict.get('false_negative_rates', {})
         ),
         apply_scenario_node_property(
-            attack_graph,
-            'observable',
-            scenario_dict.get('observable_steps', {}),
-            default_value = 0
+            attack_graph, scenario_dict.get('observable_steps', {}), default_value = 0
         ),
         apply_scenario_node_property(
-            attack_graph,
-            'actionable',
-            scenario_dict.get('actionable_steps', {}),
-            default_value = 0
+            attack_graph, scenario_dict.get('actionable_steps', {}), default_value = 0
         )
     )
     return scenario
