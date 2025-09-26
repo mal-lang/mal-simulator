@@ -34,22 +34,22 @@ def test_load_scenario() -> None:
     )
 
     # Verify rewards were added as defined in './testdata/simple_scenario.yml'
-    assert get_node(scenario.attack_graph, 'OS App:notPresent')\
-        .extras['reward'] == 2
-    assert get_node(scenario.attack_graph, 'OS App:supplyChainAuditing')\
-        .extras['reward'] == 7
-    assert get_node(scenario.attack_graph, 'Program 1:notPresent')\
-        .extras['reward'] == 3
-    assert get_node(scenario.attack_graph, 'Program 1:supplyChainAuditing')\
-        .extras['reward'] == 7
-    assert get_node(scenario.attack_graph, 'SoftwareVulnerability:4:notPresent')\
-        .extras['reward'] == 4
-    assert get_node(scenario.attack_graph, 'Data:5:notPresent')\
-        .extras['reward'] == 1
-    assert get_node(scenario.attack_graph, 'Credentials:6:notPhishable')\
-        .extras['reward'] == 7
-    assert get_node(scenario.attack_graph, 'Identity:11:notPresent')\
-        .extras['reward'] == 3.5
+    assert scenario.rewards[
+        get_node(scenario.attack_graph, 'OS App:notPresent')] == 2
+    assert scenario.rewards[
+        get_node(scenario.attack_graph, 'OS App:supplyChainAuditing')] == 7
+    assert scenario.rewards[
+        get_node(scenario.attack_graph, 'Program 1:notPresent')] == 3
+    assert scenario.rewards[
+        get_node(scenario.attack_graph, 'Program 1:supplyChainAuditing')] == 7
+    assert scenario.rewards[
+        get_node(scenario.attack_graph, 'SoftwareVulnerability:4:notPresent')] == 4
+    assert scenario.rewards[
+        get_node(scenario.attack_graph, 'Data:5:notPresent')] == 1
+    assert scenario.rewards[
+        get_node(scenario.attack_graph, 'Credentials:6:notPhishable')] == 7
+    assert scenario.rewards[
+        get_node(scenario.attack_graph, 'Identity:11:notPresent')] == 3.5
 
     # Verify attacker entrypoint was added
     attack_step = get_node(scenario.attack_graph, 'OS App:fullAccess')
@@ -70,7 +70,7 @@ def test_extend_scenario() -> None:
     )
     num_nodes_with_reward = 0
     for node in scenario.attack_graph.nodes.values():
-        reward = node.extras.get('reward')
+        reward = scenario.rewards.get(node)
         if reward:
             # All nodes with reward set should have reward 1
             # Since this is defined in the overriding scenario
@@ -96,7 +96,7 @@ def test_extend_scenario_deeper() -> None:
     )
     num_nodes_with_reward = 0
     for node in scenario.attack_graph.nodes.values():
-        reward = node.extras.get('reward')
+        reward = scenario.rewards.get(node)
         if reward:
             # All nodes with reward set should have reward 1
             # Since this is defined in the extended scenario
@@ -123,13 +123,27 @@ def test_extend_scenario_override_lang_model() -> None:
     )
 
     # No reward overrides
-    assert get_node(scenario.attack_graph, 'Host:0:notPresent').extras['reward'] == 2
-    assert get_node(scenario.attack_graph, 'Host:0:access').extras['reward'] == 4
-    assert get_node(scenario.attack_graph, 'Host:1:notPresent').extras['reward'] == 7
-    assert get_node(scenario.attack_graph, 'Host:1:access').extras['reward'] == 5
-    assert get_node(scenario.attack_graph, 'Data:2:notPresent').extras['reward'] == 8
-    assert get_node(scenario.attack_graph, 'Data:2:read').extras['reward'] == 5
-    assert get_node(scenario.attack_graph, 'Data:2:modify').extras['reward'] == 10
+    assert scenario.rewards.get(
+        get_node(scenario.attack_graph, 'Host:0:notPresent')
+     ) == 2
+    assert scenario.rewards.get(
+        get_node(scenario.attack_graph, 'Host:0:access')
+    )== 4
+    assert scenario.rewards.get(
+        get_node(scenario.attack_graph, 'Host:1:notPresent')
+    ) == 7
+    assert scenario.rewards.get(
+        get_node(scenario.attack_graph, 'Host:1:access')
+    )== 5
+    assert scenario.rewards.get(
+        get_node(scenario.attack_graph, 'Data:2:notPresent')
+    ) == 8
+    assert scenario.rewards.get(
+        get_node(scenario.attack_graph, 'Data:2:read')
+    ) == 5
+    assert scenario.rewards.get(
+        get_node(scenario.attack_graph, 'Data:2:modify')
+    ) == 10
 
     # No agent overrides
     assert len(scenario.agents) == 2
@@ -174,13 +188,13 @@ def test_load_scenario_observability_given() -> None:
     # part of asset type Application are observable.
     for node in scenario.attack_graph.nodes.values():
         if node.lg_attack_step.asset.name == "Application" and node.name == "fullAccess":
-            assert node.extras['observable']
+            assert scenario.is_observable[node]
         elif node.lg_attack_step.asset.name == "Application" and node.name == "supplyChainAuditing":
-            assert node.extras['observable']
+            assert scenario.is_observable[node]
         elif node.model_asset and node.model_asset.name == "Identity:8" and node.name == "assume":
-            assert node.extras['observable']
+            assert scenario.is_observable[node]
         else:
-            assert not node.extras['observable']
+            assert not scenario.is_observable[node]
 
 
 def test_load_scenario_observability_not_given() -> None:
@@ -314,7 +328,8 @@ def test_load_scenario_false_positive_negative_rate() -> None:
     # Load scenario with observability specifed
     scenario = load_scenario(
         path_relative_to_tests(
-            './testdata/scenarios/traininglang_fp_fn_scenario.yml')
+            './testdata/scenarios/traininglang_fp_fn_scenario.yml'
+        )
     )
 
     # Defined in scenario file
@@ -328,24 +343,23 @@ def test_load_scenario_false_positive_negative_rate() -> None:
 
         if node.full_name == "Host:0:access":
             # According to scenario file
-            assert node.extras['false_positive_rate'] == host_0_access_fp_rate
-            assert node.extras['false_negative_rate'] == host_0_access_fn_rate
+            assert scenario.false_positive_rates[node] == host_0_access_fp_rate
+            assert scenario.false_negative_rates[node] == host_0_access_fn_rate
 
         elif node.full_name == "Host:1:access":
             # According to scenario file
-            assert node.extras['false_positive_rate'] == host_1_access_fp_rate
-            assert node.extras['false_negative_rate'] == host_1_access_fn_rate
+            assert scenario.false_positive_rates[node] == host_1_access_fp_rate
+            assert scenario.false_negative_rates[node] == host_1_access_fn_rate
 
         elif node.full_name == "User:3:compromise":
             # According to scenario file
-            assert 'false_positive_rate' not in node.extras
-            assert node.extras['false_negative_rate'] \
-                == user_3_compromise_fn_rate
+            assert node not in scenario.false_positive_rates
+            assert scenario.false_negative_rates[node] == user_3_compromise_fn_rate
 
         else:
             # If no rules - don't set fpr/fnr
-            assert 'false_positive_rate' not in node.extras
-            assert 'false_negative_rate' not in node.extras
+            assert node not in scenario.false_negative_rates
+            assert node not in scenario.false_positive_rates
 
 def test_apply_scenario_fpr_fnr() -> None:
     """Try different cases for false positives/negatives rates"""
@@ -384,25 +398,19 @@ def test_apply_scenario_fpr_fnr() -> None:
     # if no observability settings are given
     for node in scenario.attack_graph.nodes.values():
         if node.lg_attack_step.asset.name == 'Data' and node.name == 'read':
-            assert node.extras['false_negative_rate'] == 0.5
             assert false_negatives_rates[node] == 0.5
         elif node.lg_attack_step.asset.name == 'Data' and node.name == 'write':
-            assert node.extras['false_negative_rate'] == 0.6
             assert false_negatives_rates[node] == 0.6
         elif node.lg_attack_step.asset.name == 'Data' and node.name == 'delete':
-            assert node.extras['false_negative_rate'] == 0.7
             assert false_negatives_rates[node] == 0.7
         elif node.model_asset and node.model_asset.name == 'OS App' and node.name == 'read':
-            assert node.extras['false_negative_rate'] == 0.9
             assert false_negatives_rates[node] == 0.9
         elif node.lg_attack_step.asset.name == 'Application' and node.name == 'read':
-            assert node.extras['false_negative_rate'] == 1.0
             assert false_negatives_rates[node] == 1.0
         elif node.lg_attack_step.asset.name == 'Application' and node.name == 'fullAccess':
-            assert node.extras['false_negative_rate'] == 0.8
             assert false_negatives_rates[node] == 0.8
         else:
-            assert 'false_negative_rate' not in node.extras
+            assert node not in false_negatives_rates
 
 
 def test_apply_scenario_rewards_old_format() -> None:

@@ -69,8 +69,8 @@ def test_defend_compromised_defender(
     defender_ai = DefendCompromisedDefender(agent_config)
 
     # Should pick cheapest one
-    node1.extras['reward'] = 100
-    node2.extras['reward'] = 10
+    sim._node_rewards[node1] = 100
+    sim._node_rewards[node2] = 10
 
     # Get next action
     assert isinstance(agent_state, MalSimDefenderState)
@@ -79,8 +79,8 @@ def test_defend_compromised_defender(
     assert action_node.id == node2.id
 
     # Should pick cheapest one
-    node1.extras['reward'] = 10
-    node2.extras['reward'] = 100
+    sim._node_rewards[node1] = 10
+    sim._node_rewards[node2] = 100
 
     # Get next action
     action_node = defender_ai.get_next_action(agent_state)

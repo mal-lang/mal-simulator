@@ -266,7 +266,6 @@ def apply_scenario_node_property(
 
         if default_value is not None:
             property_dict[step] = default_value
-            step.extras[node_prop] = default_value # legacy
 
         # Check for matching asset type property configuration entry
         prop_asset_type_entries = (
@@ -294,12 +293,10 @@ def apply_scenario_node_property(
 
         # Asset type values are applied first
         if prop_value_from_asset_type:
-            step.extras[node_prop] = prop_value_from_asset_type # legacy
             property_dict[step] = prop_value_from_asset_type
 
         # Specific asset defined values override asset type values
         if prop_value_from_specific_asset:
-            step.extras[node_prop] = prop_value_from_specific_asset # legacy
             property_dict[step] = prop_value_from_specific_asset
 
     return property_dict

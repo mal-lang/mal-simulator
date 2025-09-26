@@ -111,13 +111,13 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
         # For now, an `object` is an attack step
         num_steps = len(self.sim.attack_graph.nodes)
 
-        observation = {
+        observation: dict[str, Any] = {
             # If no observability set for node, assume observable.
-            "is_observable": [step.extras.get('observable', 1)
-                           for step in self.attack_graph.nodes.values()],
+            "is_observable": [self.sim.node_is_observable(step)
+                              for step in self.attack_graph.nodes.values()],
             # Same goes for actionable.
-            "is_actionable": [step.extras.get('actionable', 1)
-                           for step in self.attack_graph.nodes.values()],
+            "is_actionable": [self.sim.node_is_actionable(step)
+                              for step in self.attack_graph.nodes.values()],
             "observed_state": num_steps * [default_obs_state],
             "remaining_ttc": num_steps * [0],
             "asset_type": [
@@ -491,11 +491,9 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
             defender_observation['observed_state'][node_idx] = 1
 
         for node in disabled_nodes:
-            is_entrypoint = node.extras.get('entrypoint', False)
-            if not is_entrypoint:
-                logger.debug("Disable %s in defender obs", node.full_name)
-                node_idx = self.node_to_index(node)
-                defender_observation['observed_state'][node_idx] = 0
+            logger.debug("Disable %s in defender obs", node.full_name)
+            node_idx = self.node_to_index(node)
+            defender_observation['observed_state'][node_idx] = 0
 
     def reset(
             self,
