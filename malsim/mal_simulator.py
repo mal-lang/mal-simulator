@@ -154,6 +154,10 @@ class MalSimulator():
         self,
         attack_graph: AttackGraph,
         node_rewards: Optional[dict[AttackGraphNode, float]] = None,
+        observability_per_node: Optional[dict[AttackGraphNode, bool]] = None,
+        actionability_per_node: Optional[dict[AttackGraphNode, bool]] = None,
+        false_positive_rates: Optional[dict[AttackGraphNode, float]] = None,
+        false_negative_rates: Optional[dict[AttackGraphNode, float]] = None,
         sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
         max_iter: int = ITERATIONS_LIMIT,
     ):
@@ -180,6 +184,10 @@ class MalSimulator():
 
         # Store properties of each AttackGraphNode
         self._node_rewards: dict[AttackGraphNode, float] = node_rewards or {}
+        self._observability_per_node = observability_per_node or {}
+        self._actionability_per_node = actionability_per_node or {}
+        self._false_positive_rates = false_positive_rates or {}
+        self._false_negative_rates = false_negative_rates or {}
         self._enabled_defenses: set[AttackGraphNode] = set()
         self._impossible_attack_steps: set[AttackGraphNode] = set()
 
@@ -225,6 +233,10 @@ class MalSimulator():
         sim = cls(
             scenario.attack_graph,
             node_rewards=scenario.rewards,
+            observability_per_node=scenario.is_observable,
+            actionability_per_node=scenario.is_actionable,
+            false_positive_rates=scenario.false_positive_rates,
+            false_negative_rates=scenario.false_negative_rates,
             sim_settings=sim_settings,
             max_iter=max_iter,
             **kwargs
@@ -257,6 +269,20 @@ class MalSimulator():
             f"Node {node.full_name} does not have a ttc value"
         )
         return self._ttc_values[node]
+
+    def node_is_observable(self, node: AttackGraphNode) -> bool:
+        """Whether any agent can observe the node"""
+        return (
+            self._observability_per_node.get(node, False)
+            if self._observability_per_node else True
+        )
+
+    def node_is_actionable(self, node: AttackGraphNode) -> bool:
+        """Whether any agent can perform the node"""
+        return (
+            self._actionability_per_node.get(node, False)
+            if self._actionability_per_node else True
+        )
 
     def node_is_viable(self, node: AttackGraphNode) -> bool:
         """Get viability of a node"""
@@ -319,10 +345,6 @@ class MalSimulator():
                 )
         return traversable
 
-    def agent_reward(self, agent_name: str) -> float:
-        """Get an agents current reward"""
-        return self._agent_rewards.get(agent_name, 0)
-
     def node_reward(self, node: AttackGraphNode) -> float:
         """Get reward for a node"""
         return self._node_rewards.get(node, 0.0)
@@ -344,6 +366,10 @@ class MalSimulator():
             return node
 
         raise ValueError("Provide either full_name or node_id 'get_node'")
+
+    def agent_reward(self, agent_name: str) -> float:
+        """Get an agents current reward"""
+        return self._agent_rewards.get(agent_name, 0)
 
     def agent_is_terminated(self, agent_name: str) -> bool:
         """Return True if agent was terminated"""
