@@ -6,7 +6,6 @@ from typing import Any
 
 from maltoolbox.attackgraph import create_attack_graph
 from malsim.scenario import (
-    AttackerAgentConfig,
     apply_scenario_node_property,
     load_scenario,
     _validate_scenario_node_property_config
@@ -54,11 +53,10 @@ def test_load_scenario() -> None:
 
     # Verify attacker entrypoint was added
     attack_step = get_node(scenario.attack_graph, 'OS App:fullAccess')
-    assert isinstance(scenario.agents[0], AttackerAgentConfig)
-    assert attack_step in scenario.agents[0].entry_points
+    assert attack_step in scenario.agents[0]['entry_points']
 
-    assert isinstance(scenario.agents[0].agent, BreadthFirstAttacker)
-    assert isinstance(scenario.agents[1].agent, PassiveAgent)
+    assert isinstance(scenario.agents[0]['agent'], BreadthFirstAttacker)
+    assert isinstance(scenario.agents[1]['agent'], PassiveAgent)
 
 
 def test_extend_scenario() -> None:
@@ -160,8 +158,8 @@ def test_load_scenario_no_defender_agent() -> None:
             './testdata/scenarios/no_defender_agent_scenario.yml'
         )
     )
-    assert 'defender' not in [a.name for a  in scenario.agents]
-    assert isinstance(scenario.agents[0].agent, BreadthFirstAttacker)
+    assert 'defender' not in [a['name'] for a  in scenario.agents]
+    assert isinstance(scenario.agents[0]['agent'], BreadthFirstAttacker)
 
 
 def test_load_scenario_agent_class_error() -> None:
@@ -234,7 +232,7 @@ def test_apply_scenario_observability() -> None:
 
     # Apply observability rules
     observable = apply_scenario_node_property(
-        scenario.attack_graph, observability_rules,
+        scenario.attack_graph, observability_rules, default_value=False
     )
 
     # Make sure all attack steps are observable

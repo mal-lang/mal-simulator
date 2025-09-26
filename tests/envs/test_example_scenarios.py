@@ -41,12 +41,12 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     attacker_agent_name = "attacker1"
 
     attacker_agent = next(
-        agent.agent for agent in scenario.agents
-        if agent.name == attacker_agent_name
+        agent['agent'] for agent in scenario.agents
+        if agent['name'] == attacker_agent_name
     )
     defender_agent = next(
-        agent.agent for agent in scenario.agents
-        if agent.name == defender_agent_name
+        agent['agent'] for agent in scenario.agents
+        if agent['name'] == defender_agent_name
     )
 
     total_reward_defender = 0.0
@@ -78,7 +78,7 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         # If actions were performed, add them to respective list
         if attacker_node and attacker_node in attacker_state.step_performed_nodes:
             attacker_actions.append(attacker_node.full_name)
-            assert attacker_node in defender_state.step_all_compromised_nodes
+            assert attacker_node in defender_state.step_compromised_nodes
 
         if defender_node and defender_node in defender_state.step_performed_nodes:
             defender_actions.append(defender_node.full_name)
@@ -194,12 +194,12 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     attacker_agent_name = "attacker1"
 
     attacker_agent = next(
-        agent.agent for agent in scenario.agents
-        if agent.name == attacker_agent_name
+        agent['agent'] for agent in scenario.agents
+        if agent['name'] == attacker_agent_name
     )
     defender_agent = next(
-        agent.agent for agent in scenario.agents
-        if agent.name == defender_agent_name
+        agent['agent'] for agent in scenario.agents
+        if agent['name'] == defender_agent_name
     )
 
     total_reward_defender = 0.0
@@ -230,7 +230,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         # If actions were performed, add them to respective list
         if attacker_node and attacker_node in attacker_state.step_performed_nodes:
             attacker_actions.append(attacker_node.full_name)
-            assert attacker_node in defender_state.step_all_compromised_nodes
+            assert attacker_node in defender_state.step_compromised_nodes
 
         if defender_node and defender_node in \
                 states['defender1'].step_performed_nodes:
@@ -325,12 +325,12 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
     attacker_agent_name = "attacker1"
 
     attacker_agent = next(
-        agent_info.agent for agent_info in scenario.agents
-        if agent_info.name == attacker_agent_name
+        agent['agent'] for agent in scenario.agents
+        if agent['name'] == attacker_agent_name
     )
     defender_agent = next(
-        agent_info.agent for agent_info in scenario.agents
-        if agent_info.name == defender_agent_name
+        agent['agent'] for agent in scenario.agents
+        if agent['name'] == defender_agent_name
     )
 
     total_reward_defender = 0.0
@@ -361,7 +361,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
         # If actions were performed, add them to respective list
         if attacker_node and attacker_node in attacker_state.step_performed_nodes:
             attacker_actions.append(attacker_node.full_name)
-            assert attacker_node in defender_state.step_all_compromised_nodes
+            assert attacker_node in defender_state.step_compromised_nodes
 
         if defender_node and defender_node in defender_state.step_performed_nodes:
             defender_actions.append(defender_node.full_name)
@@ -432,12 +432,12 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
     attacker_agent_name = "attacker1"
 
     attacker_agent = next(
-        agent_info.agent for agent_info in scenario.agents
-        if agent_info.name == attacker_agent_name
+        agent['agent'] for agent in scenario.agents
+        if agent['name'] == attacker_agent_name
     )
     defender_agent = next(
-        agent_info.agent for agent_info in scenario.agents
-        if agent_info.name == defender_agent_name
+        agent['agent'] for agent in scenario.agents
+        if agent['name'] == defender_agent_name
     )
 
     total_reward_defender = 0.0
@@ -468,7 +468,7 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         # If actions were performed, add them to respective list
         if attacker_node and attacker_node in attacker_state.step_performed_nodes:
             attacker_actions.append(attacker_node.full_name)
-            assert attacker_node in defender_state.step_all_compromised_nodes
+            assert attacker_node in defender_state.step_compromised_nodes
 
         if defender_node and defender_node in defender_state.step_performed_nodes:
             defender_actions.append(defender_node.full_name)

@@ -96,7 +96,7 @@ class MalSimDefenderState(MalSimAgentState):
     @property
     def step_all_compromised_nodes(self) -> frozenset[AttackGraphNode]:
         print(
-            "Deprecated in mal-simulator 1.1.0, "
+            "'step_all_compromised_nodes' deprecated in mal-simulator 1.1.0, "
             "please use 'step_compromised_nodes'"
         )
         return self.step_compromised_nodes
@@ -1038,7 +1038,7 @@ class MalSimulator():
         - reward_mode: which way to calculate reward
         """
         step_enabled_defenses = defender_state.step_performed_nodes
-        step_compromised_nodes = defender_state.step_all_compromised_nodes
+        step_compromised_nodes = defender_state.step_compromised_nodes
 
         # Defender is penalized for compromised steps and enabled defenses
         step_reward = - sum(
@@ -1112,7 +1112,7 @@ class MalSimulator():
         self.recording[self.cur_iter] = {}
 
         # Populate these from the results for all agents' actions.
-        step_all_compromised_nodes: set[AttackGraphNode] = set()
+        step_compromised_nodes: set[AttackGraphNode] = set()
         step_enabled_defenses: set[AttackGraphNode] = set()
         step_nodes_made_unviable: set[AttackGraphNode] = set()
 
@@ -1130,7 +1130,7 @@ class MalSimulator():
             agent_compromised, agent_attempted = self._attacker_step(
                 attacker_state, actions.get(attacker_state.name, [])
             )
-            step_all_compromised_nodes |= agent_compromised
+            step_compromised_nodes |= agent_compromised
             self.recording[self.cur_iter][attacker_state.name] = (
                 list(agent_compromised)
             )
@@ -1160,7 +1160,7 @@ class MalSimulator():
                 # Update defender state
                 updated_defender_state = self._update_defender_state(
                     agent_state,
-                    step_all_compromised_nodes,
+                    step_compromised_nodes,
                     step_enabled_defenses,
                     step_nodes_made_unviable
                 )
@@ -1189,14 +1189,14 @@ class MalSimulator():
 
 
 def run_simulation(
-        sim: MalSimulator, agents: list[AgentConfig]
+        sim: MalSimulator, agents: list[dict[str, Any]]
     ) -> dict[str, list[AttackGraphNode]]:
     """Run a simulation with agents
 
     Return selected actions by each agent in each step
     """
     agent_actions: dict[str, list[AttackGraphNode]] = {}
-    total_rewards = {agent_config.name: 0.0 for agent_config in agents}
+    total_rewards = {agent_config['name']: 0.0 for agent_config in agents}
 
     logger.info("Starting CLI env simulator.")
     states = sim.reset()
@@ -1207,8 +1207,8 @@ def run_simulation(
 
         # Select actions for each agent
         for agent_config in agents:
-            decision_agent: Optional[DecisionAgent] = agent_config.agent
-            agent_name = agent_config.name
+            decision_agent: Optional[DecisionAgent] = agent_config['agent']
+            agent_name = agent_config['name']
             if decision_agent is None:
                 print(
                     f'Agent "{agent_name}" has no decision agent class '
@@ -1232,7 +1232,7 @@ def run_simulation(
         # Perform next step of simulation
         states = sim.step(actions)
         for agent_config in agents:
-            total_rewards[agent_config.name] += sim.agent_reward(agent_config.name)
+            total_rewards[agent_config['name']] += sim.agent_reward(agent_config['name'])
 
         print("---")
 
@@ -1240,6 +1240,7 @@ def run_simulation(
 
     # Print total rewards
     for agent_config in agents:
-        print(f'Total reward "{agent_config.name}"', total_rewards[agent_config.name])
+        agent_name = agent_config['name']
+        print(f'Total reward "{agent_name}"', total_rewards[agent_config['name']])
 
     return agent_actions

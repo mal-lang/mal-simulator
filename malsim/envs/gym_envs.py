@@ -13,7 +13,7 @@ from gymnasium.core import RenderFrame
 import numpy as np
 
 from ..scenario import load_scenario
-from ..mal_simulator import MalSimulator, AgentConfig, AttackerAgentConfig
+from ..mal_simulator import MalSimulator, AgentType
 from ..envs import MalSimVectorizedObsEnv
 from ..agents import DecisionAgent
 
@@ -36,7 +36,7 @@ class AttackerEnv(gym.Env[Any, Any]):
 
         attacker_agents = [
             agent for agent in scenario.agents
-            if isinstance(agent, AttackerAgentConfig)
+            if agent['type'] == AgentType.ATTACKER
         ]
 
         assert len(attacker_agents) == 1, (
@@ -45,11 +45,11 @@ class AttackerEnv(gym.Env[Any, Any]):
         )
 
         attacker_agent = attacker_agents[0]
-        self.attacker_agent_name = attacker_agent.name
+        self.attacker_agent_name = attacker_agent['name']
 
         self.sim.register_attacker(
             self.attacker_agent_name,
-            attacker_agent.entry_points
+            attacker_agent['entry_points']
         )
         self.sim.reset()
 
@@ -127,26 +127,26 @@ class DefenderEnv(gym.Env[Any, Any]):
         self.action_space = \
             self.sim.action_space(self.defender_agent_name)
 
-    def _register_attacker_agents(self, agents: list[AgentConfig]) -> None:
+    def _register_attacker_agents(self, agents: list[dict[str, Any]]) -> None:
         """Register attackers in simulator"""
         for agent_config in agents:
-            if isinstance(agent_config, AttackerAgentConfig):
+            if agent_config['type'] == AgentType.ATTACKER:
                 self.sim.register_attacker(
-                    agent_config.name, agent_config.entry_points
+                    agent_config['name'], agent_config['entry_points']
                 )
 
     def _create_attacker_decision_agents(
-            self, agents: list[AgentConfig], seed: Optional[int] = None
+            self, agents: list[dict[str, Any]], seed: Optional[int] = None
         ) -> dict[str, DecisionAgent]:
         """Create decision agents for each attacker"""
 
         attacker_agents = {}
         for agent_config in agents:
-            if isinstance(agent_config, AttackerAgentConfig):
-                agent_name = agent_config.name
-                if agent_config.agent_class:
+            if agent_config['type'] == AgentType.ATTACKER:
+                agent_name = agent_config['name']
+                if agent_config['agent_class']:
                     attacker_agents[agent_name] = (
-                        agent_config.agent_class(
+                        agent_config['agent_class'](
                             {'seed': seed, 'randomize': self.randomize}
                         )
                     )

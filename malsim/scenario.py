@@ -12,7 +12,7 @@ A scenario is a combination of:
 """
 from __future__ import annotations
 import os
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from typing import Any, Optional, TextIO
 from enum import Enum
 import logging
@@ -83,6 +83,7 @@ allowed_fields = required_fields + [
 
 @dataclass
 class AgentConfig:
+    # Will be used for agents in the future instead of dicts
     name: str
     agent_class: Any
     agent: Any
@@ -151,10 +152,10 @@ class Scenario:
             self.attack_graph, false_negative_rates or {}
         )
         self.is_observable = apply_scenario_node_property(
-            self.attack_graph, is_observable or {}
+            self.attack_graph, is_observable or {}, default_value=False
         )
         self.is_actionable = apply_scenario_node_property(
-            self.attack_graph, is_actionable or {}
+            self.attack_graph, is_actionable or {}, default_value=False
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -162,9 +163,7 @@ class Scenario:
         scenario_dict = {
             # 'version': ?
             'lang_file': self._lang_file,
-            'agents': {
-                a.name: asdict(a) for a in self.agents
-            },
+            'agents': self.agents,
             'rewards': {},
             'false_positive_rates': {},
             'false_negative_rates': {},
@@ -437,9 +436,8 @@ def get_entry_point_nodes(
 
 
 def load_simulator_agents(
-        attack_graph: AttackGraph,
-        scenario_agents: dict[str, Any],
-    ) -> list[AgentConfig]:
+        attack_graph: AttackGraph, scenario_agents: dict[str, Any]
+    ) -> list[dict[str, Any]]:
     """Load agents to be registered in MALSimulator
 
     Create the agents from the specified classes,
@@ -449,7 +447,7 @@ def load_simulator_agents(
     - attack_graph: the attack graph
     - scenario: the scenario in question as a dict
     Return:
-    - agents: a list of agent configurations
+    - agents: a list of agent configurations (dicts)
     """
 
     # Create list of agents dicts
@@ -470,29 +468,29 @@ def load_simulator_agents(
             )
 
         if agent_type == AgentType.ATTACKER:
-            agent_config = AttackerAgentConfig(
-                name=agent_name,
-                agent_class=agent_class,
-                agent=agent,
-                policy=policy,
-                config=agent_config,
-                entry_points=get_entry_point_nodes(
+            agent_config = {
+                'name': agent_name,
+                'agent_class': agent_class,
+                'agent': agent,
+                'policy': policy,
+                'config': agent_config,
+                'entry_points': get_entry_point_nodes(
                     attack_graph, agent_info['entry_points'] # Required
                 ),
-                goals=get_entry_point_nodes(
+                'goals': get_entry_point_nodes(
                     attack_graph, agent_info.get('goals', []) # Optional
                 ),
-                type=AgentType.ATTACKER
-            )
+                'type': AgentType.ATTACKER
+            }
         elif agent_type == AgentType.DEFENDER:
-            agent_config = DefenderAgentConfig(
-                name=agent_name,
-                agent_class=agent_class,
-                agent=agent,
-                policy=policy,
-                config=agent_config,
-                type=AgentType.DEFENDER
-            )
+            agent_config = {
+                'name': agent_name,
+                'agent_class': agent_class,
+                'agent': agent,
+                'policy': policy,
+                'config': agent_config,
+                'type':AgentType.DEFENDER
+            }
 
         agents.append(agent_config)
 
