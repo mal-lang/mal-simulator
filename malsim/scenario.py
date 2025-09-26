@@ -10,7 +10,7 @@ A scenario is a combination of:
         - attacker_class
         - defender_class
 """
-
+from __future__ import annotations
 import os
 from dataclasses import dataclass, asdict
 from typing import Any, Optional, TextIO
@@ -110,7 +110,7 @@ class Scenario:
         self,
         lang_file: str,
         agents: dict[str, Any],
-        model_dict: Optional[dict] = None,
+        model_dict: Optional[dict[str, Any]] = None,
         model_file: Optional[str] = None,
         rewards: Optional[dict[str, Any]] = None,
         false_positive_rates: Optional[dict[str, Any]] = None,
@@ -157,7 +157,7 @@ class Scenario:
             self.attack_graph, is_actionable or {}
         )
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         assert self._lang_file, "Can not save scenario to file if lang file was not given"
         scenario_dict = {
             # 'version': ?
@@ -179,14 +179,14 @@ class Scenario:
 
         return scenario_dict
 
-    def save_to_file(self, file_path):
+    def save_to_file(self, file_path: str) -> None:
         save_scenario_dict(self.to_dict(), file_path)
 
     @classmethod
-    def from_dict(cls, scenario_dict):
+    def from_dict(cls, scenario_dict: dict[str, Any]) -> Scenario:
         return Scenario(
-            lang_file=scenario_dict.get('lang_file'),
-            agents=scenario_dict.get('agents'),
+            lang_file=scenario_dict['lang_file'],
+            agents=scenario_dict['agents'],
             model_dict=scenario_dict.get('model'),
             model_file=scenario_dict.get('model_file'),
             rewards=scenario_dict.get('rewards'),
@@ -197,7 +197,7 @@ class Scenario:
         )
 
     @classmethod
-    def load_from_file(cls, scenario_file):
+    def load_from_file(cls, scenario_file: str) -> Scenario:
         scenario_dict = load_scenario_dict(scenario_file)
         _validate_scenario_dict(scenario_dict)
         return cls.from_dict(scenario_dict)
@@ -439,7 +439,6 @@ def get_entry_point_nodes(
 def load_simulator_agents(
         attack_graph: AttackGraph,
         scenario_agents: dict[str, Any],
-        as_dicts=False
     ) -> list[AgentConfig]:
     """Load agents to be registered in MALSimulator
 

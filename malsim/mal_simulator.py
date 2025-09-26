@@ -242,7 +242,7 @@ class MalSimulator():
     ) -> MalSimulator:
         """Create a MalSimulator object from a Scenario"""
 
-        def register_agent_dict(agent_config: dict):
+        def register_agent_dict(agent_config: dict[str, Any]) -> None:
             """Register an agent specified in a dictionary"""
             logger.warning(
                 "Having agent configs in dictionaries will be deprecated in "
@@ -257,7 +257,7 @@ class MalSimulator():
             elif agent_config['type'] == AgentType.DEFENDER:
                 sim.register_defender(agent_config['name'])
 
-        def register_agent_config(agent_config: AgentConfig):
+        def register_agent_config(agent_config: AgentConfig) -> None:
             """Register an agent config in simulator"""
             if isinstance(agent_config, AttackerAgentConfig):
                 sim.register_attacker(

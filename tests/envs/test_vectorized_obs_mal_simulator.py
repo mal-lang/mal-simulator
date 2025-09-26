@@ -176,8 +176,6 @@ def test_create_blank_observation_observability_given(
         elif node.model_asset and node.model_asset.name == 'User:3' and node.name in ('phishing'):
             assert observable
         else:
-            if observable:
-                breakpoint()
             assert not observable
 
 def test_create_blank_observation_actionability_given(
