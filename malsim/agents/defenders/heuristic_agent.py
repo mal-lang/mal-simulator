@@ -34,7 +34,7 @@ class DefendCompromisedDefender:
 
         """Return an action that disables a compromised node"""
 
-        self.compromised_nodes |= agent_state.step_all_compromised_nodes
+        self.compromised_nodes |= agent_state.step_compromised_nodes
 
         selected_node_cost = math.inf
         selected_node = None
@@ -92,7 +92,7 @@ class DefendFutureCompromisedDefender:
 
         """Return an action that disables a compromised node"""
 
-        self.compromised_nodes |= agent_state.step_all_compromised_nodes
+        self.compromised_nodes |= agent_state.step_compromised_nodes
 
         selected_node_cost = math.inf
         selected_node = None
