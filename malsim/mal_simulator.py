@@ -142,6 +142,10 @@ class MalSimulatorSettings():
     attacker_reward_mode: RewardMode = RewardMode.CUMULATIVE
     defender_reward_mode: RewardMode = RewardMode.CUMULATIVE
 
+    # False positives / negatives for defender agents observation
+    enable_false_positives: bool = False
+    enable_false_negatives: bool = False
+
 class MalSimulator():
     """A MAL Simulator that works on the AttackGraph
 
@@ -616,6 +620,35 @@ class MalSimulator():
 
         return updated_attacker_state
 
+    def _false_negative(self, node: AttackGraphNode) -> bool:
+        """Decide if a node that was compromised is a false negative"""
+        if not self.sim_settings.enable_false_negatives:
+            return False
+        fnr = self._false_negative_rates[node]
+        return self.rng.random() < fnr
+
+    def _false_positive(self, node: AttackGraphNode) -> bool:
+        """Decide if a node that was not compromised is a false positive"""
+        if not self.sim_settings.enable_false_positives:
+            return False
+        fpr = self._false_positive_rates[node]
+        return self.rng.random() < fpr
+
+    def _generate_false_negatives(
+            self, observed_nodes: set[AttackGraphNode]
+        ) -> set[AttackGraphNode]:
+        """Return a set of false negative attack steps from observed nodes"""
+        return set(
+            node for node in observed_nodes if self._false_negative(node)
+        )
+
+    def _generate_false_positives(self) -> set[AttackGraphNode]:
+        """Return a set of false positive attack steps from attack graph"""
+        return set(
+            node for node in self.attack_graph.nodes.values()
+            if node.type in ('and', 'or') and self._false_positive(node)
+        )
+
     def _create_defender_state(self, name: str) -> MalSimDefenderState:
         """Create a new defender state, initialize values"""
 
@@ -642,7 +675,7 @@ class MalSimulator():
     def _update_defender_state(
         self,
         defender_state: MalSimDefenderState,
-        step_all_compromised_nodes: set[AttackGraphNode],
+        step_compromised_nodes: set[AttackGraphNode],
         step_enabled_defenses: set[AttackGraphNode],
         step_nodes_made_unviable: set[AttackGraphNode],
     ) -> MalSimDefenderState:
@@ -651,6 +684,16 @@ class MalSimulator():
         were enabled/compromised during last step
         """
 
+        false_negatives = (
+            self._generate_false_negatives(step_compromised_nodes)
+            if self.sim_settings.enable_false_negatives else set()
+        )
+        false_positives = (
+            self._generate_false_positives()
+            if self.sim_settings.enable_false_positives else set()
+        )
+        step_observed_nodes = (step_compromised_nodes - false_negatives) | false_positives
+
         updated_defender_state = MalSimDefenderState(
             defender_state.name,
             sim=self,
@@ -658,13 +701,13 @@ class MalSimulator():
                 defender_state.performed_nodes | step_enabled_defenses
             ),
             compromised_nodes = frozenset(
-                defender_state.compromised_nodes | step_all_compromised_nodes
+                defender_state.compromised_nodes | step_observed_nodes
             ),
             step_action_surface_additions = frozenset(),
             step_action_surface_removals = frozenset(step_enabled_defenses),
             action_surface = frozenset(self._get_defense_surface()),
             step_performed_nodes = frozenset(step_enabled_defenses),
-            step_all_compromised_nodes = frozenset(step_all_compromised_nodes),
+            step_all_compromised_nodes = frozenset(step_observed_nodes),
             step_unviable_nodes = frozenset(step_nodes_made_unviable)
         )
 
