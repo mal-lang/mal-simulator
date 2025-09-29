@@ -1095,7 +1095,9 @@ class MalSimulator():
             for a in self._get_attacker_agents()
         )
 
-    def _full_names_to_nodes(self, actions: list[str | AttackGraphNode]):
+    def _full_names_to_nodes(
+        self, actions: list[str] | list[AttackGraphNode]
+    ) -> list[AttackGraphNode]:
         """Convert list of node full names to list of attack graph nodes
 
         If element is a string, try converting from full name to node,
@@ -1110,7 +1112,7 @@ class MalSimulator():
         return node_actions
 
     def step(
-        self, actions: dict[str, list[AttackGraphNode | str]]
+        self, actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]]
     ) -> dict[str, MalSimAgentState]:
         """Take a step in the simulation
 
@@ -1235,7 +1237,7 @@ def run_simulation(
 
     while not sim.done():
         print(f"Iteration {sim.cur_iter}")
-        actions = {}
+        actions: dict[str, list[AttackGraphNode]] = {}
 
         # Select actions for each agent
         for agent_config in agents:
