@@ -9,7 +9,7 @@ from malsim.mal_simulator import (
 )
 from malsim.scenario import Scenario
 
-def test_run_scenario_ttc_soft_min_attacker():
+def test_run_scenario_ttc_soft_min_attacker() -> None:
     scenario = Scenario(
         lang_file='tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar',
         model_file='tests/testdata/models/traininglang_model.yml',

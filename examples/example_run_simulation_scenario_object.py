@@ -5,7 +5,7 @@ from malsim import MalSimulator, run_simulation
 from malsim.scenario import Scenario
 
 
-def test_scenario_obj():
+def test_scenario_obj() -> None:
     scenario = Scenario(
         lang_file='tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar',
         model_file='tests/testdata/models/traininglang_model.yml',
@@ -23,7 +23,7 @@ def test_scenario_obj():
     )
 
     mal_simulator = MalSimulator.from_scenario(scenario)
-    paths = run_simulation(mal_simulator, scenario.agents)
+    _ = run_simulation(mal_simulator, scenario.agents)
 
 if __name__ == '__main__':
     test_scenario_obj()
