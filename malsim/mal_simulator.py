@@ -7,6 +7,8 @@ from enum import Enum
 from typing import Any, Optional, TYPE_CHECKING
 from collections.abc import Set
 from types import MappingProxyType # For immutable dict
+from functools import wraps
+from typing import Callable
 
 from numpy.random import default_rng
 
@@ -289,14 +291,29 @@ class MalSimulator():
 
         return sim
 
+    @staticmethod
+    def normalize_node(method: Callable) -> Callable:
+        """
+        Make sure that if node is given as full name,
+        it is converted to AttackGraphNode
+        """
+        @wraps(method)
+        def wrapper(self, node_or_node_full_name, *args, **kwargs):
+            if isinstance(node_or_node_full_name, str):
+                node = self.get_node(node_or_node_full_name)
+            else:
+                node = node_or_node_full_name
+            return method(self, node, *args, **kwargs)
+        return wrapper
+
+
     def done(self) -> bool:
         """Return True if simulation run is done"""
         return len(self._alive_agents) == 0 or self.cur_iter > self.max_iter
 
-    def node_ttc_value(self, node: AttackGraphNode | str) -> float:
+    @normalize_node
+    def node_ttc_value(self, node: AttackGraphNode) -> float:
         """Return ttc value of node if it has been sampled"""
-        if isinstance(node, str):
-            node = self.get_node(node)
         assert self.sim_settings.ttc_mode in (
             TTCMode.PRE_SAMPLE, TTCMode.EXPECTED_VALUE
         ), "TTC value only when TTCMode is PRE_SAMPLE or EXPECTED_VALUE"
@@ -306,55 +323,50 @@ class MalSimulator():
         )
         return self._ttc_values[node]
 
-    def node_is_observable(self, node: AttackGraphNode | str) -> bool:
+    @normalize_node
+    def node_is_observable(self, node: AttackGraphNode) -> bool:
         """Whether any agent can observe the node"""
-        if isinstance(node, str):
-            node = self.get_node(node)
         return (
             self._observability_per_node.get(node, False)
             if self._observability_per_node else True
         )
 
-    def node_is_actionable(self, node: AttackGraphNode | str) -> bool:
+    @normalize_node
+    def node_is_actionable(self, node: AttackGraphNode) -> bool:
         """Whether any agent can perform the node"""
-        if isinstance(node, str):
-            node = self.get_node(node)
         return (
             self._actionability_per_node.get(node, False)
             if self._actionability_per_node else True
         )
 
-    def node_is_viable(self, node: AttackGraphNode | str) -> bool:
+    @normalize_node
+    def node_is_viable(self, node: AttackGraphNode) -> bool:
         """Get viability of a node"""
-        if isinstance(node, str):
-            node = self.get_node(node)
         return self._viability_per_node[node]
 
-    def node_is_necessary(self, node: AttackGraphNode | str) -> bool:
+    @normalize_node
+    def node_is_necessary(self, node: AttackGraphNode) -> bool:
         """Get necessity of a node"""
-        if isinstance(node, str):
-            node = self.get_node(node)
         return self._necessity_per_node[node]
 
-    def node_is_enabled_defense(self, node: AttackGraphNode | str) -> bool:
+    @normalize_node
+    def node_is_enabled_defense(self, node: AttackGraphNode) -> bool:
         """Get a nodes defense status"""
-        if isinstance(node, str):
-            node = self.get_node(node)
         return node in self._enabled_defenses
 
-    def node_is_compromised(self, node: AttackGraphNode | str) -> bool:
+    @normalize_node
+    def node_is_compromised(self, node: AttackGraphNode) -> bool:
         """Return True if node is compromised by any attacker agent"""
-        if isinstance(node, str):
-            node = self.get_node(node)
         for attacker_agent in self._get_attacker_agents():
             if node in attacker_agent.performed_nodes:
                 return True
         return False
 
+    @normalize_node
     def node_is_traversable(
             self,
             performed_nodes: Set[AttackGraphNode],
-            node: AttackGraphNode | str
+            node: AttackGraphNode
         ) -> bool:
         """
         Return True or False depending if the node specified is traversable
@@ -368,9 +380,6 @@ class MalSimulator():
         Arguments:
         node        - the node we wish to evalute
         """
-        if isinstance(node, str):
-            node = self.get_node(node)
-
         if not self.node_is_viable(node):
             return False
 
@@ -395,6 +404,7 @@ class MalSimulator():
                 )
         return traversable
 
+    @normalize_node
     def node_reward(self, node: AttackGraphNode) -> float:
         """Get reward for a node"""
         return self._node_rewards.get(node, 0.0)

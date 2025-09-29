@@ -570,10 +570,10 @@ def test_step_attacker_defender_action_surface_updates() -> None:
     defender_agent = states[defender_agent_id]
 
     # Run step() with action crafted in test
-    attacker_step = sim.attack_graph.get_node_by_full_name('User:3:compromise')
+    attacker_step = sim.get_node('User:3:compromise')
     assert attacker_step in attacker_agent.action_surface
 
-    defender_step = sim.attack_graph.get_node_by_full_name('User:3:notPresent')
+    defender_step = sim.get_node('User:3:notPresent')
     assert defender_step in defender_agent.action_surface
 
     actions = {
