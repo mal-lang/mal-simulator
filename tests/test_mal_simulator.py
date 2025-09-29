@@ -470,7 +470,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert asv.step_action_surface_removals == {os_app_attempt_deny}
     assert os_app_attempt_deny not in asv.action_surface
     assert dsv.step_action_surface_removals == {program2_not_present}
-    assert dsv.step_all_compromised_nodes == {os_app_attempt_deny}
+    assert dsv.step_compromised_nodes == {os_app_attempt_deny}
     assert len(dsv.step_unviable_nodes) == 47
 
     # Go through an attack step that already has some children in the attack
@@ -493,7 +493,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert asv.step_action_surface_removals == {os_app_spec_access}
     assert os_app_spec_access not in asv.action_surface
     assert dsv.step_action_surface_removals == set()
-    assert dsv.step_all_compromised_nodes == {os_app_spec_access}
+    assert dsv.step_compromised_nodes == {os_app_spec_access}
     assert len(dsv.step_unviable_nodes) == 0
 
     # Evaluate the agent state views after stepping through an attack step and
@@ -527,7 +527,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     }
     assert len(asv.step_action_surface_removals) == 12
     assert dsv.step_action_surface_removals == {os_app_not_present}
-    assert dsv.step_all_compromised_nodes == set()
+    assert dsv.step_compromised_nodes == set()
     assert len(dsv.step_unviable_nodes) == 63
 
     # Recording of the simulation

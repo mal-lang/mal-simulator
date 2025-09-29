@@ -129,11 +129,10 @@ class DefenderEnv(gym.Env[Any, Any]):
 
     def _register_attacker_agents(self, agents: list[dict[str, Any]]) -> None:
         """Register attackers in simulator"""
-        for agent_info in agents:
-            if agent_info['type'] == AgentType.ATTACKER:
+        for agent_config in agents:
+            if agent_config['type'] == AgentType.ATTACKER:
                 self.sim.register_attacker(
-                    agent_info['name'],
-                    agent_info['entry_points']
+                    agent_config['name'], agent_config['entry_points']
                 )
 
     def _create_attacker_decision_agents(
@@ -142,14 +141,12 @@ class DefenderEnv(gym.Env[Any, Any]):
         """Create decision agents for each attacker"""
 
         attacker_agents = {}
-
-        for agent_info in agents:
-            if agent_info['type'] == AgentType.ATTACKER:
-                agent_name = agent_info['name']
-                agent_class = agent_info.get('agent_class')
-                if agent_class:
+        for agent_config in agents:
+            if agent_config['type'] == AgentType.ATTACKER:
+                agent_name = agent_config['name']
+                if agent_config['agent_class']:
                     attacker_agents[agent_name] = (
-                        agent_class(
+                        agent_config['agent_class'](
                             {'seed': seed, 'randomize': self.randomize}
                         )
                     )

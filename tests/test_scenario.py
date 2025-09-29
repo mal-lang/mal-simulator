@@ -232,7 +232,7 @@ def test_apply_scenario_observability() -> None:
 
     # Apply observability rules
     observable = apply_scenario_node_property(
-        scenario.attack_graph, observability_rules, default_value = 0
+        scenario.attack_graph, observability_rules, default_value=False
     )
 
     # Make sure all attack steps are observable
@@ -261,14 +261,12 @@ def test_apply_scenario_observability_faulty() -> None:
         apply_scenario_node_property(
             scenario.attack_graph,
             {'NotAllowedKey': {'Data': ['read', 'write', 'delete']}},
-            default_value = 0
         )
 
     # Correct asset type and attack step
     apply_scenario_node_property(
         scenario.attack_graph,
         {'by_asset_type': { 'Application': ['read']}},
-        default_value = 0
     )
 
     # Wrong asset type in rule asset type to step dict
@@ -276,7 +274,6 @@ def test_apply_scenario_observability_faulty() -> None:
         apply_scenario_node_property(
             scenario.attack_graph,
             {'by_asset_type': {'NonExistingType': ['read']}},
-            default_value = 0
         )
 
     # Wrong attack step name in rule asset type to step dict
@@ -284,14 +281,12 @@ def test_apply_scenario_observability_faulty() -> None:
         apply_scenario_node_property(
             scenario.attack_graph,
             {'by_asset_type': {'Data': ['nonExistingAttackStep']}},
-            default_value = 0
         )
 
     # Correct asset name and attack step
     apply_scenario_node_property(
         scenario.attack_graph,
         {'by_asset_name': { 'OS App': ['read']}},
-        default_value = 0
     )
 
     # Wrong asset name in rule asset name to step dict
@@ -299,7 +294,6 @@ def test_apply_scenario_observability_faulty() -> None:
         apply_scenario_node_property(
             scenario.attack_graph,
             {'by_asset_name': { 'NonExistingName': ['read']}},
-            default_value = 0
         )
 
     # Wrong attack step name in rule asset name to step dict
@@ -307,7 +301,6 @@ def test_apply_scenario_observability_faulty() -> None:
         apply_scenario_node_property(
             scenario.attack_graph,
             {'by_asset_name': {'OS App': ['nonExistingAttackStep']}},
-            default_value = 0
         )
 
 
