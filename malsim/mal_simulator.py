@@ -1004,7 +1004,7 @@ class MalSimulator():
 
             else:
                 logger.warning(
-                    "Attacker could not compromise %s", node.full_name
+                    "Attacker could not compromise untraversable %s", node.full_name
                 )
 
         return successful_compromises, attempted_compromises
@@ -1286,7 +1286,7 @@ def run_simulation(
                 actions[agent_name] = [agent_action]
                 print(
                     f'Agent {agent_name} chose action: '
-                    f'{agent_action.full_name}'
+                    f'{agent_action.full_name} ({agent_action.type})'
                 )
 
                 # Store agent action

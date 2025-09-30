@@ -464,7 +464,7 @@ def load_simulator_agents(
         if agent_class_name and agent_class_name not in agent_class_name_to_class:
             raise LookupError(
                 f"Agent class '{agent_class_name}' not supported.\n"
-                f"Must be one of: {agent_class_name_to_class.values()}"
+                f"Must be one of: {list(agent_class_name_to_class.keys())}"
             )
 
         if agent_type == AgentType.ATTACKER:
