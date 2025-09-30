@@ -27,7 +27,13 @@ from malsim.graph_processing import (
     make_node_unviable,
 )
 
-from malsim.scenario import AgentType, load_scenario, AgentConfig, AttackerAgentConfig, DefenderAgentConfig
+from malsim.scenario import (
+    AgentType,
+    AgentConfig,
+    AttackerAgentConfig,
+    DefenderAgentConfig,
+    load_scenario
+)
 
 if TYPE_CHECKING:
     from malsim.scenario import Scenario
@@ -199,17 +205,21 @@ class MalSimulator():
         self._agent_rewards: dict[str, float] = {}
 
         # Store properties of each AttackGraphNode
-        node_rewards = node_rewards or {}
-        observability_per_node = observability_per_node or {}
-        actionability_per_node = actionability_per_node or {}
-        false_positive_rates = false_positive_rates or {}
-        false_negative_rates = false_negative_rates or {}
-
-        self._node_rewards: dict[AttackGraphNode, float] = self._full_name_dict_to_node_dict(node_rewards)
-        self._observability_per_node = self._full_name_dict_to_node_dict(observability_per_node)
-        self._actionability_per_node = self._full_name_dict_to_node_dict(actionability_per_node)
-        self._false_positive_rates = self._full_name_dict_to_node_dict(false_positive_rates)
-        self._false_negative_rates = self._full_name_dict_to_node_dict(false_negative_rates)
+        self._node_rewards: dict[AttackGraphNode, float] = (
+            self._full_name_dict_to_node_dict(node_rewards or {})
+        )
+        self._observability_per_node = (
+            self._full_name_dict_to_node_dict(observability_per_node or {})
+        )
+        self._actionability_per_node = (
+            self._full_name_dict_to_node_dict(actionability_per_node or {})
+        )
+        self._false_positive_rates = (
+            self._full_name_dict_to_node_dict(false_positive_rates or {})
+        )
+        self._false_negative_rates = (
+            self._full_name_dict_to_node_dict(false_negative_rates or {})
+        )
         self._enabled_defenses: set[AttackGraphNode] = set()
         self._impossible_attack_steps: set[AttackGraphNode] = set()
 
