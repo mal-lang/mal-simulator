@@ -8,9 +8,9 @@ from . import (
     MalSimulator,
     MalSimulatorSettings,
     run_simulation,
-    load_scenario,
+    load_scenario
 )
-from .mal_simulator import TTCMode
+from .mal_simulator import TTCMode, ITERATIONS_LIMIT
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -34,6 +34,10 @@ def main() -> None:
         help="If set to a seed, simulator will use it as setting",
     )
     parser.add_argument(
+        '-m', '--max-iters', type=int, default=None,
+        help="Max number of steps in the simulation",
+    )
+    parser.add_argument(
         '-t', '--ttc-mode', type=int,
         help=(
             "\t\n".join(
@@ -48,8 +52,9 @@ def main() -> None:
         scenario, MalSimulatorSettings(
             seed=args.seed,
             ttc_mode=TTCMode(args.ttc_mode),
-            attack_surface_skip_unnecessary=False
-        )
+            attack_surface_skip_unnecessary=False,
+        ),
+        max_iter=args.max_iters or ITERATIONS_LIMIT
     )
 
     if args.output_attack_graph:
