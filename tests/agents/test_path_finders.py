@@ -81,7 +81,7 @@ def test_sandor_path_finding_ttc_lang() -> None:
     # Run the greedy a star
     path = greedy_a_star_attack(scenario.attack_graph, entry_point, goal)
 
-    # Validate path
+    # Validate path - TODO: this fails!
     visited = {entry_point}
     curr_node = None
     for curr_node in path:
