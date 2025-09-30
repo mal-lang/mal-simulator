@@ -24,15 +24,9 @@ category TestAssets{
 
     asset Computer {
         # shutDown
-            -> easyAccess,
-               hardAccess
+            -> access
 
-        & easyAccess
-            -> datas.easyRead,
-               datas.hardRead,
-               networks.easyAccess,
-               networks.hardAccess
-        & hardAccess [VeryHardAndCertain]
+        & access
             -> datas.easyRead,
                datas.hardRead,
                networks.easyAccess,
@@ -58,11 +52,9 @@ category TestAssets{
                hardScan
 
         | easyAccess
-            -> computer.easyAccess,
-               computer.hardAccess
+            -> computer.access
         | hardAccess [VeryHardAndCertain]
-            -> computer.easyAccess,
-               computer.hardAccess
+            -> computer.access
         | easyScan
             -> vulns.easyExploit,
                vulns.hardExploit
@@ -77,13 +69,10 @@ category TestAssets{
                hardAssume
 
         | easyAssume
-            -> computer.easyAccess,
-               computer.hardAccess
+            -> computer.access
 
         | hardAssume [VeryHardAndCertain]
-            -> computer.easyAccess,
-               computer.hardAccess
-
+            -> computer.access
     }
 
     asset SoftwareVuln {
