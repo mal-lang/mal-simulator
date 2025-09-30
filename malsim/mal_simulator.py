@@ -169,11 +169,11 @@ class MalSimulator():
     def __init__(
         self,
         attack_graph: AttackGraph,
-        node_rewards: Optional[dict[AttackGraphNode, float]] = None,
-        observability_per_node: Optional[dict[AttackGraphNode, bool]] = None,
-        actionability_per_node: Optional[dict[AttackGraphNode, bool]] = None,
-        false_positive_rates: Optional[dict[AttackGraphNode, float]] = None,
-        false_negative_rates: Optional[dict[AttackGraphNode, float]] = None,
+        node_rewards: Optional[dict[AttackGraphNode, float] | dict[str, float]] = None,
+        observability_per_node: Optional[dict[AttackGraphNode, bool] | dict[str, bool]] = None,
+        actionability_per_node: Optional[dict[AttackGraphNode, bool] | dict[str, bool]] = None,
+        false_positive_rates: Optional[dict[AttackGraphNode, float] | dict[str, float]] = None,
+        false_negative_rates: Optional[dict[AttackGraphNode, float] | dict[str, float]] = None,
         sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
         max_iter: int = ITERATIONS_LIMIT,
     ):
@@ -199,11 +199,17 @@ class MalSimulator():
         self._agent_rewards: dict[str, float] = {}
 
         # Store properties of each AttackGraphNode
-        self._node_rewards: dict[AttackGraphNode, float] = node_rewards or {}
-        self._observability_per_node = observability_per_node or {}
-        self._actionability_per_node = actionability_per_node or {}
-        self._false_positive_rates = false_positive_rates or {}
-        self._false_negative_rates = false_negative_rates or {}
+        node_rewards = node_rewards or {}
+        observability_per_node = observability_per_node or {}
+        actionability_per_node = actionability_per_node or {}
+        false_positive_rates = false_positive_rates or {}
+        false_negative_rates = false_negative_rates or {}
+
+        self._node_rewards: dict[AttackGraphNode, float] = self._full_name_dict_to_node_dict(node_rewards)
+        self._observability_per_node = self._full_name_dict_to_node_dict(observability_per_node)
+        self._actionability_per_node = self._full_name_dict_to_node_dict(actionability_per_node)
+        self._false_positive_rates = self._full_name_dict_to_node_dict(false_positive_rates)
+        self._false_negative_rates = self._full_name_dict_to_node_dict(false_negative_rates)
         self._enabled_defenses: set[AttackGraphNode] = set()
         self._impossible_attack_steps: set[AttackGraphNode] = set()
 
@@ -293,18 +299,37 @@ class MalSimulator():
         """Return True if simulation run is done"""
         return len(self._alive_agents) == 0 or self.cur_iter > self.max_iter
 
-    def full_name_or_node_to_node(
+    def _full_name_or_node_to_node(
             self, node_or_full_name: str | AttackGraphNode
         ) -> AttackGraphNode:
-        """Takes argument that can be node or full name, returns node"""
+        """Return node from either node or full name"""
         if isinstance(node_or_full_name, str):
             return self.get_node(node_or_full_name)
         else:
             return node_or_full_name
 
+    def _full_name_list_to_node_list(
+        self, nodes_or_full_names: list[str] | list[AttackGraphNode]
+    ) -> list[AttackGraphNode]:
+        """Convert list of node full names to list of AttackGraphNodes"""
+        return [
+            self._full_name_or_node_to_node(n) for n in nodes_or_full_names
+        ]
+
+    def _full_name_dict_to_node_dict(
+        self, actions: dict[str, Any] | dict[AttackGraphNode, Any]
+    ) -> dict[AttackGraphNode, Any]:
+        """
+        Convert dict keyed by AttackGraphNodes or full names
+        to dict keyed by AttackGraphNode.
+        """
+        return {
+            self._full_name_or_node_to_node(n): v for n, v in actions.items()
+        }
+
     def node_ttc_value(self, node: AttackGraphNode | str) -> float:
         """Return ttc value of node if it has been sampled"""
-        node = self.full_name_or_node_to_node(node)
+        node = self._full_name_or_node_to_node(node)
         assert self.sim_settings.ttc_mode in (
             TTCMode.PRE_SAMPLE, TTCMode.EXPECTED_VALUE
         ), "TTC value only when TTCMode is PRE_SAMPLE or EXPECTED_VALUE"
@@ -316,7 +341,7 @@ class MalSimulator():
 
     def node_is_observable(self, node: AttackGraphNode | str) -> bool:
         """Whether any agent can observe the node"""
-        node = self.full_name_or_node_to_node(node)
+        node = self._full_name_or_node_to_node(node)
         return (
             self._observability_per_node.get(node, False)
             if self._observability_per_node else True
@@ -324,7 +349,7 @@ class MalSimulator():
 
     def node_is_actionable(self, node: AttackGraphNode | str) -> bool:
         """Whether any agent can perform the node"""
-        node = self.full_name_or_node_to_node(node)
+        node = self._full_name_or_node_to_node(node)
         return (
             self._actionability_per_node.get(node, False)
             if self._actionability_per_node else True
@@ -332,22 +357,22 @@ class MalSimulator():
 
     def node_is_viable(self, node: AttackGraphNode | str) -> bool:
         """Get viability of a node"""
-        node = self.full_name_or_node_to_node(node)
+        node = self._full_name_or_node_to_node(node)
         return self._viability_per_node[node]
 
     def node_is_necessary(self, node: AttackGraphNode | str) -> bool:
         """Get necessity of a node"""
-        node = self.full_name_or_node_to_node(node)
+        node = self._full_name_or_node_to_node(node)
         return self._necessity_per_node[node]
 
     def node_is_enabled_defense(self, node: AttackGraphNode | str) -> bool:
         """Get a nodes defense status"""
-        node = self.full_name_or_node_to_node(node)
+        node = self._full_name_or_node_to_node(node)
         return node in self._enabled_defenses
 
     def node_is_compromised(self, node: AttackGraphNode | str) -> bool:
         """Return True if node is compromised by any attacker agent"""
-        node = self.full_name_or_node_to_node(node)
+        node = self._full_name_or_node_to_node(node)
         for attacker_agent in self._get_attacker_agents():
             if node in attacker_agent.performed_nodes:
                 return True
@@ -396,7 +421,7 @@ class MalSimulator():
 
     def node_reward(self, node: AttackGraphNode) -> float:
         """Get reward for a node"""
-        node = self.full_name_or_node_to_node(node)
+        node = self._full_name_or_node_to_node(node)
         return self._node_rewards.get(node, 0.0)
 
     def get_node(
@@ -601,21 +626,29 @@ class MalSimulator():
     def _create_attacker_state(
         self,
         name: str,
-        entry_points: Set[AttackGraphNode],
-        goals: Optional[Set[AttackGraphNode]] = None
+        entry_points: Set[AttackGraphNode] | Set[str],
+        goals: Optional[Set[AttackGraphNode] | Set[str]] = None
     ) -> MalSimAttackerState:
         """Create a new defender state, initialize values"""
+
+        # Allow entry points and goals given as full names or nodes
+        entry_points = frozenset(
+            self._full_name_or_node_to_node(n) for n in entry_points)
+        goals = frozenset(
+            self._full_name_or_node_to_node(n) for n in goals
+        ) if goals else None
+
         attack_surface = self._get_attack_surface(entry_points)
         attacker_state = MalSimAttackerState(
             name,
             sim=self,
-            entry_points = frozenset(entry_points),
-            goals=frozenset(goals) if goals else None,
-            performed_nodes = frozenset(entry_points),
+            entry_points = entry_points,
+            goals=goals,
+            performed_nodes = entry_points,
             action_surface = frozenset(attack_surface),
             step_action_surface_additions = frozenset(attack_surface),
             step_action_surface_removals = frozenset(),
-            step_performed_nodes = frozenset(entry_points),
+            step_performed_nodes = entry_points,
             step_unviable_nodes=frozenset(),
             num_attempts = MappingProxyType({
                 n: 0 for n in self.attack_graph.nodes.values()
@@ -672,14 +705,14 @@ class MalSimulator():
         """Decide if a node that was compromised is a false negative"""
         if not self.sim_settings.enable_false_negatives:
             return False
-        fnr = self._false_negative_rates.get(node, 0.0)
+        fnr: float = self._false_negative_rates.get(node, 0.0)
         return self.rng.random() < fnr
 
     def _false_positive(self, node: AttackGraphNode) -> bool:
         """Decide if a node that was not compromised is a false positive"""
         if not self.sim_settings.enable_false_positives:
             return False
-        fpr = self._false_positive_rates.get(node, 0.0)
+        fpr: float = self._false_positive_rates.get(node, 0.0)
         return self.rng.random() < fpr
 
     def _generate_false_negatives(
@@ -823,8 +856,8 @@ class MalSimulator():
     def register_attacker(
         self,
         name: str,
-        entry_points: set[AttackGraphNode],
-        goals: Optional[set[AttackGraphNode]] = None
+        entry_points: set[AttackGraphNode] | set[str],
+        goals: Optional[set[AttackGraphNode] | set[str]] = None
     ) -> None:
         """Register a mal sim attacker agent"""
         assert name not in self._agent_states, \
@@ -1097,22 +1130,6 @@ class MalSimulator():
             for a in self._get_attacker_agents()
         )
 
-    def _full_names_to_nodes(
-        self, actions: list[str] | list[AttackGraphNode]
-    ) -> list[AttackGraphNode]:
-        """Convert list of node full names to list of attack graph nodes
-
-        If element is a string, try converting from full name to node,
-        if element is AttackGraphNode, keep it as it is.
-        """
-        node_actions = []
-        for action in actions:
-            if isinstance(action, str):
-                node_actions.append(self.get_node(action))
-            elif isinstance(action, AttackGraphNode):
-                node_actions.append(action)
-        return node_actions
-
     def step(
         self, actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]]
     ) -> dict[str, MalSimAgentState]:
@@ -1148,7 +1165,7 @@ class MalSimulator():
 
         # Perform defender actions first
         for defender_state in self._get_defender_agents(only_alive=True):
-            agent_actions = self._full_names_to_nodes(
+            agent_actions = self._full_name_list_to_node_list(
                 actions.get(defender_state.name, [])
             )
             enabled, unviable = self._defender_step(
@@ -1160,7 +1177,7 @@ class MalSimulator():
 
         # Perform attacker actions afterwards
         for attacker_state in self._get_attacker_agents(only_alive=True):
-            agent_actions = self._full_names_to_nodes(
+            agent_actions = self._full_name_list_to_node_list(
                 actions.get(attacker_state.name, [])
             )
             agent_compromised, agent_attempted = self._attacker_step(

@@ -206,6 +206,58 @@ def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
     assert not made_unviable
 
 
+def test_node_full_names_to_simulator(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+
+    # Give nodes as full names - important to test
+    entry_point = 'OS App:fullAccess'
+    attempt_read = 'OS App:attemptRead'
+    access_network_and_conn = 'OS App:accessNetworkAndConnections'
+
+    node_rewards = {
+        entry_point: 10.0,
+        attempt_read: 100.0,
+        access_network_and_conn: 50.4
+    }
+    observability_per_node = {
+        entry_point: True,
+        attempt_read: False,
+        access_network_and_conn: True
+    }
+    sim = MalSimulator(
+        attack_graph,
+        node_rewards=node_rewards,
+        observability_per_node=observability_per_node
+    )
+
+    attacker_name = "Test Attacker"
+    sim.register_attacker(attacker_name, {entry_point})
+
+    defender_name = "Test Defender"
+    sim.register_defender(defender_name)
+
+    states = sim.reset()
+
+    states = sim.step({attacker_name: [attempt_read]})
+    defender_state = states[defender_name]
+    assert isinstance(defender_state, MalSimDefenderState)
+    # Make sure observability worked
+    assert not defender_state.step_observed_nodes
+
+    states = sim.step({attacker_name: [access_network_and_conn]})
+    defender_state = states[defender_name]
+    assert isinstance(defender_state, MalSimDefenderState)
+    assert {
+        n.full_name for n in defender_state.observed_nodes
+    } == {entry_point, access_network_and_conn}
+
+    # Make sure rewards worked
+    assert sim.agent_reward(attacker_name) == sum(node_rewards.values())
+    assert sim.agent_reward(defender_name) == - sum(node_rewards.values())
+
+
 def test_attacker_step_rewards_cumulative(
         corelang_lang_graph: LanguageGraph, model: Model
     ) -> None:
