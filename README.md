@@ -184,18 +184,18 @@ from malsim import load_scenario
 scenario_file = "scenario.yml"
 scenario: Scenario = load_scenario(scenario_file)
 
-# Scenario is a dataclass containing:
+# Scenario is a class containing:
 class Scenario:
     """Scenarios defines everything needed to run a simulation"""
-    attack_graph: AttackGraph
-    agents: list[dict[str, Any]]
-
-    # Node properties
-    rewards: dict[AttackGraphNode, float]
-    false_positive_rates: dict[AttackGraphNode, float] # experimental
-    false_negative_rates: dict[AttackGraphNode, float] # experimental
-    is_observable: dict[AttackGraphNode, bool]         # experimental
-    is_actionable: dict[AttackGraphNode, bool]         # experimental
+      lang_file: str,
+      agents: dict[str, Any],
+      model_dict: Optional[dict[str, Any]] = None,
+      model_file: Optional[str] = None,
+      rewards: Optional[dict[str, Any]] = None,
+      false_positive_rates: Optional[dict[str, Any]] = None,
+      false_negative_rates: Optional[dict[str, Any]] = None,
+      is_observable: Optional[dict[str, Any]] = None,
+      is_actionable: Optional[dict[str, Any]] = None,
 
 ```
 
