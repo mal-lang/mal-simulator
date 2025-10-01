@@ -4,9 +4,6 @@
 
 category TestAssets{
     asset Network {
-        # shutDown
-            -> easyAccess,
-               hardAccess
 
         | easyAccess
             -> toNets.easyAccess,
@@ -23,10 +20,8 @@ category TestAssets{
     }
 
     asset Computer {
-        # shutDown
-            -> access
 
-        & access
+        | access
             -> datas.easyRead,
                datas.hardRead,
                networks.easyAccess,
@@ -45,28 +40,20 @@ category TestAssets{
     }
 
     asset Software {
-        # remove
-            -> easyAccess,
-               hardAccess,
-               easyScan,
-               hardScan
 
         | easyAccess
             -> computer.access
         | hardAccess [VeryHardAndCertain]
             -> computer.access
-        | easyScan
+        & easyScan
             -> vulns.easyExploit,
                vulns.hardExploit
-        | hardScan [VeryHardAndCertain]
+        & hardScan [VeryHardAndCertain]
             -> vulns.easyExploit,
                vulns.hardExploit
     }
 
     asset User {
-        # lockout
-            -> easyAssume,
-               hardAssume
 
         | easyAssume
             -> computer.access
@@ -76,26 +63,20 @@ category TestAssets{
     }
 
     asset SoftwareVuln {
-        # patch
-            -> easyExploit,
-               hardExploit
 
-        | easyExploit
+        & easyExploit
             -> software.easyAccess,
                software.hardAccess
-        | hardExploit [VeryHardAndCertain]
+        & hardExploit [VeryHardAndCertain]
             -> software.easyAccess,
                software.hardAccess
     }
 
     asset Data {
-        # remove
-            -> easyRead,
-               hardRead
 
-        | easyRead
+        & easyRead
             -> read
-        | hardRead [VeryHardAndCertain]
+        & hardRead [VeryHardAndCertain]
             -> read
         | read
     }

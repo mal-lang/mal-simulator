@@ -4,6 +4,7 @@ from malsim.mal_simulator import (
 from malsim.agents import get_shortest_path_to
 from malsim.agents.utils.greedy_a_star.algo import greedy_a_star_attack
 from malsim.scenario import load_scenario
+from malsim.graph_processing import prune_unviable_and_unnecessary_nodes
 
 def test_path_finding() -> None:
     r"""
@@ -74,12 +75,19 @@ def test_sandor_path_finding_ttc_lang() -> None:
         "tests/testdata/scenarios/ttc_lang_scenario.yml"
     )
     scenario = load_scenario(scenario_file)
+    sim = MalSimulator.from_scenario(scenario)
 
-    entry_point = scenario.attack_graph.get_node_by_full_name('Net1:easyAccess')
-    goal = scenario.attack_graph.get_node_by_full_name('DataD:read')
+    prune_unviable_and_unnecessary_nodes(
+        scenario.attack_graph,
+        sim._viability_per_node,
+        sim._necessity_per_node
+    )
+    entry_point = sim.get_node('Net1:easyAccess')
+    goal = sim.get_node('UserA:easyAssume')
 
     # Run the greedy a star
     path = greedy_a_star_attack(scenario.attack_graph, entry_point, goal)
+    assert path
 
     # Validate path - TODO: this fails!
     visited = {entry_point}
