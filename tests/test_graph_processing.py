@@ -121,70 +121,101 @@ def test_viability_unviable_nodes(dummy_lang_graph: LanguageGraph) -> None:
     assert not viability_per_node[or_node]
     assert not viability_per_node[and_node]
 
-# def test_necessity_necessary(dummy_lang_graph: LanguageGraph) -> None:
-#     """Make sure expected necessary nodes are necessary"""
-# 
-#     attack_graph = AttackGraph(dummy_lang_graph)
-#     dummy_attack_steps = dummy_lang_graph.assets['DummyAsset'].attack_steps
-# 
-#     # exists node, existance_status = False -> necessary
-#     exist_attack_step_type = dummy_attack_steps['DummyExistAttackStep']
-#     exist_node = attack_graph.add_node(exist_attack_step_type)
-#     exist_node.existence_status = False
-# 
-#     # notExists, existance_status = True -> necessary
-#     not_exist_attack_step_type = dummy_attack_steps['DummyNotExistAttackStep']
-#     not_exist_node = attack_graph.add_node(not_exist_attack_step_type)
-#     not_exist_node.existence_status = True
-# 
-#     # Defense status on -> necessary
-#     defense_step_type = dummy_attack_steps['DummyDefenseAttackStep']
-#     defense_step_node = attack_graph.add_node(defense_step_type)
-#     # defense_step_node.defense_status = True
-# 
-#     # or-node with necessary parents -> necessary
-#     or_attack_step_type = dummy_attack_steps['DummyOrAttackStep']
-#     or_node = attack_graph.add_node(or_attack_step_type)
-#     or_node_parent = attack_graph.add_node(or_attack_step_type)
-#     # or_node_parent.is_necessary = True
-#     or_node.parents.add(or_node_parent)
-#     or_node_parent.children.add(or_node)
-# 
-#     # and-node with at least one necessary parents -> necessary
-#     and_attack_step_type = dummy_attack_steps['DummyAndAttackStep']
-#     and_node = attack_graph.add_node(and_attack_step_type)
-# 
-#     and_node_parent1 = attack_graph.add_node(and_attack_step_type)
-#     # and_node_parent1.is_necessary = True
-#     and_node_parent2 = attack_graph.add_node(and_attack_step_type)
-#     # and_node_parent2.is_necessary = False
-# 
-#     and_node.parents = {and_node_parent1, and_node_parent2}
-#     and_node.parents = {and_node_parent1, and_node_parent2}
-#     and_node_parent1.children = {and_node}
-#     and_node_parent2.children = {and_node}
-# 
-#     enabled_defenses = {defense_step_node}
-#     _, necessary_nodes = calculate_viability_and_necessity(
-#         attack_graph, enabled_defenses
-#     )
-# 
-#     # Make unnecessary
-#     necessary_nodes.remove(or_node_parent)
-#     necessary_nodes.remove(and_node_parent2)
-# 
-#     # Calculate necessety and make sure neccessary
-#     assert exist_node in necessary_nodes
-#     assert not_exist_node in necessary_nodes
-#     assert defense_step_node in necessary_nodes
-#     assert or_node in necessary_nodes
-#     assert and_node in necessary_nodes
+def test_necessity_necessary(dummy_lang_graph: LanguageGraph) -> None:
+    """Make sure expected necessary nodes are necessary"""
+
+    attack_graph = AttackGraph(dummy_lang_graph)
+    dummy_attack_steps = dummy_lang_graph.assets['DummyAsset'].attack_steps
+
+    # exists node, existance_status = False -> necessary
+    exist_attack_step_type = dummy_attack_steps['DummyExistAttackStep']
+    exist_node = attack_graph.add_node(exist_attack_step_type)
+    exist_node.existence_status = False
+
+    # notExists, existance_status = True -> necessary
+    not_exist_attack_step_type = dummy_attack_steps['DummyNotExistAttackStep']
+    not_exist_node = attack_graph.add_node(not_exist_attack_step_type)
+    not_exist_node.existence_status = True
+
+    # Defense status on -> necessary
+    defense_step_type = dummy_attack_steps['DummyDefenseAttackStep']
+    enabled_defense_step = attack_graph.add_node(defense_step_type)
+
+    # or-node with necessary parents -> necessary
+    or_attack_step_type = dummy_attack_steps['DummyOrAttackStep']
+    or_node = attack_graph.add_node(or_attack_step_type)
+    or_node_parent = attack_graph.add_node(or_attack_step_type)
+    or_node.parents.add(or_node_parent)
+    or_node_parent.children.add(or_node)
+
+    # and-node with at least one necessary parents -> necessary
+    and_attack_step_type = dummy_attack_steps['DummyAndAttackStep']
+    and_node = attack_graph.add_node(and_attack_step_type)
+
+    and_node_parent1 = attack_graph.add_node(and_attack_step_type)
+    and_node_parent2 = attack_graph.add_node(and_attack_step_type)
+
+    and_node.parents = {and_node_parent1, and_node_parent2}
+    and_node.parents = {and_node_parent1, and_node_parent2}
+    and_node_parent1.children = {and_node}
+    and_node_parent2.children = {and_node}
+
+    enabled_defenses = {enabled_defense_step}
+    necessity_per_node = calculate_necessity(
+        attack_graph, enabled_defenses
+    )
+
+    # Calculate necessity and make sure neccessary
+    assert necessity_per_node[exist_node]
+    assert necessity_per_node[not_exist_node]
+    assert necessity_per_node[enabled_defense_step]
+    assert necessity_per_node[or_node]
+    assert necessity_per_node[and_node]
 
 
-# def test_necessity_unnecessary(dummy_lang_graph):
-#     """Make sure expected unnecessary nodes are unnecessary"""
-#     pass
+def test_necessity_unnecessary(dummy_lang_graph: LanguageGraph) -> None:
+    """Make sure expected necessary nodes are necessary"""
 
+    attack_graph = AttackGraph(dummy_lang_graph)
+    dummy_attack_steps = dummy_lang_graph.assets['DummyAsset'].attack_steps
+
+    # exists node, existance_status = True -> unnecessary
+    exist_attack_step_type = dummy_attack_steps['DummyExistAttackStep']
+    exist_node = attack_graph.add_node(exist_attack_step_type)
+    exist_node.existence_status = True
+
+    # notExists, existance_status = False -> unnecessary
+    not_exist_attack_step_type = dummy_attack_steps['DummyNotExistAttackStep']
+    not_exist_node = attack_graph.add_node(not_exist_attack_step_type)
+    not_exist_node.existence_status = False
+
+    # Defense status off -> unnecessary
+    defense_step_type = dummy_attack_steps['DummyDefenseAttackStep']
+    disabled_defense_step = attack_graph.add_node(defense_step_type)
+
+    # or-node with unnecessary parents -> unnecessary
+    or_attack_step_type = dummy_attack_steps['DummyOrAttackStep']
+    or_node = attack_graph.add_node(or_attack_step_type)
+    or_node.parents.add(disabled_defense_step)
+    disabled_defense_step.children.add(or_node)
+
+    # and-node with only unnecessary parents -> unnecessary
+    and_attack_step_type = dummy_attack_steps['DummyAndAttackStep']
+    and_node = attack_graph.add_node(and_attack_step_type)
+    and_node.parents.add(disabled_defense_step)
+    disabled_defense_step.children.add(and_node)
+
+    enabled_defenses: set[AttackGraphNode] = set()
+    necessity_per_node = calculate_necessity(
+        attack_graph, enabled_defenses
+    )
+
+    # Calculate necessity and make sure unneccessary
+    assert not necessity_per_node[exist_node]
+    assert not necessity_per_node[not_exist_node]
+    assert not necessity_per_node[disabled_defense_step]
+    assert not necessity_per_node[or_node]
+    assert not necessity_per_node[and_node]
 
 def test_analyzers_apriori_prune_unviable_and_unnecessary_nodes(
         model: Model
