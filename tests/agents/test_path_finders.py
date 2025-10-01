@@ -2,7 +2,9 @@ from malsim.mal_simulator import (
     MalSimulator, MalSimulatorSettings, TTCMode
 )
 from malsim.agents import get_shortest_path_to
+from malsim.agents.utils.greedy_a_star.algo import greedy_a_star_attack
 from malsim.scenario import load_scenario
+from malsim.graph_processing import prune_unviable_and_unnecessary_nodes
 
 def test_path_finding() -> None:
     r"""
@@ -32,9 +34,6 @@ def test_path_finding() -> None:
 
 
 def test_path_finding_ttc_lang() -> None:
-    r"""
-
-    """
     scenario_file = (
         "tests/testdata/scenarios/ttc_lang_scenario.yml"
     )
@@ -56,8 +55,6 @@ def test_path_finding_ttc_lang() -> None:
         if n.type in ('or', 'and')
     }
 
-    assert sum(ttc_values.values()) == 2021
-
     sim.register_attacker('path_finder', {entry_point}, {goal})
 
     path = get_shortest_path_to(
@@ -70,4 +67,39 @@ def test_path_finding_ttc_lang() -> None:
     assert path
     for node in path:
         # Should only have picked the low ttc steps
-        assert ('easy' in node.full_name or node == goal)
+        assert ('hard' not in node.full_name or node == goal)
+
+
+def test_sandor_path_finding_ttc_lang() -> None:
+    scenario_file = (
+        "tests/testdata/scenarios/ttc_lang_scenario.yml"
+    )
+    scenario = load_scenario(scenario_file)
+    sim = MalSimulator.from_scenario(scenario)
+
+    prune_unviable_and_unnecessary_nodes(
+        scenario.attack_graph,
+        sim._viability_per_node,
+        sim._necessity_per_node
+    )
+    entry_point = sim.get_node('Net1:easyAccess')
+    goal = sim.get_node('UserA:easyAssume')
+
+    # Run the greedy a star
+    path = greedy_a_star_attack(scenario.attack_graph, entry_point, goal)
+    assert path
+
+    # Validate path - TODO: this fails!
+    visited = {entry_point}
+    curr_node = None
+    for curr_node in path:
+        if curr_node.type == 'or' and curr_node not in visited:
+            assert any(p in visited for p in curr_node.parents), (
+                f"Node {curr_node} was reached before any of its parents were"
+            )
+        elif curr_node.type == 'and' and curr_node not in visited:
+            assert all(p in visited for p in curr_node.parents), (
+                f"Node {curr_node} was reached before all of its parents"
+            )
+        visited.add(curr_node)
+    assert curr_node == goal

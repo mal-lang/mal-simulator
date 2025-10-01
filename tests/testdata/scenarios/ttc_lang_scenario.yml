@@ -175,7 +175,7 @@ agents:
   Attacker:
     type: attacker
     entry_points:
-    - ComputerA:easyAccess
+    - ComputerA:access
     goals:
     - DataD:read
     agent_class: ShortestPathAttacker

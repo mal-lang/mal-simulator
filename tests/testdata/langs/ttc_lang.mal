@@ -4,9 +4,6 @@
 
 category TestAssets{
     asset Network {
-        # shutDown
-            -> easyAccess,
-               hardAccess
 
         | easyAccess
             -> toNets.easyAccess,
@@ -23,16 +20,8 @@ category TestAssets{
     }
 
     asset Computer {
-        # shutDown
-            -> easyAccess,
-               hardAccess
 
-        & easyAccess
-            -> datas.easyRead,
-               datas.hardRead,
-               networks.easyAccess,
-               networks.hardAccess
-        & hardAccess [VeryHardAndCertain]
+        | access
             -> datas.easyRead,
                datas.hardRead,
                networks.easyAccess,
@@ -51,62 +40,43 @@ category TestAssets{
     }
 
     asset Software {
-        # remove
-            -> easyAccess,
-               hardAccess,
-               easyScan,
-               hardScan
 
         | easyAccess
-            -> computer.easyAccess,
-               computer.hardAccess
+            -> computer.access
         | hardAccess [VeryHardAndCertain]
-            -> computer.easyAccess,
-               computer.hardAccess
-        | easyScan
+            -> computer.access
+        & easyScan
             -> vulns.easyExploit,
                vulns.hardExploit
-        | hardScan [VeryHardAndCertain]
+        & hardScan [VeryHardAndCertain]
             -> vulns.easyExploit,
                vulns.hardExploit
     }
 
     asset User {
-        # lockout
-            -> easyAssume,
-               hardAssume
 
         | easyAssume
-            -> computer.easyAccess,
-               computer.hardAccess
+            -> computer.access
 
         | hardAssume [VeryHardAndCertain]
-            -> computer.easyAccess,
-               computer.hardAccess
-
+            -> computer.access
     }
 
     asset SoftwareVuln {
-        # patch
-            -> easyExploit,
-               hardExploit
 
-        | easyExploit
+        & easyExploit
             -> software.easyAccess,
                software.hardAccess
-        | hardExploit [VeryHardAndCertain]
+        & hardExploit [VeryHardAndCertain]
             -> software.easyAccess,
                software.hardAccess
     }
 
     asset Data {
-        # remove
-            -> easyRead,
-               hardRead
 
-        | easyRead
+        & easyRead
             -> read
-        | hardRead [VeryHardAndCertain]
+        & hardRead [VeryHardAndCertain]
             -> read
         | read
     }

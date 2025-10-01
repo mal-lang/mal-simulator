@@ -34,8 +34,7 @@ def test_ttc_avoider() -> None:
 
         assert attacker_node
         # Should always pick the easy path or the goal
-        assert 'easy' in attacker_node.name or attacker_node == goal
-
+        assert 'hard' not in attacker_node.name
         # Step
         actions = {
             attacker_agent_name: [attacker_node] if attacker_node else []
