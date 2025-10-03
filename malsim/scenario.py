@@ -113,6 +113,7 @@ class Scenario:
         agents: dict[str, Any],
         model_dict: Optional[dict[str, Any]] = None,
         model_file: Optional[str] = None,
+        model: Optional[Model] = None,
         rewards: Optional[dict[str, Any]] = None,
         false_positive_rates: Optional[dict[str, Any]] = None,
         false_negative_rates: Optional[dict[str, Any]] = None,
@@ -127,19 +128,24 @@ class Scenario:
         # Model file is optional
         self._model_file = model_file
 
-        assert model_dict or model_file, "Scenario needs either model or model_file set"
-        assert not (model_dict and model_file), "Scenario can not have both model and model_file set"
-
-        # Model is optional in scenario file, but if not set we load it from file
-        self.model = Model._from_dict(model_dict, self.lang_graph) if model_dict else None
-        if not self.model:
-            assert model_file, "Model file must be given if no model is given in scenario"
+        # User must give one of model, model_dict, model_file
+        # and we load the model accordingly.
+        if model and not (model_dict or model_file):
+            self.model = model
+        elif model_dict and not (model or model_file):
+            self.model = Model._from_dict(model_dict, self.lang_graph)
+        elif model_file and not (model or model_dict):
             self.model = Model.load_from_file(model_file, self.lang_graph)
+        else:
+            raise ValueError(
+                "Scenario needs exactly one of model_dict, model or model_file set"
+            )
 
         # Attack graph is created from given lang and model
         self.attack_graph = create_attack_graph(self.lang_graph, self.model)
 
         # Agents are generated from agents dict (in scenario file)
+        self._agents_dict = agents
         self.agents = load_simulator_agents(self.attack_graph, agents)
 
         self.rewards = apply_scenario_node_property(
@@ -163,7 +169,7 @@ class Scenario:
         scenario_dict = {
             # 'version': ?
             'lang_file': self._lang_file,
-            'agents': self.agents,
+            'agents': self._agents_dict,
             'rewards': {},
             'false_positive_rates': {},
             'false_negative_rates': {},
