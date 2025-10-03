@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-# MAL Simulator v1.0.3
+# MAL Simulator v1.0.4
 # Copyright 2025, Andrei Buhaiu.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,7 +28,7 @@ from malsim.scenario import (
 )
 
 __title__ = "malsim"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __authors__ = ["Andrei Buhaiu", "Joakim Loxdal", "Jakob Nyberg", "Nikolaos Kakouros"]
 __license__ = "Apache 2.0"
 __docformat__ = "restructuredtext en"
