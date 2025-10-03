@@ -1140,6 +1140,27 @@ class MalSimulator():
             for a in self._get_attacker_agents()
         )
 
+    def _pre_step_check(
+        self, actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]]
+    ) -> None:
+        """Do some checks before performing step to inform the users"""
+        if not self._agent_states:
+            msg = (
+                "No agents registered, register with `.register_attacker() `"
+                "and .register_defender() before stepping"
+            )
+            logger.warning(msg)
+            print(msg)
+
+        if self.done():
+            msg = "Simulation is done, step has no effect"
+            logger.warning(msg)
+            print(msg)
+
+        for agent_name in actions:
+            if agent_name not in self._agent_states:
+                raise KeyError(f"No agent has name '{agent_name}'")
+
     def step(
         self, actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]]
     ) -> dict[str, MalSimAgentState]:
@@ -1157,15 +1178,7 @@ class MalSimulator():
             "Stepping through iteration %d/%d", self.cur_iter, self.max_iter
         )
 
-        if self.done():
-            msg = "Simulation is done, step has no effect"
-            logger.warning(msg)
-            print(msg)
-
-        for agent_name in actions:
-            if agent_name not in self._agent_states:
-                raise KeyError(f"No agent has name '{agent_name}'")
-
+        self._pre_step_check(actions)
         self.recording[self.cur_iter] = {}
 
         # Populate these from the results for all agents' actions.
