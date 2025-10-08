@@ -185,6 +185,7 @@ class MalSimulator():
         false_negative_rates: Optional[dict[AttackGraphNode, float] | dict[str, float]] = None,
         sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
         max_iter: int = ITERATIONS_LIMIT,
+        send_to_api = False
     ):
         """
         Args:
@@ -197,7 +198,9 @@ class MalSimulator():
         self.rng = default_rng(self.sim_settings.seed)
 
         # Initialize the REST API client
-        self.rest_api_client = MalSimGUIClient()
+        self.rest_api_client = None
+        if send_to_api:
+            self.rest_api_client = MalSimGUIClient()
 
         # Initialize all values
         self.attack_graph = attack_graph
@@ -260,6 +263,7 @@ class MalSimulator():
         sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
         max_iter: int = ITERATIONS_LIMIT,
         register_agents: bool = True,
+        send_to_api = False,
         **kwargs: Any
     ) -> MalSimulator:
         """Create a MalSimulator object from a Scenario"""
@@ -299,6 +303,7 @@ class MalSimulator():
             false_negative_rates=scenario.false_negative_rates,
             sim_settings=sim_settings,
             max_iter=max_iter,
+            send_to_api=send_to_api,
             **kwargs
         )
 
@@ -510,7 +515,8 @@ class MalSimulator():
         self._reset_agents()
 
         # Upload initial state to the REST API
-        self.rest_api_client.upload_initial_state(self.attack_graph)
+        if self.rest_api_client:
+            self.rest_api_client.upload_initial_state(self.attack_graph)
 
         return self.agent_states
 
@@ -1266,10 +1272,11 @@ class MalSimulator():
                 )
                 self._alive_agents.remove(agent_state.name)
 
-        self.rest_api_client.upload_performed_nodes(
-            list(step_compromised_nodes | step_enabled_defenses),
-            self.cur_iter
-        )
+        if self.rest_api_client:
+            self.rest_api_client.upload_performed_nodes(
+                list(step_compromised_nodes | step_enabled_defenses),
+                self.cur_iter
+            )
 
         self.cur_iter += 1
         return self.agent_states
