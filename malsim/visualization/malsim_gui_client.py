@@ -23,6 +23,8 @@ class MalSimGUIClient():
         self.host = host
         self.port = port
 
+        self._test_connection()
+
     def _create_url(self, endpoint: str) -> str:
         return f"{self.protocol}://{self.host}:{self.port}/{endpoint}"
 
@@ -44,6 +46,17 @@ class MalSimGUIClient():
             raise ValueError(f"Unsupported HTTP method: {method}")
         res.raise_for_status()
         return res
+
+    def _test_connection(self) -> None:
+        """Tries to run a request to see if api is up"""
+        try:
+            self._send_request('GET', '')
+        except requests.ConnectionError as e:
+            raise Exception(
+                "Could not connect to malsim gui API. "
+                "Is the malsim gui API actually running? "
+                "Please refer to README."
+            ) from e
 
     def upload_model(self, model: Model) -> None:
         """Uploads a serialized model to the POST endpoint of the API"""
