@@ -42,6 +42,10 @@ def main() -> None:
         ),
         default=TTCMode.DISABLED.value
     )
+    parser.add_argument(
+        '-g', '--send-to-gui', action='store_true', default=False,
+        help="If set, simulator will send actions to malsim-gui"
+    )
     args = parser.parse_args()
     scenario = load_scenario(args.scenario_file)
     sim = MalSimulator.from_scenario(
@@ -49,7 +53,8 @@ def main() -> None:
             seed=args.seed,
             ttc_mode=TTCMode(args.ttc_mode),
             attack_surface_skip_unnecessary=False
-        )
+        ),
+        send_to_api=args.send_to_gui
     )
 
     if args.output_attack_graph:

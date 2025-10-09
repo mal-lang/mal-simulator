@@ -241,7 +241,7 @@ run_simulation(mal_simulator, scenario.agents)
 ### Running a scenario simulation with the CLI
 
 ```
-usage: malsim [-h] [-o OUTPUT_ATTACK_GRAPH] [-s SEED] scenario_file
+usage: malsim [-h] [-o OUTPUT_ATTACK_GRAPH] [-s SEED] [-t TTC_MODE] [-g] scenario_file
 
 positional arguments:
   scenario_file         Can be found in https://github.com/mal-lang/malsim-scenarios/
@@ -251,7 +251,11 @@ options:
   -o OUTPUT_ATTACK_GRAPH, --output-attack-graph OUTPUT_ATTACK_GRAPH
                         If set to a path, attack graph will be dumped there
   -s SEED, --seed SEED  If set to a seed, simulator will use it as setting
-```
+  -t TTC_MODE, --ttc-mode TTC_MODE
+                        0: EFFORT_BASED_PER_STEP_SAMPLE 1: PER_STEP_SAMPLE 2: PRE_SAMPLE 3: EXPECTED_VALUE 4:
+                        DISABLED
+  -g, --send-to-gui     If set, simulator will send actions to malsim-gui
+  ```
 
 This will create an attack graph using the configuration in the scenarios file, apply the rewards, register the agents and run the simulation.
 
@@ -395,3 +399,11 @@ If an attack step has a Bernoulli in its TTC, it will be sampled at the start of
 If the Bernoulli does not succeed, the step will not be compromisable.
 
 This is to match the  https://github.com/mal-lang/malcompiler/wiki/Supported-distribution-functions#bernoulli-behaviour
+
+## GUI (slightly experimental)
+
+It is possible to view simulation runs graphically with the [malsim-gui](https://github.com/mal-lang/malsim-gui). Recommended way to run it is through docker.
+
+When you run simulations in the simulator, set `send_to_api=True` in the Malsimulator init or use the `-g` flag when running the simulator from command line.
+
+This will show the model and the performed actions in the web GUI at http://localhost:8888.
