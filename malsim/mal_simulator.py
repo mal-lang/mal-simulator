@@ -185,7 +185,7 @@ class MalSimulator():
         false_negative_rates: Optional[dict[AttackGraphNode, float] | dict[str, float]] = None,
         sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
         max_iter: int = ITERATIONS_LIMIT,
-        send_to_api = False
+        send_to_api: bool = False
     ):
         """
         Args:
@@ -263,7 +263,7 @@ class MalSimulator():
         sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
         max_iter: int = ITERATIONS_LIMIT,
         register_agents: bool = True,
-        send_to_api = False,
+        send_to_api: bool = False,
         **kwargs: Any
     ) -> MalSimulator:
         """Create a MalSimulator object from a Scenario"""

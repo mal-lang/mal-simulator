@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 import requests
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
@@ -16,19 +16,22 @@ class MalSimGUIClient():
 
     def __init__(
             self,
-            host="localhost",
-            port=8888,
-            password="letmein",
+            host: str = "localhost",
+            port: int = 8888,
         ):
         self.protocol = "http"
         self.host = host
         self.port = port
-        self.password = password
 
-    def _create_url(self, endpoint):
+    def _create_url(self, endpoint: str) -> str:
         return f"{self.protocol}://{self.host}:{self.port}/{endpoint}"
 
-    def _send_request(self, method, endpoint, json_content=None):
+    def _send_request(
+            self,
+            method: str,
+            endpoint: str,
+            json_content: Optional[Any] = None
+        ) -> requests.Response:
         """Send a request to the REST API"""
         url = self._create_url(endpoint)
         if method == 'GET':
@@ -41,25 +44,6 @@ class MalSimGUIClient():
             raise ValueError(f"Unsupported HTTP method: {method}")
         res.raise_for_status()
         return res
-
-    @classmethod
-    def from_config(cls, config, record=False) -> Optional[MalSimGUIClient]:
-        """Load REST API client from config dict
-
-        Returns the client, or None if no REST API details set in config file
-        """
-
-        if 'tyr-monitor-restapi' not in config:
-            logger.warning(
-                "No REST API connection details specified in config file")
-            return None
-
-        tyr_restapi_config = config['tyr-monitor-restapi']
-        return cls(
-            tyr_restapi_config.get('host'),
-            tyr_restapi_config.get('port'),
-            tyr_restapi_config.get('password')
-        )
 
     def upload_model(self, model: Model) -> None:
         """Uploads a serialized model to the POST endpoint of the API"""
@@ -91,7 +75,7 @@ class MalSimGUIClient():
         )
 
     def upload_latest_attack_steps(
-            self, latest_steps: dict[int, list[dict]]) -> None:
+            self, latest_steps: dict[int, list[dict[str, Any]]]) -> None:
         """Upload dict of latest attack step ids mapped to alert logs"""
         self._send_request(
             'POST',
@@ -100,7 +84,7 @@ class MalSimGUIClient():
         )
 
     def upload_defender_suggestions(
-            self, suggestions: dict[str, dict[int, dict]]) -> None:
+            self, suggestions: dict[str, dict[int, dict[Any, Any]]]) -> None:
         """
         Uploads dict of suggestions that maps agent name
         to a dict mapping node id to suggestion info.
@@ -111,7 +95,7 @@ class MalSimGUIClient():
             json_content=suggestions
         )
 
-    def get_defender_action(self) -> dict:
+    def get_defender_action(self) -> Any:
         """Get selected defender action from API"""
         return self._send_request(
             'GET',
@@ -126,7 +110,7 @@ class MalSimGUIClient():
             json_content={'iteration': -1, 'node_id': None}
         )
 
-    def get_reward_value(self) -> dict:
+    def get_reward_value(self) -> Any:
         """Get reward value for the current iteration from API"""
         return self._send_request(
             'GET',
@@ -147,7 +131,7 @@ class MalSimGUIClient():
 
     def upload_initial_state(
             self, attack_graph: AttackGraph
-        ):
+        ) -> None:
         """Reset the REST API and upload model and graph"""
         print("Resetting and uploading initial state to API")
         self.reset()
