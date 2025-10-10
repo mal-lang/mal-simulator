@@ -113,6 +113,11 @@ agents:
       by_asset_type:
         Host:
           - access
+    ttc_overrides:
+      by_asset_type:
+        Host:
+          access: HardAndCertain
+
 
   defender1:
     type: defender

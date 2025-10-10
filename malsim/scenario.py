@@ -14,7 +14,7 @@ A scenario is a combination of:
 from __future__ import annotations
 import os
 from dataclasses import dataclass, field
-from typing import Any, Optional, TextIO
+from typing import Any, Optional, TextIO, TYPE_CHECKING
 from enum import Enum
 import logging
 
@@ -35,6 +35,9 @@ from .agents import (
     TTCSoftMinAttacker,
     ShortestPathAttacker,
 )
+
+if TYPE_CHECKING:
+    from malsim.mal_simulator import TTCDist
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +120,7 @@ class AttackerSettings(AgentRuntimeMixin):
     policy: Optional[type] = None
     actionable_steps: Optional[NodePropertyRule] = None
     rewards: Optional[NodePropertyRule] = None
+    ttc_overrides: Optional[NodePropertyRule] = None
     config: dict[str, Any] = field(default_factory=dict)
     type: AgentType = AgentType.ATTACKER
 
@@ -206,6 +210,7 @@ def agent_settings_from_dict(
             name=name,
             entry_points=set(d['entry_points']),
             goals=set(d.get('goals', [])),
+            ttc_overrides=NodePropertyRule.from_optional_dict(d.get('ttc_overrides')),
             policy=policy,
             actionable_steps=NodePropertyRule.from_optional_dict(
                 d.get('actionable_steps')

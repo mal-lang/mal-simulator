@@ -3,6 +3,7 @@
 from __future__ import annotations
 import logging
 from enum import Enum
+from collections.abc import Mapping
 
 from typing import Any, Optional, TYPE_CHECKING
 
@@ -233,6 +234,10 @@ class TTCDist:
 
         # Not predefined, must parse the dict to create a TTCDist
         return TTCDist.from_dict(node.ttc)
+
+    @classmethod
+    def from_name(cls, name: str) -> TTCDist:
+        return named_ttc_dists[name]
 
 
 # These are MAL supported mappings from name to distribution
