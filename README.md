@@ -39,6 +39,8 @@ settings = MalSimulatorSettings(
     run_defense_step_bernoullis: bool = True
     attacker_reward_mode: RewardMode = RewardMode.CUMULATIVE
     defender_reward_mode: RewardMode = RewardMode.CUMULATIVE
+    enable_false_positives: bool = False
+    enable_false_negatives: bool = False
 )
 sim = MalSimulator(attack_graph, sim_settings=settings, ...)
 
@@ -138,6 +140,41 @@ actionable_steps:
 #     User_3:
 #       - phishing
 #     ...
+
+# Optionally add false positive or false negative rates
+# Note: Also enable settings in MalSimulatorSettings
+false_positive_rates:
+  by_asset_type:
+    <asset_type>:
+      - <step name>
+  by_asset_name:
+    <asset_name>:
+      - <step name>
+
+false_negative_rates:
+  by_asset_type:
+    <asset_type>:
+      - <step name>
+  by_asset_name:
+    <asset_name>:
+      - <step name>
+
+# Examples
+# false_positive_rates:
+#   by_asset_name:
+#     Host:0:
+#       access: 0.2
+#     Host:1:
+#       access: 0.3
+
+# false_negative_rates:
+#   by_asset_name:
+#     Host:0:
+#       access: 0.4
+#     Host:1:
+#       access: 0.5
+#     User:3:
+#       compromise: 1.0
 
 
 ```
