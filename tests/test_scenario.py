@@ -7,6 +7,7 @@ from typing import Any
 from maltoolbox.model import Model
 from maltoolbox.attackgraph import create_attack_graph
 from malsim.scenario import (
+    AgentType,
     Scenario,
     apply_scenario_node_property,
     load_scenario,
@@ -472,3 +473,89 @@ def test_apply_scenario_rewards_old_format() -> None:
     with pytest.raises(AssertionError):
         # Make sure we get error when loading with wrong rewards format
         _validate_scenario_node_property_config(attack_graph, scenario['rewards'])
+
+
+def test_apply_scenario_illegal_field() -> None:
+    """Try different cases for rewards"""
+
+    # Load scenario with no specified
+    lang_file = 'tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar'
+    model_file = 'tests/testdata/models/simple_test_model.yml'
+    scenario_dict: dict[str, Any] = {
+        'lang_file': lang_file,
+        'model_file': model_file,
+
+        # Add entry points to AttackGraph with attacker names
+        # and attack step full_names
+        'agents': {
+            'attacker_agent': {
+                'type': AgentType.ATTACKER,
+                'entry_points': [],
+                'BANANANANANANANAN': {
+                    'by_asset_type': {
+                        'Application': {
+                            'fullAccess': 'HardAndCertain'
+                        }
+                    },
+                    'by_asset_name': {
+                        'Identity:8': {
+                            'assume': 'EasyAndCertain'
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    with pytest.raises(AssertionError) as e:
+        Scenario.from_dict(scenario_dict)
+    assert str(e) == (
+        '<ExceptionInfo AssertionError("Illegal fields for attacker agent: '
+        '{\'BANANANANANANANAN\'}") tblen=5>'
+    )
+
+
+def test_apply_scenario_ttc_overrides() -> None:
+    """Try different cases for rewards"""
+
+    # Load scenario with no specified
+    lang_file = 'tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar'
+    model_file = 'tests/testdata/models/simple_test_model.yml'
+    scenario_dict: dict[str, Any] = {
+        'lang_file': lang_file,
+        'model_file': model_file,
+
+        # Add entry points to AttackGraph with attacker names
+        # and attack step full_names
+        'agents': {
+            'attacker_agent': {
+                'type': AgentType.ATTACKER,
+                'entry_points': [],
+                'ttc_overrides': {
+                    'by_asset_type': {
+                        'Application': {
+                            'fullAccess': 'HardAndCertain'
+                        }
+                    },
+                    'by_asset_name': {
+                        'Identity:8': {
+                            'assume': 'EasyAndCertain'
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    # Validate that ttc overrides was correctly parsed
+    scenario = Scenario.from_dict(scenario_dict)
+    agent_config = scenario.agents[0]
+    assert {
+        n.full_name: v
+        for n, v in agent_config['ttc_overrides'].items()
+    } == {
+        'OS App:fullAccess': 'HardAndCertain',
+        'Program 1:fullAccess': 'HardAndCertain',
+        'Program 2:fullAccess': 'HardAndCertain',
+        'Identity:8:assume': 'EasyAndCertain'
+    }

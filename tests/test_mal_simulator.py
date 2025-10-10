@@ -1106,6 +1106,38 @@ def test_simulator_multiple_defenders() -> None:
     }
 
 
+def test_simulator_attacker_override_ttcs() -> None:
+    """
+    Have an attacker that overrides ttcs
+    """
+
+    scenario = load_scenario(
+        'tests/testdata/scenarios/ttc_lang_scenario_override_ttcs.yml'
+    )
+
+    sim = MalSimulator.from_scenario(
+        scenario,
+        sim_settings=MalSimulatorSettings(
+            seed=100,
+            ttc_mode=TTCMode.PRE_SAMPLE
+        ),
+        max_iter=100,
+    )
+    state = sim.reset()['Attacker']
+    assert isinstance(state, MalSimAttackerState)
+
+    assert {n.full_name for n in state.ttc_overrides} == {
+        'SoftwareA:easyAccess', 'SoftwareD:easyAccess'
+    }
+    assert {n.full_name: v for n,v in state.ttc_value_overrides.items()} == {
+        'SoftwareA:easyAccess': 19.22058780048454,
+        'SoftwareD:easyAccess': 10.47865077659922
+    }
+    assert  {n.full_name for n in state.impossible_step_overrides} == {
+        'SoftwareA:easyAccess', 'SoftwareD:easyAccess'
+    }
+
+
 def test_simulator_seed_setting() -> None:
     """Test that the seed setting works"""
 
