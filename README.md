@@ -74,6 +74,13 @@ agents:
       seed: 1
     goals:                    # optional
       - 'Host A:fullAccess'
+    ttc_overrides:            # optional
+      by_asset_type:
+        <asset_type>:
+          <step name>: <ttc_distribution> (str)
+      by_asset_name:
+        <asset_name>:
+          <step name>: <ttc distribution> (str)
 
   '<agent_name>':
     type: 'defender'
