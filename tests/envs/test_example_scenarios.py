@@ -34,7 +34,7 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         scenario, sim_settings = MalSimulatorSettings(
             attack_surface_skip_unnecessary=False,
             run_defense_step_bernoullis=False,
-            infinity_ttc_attack_step_unviable=False
+            run_attack_step_bernoullis=False
         )
     )
     defender_agent_name = "defender1"
