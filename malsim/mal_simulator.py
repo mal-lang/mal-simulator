@@ -140,8 +140,6 @@ class MalSimulatorSettings():
     # ttc_mode
     # - mode to sample TTCs on attack steps
     ttc_mode: TTCMode = TTCMode.DISABLED
-    # Make an attack graph node unviable if it has TTC infinity
-    infinity_ttc_attack_step_unviable: bool = True
 
     # seed
     # - optionally run deterministic simulations with seed
@@ -158,6 +156,9 @@ class MalSimulatorSettings():
     # run_defense_step_bernoullis
     # - if true, sample defenses bernoullis to decide their initial states
     run_defense_step_bernoullis: bool = True
+    # infinity_ttc_attack_step_unviable
+    # - if true, sample attack step bernoullis to decide if they are impossible
+    run_attack_step_bernoullis: bool = True
 
     # Reward settings
     attacker_reward_mode: RewardMode = RewardMode.CUMULATIVE
@@ -166,6 +167,14 @@ class MalSimulatorSettings():
     # False positives / negatives for defender agents observation
     enable_false_positives: bool = False
     enable_false_negatives: bool = False
+
+    @property
+    def infinity_ttc_attack_step_unviable(self) -> None:
+        raise DeprecationWarning(
+            "Setting 'infinity_ttc_attack_step_unviable' has changed name to "
+            "'run_attack_step_bernoullis'"
+        )
+
 
 class MalSimulator():
     """A MAL Simulator that works on the AttackGraph
@@ -242,7 +251,7 @@ class MalSimulator():
         if self.sim_settings.run_defense_step_bernoullis:
             self._enabled_defenses = self._get_pre_enabled_defenses()
 
-        if self.sim_settings.infinity_ttc_attack_step_unviable:
+        if self.sim_settings.run_attack_step_bernoullis:
             self._impossible_attack_steps = (
                 self._get_impossible_attack_steps()
             )
@@ -496,7 +505,7 @@ class MalSimulator():
         if self.sim_settings.run_defense_step_bernoullis:
             self._enabled_defenses = self._get_pre_enabled_defenses()
 
-        if self.sim_settings.infinity_ttc_attack_step_unviable:
+        if self.sim_settings.run_attack_step_bernoullis:
             self._impossible_attack_steps = (
                 self._get_impossible_attack_steps()
             )
