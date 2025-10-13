@@ -84,6 +84,9 @@ class MalSimAttackerState(MalSimAgentState):
     # Number of attempts to compromise a step (used for ttc caculations)
     num_attempts: MappingProxyType[AttackGraphNode, int]
 
+    # Steps attempted but not succeeded (because of TTC value)
+    step_attempted_nodes: frozenset[AttackGraphNode]
+
     # Goals affect simulation termination but is optional
     goals: Optional[frozenset[AttackGraphNode]] = None
 
@@ -675,6 +678,7 @@ class MalSimulator():
             step_action_surface_removals = frozenset(),
             step_performed_nodes = entry_points,
             step_unviable_nodes=frozenset(),
+            step_attempted_nodes=frozenset(),
             num_attempts = MappingProxyType({
                 n: 0 for n in self.attack_graph.nodes.values()
             }),
@@ -719,6 +723,7 @@ class MalSimulator():
             step_action_surface_removals = action_surface_removals,
             step_performed_nodes = frozenset(step_agent_compromised_nodes),
             step_unviable_nodes = frozenset(step_nodes_made_unviable),
+            step_attempted_nodes = frozenset(step_agent_attempted_nodes),
             entry_points = attacker_state.entry_points,
             goals = attacker_state.goals,
             num_attempts = MappingProxyType(num_attempts),
