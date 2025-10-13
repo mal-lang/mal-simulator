@@ -609,7 +609,7 @@ def test_step_attacker_defender_action_surface_updates() -> None:
     scenario = load_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml')
 
-    sim = MalSimulator.from_scenario(scenario)
+    sim = MalSimulator.from_scenario(scenario, register_agents=False)
     # Register the agents
     attacker_agent_id = "attacker"
     defender_agent_id = "defender"
