@@ -1243,6 +1243,8 @@ class MalSimulator():
                 )
             )
 
+        self._enabled_defenses |= step_enabled_defenses
+
         # Update defender states and remove 'dead' agents of any type
         for agent_name in self._alive_agents.copy():
             agent_state = self._agent_states[agent_name]
