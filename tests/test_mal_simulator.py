@@ -185,7 +185,7 @@ def test_attacker_step(
 
     attack_step = get_node(attack_graph, 'OS App:attemptRead')
     actions, _ = sim._attacker_step(attacker_agent, [attack_step])
-    assert actions  == {attack_step}
+    assert actions  == [attack_step]
 
 
 def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None:
@@ -201,14 +201,14 @@ def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
 
     defense_step = get_node(attack_graph, 'OS App:notPresent')
     enabled, made_unviable = sim._defender_step(defender_agent, [defense_step])
-    assert enabled ==  {defense_step}
+    assert enabled ==  [defense_step]
     assert made_unviable
 
     # Can not defend attack_step
     attack_step = get_node(attack_graph, 'OS App:attemptUseVulnerability')
     assert attack_step
     enabled, made_unviable = sim._defender_step(defender_agent, [attack_step])
-    assert enabled == set()
+    assert enabled == []
     assert not made_unviable
 
 
@@ -919,12 +919,7 @@ def test_simulator_multiple_defenders() -> None:
         'Attacker1', {'User:3:phishing', 'Host:0:connect'}
     )
     sim.register_defender('Defender1')
-
-    with pytest.raises(AssertionError):
-        # Can not register more than one defender per default
-        sim.register_defender('Defender2')
-
-    sim.register_defender('Defender2', allow_multiple=True)
+    sim.register_defender('Defender2')
     states = sim.reset()
 
     while not sim.done():
