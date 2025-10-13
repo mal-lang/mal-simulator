@@ -41,7 +41,7 @@ def test_scenario_obj_file_and_dict() -> None:
     )
     scenario = Scenario(
         lang_file='tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar',
-        model_dict=model._to_dict(),
+        model_dict=model.to_dict(),
         agents={
             'Attacker1': {
                 'type': 'attacker',
