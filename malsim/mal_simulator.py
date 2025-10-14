@@ -609,8 +609,8 @@ class MalSimulator():
         """
         return {
             node for node in self.attack_graph.nodes.values()
-            if self.node_is_viable(node)
-            and node.type == 'defense'
+            if node.type == 'defense'
+            and self.node_is_viable(node)
             and 'suppress' not in node.tags
             and not self.node_is_enabled_defense(node)
         }
