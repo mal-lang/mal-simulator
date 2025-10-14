@@ -182,33 +182,9 @@ false_negative_rates:
 
 ```
 
-## Agents
+### Extending Scenarios
 
-Attacker and defender agents are important for running simulations in the MAL Simulator.
-
-### Attacker agent
-`type` - 'attacker'
-
-`entry_points` - Where the agent starts off
-
-`goals` - Optional setting telling where the agent wants to end up. If the goal is fulfilled the simulator will terminate the attacker agent.
-
-`config` - A dictionary given to the Agent class on initialization if running simulations with `malsim.mal_simulator.run_simulation` or CLI.
-
-`agent_class` - Name of the class for the agent used when running simulations with `run_simulation` or CLI, can be left empty or set to PassiveAgent if the agent should not act.
-
-### Defender agent
-
-`type` - 'defender'
-
-`config` - A dictionary given to the Agent class on initialization if running simulations with `malsim.mal_simulator.run_simulation` or CLI.
-
-`agent_class` - Name of the class for the agent used when running simulations with `run_simulation` or CLI, can be left empty or set to PassiveAgent if the agent should not act.
-
-
-## Extend
-
-Instead of copy pasting an entire scenario it is possible to extend the scenario and only override
+Instead of copy pasting an entire scenario file it is possible to extend the scenario and only override
 specific values. Use the `extends` key pointing to another scenario. All keys present in the extending
 scenario will override the settings in the original (extended) scenario when you load the extending scenario.
 
@@ -274,6 +250,65 @@ mal_simulator = MalSimulator.from_scenario(
   scenario, sim_settings=MalSimulatorSettings(seed=10)
 )
 run_simulation(mal_simulator, scenario.agents)
+```
+
+## Agents
+
+Attacker and defender agents are important for running simulations in the MAL Simulator.
+
+### Attacker agent
+`type` - 'attacker'
+
+`entry_points` - Where the agent starts off
+
+`goals` - Optional setting telling where the agent wants to end up. If the goal is fulfilled the simulator will terminate the attacker agent.
+
+`config` - A dictionary given to the Agent class on initialization if running simulations with `malsim.mal_simulator.run_simulation` or CLI.
+
+`agent_class` - Name of the class for the agent used when running simulations with `run_simulation` or CLI, can be left empty or set to PassiveAgent if the agent should not act.
+
+### Defender agent
+
+`type` - 'defender'
+
+`config` - A dictionary given to the Agent class on initialization if running simulations with `malsim.mal_simulator.run_simulation` or CLI.
+
+`agent_class` - Name of the class for the agent used when running simulations with `run_simulation` or CLI, can be left empty or set to PassiveAgent if the agent should not act.
+
+## Rewards
+
+Reward functions are important, especially for ML implementations.
+Reward values can be set either in a scenario or by giving `node_rewards` to the MalSimulator.
+
+RewardMode can be either CUMULATIVE or ONE_OFF, this is set through the MalSimulatorSettings given to MalSimulator (`sim_settings`). Default is CUMULATIVE.
+
+By default:
+
+- Attacker is rewarded for compromised nodes
+- Defender is penalized for compromised nodes and enabled defenses
+
+If a user wants to implement their own custom reward function, the current recommendation is to:
+
+- Create a class that inherits MalSimulator
+- Override methods:
+  - `_attacker_step_reward`
+  - `_defender_step_reward`
+
+These methods are run to generate a reward every step for each agent (`MalSimAgentState`),
+and they are defined like this:
+
+```python
+    def _attacker_step_reward(
+        self,
+        attacker_state: MalSimAttackerState,
+        reward_mode: RewardMode,
+    ) -> float:
+
+    def _defender_step_reward(
+        self,
+        defender_state: MalSimDefenderState,
+        reward_mode: RewardMode
+    ) -> float:
 ```
 
 ## CLI
