@@ -618,6 +618,7 @@ class MalSimulator():
     def _get_attack_surface(
             self,
             performed_nodes: Set[AttackGraphNode],
+            from_nodes: Optional[Set[AttackGraphNode]] = None
     ) -> frozenset[AttackGraphNode]:
         """
         Calculate the attack surface of the attacker.
@@ -635,7 +636,8 @@ class MalSimulator():
         """
 
         attack_surface = set()
-        for attack_step in performed_nodes:
+        from_nodes = from_nodes if from_nodes is not None else performed_nodes
+        for attack_step in from_nodes:
             for child in attack_step.children:
                 if (
                     self.sim_settings.attack_surface_skip_compromised
@@ -707,14 +709,18 @@ class MalSimulator():
         """
 
         # Find what nodes attacker can reach this step
-        new_action_surface = self._get_attack_surface(
-            attacker_state.performed_nodes | step_agent_compromised_nodes
-        )
+        action_surface_additions = self._get_attack_surface(
+            attacker_state.performed_nodes | step_agent_compromised_nodes,
+            from_nodes=step_agent_compromised_nodes
+        ) - attacker_state.action_surface
+
         action_surface_removals = frozenset(
-            attacker_state.action_surface - new_action_surface
+            (step_nodes_made_unviable & attacker_state.action_surface)
+            | step_agent_compromised_nodes
         )
-        action_surface_additions = frozenset(
-            new_action_surface - attacker_state.action_surface
+        new_action_surface = frozenset(
+            (attacker_state.action_surface - action_surface_removals)
+            | action_surface_additions
         )
 
         num_attempts = dict(attacker_state.num_attempts)
