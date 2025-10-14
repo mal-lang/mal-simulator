@@ -538,7 +538,7 @@ class MalSimulator():
         pre sample or expected value
         """
         ttc_values = {}
-        for node in self.attack_graph.nodes.values():
+        for node in self.attack_graph.attack_steps:
 
             if node.type not in ('or', 'and'):
                 continue
@@ -568,7 +568,7 @@ class MalSimulator():
         ttc value sample, which means they will be pre enabled
         """
         pre_enabled_defenses = set()
-        for node in self.attack_graph.nodes.values():
+        for node in self.attack_graph.defense_steps:
             if node.type == 'defense':
                 ttc_value = ttc_value_from_node(
                     node,
@@ -587,16 +587,15 @@ class MalSimulator():
         """
         impossible_attack_steps = set()
 
-        for node in self.attack_graph.nodes.values():
-            if node.type in ('or', 'and'):
-                ttc_value = ttc_value_from_node(
-                    node,
-                    ProbCalculationMethod.SAMPLE,
-                    self._calculated_bernoullis,
-                    self.rng
-                )
-                if ttc_value == math.inf:
-                    impossible_attack_steps.add(node)
+        for node in self.attack_graph.attack_steps:
+            ttc_value = ttc_value_from_node(
+                node,
+                ProbCalculationMethod.SAMPLE,
+                self._calculated_bernoullis,
+                self.rng
+            )
+            if ttc_value == math.inf:
+                impossible_attack_steps.add(node)
 
         return impossible_attack_steps
 
@@ -608,9 +607,8 @@ class MalSimulator():
         graph       - the attack graph
         """
         return {
-            node for node in self.attack_graph.nodes.values()
-            if node.type == 'defense'
-            and self.node_is_viable(node)
+            node for node in self.attack_graph.defense_steps
+            if self.node_is_viable(node)
             and 'suppress' not in node.tags
             and not self.node_is_enabled_defense(node)
         }
@@ -691,7 +689,7 @@ class MalSimulator():
             step_unviable_nodes=frozenset(),
             step_attempted_nodes=frozenset(),
             num_attempts = MappingProxyType({
-                n: 0 for n in self.attack_graph.nodes.values()
+                n: 0 for n in self.attack_graph.attack_steps
             }),
         )
         return attacker_state
@@ -771,8 +769,8 @@ class MalSimulator():
     def _generate_false_positives(self) -> set[AttackGraphNode]:
         """Return a set of false positive attack steps from attack graph"""
         return set(
-            node for node in self.attack_graph.nodes.values()
-            if node.type in ('and', 'or') and self._false_positive(node)
+            node for node in self.attack_graph.attack_steps
+            if self._false_positive(node)
         )
 
     def _create_defender_state(self, name: str) -> MalSimDefenderState:
