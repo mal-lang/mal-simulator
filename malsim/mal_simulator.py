@@ -922,6 +922,13 @@ class MalSimulator():
 
     def register_defender(self, name: str) -> None:
         """Register a mal sim defender agent"""
+
+        if self._get_defender_agents():
+            print(
+                "WARNING: You have registered more than one defender agent. "
+                "It does not make sense to have more than one, "
+                "since all defender agents have the same state."
+            )
         assert name not in self._agent_states, \
             f"Duplicate agent named {name} not allowed"
 
@@ -998,18 +1005,18 @@ class MalSimulator():
 
     def _attacker_step(
         self, agent: MalSimAttackerState, nodes: list[AttackGraphNode]
-    ) -> tuple[set[AttackGraphNode], set[AttackGraphNode]]:
+    ) -> tuple[list[AttackGraphNode], list[AttackGraphNode]]:
         """Compromise attack step nodes with attacker
 
         Args:
         agent - the agent to compromise nodes with
         nodes - the nodes to compromise
 
-        Returns: set of nodes that were compromised.
+        Returns: two lists with compromised, attempted nodes
         """
 
-        successful_compromises = set()
-        attempted_compromises = set()
+        successful_compromises = list()
+        attempted_compromises = list()
 
         for node in nodes:
 
@@ -1023,7 +1030,7 @@ class MalSimulator():
             if self.node_is_traversable(agent.performed_nodes, node):
 
                 if self._attempt_attacker_step(agent, node):
-                    successful_compromises.add(node)
+                    successful_compromises.append(node)
                     logger.info(
                         'Attacker agent "%s" compromised "%s" (reward: %d).',
                         agent.name, node.full_name, self.node_reward(node)
@@ -1033,7 +1040,7 @@ class MalSimulator():
                         'Attacker agent "%s" attempted "%s" (attempt %d).',
                         agent.name, node.full_name, agent.num_attempts[node]
                     )
-                    attempted_compromises.add(node)
+                    attempted_compromises.append(node)
 
             else:
                 logger.warning(
@@ -1044,18 +1051,18 @@ class MalSimulator():
 
     def _defender_step(
         self, agent: MalSimDefenderState, nodes: list[AttackGraphNode]
-    ) -> tuple[set[AttackGraphNode], set[AttackGraphNode]]:
+    ) -> tuple[list[AttackGraphNode], set[AttackGraphNode]]:
         """Enable defense step nodes with defender.
 
         Args:
         agent - the agent to activate defense nodes with
         nodes - the defense step nodes to enable
 
-        Returns a tuple of two sets, `enabled_defenses`
+        Returns a tuple of a list and a set, `enabled_defenses`
         and `attack_steps_made_unviable`.
         """
 
-        enabled_defenses = set()
+        enabled_defenses = list()
         attack_steps_made_unviable = set()
 
         for node in nodes:
@@ -1072,7 +1079,7 @@ class MalSimulator():
                     'step will skip!', agent.name, node.full_name, node.id
                 )
             else:
-                enabled_defenses.add(node)
+                enabled_defenses.append(node)
                 self._viability_per_node, made_unviable = make_node_unviable(
                     node,
                     self._viability_per_node,
@@ -1215,8 +1222,8 @@ class MalSimulator():
         self.recording[self.cur_iter] = {}
 
         # Populate these from the results for all agents' actions.
-        step_compromised_nodes: set[AttackGraphNode] = set()
-        step_enabled_defenses: set[AttackGraphNode] = set()
+        step_compromised_nodes: list[AttackGraphNode] = list()
+        step_enabled_defenses: list[AttackGraphNode] = list()
         step_nodes_made_unviable: set[AttackGraphNode] = set()
 
         # Perform defender actions first
@@ -1228,7 +1235,7 @@ class MalSimulator():
                 defender_state, agent_actions
             )
             self.recording[self.cur_iter][defender_state.name] = list(enabled)
-            step_enabled_defenses |= enabled
+            step_enabled_defenses += enabled
             step_nodes_made_unviable |= unviable
 
         # Perform attacker actions afterwards
@@ -1239,7 +1246,7 @@ class MalSimulator():
             agent_compromised, agent_attempted = self._attacker_step(
                 attacker_state, agent_actions
             )
-            step_compromised_nodes |= agent_compromised
+            step_compromised_nodes += agent_compromised
             self.recording[self.cur_iter][attacker_state.name] = (
                 list(agent_compromised)
             )
@@ -1247,8 +1254,8 @@ class MalSimulator():
             # Update attacker state
             updated_attacker_state = self._update_attacker_state(
                 attacker_state,
-                agent_compromised,
-                agent_attempted,
+                set(agent_compromised),
+                set(agent_attempted),
                 step_nodes_made_unviable
             )
             self._agent_states[attacker_state.name] = updated_attacker_state
@@ -1261,7 +1268,7 @@ class MalSimulator():
                 )
             )
 
-        self._enabled_defenses |= step_enabled_defenses
+        self._enabled_defenses |= set(step_enabled_defenses)
 
         # Update defender states and remove 'dead' agents of any type
         for agent_name in self._alive_agents.copy():
@@ -1271,8 +1278,8 @@ class MalSimulator():
                 # Update defender state
                 updated_defender_state = self._update_defender_state(
                     agent_state,
-                    step_compromised_nodes,
-                    step_enabled_defenses,
+                    set(step_compromised_nodes),
+                    set(step_enabled_defenses),
                     step_nodes_made_unviable
                 )
                 self._agent_states[agent_name] = updated_defender_state
@@ -1294,8 +1301,7 @@ class MalSimulator():
 
         if self.rest_api_client:
             self.rest_api_client.upload_performed_nodes(
-                list(step_compromised_nodes | step_enabled_defenses),
-                self.cur_iter
+                step_compromised_nodes + step_enabled_defenses, self.cur_iter
             )
 
         self.cur_iter += 1

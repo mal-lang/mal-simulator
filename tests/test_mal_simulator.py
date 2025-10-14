@@ -13,6 +13,8 @@ from malsim.mal_simulator import (
     RewardMode
 )
 from malsim import load_scenario, run_simulation
+
+import pytest
 from .conftest import get_node
 
 if TYPE_CHECKING:
@@ -98,6 +100,10 @@ def test_register_agent_attacker(
     assert agent_name in sim.agent_states
     assert agent_name in sim.agent_states
 
+    with pytest.raises(AssertionError):
+        # Can not register two agents same name
+        sim.register_attacker(agent_name, set())
+
 
 def test_register_agent_defender(
         corelang_lang_graph: LanguageGraph, model: Model
@@ -179,7 +185,7 @@ def test_attacker_step(
 
     attack_step = get_node(attack_graph, 'OS App:attemptRead')
     actions, _ = sim._attacker_step(attacker_agent, [attack_step])
-    assert actions  == {attack_step}
+    assert actions  == [attack_step]
 
 
 def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None:
@@ -195,14 +201,14 @@ def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
 
     defense_step = get_node(attack_graph, 'OS App:notPresent')
     enabled, made_unviable = sim._defender_step(defender_agent, [defense_step])
-    assert enabled ==  {defense_step}
+    assert enabled ==  [defense_step]
     assert made_unviable
 
     # Can not defend attack_step
     attack_step = get_node(attack_graph, 'OS App:attemptUseVulnerability')
     assert attack_step
     enabled, made_unviable = sim._defender_step(defender_agent, [attack_step])
-    assert enabled == set()
+    assert enabled == []
     assert not made_unviable
 
 
@@ -603,7 +609,7 @@ def test_step_attacker_defender_action_surface_updates() -> None:
     scenario = load_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml')
 
-    sim = MalSimulator.from_scenario(scenario)
+    sim = MalSimulator.from_scenario(scenario, register_agents=False)
     # Register the agents
     attacker_agent_id = "attacker"
     defender_agent_id = "defender"
@@ -823,3 +829,125 @@ def test_simulator_ttcs() -> None:
     sim.reset()
 
     assert sim._calculated_bernoullis == expected_bernoullis
+
+
+def test_simulator_multiple_attackers() -> None:
+    """
+    Have two attackers from different entrypoints perform their
+    full action surface every step. Defender is passive.
+    """
+
+    scenario = load_scenario(
+        'tests/testdata/scenarios/traininglang_scenario.yml'
+    )
+
+    sim = MalSimulator.from_scenario(
+        scenario, sim_settings=MalSimulatorSettings(
+            seed=100
+        ), max_iter=100, register_agents=False
+    )
+
+    sim.register_attacker(
+        'Attacker1', {'User:3:phishing', 'Host:0:connect'}
+    )
+    sim.register_attacker(
+        'Attacker2', {'Network:3:access'}
+    )
+    sim.register_defender('Defender1')
+    states = sim.reset()
+
+    while not sim.done():
+        states = sim.step({
+            'Attacker1': sorted(
+                list(states['Attacker1'].action_surface),
+                key=lambda n: n.id
+            ),
+            'Attacker2': sorted(
+                list(states['Attacker2'].action_surface),
+                key=lambda n: n.id
+            ),
+            'Defender1': []
+        })
+
+    # Verify that it is possible to select more than one action
+    # for more than one agent
+    assert sim.recording == {
+        0: {
+            'Defender1': [],
+            'Attacker1': [sim.get_node("User:3:compromise")],
+            'Attacker2': [
+                sim.get_node("Host:0:connect"),
+                sim.get_node("Host:1:connect")
+            ]},
+        1: {
+            'Defender1': [],
+            'Attacker1': [sim.get_node("Host:0:authenticate")]},
+        2: {
+            'Defender1': [],
+            'Attacker1': [sim.get_node("Host:0:access")]},
+        3: {
+            'Defender1': [],
+            'Attacker1': [
+                sim.get_node("Data:2:read"),
+                sim.get_node("Data:2:modify"),
+                sim.get_node("Network:3:access")
+            ]},
+        4: {
+            'Defender1': [],
+            'Attacker1': [sim.get_node("Host:1:connect")]
+        }
+    }
+
+
+def test_simulator_multiple_defenders() -> None:
+    """
+    Should only be possible to have more than one defender
+    if use forces it. It makes no sense.
+    """
+
+    scenario = load_scenario(
+        'tests/testdata/scenarios/traininglang_scenario.yml'
+    )
+
+    sim = MalSimulator.from_scenario(
+        scenario, sim_settings=MalSimulatorSettings(
+            seed=100
+        ), max_iter=100, register_agents=False
+    )
+
+    sim.register_attacker(
+        'Attacker1', {'User:3:phishing', 'Host:0:connect'}
+    )
+    sim.register_defender('Defender1')
+    sim.register_defender('Defender2')
+    states = sim.reset()
+
+    while not sim.done():
+        states = sim.step({
+            'Defender1': sorted(
+                list(states['Defender1'].action_surface),
+                key=lambda n: n.id
+            ),
+            'Defender2': sorted(
+                list(states['Defender2'].action_surface),
+                key=lambda n: n.id
+            )
+        })
+
+    assert sim.recording == {
+        0: {
+            'Defender1': [
+                sim.get_node("Host:0:notPresent"),
+                sim.get_node("Host:1:notPresent"),
+                sim.get_node("Data:2:notPresent"),
+                sim.get_node("User:3:notPresent")
+            ],
+            'Defender2': [
+                sim.get_node("Host:0:notPresent"),
+                sim.get_node("Host:1:notPresent"),
+                sim.get_node("Data:2:notPresent"),
+                sim.get_node("User:3:notPresent")
+            ],
+            'Attacker1': []
+        }
+    }
