@@ -16,7 +16,10 @@ For additional dev tools:
 
 ```pip install mal-simulator[dev]```
 
-Note for contributers: The CI pipeline runs `mypy` and `ruff` for linting and type checking, and PRs will only be merged if pipeline succeeds.
+## Contributing
+
+- Use [Conventional commits](https://www.conventionalcommits.org/en/v1.0.0/)
+- The CI pipeline runs `mypy` and `ruff` for linting and type checking, and PRs will only be merged if pipeline succeeds.
 
 ## MalSimulator
 
