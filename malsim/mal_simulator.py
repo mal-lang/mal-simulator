@@ -430,8 +430,6 @@ class MalSimulator():
         performed_nodes - the nodes we assume are compromised in this evaluation
         node            - the node we wish to evalute traversability for
         """
-        if node in self._impossible_attack_steps:
-            return False
 
         if not self.node_is_viable(node):
             return False
