@@ -248,7 +248,8 @@ class MalSimulator():
         # Keep track on all 'living' agents sorted by order to step in
         self._alive_agents: set[str] = set()
 
-        # Compromise times (ttc values) for each attack step
+        # TTC (Time to compromise) for each attack step
+        # will only be set if TTCMode PRE_SAMLE/EXPECTED_VALUE is used
         self._ttc_values = self._attack_step_ttcs()
 
         # Do initial calculations
