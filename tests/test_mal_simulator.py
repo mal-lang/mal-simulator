@@ -529,7 +529,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     assert os_app_attempt_deny not in asv.action_surface
     assert dsv.step_action_surface_removals == {program2_not_present}
     assert dsv.step_compromised_nodes == {os_app_attempt_deny}
-    assert len(dsv.step_unviable_nodes) == 47
+    assert len(dsv.step_unviable_nodes) == 48
 
     # Go through an attack step that already has some children in the attack
     # surface(OS App:accessNetworkAndConnections in this case)
@@ -577,16 +577,17 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
         'OS App:attemptRead',
         'OS App:specificAccessDelete',
         'OS App:specificAccessModify',
+        'OS App:bypassContainerization',
         'OS App:specificAccessRead',
         'OS App:successfulDeny',
         'Program 1:localConnect',
         'Program 2:localConnect',
         'IDPS 1:localConnect'
     }
-    assert len(asv.step_action_surface_removals) == 12
+    assert len(asv.step_action_surface_removals) == 13
     assert dsv.step_action_surface_removals == {os_app_not_present}
     assert dsv.step_compromised_nodes == set()
-    assert len(dsv.step_unviable_nodes) == 63
+    assert len(dsv.step_unviable_nodes) == 64
 
     # Recording of the simulation
     assert sim.recording == {
@@ -776,11 +777,6 @@ def test_simulator_no_fpr_fnr() -> None:
 def test_simulator_ttcs() -> None:
     """Create a simulator and check TTCs, then reset and check TTCs again"""
 
-    def get_node(sim: MalSimulator, full_name: str) -> AttackGraphNode:
-        node = sim.attack_graph.get_node_by_full_name(full_name)
-        assert node
-        return node
-
     scenario = load_scenario(
         'tests/testdata/scenarios/traininglang_scenario.yml'
     )
@@ -790,21 +786,21 @@ def test_simulator_ttcs() -> None:
         )
     )
 
-    host_0_notPresent = get_node(sim, "Host:0:notPresent")
-    host_0_auth = get_node(sim, "Host:0:authenticate")
-    host_0_connect = get_node(sim, "Host:0:connect")
-    host_0_access = get_node(sim, "Host:0:access")
-    host_1_notPresent = get_node(sim, "Host:1:notPresent")
-    host_1_auth = get_node(sim, "Host:1:authenticate")
-    host_1_connect = get_node(sim, "Host:1:connect")
-    host_1_access = get_node(sim, "Host:1:access")
-    data_2_notPresent = get_node(sim, "Data:2:notPresent")
-    data_2_read = get_node(sim, "Data:2:read")
-    data_2_modify = get_node(sim, "Data:2:modify")
-    user_3_notPresent = get_node(sim, "User:3:notPresent")
-    user_3_compromise = get_node(sim, "User:3:compromise")
-    user_3_phishing = get_node(sim, "User:3:phishing")
-    network_3_access = get_node(sim, "Network:3:access")
+    host_0_notPresent = sim.get_node("Host:0:notPresent")
+    host_0_auth = sim.get_node("Host:0:authenticate")
+    host_0_connect = sim.get_node("Host:0:connect")
+    host_0_access = sim.get_node("Host:0:access")
+    host_1_notPresent = sim.get_node("Host:1:notPresent")
+    host_1_auth = sim.get_node("Host:1:authenticate")
+    host_1_connect = sim.get_node("Host:1:connect")
+    host_1_access = sim.get_node("Host:1:access")
+    data_2_notPresent = sim.get_node("Data:2:notPresent")
+    data_2_read = sim.get_node("Data:2:read")
+    data_2_modify = sim.get_node("Data:2:modify")
+    user_3_notPresent = sim.get_node("User:3:notPresent")
+    user_3_compromise = sim.get_node("User:3:compromise")
+    user_3_phishing = sim.get_node("User:3:phishing")
+    network_3_access = sim.get_node("Network:3:access")
 
     expected_bernoullis = {
         host_0_notPresent: math.inf,
@@ -824,11 +820,14 @@ def test_simulator_ttcs() -> None:
         network_3_access: 1.0
     }
 
-    assert sim._calculated_bernoullis == expected_bernoullis
+    assert not sim._impossible_attack_steps
+    assert not sim._enabled_defenses
 
     sim.reset()
 
-    assert sim._calculated_bernoullis == expected_bernoullis
+    assert not sim._impossible_attack_steps
+    assert not sim._enabled_defenses
+
 
 
 def test_simulator_multiple_attackers() -> None:

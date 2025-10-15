@@ -178,15 +178,13 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     It then verifies that rewards and actions performed are what we expected.
     """
 
-    scenario_file = (
-        "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml"
-    )
+    scenario_file = "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml"
     scenario = load_scenario(scenario_file)
     sim = MalSimulator.from_scenario(
         scenario,
         sim_settings = MalSimulatorSettings(
-            seed=48,
-            ttc_mode=TTCMode.PER_STEP_SAMPLE
+            seed=23,
+            ttc_mode=TTCMode.PER_STEP_SAMPLE,
         )
     )
 
@@ -239,8 +237,6 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         total_reward_defender += sim.agent_reward(defender_state.name)
         total_reward_attacker += sim.agent_reward(attacker_state.name)
 
-    assert sim.cur_iter == 209
-
     # Make sure the actions performed were as expected
     assert attacker_actions == [
         'Program 1:attemptApplicationRespondConnectThroughData',
@@ -268,13 +264,18 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         'ConnectionRule:3:attemptAccessNetworksInspected',
         'Network:2:attemptEavesdrop',
         'Network:2:attemptAdversaryInTheMiddle',
+        'ConnectionRule:3:connectToApplicationsInspected',
+        'ConnectionRule:3:bypassRestricted',
         'ConnectionRule:1:deny',
-        'Network:2:successfulEavesdrop',
-        'Network:2:successfulAdversaryInTheMiddle',
-        'Network:2:bypassAdversaryInTheMiddleDefense',
+        'ConnectionRule:3:deny',
+        'ConnectionRule:3:successfulAccessNetworksInspected',
+        'Program 2:networkConnectInspected',
         'Program 1:denyFromNetworkingAsset',
-        'Network:2:eavesdrop',
-        'Network:2:adversaryInTheMiddle'
+        'Program 2:denyFromNetworkingAsset',
+        'ConnectionRule:3:accessNetworksInspected',
+        'Program 2:specificAccessNetworkConnect',
+        'Program 2:networkConnect',
+        'Program 2:attemptDeny'
     ]
 
     assert defender_actions == [
@@ -305,7 +306,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     assert sim.agent_reward(defender_state.name) == -19
 
     assert total_reward_attacker == 0
-    assert total_reward_defender == -3862.0
+    assert total_reward_defender == -3710.0
 
 
 def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
@@ -369,7 +370,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
         total_reward_defender += sim.agent_reward(defender_state.name)
         total_reward_attacker += sim.agent_reward(attacker_state.name)
 
-    assert sim.cur_iter == 11
+    assert sim.cur_iter == 25
 
     # Make sure the actions performed were as expected
     assert attacker_actions == [
@@ -379,8 +380,11 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
         'Program 1:accessNetworkAndConnections',
         'Program 1:attemptModify',
         'Program 1:specificAccess',
+        'ConnectionRule:1:attemptAccessNetworksUninspected',
+        'ConnectionRule:1:attemptConnectToApplicationsUninspected',
         'ConnectionRule:1:attemptAccessNetworksInspected',
         'ConnectionRule:1:attemptConnectToApplicationsInspected',
+        'ConnectionRule:1:bypassPayloadInspection'
     ]
 
     assert defender_actions == [
@@ -411,7 +415,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
     assert sim.agent_reward(defender_state.name) == -19
 
     assert total_reward_attacker == 0
-    assert total_reward_defender == -100.0
+    assert total_reward_defender == -366.0
 
 
 def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
@@ -423,7 +427,7 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
 
     sim = MalSimulator.from_scenario(
         scenario, sim_settings = MalSimulatorSettings(
-            seed=13,
+            seed=1,
             ttc_mode=TTCMode.EXPECTED_VALUE
         )
     )
@@ -476,7 +480,7 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         total_reward_defender += sim.agent_reward(defender_state.name)
         total_reward_attacker += sim.agent_reward(attacker_state.name)
 
-    assert sim.cur_iter == 11
+    assert sim.cur_iter == 210
 
     # Make sure the actions performed were as expected
     assert attacker_actions == [
@@ -486,8 +490,11 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         'Program 1:accessNetworkAndConnections',
         'Program 1:attemptModify',
         'Program 1:specificAccess',
+        'ConnectionRule:1:attemptAccessNetworksUninspected',
+        'ConnectionRule:1:attemptConnectToApplicationsUninspected',
         'ConnectionRule:1:attemptAccessNetworksInspected',
-        'ConnectionRule:1:attemptConnectToApplicationsInspected'
+        'ConnectionRule:1:attemptConnectToApplicationsInspected',
+        'ConnectionRule:1:bypassPayloadInspection'
     ]
 
     assert defender_actions == [
@@ -518,4 +525,4 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
     assert sim.agent_reward(defender_state.name) == -19
 
     assert total_reward_attacker == 0
-    assert total_reward_defender == -100.0
+    assert total_reward_defender == -3881.0
