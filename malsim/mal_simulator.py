@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
-import math
 from enum import Enum
 from typing import Any, Optional, TYPE_CHECKING
 from collections.abc import Set
@@ -18,7 +17,7 @@ from maltoolbox.attackgraph import (
 from malsim.ttc_utils import (
     attempt_step_ttc,
     ttc_value_from_node,
-    sample_bernoulli,
+    attempt_node_bernoulli,
     ProbCalculationMethod,
 )
 
@@ -565,8 +564,7 @@ class MalSimulator():
         pre_enabled_defenses = set()
         for node in self.attack_graph.defense_steps:
             if node.type == 'defense':
-                bernoulli_value = sample_bernoulli(node, self.rng)
-                if bernoulli_value == 1.0:
+                if attempt_node_bernoulli(node, self.rng):
                     pre_enabled_defenses.add(node)
         return pre_enabled_defenses
 
@@ -578,8 +576,7 @@ class MalSimulator():
         impossible_attack_steps = set()
 
         for node in self.attack_graph.attack_steps:
-            bernoulli_value = sample_bernoulli(node, self.rng)
-            if bernoulli_value == math.inf:
+            if not attempt_node_bernoulli(node, self.rng):
                 impossible_attack_steps.add(node)
         return impossible_attack_steps
 

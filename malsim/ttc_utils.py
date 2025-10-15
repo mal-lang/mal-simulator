@@ -136,40 +136,39 @@ def get_ttc_dict(
     return step_ttc
 
 
-def sample_bernoulli(
+def attempt_node_bernoulli(
     node: AttackGraphNode, rng: np.random.Generator
-) -> float:
+) -> bool:
     """
-    Return 1.0 if Bernoulli trial succeeds or if no Bernoulli is set
+    Return True if Bernoulli trial succeeds or if no Bernoulli is set
         -> for defenses this means it should be enabled
         -> for attack steps this means the step is possible
-    Return Infinity if Bernoulli trial fails
+    Return False if Bernoulli trial fails
         -> for defenses this means it should not be enabled
         -> for attack steps this means the step is impossible
     """
-    def _sample_bernoulli_from_ttc_dict(ttc_dict: dict[str, Any]) -> float:
-        value = rng.random()
+    def _attempt_distribution_bernoulli(ttc_dict: dict[str, Any]) -> bool:
         threshold = float(ttc_dict['arguments'][0])
-        res = math.inf if value > threshold else 1.0
-        return res
+        bernoulli_success = rng.random() <= threshold
+        return bernoulli_success
 
     ttc_dict = get_ttc_dict(node)
     if not ttc_dict:
-        return 1.0 # No ttc set -> Possible/Enabled
+        return True # No ttc set -> attempt is successful
     if ttc_dict['type'] != 'function':
-        # A function can have a Bernoulli in lhs or rhs
+        # A function can have a Bernoulli in either lhs or rhs
         lhs = ttc_dict['lhs']
         if lhs['name'] == 'Bernoulli':
-            return _sample_bernoulli_from_ttc_dict(lhs)
+            return _attempt_distribution_bernoulli(lhs)
         rhs = ttc_dict['rhs']
         if rhs['name'] == 'Bernoulli':
-            return _sample_bernoulli_from_ttc_dict(rhs)
+            return _attempt_distribution_bernoulli(rhs)
     else:
-        # If the type is 'function' it can be a Bernoulli
+        # If type is 'function' it can be a Bernoulli
         if ttc_dict['name'] == 'Bernoulli':
-            return _sample_bernoulli_from_ttc_dict(ttc_dict)
+            return _attempt_distribution_bernoulli(ttc_dict)
 
-    return 1.0 # Node with no Bernoulli set -> Possible/Enabled
+    return True # Node with no Bernoulli set -> attempt is successful
 
 class ProbCalculationMethod(Enum):
     SAMPLE = 1
