@@ -147,7 +147,7 @@ def sample_bernoulli(
         -> for defenses this means it should not be enabled
         -> for attack steps this means the step is impossible
     """
-    def _sample_bernoulli_from_ttc_dict(ttc_dict):
+    def _sample_bernoulli_from_ttc_dict(ttc_dict: dict[str, Any]) -> float:
         value = rng.random()
         threshold = float(ttc_dict['arguments'][0])
         res = math.inf if value > threshold else 1.0

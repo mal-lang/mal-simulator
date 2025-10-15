@@ -1,9 +1,8 @@
 """Test MalSimulator class"""
 from __future__ import annotations
 from typing import TYPE_CHECKING
-import math
 
-from maltoolbox.attackgraph import AttackGraphNode, AttackGraph
+from maltoolbox.attackgraph import AttackGraph
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
@@ -786,39 +785,39 @@ def test_simulator_ttcs() -> None:
         )
     )
 
-    host_0_notPresent = sim.get_node("Host:0:notPresent")
-    host_0_auth = sim.get_node("Host:0:authenticate")
-    host_0_connect = sim.get_node("Host:0:connect")
-    host_0_access = sim.get_node("Host:0:access")
-    host_1_notPresent = sim.get_node("Host:1:notPresent")
-    host_1_auth = sim.get_node("Host:1:authenticate")
-    host_1_connect = sim.get_node("Host:1:connect")
-    host_1_access = sim.get_node("Host:1:access")
-    data_2_notPresent = sim.get_node("Data:2:notPresent")
-    data_2_read = sim.get_node("Data:2:read")
-    data_2_modify = sim.get_node("Data:2:modify")
-    user_3_notPresent = sim.get_node("User:3:notPresent")
-    user_3_compromise = sim.get_node("User:3:compromise")
-    user_3_phishing = sim.get_node("User:3:phishing")
-    network_3_access = sim.get_node("Network:3:access")
+    # host_0_notPresent = sim.get_node("Host:0:notPresent")
+    # host_0_auth = sim.get_node("Host:0:authenticate")
+    # host_0_connect = sim.get_node("Host:0:connect")
+    # host_0_access = sim.get_node("Host:0:access")
+    # host_1_notPresent = sim.get_node("Host:1:notPresent")
+    # host_1_auth = sim.get_node("Host:1:authenticate")
+    # host_1_connect = sim.get_node("Host:1:connect")
+    # host_1_access = sim.get_node("Host:1:access")
+    # data_2_notPresent = sim.get_node("Data:2:notPresent")
+    # data_2_read = sim.get_node("Data:2:read")
+    # data_2_modify = sim.get_node("Data:2:modify")
+    # user_3_notPresent = sim.get_node("User:3:notPresent")
+    # user_3_compromise = sim.get_node("User:3:compromise")
+    # user_3_phishing = sim.get_node("User:3:phishing")
+    # network_3_access = sim.get_node("Network:3:access")
 
-    expected_bernoullis = {
-        host_0_notPresent: math.inf,
-        host_0_auth: 1.0,
-        host_0_connect: 1.0,
-        host_0_access: 1.0,
-        host_1_notPresent: math.inf,
-        host_1_auth: 1.0,
-        host_1_connect: 1.0,
-        host_1_access: 1.0,
-        data_2_notPresent: math.inf,
-        data_2_read: 1.0,
-        data_2_modify: 1.0,
-        user_3_notPresent: math.inf,
-        user_3_compromise: 1.0,
-        user_3_phishing: 1.0,
-        network_3_access: 1.0
-    }
+    # expected_bernoullis = {
+    #     host_0_notPresent: math.inf,
+    #     host_0_auth: 1.0,
+    #     host_0_connect: 1.0,
+    #     host_0_access: 1.0,
+    #     host_1_notPresent: math.inf,
+    #     host_1_auth: 1.0,
+    #     host_1_connect: 1.0,
+    #     host_1_access: 1.0,
+    #     data_2_notPresent: math.inf,
+    #     data_2_read: 1.0,
+    #     data_2_modify: 1.0,
+    #     user_3_notPresent: math.inf,
+    #     user_3_compromise: 1.0,
+    #     user_3_phishing: 1.0,
+    #     network_3_access: 1.0
+    # }
 
     assert not sim._impossible_attack_steps
     assert not sim._enabled_defenses
