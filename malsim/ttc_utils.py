@@ -311,8 +311,7 @@ def _expected_value(probs_dict: dict[str, Any]) -> float:
                 f'function encountered "{probs_dict["name"]}"!')
 
 
-def _ttc_value_from_ttc_dict(
-    node: AttackGraphNode,
+def ttc_value_from_ttc_dict(
     probs_dict: Optional[dict[str, Any]],
     method: ProbCalculationMethod,
     rng: np.random.Generator
@@ -336,8 +335,8 @@ def _ttc_value_from_ttc_dict(
     match(probs_dict['type']):
         case 'addition' | 'subtraction' | 'multiplication' | \
                 'division' | 'exponentiation':
-            lv = _ttc_value_from_ttc_dict(node, probs_dict['lhs'], method, rng)
-            rv = _ttc_value_from_ttc_dict(node, probs_dict['rhs'], method, rng)
+            lv = ttc_value_from_ttc_dict(probs_dict['lhs'], method, rng)
+            rv = ttc_value_from_ttc_dict(probs_dict['rhs'], method, rng)
             match(probs_dict['type']):
                 case 'addition':
                     return lv + rv
@@ -376,15 +375,16 @@ def ttc_value_from_node(
 ) -> float:
     """Return a value (sampled or expected) from a nodes ttc distribution"""
     ttc_dict = get_ttc_dict(node)
-    return _ttc_value_from_ttc_dict(node, ttc_dict, method, rng)
+    return ttc_value_from_ttc_dict(ttc_dict, method, rng)
 
 
 ### SANDOR TTC IMPLEMENTATION
 
 def attempt_step_ttc(
-    node: AttackGraphNode,
+    node_or_ttc_dict: AttackGraphNode,
     step_working_time: int,
-    rng: Optional[np.random.Generator] = None
+    rng: Optional[np.random.Generator] = None,
+    overriding_ttc_dict: Optional[dict] = None
 ) -> bool:
     """
     Attempt to compromise a step by sampling a success probability
@@ -393,8 +393,13 @@ def attempt_step_ttc(
     if not rng:
         rng = np.random.default_rng()
 
+    ttc_distribution = (
+        node_or_ttc_dict.ttc
+        if isinstance(node_or_ttc_dict, AttackGraphNode)
+        else node_or_ttc_dict
+    )
     success_prob = (
-        _get_time_distribution(node.ttc)
+        _get_time_distribution(ttc_distribution)
         .success_probability(step_working_time)
     )
     return success_prob > rng.random()
