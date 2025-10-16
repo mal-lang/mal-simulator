@@ -1,5 +1,4 @@
 """Unit tests for the probabilities utilities module"""
-
 import numpy as np
 
 from maltoolbox.model import Model
@@ -11,6 +10,7 @@ from malsim.ttc_utils import (
     ProbCalculationMethod,
     predef_ttcs,
     get_ttc_dict,
+    attempt_node_bernoulli
 )
 from .conftest import path_testdata
 
@@ -35,7 +35,6 @@ def test_probs_utils(model: Model) -> None:
         ttc_value_from_node(
             node,
             ProbCalculationMethod.SAMPLE,
-            {},
             np.random.default_rng(10)
         )
 
@@ -44,9 +43,25 @@ def test_probs_utils(model: Model) -> None:
         ttc_value_from_node(
             node,
             ProbCalculationMethod.EXPECTED,
-            {},
             np.random.default_rng(10)
         )
+
+
+def test_bernoulli(model: Model) -> None:
+    """Test bernoulli calculation for nodes"""
+
+    attack_graph = AttackGraph(model.lang_graph, model)
+    uncertain_step = attack_graph.get_node_by_full_name('IDPS 1:bypassContainerization')
+    assert uncertain_step
+    rng = np.random.default_rng(10)
+
+    bernoulli_samples = (
+        attempt_node_bernoulli(uncertain_step, rng) for _ in range(10)
+    )
+    # A step will give True
+    assert True in bernoulli_samples
+    # But it should also give False since it is uncertain
+    assert False in bernoulli_samples
 
 
 def test_get_ttc_dict_defenses(corelang_lang_graph: LanguageGraph) -> None:

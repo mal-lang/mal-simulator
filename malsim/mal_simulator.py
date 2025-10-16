@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
-import math
 from enum import Enum
 from typing import Any, Optional, TYPE_CHECKING
 from collections.abc import Set
@@ -18,6 +17,7 @@ from maltoolbox.attackgraph import (
 from malsim.ttc_utils import (
     attempt_step_ttc,
     ttc_value_from_node,
+    attempt_node_bernoulli,
     ProbCalculationMethod,
 )
 
@@ -247,14 +247,17 @@ class MalSimulator():
         # Keep track on all 'living' agents sorted by order to step in
         self._alive_agents: set[str] = set()
 
-        self._calculated_bernoullis: dict[AttackGraphNode, float] = {}
+        # TTC (Time to compromise) for each attack step
+        # will only be set if TTCMode PRE_SAMLE/EXPECTED_VALUE is used
         self._ttc_values = self._attack_step_ttcs()
 
         # Do initial calculations
         if self.sim_settings.run_defense_step_bernoullis:
+            # These steps will be enabled from the start of the simulation
             self._enabled_defenses = self._get_pre_enabled_defenses()
 
         if self.sim_settings.run_attack_step_bernoullis:
+            # These steps will not be traversable
             self._impossible_attack_steps = (
                 self._get_impossible_attack_steps()
             )
@@ -412,9 +415,7 @@ class MalSimulator():
         return False
 
     def node_is_traversable(
-            self,
-            performed_nodes: Set[AttackGraphNode],
-            node: AttackGraphNode
+            self, performed_nodes: Set[AttackGraphNode], node: AttackGraphNode
         ) -> bool:
         """
         Return True or False depending if the node specified is traversable
@@ -426,8 +427,10 @@ class MalSimulator():
           compromised
 
         Arguments:
-        node        - the node we wish to evalute
+        performed_nodes - the nodes we assume are compromised in this evaluation
+        node            - the node we wish to evalute traversability for
         """
+
         if not self.node_is_viable(node):
             return False
 
@@ -500,7 +503,6 @@ class MalSimulator():
         logger.info("Resetting MAL Simulator.")
 
         # Reset nodes
-        self._calculated_bernoullis.clear()
         self._enabled_defenses = set()
         self._agent_rewards = {}
         self._ttc_values = self._attack_step_ttcs()
@@ -539,25 +541,15 @@ class MalSimulator():
         """
         ttc_values = {}
         for node in self.attack_graph.attack_steps:
-
-            if node.type not in ('or', 'and'):
-                continue
-
             match(self.sim_settings.ttc_mode):
                 case TTCMode.EXPECTED_VALUE:
                     ttc_values[node] = ttc_value_from_node(
-                        node,
-                        ProbCalculationMethod.EXPECTED,
-                        self._calculated_bernoullis,
-                        self.rng
+                        node, ProbCalculationMethod.EXPECTED, self.rng
                     )
                 case TTCMode.PRE_SAMPLE:
                     # Otherwise sample
                     ttc_values[node] = ttc_value_from_node(
-                        node,
-                        ProbCalculationMethod.SAMPLE,
-                        self._calculated_bernoullis,
-                        self.rng
+                        node, ProbCalculationMethod.SAMPLE, self.rng
                     )
 
         return ttc_values
@@ -570,13 +562,7 @@ class MalSimulator():
         pre_enabled_defenses = set()
         for node in self.attack_graph.defense_steps:
             if node.type == 'defense':
-                ttc_value = ttc_value_from_node(
-                    node,
-                    ProbCalculationMethod.SAMPLE,
-                    self._calculated_bernoullis,
-                    self.rng
-                )
-                if ttc_value != math.inf:
+                if attempt_node_bernoulli(node, self.rng):
                     pre_enabled_defenses.add(node)
         return pre_enabled_defenses
 
@@ -588,15 +574,8 @@ class MalSimulator():
         impossible_attack_steps = set()
 
         for node in self.attack_graph.attack_steps:
-            ttc_value = ttc_value_from_node(
-                node,
-                ProbCalculationMethod.SAMPLE,
-                self._calculated_bernoullis,
-                self.rng
-            )
-            if ttc_value == math.inf:
+            if not attempt_node_bernoulli(node, self.rng):
                 impossible_attack_steps.add(node)
-
         return impossible_attack_steps
 
     def _get_defense_surface(self) -> set[AttackGraphNode]:
@@ -984,17 +963,12 @@ class MalSimulator():
 
         if self.sim_settings.ttc_mode == TTCMode.EFFORT_BASED_PER_STEP_SAMPLE:
             # Run trial to decide success if config says so (SANDOR mode)
-            return attempt_step_ttc(
-                node, num_attempts, self.rng
-            )
+            return attempt_step_ttc(node, num_attempts, self.rng)
 
         if self.sim_settings.ttc_mode == TTCMode.PER_STEP_SAMPLE:
             # Sample ttc value every time if config says so (ANDREI mode)
             node_ttc_value = ttc_value_from_node(
-                node,
-                ProbCalculationMethod.SAMPLE,
-                self._calculated_bernoullis,
-                self.rng
+                node, ProbCalculationMethod.SAMPLE, self.rng
             )
             return node_ttc_value <= 1
 
