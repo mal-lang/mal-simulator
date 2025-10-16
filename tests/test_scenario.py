@@ -4,8 +4,10 @@ import os
 import pytest
 from typing import Any
 
+from maltoolbox.model import Model
 from maltoolbox.attackgraph import create_attack_graph
 from malsim.scenario import (
+    Scenario,
     apply_scenario_node_property,
     load_scenario,
     _validate_scenario_node_property_config
@@ -29,7 +31,7 @@ def test_load_scenario() -> None:
 
 
     # Load the scenario
-    scenario = load_scenario(
+    scenario = Scenario.load_from_file(
         path_relative_to_tests('./testdata/scenarios/simple_scenario.yml')
     )
 
@@ -57,6 +59,57 @@ def test_load_scenario() -> None:
 
     assert isinstance(scenario.agents[0]['agent'], BreadthFirstAttacker)
     assert isinstance(scenario.agents[1]['agent'], PassiveAgent)
+
+
+def test_save_scenario(model: Model) -> None:
+    """Make sure we can load and save a scenario"""
+
+    # Load the scenario
+    scenario = Scenario(
+        lang_file=path_relative_to_tests("testdata/langs/org.mal-lang.coreLang-1.0.0.mar"),
+        model=model,
+        rewards={
+            'by_asset_type': {
+                'Application': {
+                    'fullAccess': 1000
+                }
+            }
+        },
+        false_negative_rates={
+            'by_asset_type': {
+                'Application': {
+                    'fullAccess': 0.1
+                }
+            }
+        },
+        false_positive_rates={
+            'by_asset_type': {
+                'Application': {
+                    'fullAccess': 0.2
+                }
+            }
+        },
+        is_actionable={
+            'by_asset_type': {
+                'Application': ['fullAccess']
+            }
+        },
+        is_observable={
+            'by_asset_type': {
+                'Application': ['fullAccess']
+            }
+        },
+        agents={
+            'Attacker1': {
+                'type': 'attacker',
+                'entry_points': [],
+            }
+        }
+    )
+    save_path = '/tmp/saved_scenario.yml'
+    scenario.save_to_file(save_path)
+    loaded_scenario = Scenario.load_from_file(save_path)
+    assert loaded_scenario.to_dict() == scenario.to_dict()
 
 
 def test_extend_scenario() -> None:

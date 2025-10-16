@@ -148,21 +148,30 @@ class Scenario:
         self._agents_dict = agents
         self.agents = load_simulator_agents(self.attack_graph, agents)
 
+        self._rewards_dict = rewards
         self.rewards = apply_scenario_node_property(
             self.attack_graph, rewards or {}
         )
         self.false_positive_rates = apply_scenario_node_property(
             self.attack_graph, false_positive_rates or {}
         )
+        self._fpr_dict = false_positive_rates
+
         self.false_negative_rates = apply_scenario_node_property(
             self.attack_graph, false_negative_rates or {}
         )
+        self._fnr_dict = false_negative_rates
+
         self.is_observable = apply_scenario_node_property(
             self.attack_graph, is_observable or {}, default_value=False
         )
+        self._is_observable_dict = is_observable
+
         self.is_actionable = apply_scenario_node_property(
             self.attack_graph, is_actionable or {}, default_value=False
         )
+        self._is_actionable_dict = is_actionable
+
 
     def to_dict(self) -> dict[str, Any]:
         assert self._lang_file, "Can not save scenario to file if lang file was not given"
@@ -170,13 +179,18 @@ class Scenario:
             # 'version': ?
             'lang_file': self._lang_file,
             'agents': self._agents_dict,
-            'rewards': {},
-            'false_positive_rates': {},
-            'false_negative_rates': {},
-            'is_observable': {},
-            'is_actionable': {}
         }
 
+        if self._rewards_dict:
+            scenario_dict['rewards'] = self._rewards_dict
+        if self._fpr_dict:
+            scenario_dict['false_positive_rates'] = self._fpr_dict
+        if self._fnr_dict:
+            scenario_dict['false_negative_rates'] = self._fnr_dict
+        if self._is_observable_dict:
+            scenario_dict['observable_steps'] = self._is_observable_dict
+        if self._is_actionable_dict:
+            scenario_dict['actionable_steps'] = self._is_actionable_dict
         if self._model_file:
             scenario_dict['model_file'] = self._model_file
         elif self.model:
