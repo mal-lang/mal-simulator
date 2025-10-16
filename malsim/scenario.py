@@ -566,7 +566,7 @@ def load_scenario_dict(scenario_file: str) -> dict[str, Any]:
 def load_scenario(scenario_file: str) -> Scenario:
     """Load a Scenario from a scenario file"""
     msg = (
-        "'load_scenario' will be deprecated in mal-simulator 1.1.0, "
+        "'load_scenario' will be deprecated in mal-simulator 2.0.0, "
         "please use Scenario.load_from_file"
     )
     print(msg)
