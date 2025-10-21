@@ -477,28 +477,28 @@ This is to match the  https://github.com/mal-lang/malcompiler/wiki/Supported-dis
 
 ## Node properties in the MAL Simulator
 
-To implement MAL logic, a few properties have been added to nodes the simulator.
+To implement the MAL logic, a few additional properties have been added to nodes in the MAL simulator.
 
 ### Viability
 
-We want to find out which attack steps are possible to get to in the attack graph. To do that we calculate viability. To get the viability of an attack step, we look at its parents viability.
-Some attack step have `defense`/`exist`/`notExist` steps as parents. The viability of `defenses`/`exist`/`notExist` step is determined by whether they are enabled/have their conditions met or not.
-In this way the viability propagates from `defenses`/`exist`/`notExist` steps to attack steps and tells us if the attack steps are viable based on current `defense`/`exists`/`notExist` statuses.
+We want to determine which attack steps are possible to compromise in the attack graph with respect to the state of `defense`/`exist`/`notExist` steps. We call that property viability. To get the viability of an attack step, we look at its parents viability.
+Some attack steps have `defense`/`exist`/`notExist` steps as parents. The viability of those steps is determined by whether they are enabled/have their conditions met or not.
+In this way the viability propagates from `defense`/`exist`/`notExist` steps to attack steps and indicates whether the attack steps are viable based on current `defense`/`exists`/`notExist` statuses.
 
 [See implementation](https://github.com/mal-lang/mal-simulator/blob/0144efd78d78b606ab25c74a73675e00dafd4887/malsim/graph_processing.py#L147)
 
 Attack steps:
-- Viability on attack steps represents whether an it is possible to compromise at all based on its parents.
+- Viability on attack steps represents whether it is possible to compromise with respect to the state of the attack graphs `defense`/`exist`/`notExist` steps.
   - An `AND`-step is viable if all of its (necessary) parents are viable. Otherwise it is unviable.
   - An `OR`-step is viable if any of its parents are viable. Otherwise it is unviable.
-  - An attack step with an uncertain TTC (which means it includes a Bernoulli distribution) is unviable if its Bernoulli sampling 'fails' (optional with setting `run_attack_step_bernoullis`).
+  - An attack step with an uncertain TTC (i.e. it includes a Bernoulli distribution) is unviable if its Bernoulli sampling 'fails' (optional with setting `run_attack_step_bernoullis`).
 
-- Viability on defense steps represents if they are enabled or not and is used to propagate viability to its children attack steps.
+- Viability on defense steps represents whether they are enabled or not and is used to propagate viability to their child attack steps.
   - A disabled `defense` step is viable (which means it is not making any of its children unviable)
   - An enabled `defense` step is unviable (which means it makes its AND-children unviable)
-  - A `defense` step can be pre enabled based on its TTC (optional with setting `run_defense_step_bernoullis`)
+  - A `defense` step can be pre-enabled based on its TTC (optional with setting `run_defense_step_bernoullis`)
 
-- Viability on `exist`/`notExist` steps are also used to propagate viability to its children.
+- Viability on `exist`/`notExist` steps is also used to propagate viability to its children.
   - if an `exist` step has any of its requirements met it is viable. It will be unviable if
 none of its requirements are present.
   - if a `notExist` step has any of its requirements met it is not viable. It will be viable
@@ -507,15 +507,15 @@ if none of its requirements are present.
 
 ### Necessity
 
-We want to know if an attacker needs to compromise an (`OR`/`AND`) attack step to progress (to its children). This concept is called necessity.
+We want to know whether an attacker needs to compromise an (`OR`/`AND`) attack step to progress (to its children). This concept is called necessity.
 
 [See implementation](https://github.com/mal-lang/mal-simulator/blob/0144efd78d78b606ab25c74a73675e00dafd4887/malsim/graph_processing.py#L52)
 
-Why are not just all nodes necessary?
+Why are not all nodes necessary?
 
-**Answer**: To be able to have structures in the attack graph where steps are required in some but not all conditions.
+**Answer**: To allow structures in the attack graph where steps are required in some but not all conditions.
 
-**Example**: If you have encrypted data, you need to first decrypt them in order to access them. However, if they’re not encrypted you can just access the data directly, meaning that the decryption step is unnecessary
+**Example**: If you have encrypted data, you must first decrypt them in order to access them. However, if they’re not encrypted you can access the data directly, meaning that the decryption step is unnecessary
 
 Attack steps:
   - An `OR`-step with all of parents necessary is necessary. If not all parents are necessary, the `OR`-node is unnecessary.
@@ -525,10 +525,10 @@ Attack steps:
   - Enabled -> Necessary, Disabled -> Unnecessary
 
 `exist` steps:
-  - If an exist step has none of its requirements met it is necessary, otherwise unnecessary.
+  - Necessary if it has none of its requirements met, otherwise unnecessary.
 
 `notExist` steps:
-  - If a notExist step has any of its requirements met it is necessary, otherwise unnecessary.
+  - Necessary if it has any of its requirements met, otherwise unnecessary.
 
 Note: You can decide to ignore these rules effect on attack surfaces with settings:
 
@@ -540,13 +540,13 @@ A node becomes compromised by an attacker if:
 1. The node is set as an entrypoint for the attacker.
 2. The node is traversable for an attacker and the attacker decides to compromise it.
 
-If TTCs are enabled, the compromise might take several attempts.
+If TTCs are enabled, the compromise might require several attempts.
 
 ### Traversability
 
 [Implementation](https://github.com/mal-lang/mal-simulator/blob/0144efd78d78b606ab25c74a73675e00dafd4887/malsim/mal_simulator.py#L417)
 
-Traversability is a per attacker node-property. Based on an attackers previously compromised nodes, an additional node is traversable iff:
+Traversability is a per-attacker node property. Based on an attackers previously compromised nodes, an additional node is traversable iff:
 1. The node is viable
 2. If node is type OR, at least one of its parents must be reached
 3. If node is type AND, all of its necessary parents must be reached
@@ -557,11 +557,11 @@ If these are not true, the node is not traversable.
 
 Actionability/observability are two additional options a node can have, and can be set in a scenario.
 
-It does not affect viability or necessity, but can be seen as a filter.
+They do not affect viability or necessity, but act as a filter.
 
-Observability means that a node is observed by a defender if it is compromised. Being observed in this case means that it is added to the `MalSimDefenderState.observed_nodes`.
+Observability means that a node is observed by a defender when it is compromised. Being observed in this case means it is added to the `MalSimDefenderState.observed_nodes`.
 
-Actionability currently has no impact in the base simulator, but is used in Vejde MALSIM where it makes it so a certain type of attack step can be used as an action by agents or not.
+Actionability currently has no impact in the base simulator, but is used in Vejde MALSIM it controls whether a certain type of attack step can be used as an action by agents or not.
 
 
 ## GUI (slightly experimental)
