@@ -481,9 +481,9 @@ To implement MAL logic, a few properties have been added to nodes the simulator.
 
 ### Viability
 
-We want to find out which attack steps are reachable in the attack graph. To do that we calculate viability. To get the viability of an attack step, we look at its parents viability.
+We want to find out which attack steps are possible to get to in the attack graph. To do that we calculate viability. To get the viability of an attack step, we look at its parents viability.
 Some attack step have `defense`/`exist`/`notExist` steps as parents. The viability of `defenses`/`exist`/`notExist` step is determined by whether they are enabled/have their conditions met or not.
-In this way the viability propagates from `defenses`/`exist`/`notExist` steps to attack steps and tells us if the attack steps are viable.
+In this way the viability propagates from `defenses`/`exist`/`notExist` steps to attack steps and tells us if the attack steps are viable based on current `defense`/`exists`/`notExist` statuses.
 
 [See implementation](https://github.com/mal-lang/mal-simulator/blob/0144efd78d78b606ab25c74a73675e00dafd4887/malsim/graph_processing.py#L147)
 
@@ -513,7 +513,7 @@ We want to know if an attacker needs to compromise an (`OR`/`AND`) attack step t
 
 Why are not just all nodes necessary?
 
-**Answer**: To be able to have structures in the attack graph where steps are required in some conditions, but not in other conditions.
+**Answer**: To be able to have structures in the attack graph where steps are required in some but not all conditions.
 
 **Example**: If you have encrypted data, you need to first decrypt them in order to access them. However, if they’re not encrypted you can just access the data directly, meaning that the decryption step is unnecessary
 
@@ -532,10 +532,15 @@ Attack steps:
 
 Note: You can decide to ignore these rules effect on attack surfaces with settings:
 
-- `attack_surface_skip_compromised`
-- `attack_surface_skip_unviable`
 - `attack_surface_skip_unnecessary`
 
+### Compromised
+
+A node becomes compromised by an attacker if:
+1. The node is set as an entrypoint for the attacker.
+2. The node is traversable for an attacker and the attacker decides to compromise it.
+
+If TTCs are enabled, the compromise might take several attempts.
 
 ### Traversability
 
