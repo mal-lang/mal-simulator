@@ -468,12 +468,45 @@ In the MalSimulator, TTCs can be used in different ways (set through malsim sett
 5. DISABLED (default)
   - Don't use TTCs, all attack steps are compromised on the agents first attempt (as long as they are allowed to)
 
-#### Bernoullis in attack steps
+### Bernoullis in attack steps
 
 If an attack step has a Bernoulli in its TTC, it will be sampled at the start of the simulation.
 If the Bernoulli does not succeed, the step will not be compromisable.
 
 This is to match the  https://github.com/mal-lang/malcompiler/wiki/Supported-distribution-functions#bernoulli-behaviour
+
+## Node properties in the MAL Simulator
+
+To implement MAL logic, a few properties have been added to nodes the simulator.
+
+### Viability
+
+We want to find out which attack steps are reachable in the attack graph. To do that we calculate viability. To get the viability of an attack step, we look at its parents viability.
+Some attack step have `defense`/`exist`/`notExist` steps as parents. The viability of `defenses`/`exist`/`notExist` step is determined by whether they are enabled/have their conditions met or not.
+In this way the viability propagates from `defenses`/`exist`/`notExist` steps to attack steps and tells us if the attack steps are viable.
+
+Attack steps:
+- Viability on attack steps represents whether an it is possible to compromise at all based on its parents.
+  - An `AND`-step is viable if all of its parents are viable. Otherwise it is unviable.
+  - An `OR`-step is viable if any of its parents are viable. Otherwise it is unviable.
+  - An attack step with an uncertain TTC (which means it includes a Bernoulli distribution) is unviable if its Bernoulli sampling 'fails' (optional with setting `run_attack_step_bernoullis`).
+
+- Viability on defense steps represents if they are enabled or not and is used to propagate viability to its children attack steps.
+  - A disabled `defense` step is viable (which means it is not making any of its children unviable)
+  - An enabled `defense` step is unviable (which means it makes its AND-children unviable)
+  - A `defense` step can be pre enabled based on its TTC (optional with setting `run_defense_step_bernoullis`)
+
+- Viability on `exist`/`notExist` steps are also used to propagate viability to its children.
+  - if an `exist` step has any of its requirements met it is viable. It will be unviable if
+none of its requirements are present.
+  - if a `notExist` step has any of its requirements met it is not viable. It will be viable
+if none of its requirements are present.
+
+
+### Necessity
+
+### Traversability
+
 
 ## GUI (slightly experimental)
 
