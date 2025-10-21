@@ -485,6 +485,8 @@ We want to find out which attack steps are reachable in the attack graph. To do 
 Some attack step have `defense`/`exist`/`notExist` steps as parents. The viability of `defenses`/`exist`/`notExist` step is determined by whether they are enabled/have their conditions met or not.
 In this way the viability propagates from `defenses`/`exist`/`notExist` steps to attack steps and tells us if the attack steps are viable.
 
+[See implementation](https://github.com/mal-lang/mal-simulator/blob/0144efd78d78b606ab25c74a73675e00dafd4887/malsim/graph_processing.py#L147)
+
 Attack steps:
 - Viability on attack steps represents whether an it is possible to compromise at all based on its parents.
   - An `AND`-step is viable if all of its (necessary) parents are viable. Otherwise it is unviable.
@@ -506,6 +508,8 @@ if none of its requirements are present.
 ### Necessity
 
 We want to know if an attacker needs to compromise an (`OR`/`AND`) attack step to progress (to its children). This concept is called necessity.
+
+[See implementation](https://github.com/mal-lang/mal-simulator/blob/0144efd78d78b606ab25c74a73675e00dafd4887/malsim/graph_processing.py#L52)
 
 Why are not just all nodes necessary?
 
@@ -534,6 +538,25 @@ Note: You can decide to ignore these rules effect on attack surfaces with settin
 
 
 ### Traversability
+
+[Implementation](https://github.com/mal-lang/mal-simulator/blob/0144efd78d78b606ab25c74a73675e00dafd4887/malsim/mal_simulator.py#L417)
+
+Traversability is a per attacker node-property. Based on an attackers previously compromised nodes, an additional node is traversable iff:
+1. The node is viable
+2. If node is type OR, at least one of its parents must be reached
+3. If node is type AND, all of its necessary parents must be reached
+
+If these are not true, the node is not traversable.
+
+### Actionability / Observability
+
+Actionability/observability are two additional options a node can have, and can be set in a scenario.
+
+It does not affect viability or necessity, but can be seen as a filter.
+
+Observability means that a node is observed by a defender if it is compromised. Being observed in this case means that it is added to the `MalSimDefenderState.observed_nodes`.
+
+Actionability currently has no impact in the base simulator, but is used in Vejde MALSIM where it makes it so a certain type of attack step can be used as an action by agents or not.
 
 
 ## GUI (slightly experimental)
