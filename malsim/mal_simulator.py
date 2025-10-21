@@ -167,10 +167,6 @@ class MalSimulatorSettings():
     attacker_reward_mode: RewardMode = RewardMode.CUMULATIVE
     defender_reward_mode: RewardMode = RewardMode.CUMULATIVE
 
-    # False positives / negatives for defender agents observation
-    enable_false_positives: bool = False
-    enable_false_negatives: bool = False
-
     @property
     def infinity_ttc_attack_step_unviable(self) -> None:
         raise DeprecationWarning(
@@ -725,15 +721,11 @@ class MalSimulator():
 
     def _false_negative(self, node: AttackGraphNode) -> bool:
         """Decide if a node that was compromised is a false negative"""
-        if not self.sim_settings.enable_false_negatives:
-            return False
         fnr: float = self._false_negative_rates.get(node, 0.0)
         return self.rng.random() < fnr
 
     def _false_positive(self, node: AttackGraphNode) -> bool:
         """Decide if a node that was not compromised is a false positive"""
-        if not self.sim_settings.enable_false_positives:
-            return False
         fpr: float = self._false_positive_rates.get(node, 0.0)
         return self.rng.random() < fpr
 
@@ -748,7 +740,7 @@ class MalSimulator():
     def _generate_false_positives(self) -> set[AttackGraphNode]:
         """Return a set of false positive attack steps from attack graph"""
         return set(
-            node for node in self.attack_graph.attack_steps
+            node for node in self._false_positive_rates.keys()
             if self._false_positive(node)
         )
 
@@ -789,11 +781,11 @@ class MalSimulator():
         )
         false_negatives = (
             self._generate_false_negatives(compromised_nodes)
-            if self.sim_settings.enable_false_negatives else set()
+            if self._false_negative_rates else set()
         )
         false_positives = (
             self._generate_false_positives()
-            if self.sim_settings.enable_false_positives else set()
+            if self._false_positive_rates else set()
         )
 
         observed_nodes = (observable_nodes - false_negatives) | false_positives
