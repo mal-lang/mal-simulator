@@ -487,7 +487,7 @@ In this way the viability propagates from `defenses`/`exist`/`notExist` steps to
 
 Attack steps:
 - Viability on attack steps represents whether an it is possible to compromise at all based on its parents.
-  - An `AND`-step is viable if all of its parents are viable. Otherwise it is unviable.
+  - An `AND`-step is viable if all of its (necessary) parents are viable. Otherwise it is unviable.
   - An `OR`-step is viable if any of its parents are viable. Otherwise it is unviable.
   - An attack step with an uncertain TTC (which means it includes a Bernoulli distribution) is unviable if its Bernoulli sampling 'fails' (optional with setting `run_attack_step_bernoullis`).
 
@@ -504,6 +504,34 @@ if none of its requirements are present.
 
 
 ### Necessity
+
+We want to know if an attacker needs to compromise an (`OR`/`AND`) attack step to progress (to its children). This concept is called necessity.
+
+Why are not just all nodes necessary?
+
+**Answer**: To be able to have structures in the attack graph where steps are required in some conditions, but not in other conditions.
+
+**Example**: If you have encrypted data, you need to first decrypt them in order to access them. However, if they’re not encrypted you can just access the data directly, meaning that the decryption step is unnecessary
+
+Attack steps:
+  - An `OR`-step with all of parents necessary is necessary. If not all parents are necessary, the `OR`-node is unnecessary.
+  - An `AND`-step with any parent necessary is necessary. If no parents are necessary the `AND`-node is unnecessary.
+
+`defense` steps:
+  - Enabled -> Necessary, Disabled -> Unnecessary
+
+`exist` steps:
+  - If an exist step has none of its requirements met it is necessary, otherwise unnecessary.
+
+`notExist` steps:
+  - If a notExist step has any of its requirements met it is necessary, otherwise unnecessary.
+
+Note: You can decide to ignore these rules effect on attack surfaces with settings:
+
+- `attack_surface_skip_compromised`
+- `attack_surface_skip_unviable`
+- `attack_surface_skip_unnecessary`
+
 
 ### Traversability
 
