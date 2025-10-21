@@ -42,8 +42,6 @@ settings = MalSimulatorSettings(
     run_defense_step_bernoullis: bool = True
     attacker_reward_mode: RewardMode = RewardMode.CUMULATIVE
     defender_reward_mode: RewardMode = RewardMode.CUMULATIVE
-    enable_false_positives: bool = False
-    enable_false_negatives: bool = False
 )
 sim = MalSimulator(attack_graph, sim_settings=settings, ...)
 

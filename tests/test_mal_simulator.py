@@ -709,10 +709,11 @@ def test_simulator_false_positives() -> None:
         'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
     )
 
+    scenario.false_negative_rates = {}
+
     sim = MalSimulator.from_scenario(
         scenario, sim_settings=MalSimulatorSettings(
-            enable_false_positives=True,
-            seed=100
+            seed=30
         ), max_iter=100
     )
     run_simulation(sim, scenario.agents)
@@ -733,9 +734,10 @@ def test_simulator_false_negatives() -> None:
         'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
     )
 
+    scenario.false_positive_rates = {}
+
     sim = MalSimulator.from_scenario(
         scenario, sim_settings=MalSimulatorSettings(
-            enable_false_negatives=True,
             seed=100
         ), max_iter=100
     )
