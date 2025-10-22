@@ -976,15 +976,20 @@ def test_simulator_seed_setting() -> None:
     ttcs = []
     for _ in range(1000):
         state = sim.reset()["Attacker1"]
-        state = sim.step({"Attacker1": [sim.attack_graph.get_node_by_full_name("Human:successfulSocialEngineering")]})["Attacker1"]
-        state = sim.step({"Attacker1": [sim.attack_graph.get_node_by_full_name("Human:socialEngineering")]})["Attacker1"]
+        node = sim.attack_graph.get_node_by_full_name("Human:successfulSocialEngineering")
+        assert node in state.action_surface
+        state = sim.step({"Attacker1": [node]})["Attacker1"]
+        node = sim.attack_graph.get_node_by_full_name("Human:socialEngineering")
+        assert node in state.action_surface
+        state = sim.step({"Attacker1": [node]})["Attacker1"]
         node = sim.attack_graph.get_node_by_full_name("Human:unsafeUserActivity")
+        assert node in state.action_surface
         i = 0
         while node in state.action_surface:
             state = sim.step({"Attacker1": [node]})["Attacker1"]
             i += 1
         ttcs.append(i)
 
-    ttcs = np.array(ttcs)
-    variance = ttcs.var()
+    ttc_array = np.array(ttcs)
+    variance = ttc_array.var()
     assert variance > 0, "Variance is 0, which means the TTCs are not random"
