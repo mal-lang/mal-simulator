@@ -481,7 +481,7 @@ To implement the MAL logic, a few additional properties have been added to nodes
 
 ### Viability
 
-We want to determine which attack steps are possible to compromise in the attack graph with respect to the state of `defense`/`exist`/`notExist` steps. We call that property viability. To get the viability of an attack step, we look at its parents viability.
+We want to determine which attack steps are possible to compromise in the attack graph with respect to the state of `defense`/`exist`/`notExist` steps. We call that property viability. To get the viability of an attack step, we look at its parents' viability.
 Some attack steps have `defense`/`exist`/`notExist` steps as parents. The viability of those steps is determined by whether they are enabled/have their conditions met or not.
 In this way the viability propagates from `defense`/`exist`/`notExist` steps to attack steps and indicates whether the attack steps are viable based on current `defense`/`exists`/`notExist` statuses.
 
