@@ -454,7 +454,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     sim.register_defender(defender_name)
 
     # Evaluate the agent state views after reset
-    state_views = sim.reset()
+    state_views = sim.agent_states
     entry_point = get_node(attack_graph, 'OS App:fullAccess')
 
     pre_enabled_defenses = set(sim._enabled_defenses)
@@ -625,7 +625,7 @@ def test_step_attacker_defender_action_surface_updates() -> None:
     )
     sim.register_defender(defender_agent_id)
 
-    states = sim.reset()
+    states = sim.agent_states
 
     attacker_agent = states[attacker_agent_id]
     defender_agent = states[defender_agent_id]
@@ -666,13 +666,9 @@ def test_default_simulator_default_settings_eviction() -> None:
     )
     sim = MalSimulator.from_scenario(scenario)
 
-    # Register the agents
     attacker_agent_id = "Attacker1"
     defender_agent_id = "Defender1"
 
-    # sim.register_attacker(attacker_agent_id, set())
-    # sim.register_defender(defender_agent_id)
-    sim.reset()
     attacker_agent = sim.agent_states[attacker_agent_id]
     defender_agent = sim.agent_states[defender_agent_id]
 
