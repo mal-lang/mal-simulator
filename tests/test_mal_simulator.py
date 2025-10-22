@@ -995,7 +995,7 @@ def test_simulator_seed_setting() -> None:
     variance = ttc_array.var()
     assert variance > 0, "Variance is 0, which means the TTCs are not random"
 
-def test_settings_serialization():
+def test_settings_serialization() -> None:
     """Test that the settings serialization works"""
     settings = MalSimulatorSettings(
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
