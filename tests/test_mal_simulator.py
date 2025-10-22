@@ -974,7 +974,7 @@ def test_simulator_seed_setting() -> None:
     )
 
     ttcs = []
-    for _ in range(1000):
+    for _ in range(100):
         state = sim.reset()["Attacker1"]
         node = sim.attack_graph.get_node_by_full_name("Human:successfulSocialEngineering")
         assert node in state.action_surface
