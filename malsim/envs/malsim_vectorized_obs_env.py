@@ -505,7 +505,7 @@ class MalSimVectorizedObsEnv(ParallelEnv): # type: ignore
 
         if seed is not None:
             self.sim.sim_settings.seed = seed
-        self.sim.reset(options=options)
+        self.sim.reset()
         self.attack_graph = self.sim.attack_graph # new ref
         assert self.attack_graph.model, (
             "Attack graph in simulator needs to have a model attached to it"

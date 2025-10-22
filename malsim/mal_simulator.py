@@ -490,9 +490,7 @@ class MalSimulator():
         else:
             raise TypeError(f"Unknown agent state for {agent_name}")
 
-    def reset(
-        self, options: Optional[dict[str, Any]] = None
-    ) -> dict[str, MalSimAgentState]:
+    def reset(self) -> dict[str, MalSimAgentState]:
         """Reset attack graph, iteration and reinitialize agents"""
 
         logger.info("Resetting MAL Simulator.")
