@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import logging
 from enum import Enum
 from typing import Any, Optional, TYPE_CHECKING
-from collections.abc import Set
+from collections.abc import Set, Mapping
 from types import MappingProxyType # For immutable dict
 
 from numpy.random import default_rng
@@ -18,6 +18,7 @@ from malsim.ttc_utils import (
     attempt_step_ttc,
     ttc_value_from_node,
     attempt_node_bernoulli,
+    ttc_value_from_ttc_dict,
     ProbCalculationMethod,
 )
 
@@ -87,8 +88,18 @@ class MalSimAttackerState(MalSimAgentState):
     # Steps attempted but not succeeded (because of TTC value)
     step_attempted_nodes: frozenset[AttackGraphNode]
 
+    # TTC distributions that override TTCs set in language
+    ttc_overrides: MappingProxyType[AttackGraphNode, str]
+
+    # Only used if `ttc_overrides` is set
+    ttc_value_overrides: MappingProxyType[AttackGraphNode, float]
+
+    # Only used if `ttc_overrides` is set
+    impossible_steps_overrides: frozenset[AttackGraphNode]
+
     # Goals affect simulation termination but is optional
     goals: Optional[frozenset[AttackGraphNode]] = None
+
 
 @dataclass(frozen=True)
 class MalSimDefenderState(MalSimAgentState):
@@ -245,7 +256,7 @@ class MalSimulator():
 
         # TTC (Time to compromise) for each attack step
         # will only be set if TTCMode PRE_SAMLE/EXPECTED_VALUE is used
-        self._ttc_values = self._attack_step_ttcs()
+        self._ttc_values = self._attack_step_ttcs(self.attack_graph.attack_steps)
 
         # Do initial calculations
         if self.sim_settings.run_defense_step_bernoullis:
@@ -349,7 +360,7 @@ class MalSimulator():
         ]
 
     def _full_name_dict_to_node_dict(
-        self, actions: dict[str, Any] | dict[AttackGraphNode, Any]
+        self, actions: Mapping[str, Any] | Mapping[AttackGraphNode, Any]
     ) -> dict[AttackGraphNode, Any]:
         """
         Convert dict keyed by AttackGraphNodes or full names
@@ -498,7 +509,7 @@ class MalSimulator():
         # Reset nodes
         self._enabled_defenses = set()
         self._agent_rewards = {}
-        self._ttc_values = self._attack_step_ttcs()
+        self._ttc_values = self._attack_step_ttcs(self.attack_graph.attack_steps)
 
         if self.sim_settings.run_defense_step_bernoullis:
             self._enabled_defenses = self._get_pre_enabled_defenses()
@@ -527,23 +538,43 @@ class MalSimulator():
 
         return self.agent_states
 
-    def _attack_step_ttcs(self) -> dict[AttackGraphNode, float]:
+    def _attack_step_ttcs(
+        self,
+        nodes: list[AttackGraphNode],
+        ttc_dicts: Mapping[AttackGraphNode, dict] = {}
+    ) -> dict[AttackGraphNode, float]:
         """
         Calculate and return attack steps TTCs if settings use
-        pre sample or expected value
+        pre sample or expected value.
+        Optionally give overriding `ttc_dicts` per node.
         """
+        ttc_mode_to_calc_mode = {
+            TTCMode.EXPECTED_VALUE: ProbCalculationMethod.EXPECTED,
+            TTCMode.PRE_SAMPLE: ProbCalculationMethod.SAMPLE
+        }
+
         ttc_values = {}
-        for node in self.attack_graph.attack_steps:
-            match(self.sim_settings.ttc_mode):
-                case TTCMode.EXPECTED_VALUE:
-                    ttc_values[node] = ttc_value_from_node(
-                        node, ProbCalculationMethod.EXPECTED, self.rng
-                    )
-                case TTCMode.PRE_SAMPLE:
-                    # Otherwise sample
-                    ttc_values[node] = ttc_value_from_node(
-                        node, ProbCalculationMethod.SAMPLE, self.rng
-                    )
+
+        if self.sim_settings.ttc_mode not in ttc_mode_to_calc_mode:
+            # If no pre sampling / expected value, we should not calculate
+            # the ttc values beforehand
+            return ttc_values
+
+        for node in nodes:
+            if node in ttc_dicts:
+                # Can give overriding ttcs throuch dicts
+                ttc_values[node] = ttc_value_from_ttc_dict(
+                    ttc_dicts[node],
+                    ttc_mode_to_calc_mode[self.sim_settings.ttc_mode],
+                    self.rng
+                )
+            else:
+                # Otherwise extract ttc value from the node
+                ttc_values[node] = ttc_value_from_node(
+                    node,
+                    ttc_mode_to_calc_mode[self.sim_settings.ttc_mode],
+                    self.rng
+                )
 
         return ttc_values
 
@@ -632,11 +663,35 @@ class MalSimulator():
 
         return frozenset(attack_surface)
 
+    def _ttc_values_from_ttc_dicts(
+        self,
+        ttc_dicts: Mapping[AttackGraphNode, dict]
+    ) -> dict[AttackGraphNode, float]:
+        """
+        If `ttc_overrides` is given, return a dict of sampled/expected values
+        depending on ttc mode in simulator.
+        """
+        if not ttc_dicts:
+            # No ttc overrides -> no overriding ttc values
+            return {}
+
+        ttc_dicts = self._full_name_dict_to_node_dict(ttc_dicts)
+        if self.sim_settings.ttc_mode in (
+            TTCMode.PRE_SAMPLE, TTCMode.EXPECTED_VALUE
+        ):
+            # Calculate new ttc values for overriding ttc nodes
+            # If pre-sampling or expected value is used
+            return self._attack_step_ttcs(list(ttc_dicts.keys()), ttc_dicts)
+        else:
+            # Otherwise no overriding values
+            return {}
+
     def _create_attacker_state(
         self,
         name: str,
         entry_points: Set[AttackGraphNode] | Set[str],
-        goals: Optional[Set[AttackGraphNode] | Set[str]] = None
+        goals: Optional[Set[AttackGraphNode] | Set[str]] = None,
+        ttc_overrides: Optional[Mapping[AttackGraphNode, dict] | Mapping[str, dict]] = None
     ) -> MalSimAttackerState:
         """Create a new defender state, initialize values"""
 
@@ -646,6 +701,15 @@ class MalSimulator():
         goals = frozenset(
             self._full_name_or_node_to_node(n) for n in goals
         ) if goals else None
+
+        # User can override ttc distributions which
+        # potentially generates overriding ttc values
+        ttc_overrides = (
+            self._full_name_dict_to_node_dict(ttc_overrides) if ttc_overrides else {}
+        )
+        ttc_value_overrides = (
+            self._ttc_values_from_ttc_dicts(ttc_overrides) if ttc_overrides else {}
+        )
 
         attack_surface = self._get_attack_surface(entry_points)
         attacker_state = MalSimAttackerState(
@@ -663,7 +727,10 @@ class MalSimulator():
             num_attempts = MappingProxyType({
                 n: 0 for n in self.attack_graph.attack_steps
             }),
+            ttc_overrides=MappingProxyType(ttc_overrides),
+            ttc_value_overrides=MappingProxyType(ttc_value_overrides)
         )
+
         return attacker_state
 
     def _update_attacker_state(
@@ -712,6 +779,8 @@ class MalSimulator():
             entry_points = attacker_state.entry_points,
             goals = attacker_state.goals,
             num_attempts = MappingProxyType(num_attempts),
+            ttc_overrides = attacker_state.ttc_overrides,
+            ttc_value_overrides = attacker_state.ttc_value_overrides
         )
 
         return updated_attacker_state
@@ -868,14 +937,23 @@ class MalSimulator():
         self,
         name: str,
         entry_points: set[AttackGraphNode] | set[str],
-        goals: Optional[set[AttackGraphNode] | set[str]] = None
+        goals: Optional[set[AttackGraphNode] | set[str]] = None,
+        ttc_overrides: Optional[dict[AttackGraphNode, dict] | dict[str, dict]] = None
     ) -> None:
-        """Register a mal sim attacker agent"""
+        """Register a mal sim attacker agent
+
+        Arguments:
+        name          - name of the agent, used as identifier
+        entry_points  - starting points of the agent in the simulation
+        goals         - optional goal of the agent, agent is marked as done if it succeeds
+        ttc_overrides - optional way to override TTC distributions for attacker agent
+                        keys are nodes or full names and values are TTC distributions
+        """
         assert name not in self._agent_states, \
             f"Duplicate agent named {name} not allowed"
 
         agent_state = self._create_attacker_state(
-            name, entry_points, goals=goals
+            name, entry_points, goals=goals, ttc_overrides=ttc_overrides
         )
         self._agent_states[name] = agent_state
         self._alive_agents.add(name)
