@@ -495,7 +495,6 @@ class MalSimulator():
     ) -> dict[str, MalSimAgentState]:
         """Reset attack graph, iteration and reinitialize agents"""
 
-        self.rng = default_rng(self.sim_settings.seed)
         logger.info("Resetting MAL Simulator.")
 
         # Reset nodes
