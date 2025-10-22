@@ -25,6 +25,7 @@ from maltoolbox.language import LanguageGraph
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode, create_attack_graph
 
 from .agents import (
+    DecisionAgent,
     BreadthFirstAttacker,
     DepthFirstAttacker,
     KeyboardAgent,
@@ -86,9 +87,8 @@ allowed_fields = required_fields + [
 class AgentConfig:
     # Will be used for agents in the future instead of dicts
     name: str
-    agent_class: Any
-    agent: Any
-    policy: Any
+    policy_class: Optional[type]
+    policy: Optional[DecisionAgent]
     config: dict[str, Any]
     type: AgentType
 
@@ -154,23 +154,25 @@ class Scenario:
         self.agents = load_simulator_agents(self.attack_graph, agents)
 
         self._rewards_dict = rewards
-        self.rewards = apply_scenario_node_property(self.attack_graph, rewards or {})
-        self.false_positive_rates = apply_scenario_node_property(
+        self.rewards = get_scenario_node_property_dict(
+            self.attack_graph, rewards or {}
+        )
+        self.false_positive_rates = get_scenario_node_property_dict(
             self.attack_graph, false_positive_rates or {}
         )
         self._fpr_dict = false_positive_rates
 
-        self.false_negative_rates = apply_scenario_node_property(
+        self.false_negative_rates = get_scenario_node_property_dict(
             self.attack_graph, false_negative_rates or {}
         )
         self._fnr_dict = false_negative_rates
 
-        self.is_observable = apply_scenario_node_property(
+        self.is_observable = get_scenario_node_property_dict(
             self.attack_graph, is_observable or {}, default_value=False
         )
         self._is_observable_dict = is_observable
 
-        self.is_actionable = apply_scenario_node_property(
+        self.is_actionable = get_scenario_node_property_dict(
             self.attack_graph, is_actionable or {}, default_value=False
         )
         self._is_actionable_dict = is_actionable
@@ -203,7 +205,9 @@ class Scenario:
         return scenario_dict
 
     def save_to_file(self, file_path: str) -> None:
-        save_scenario_dict(self.to_dict(), file_path)
+        """Save scenario to a yaml-file"""
+        with open(file_path, 'w', encoding='utf-8') as f:
+            yaml.safe_dump(self.to_dict(), f, sort_keys=False)
 
     @classmethod
     def from_dict(cls, scenario_dict: dict[str, Any]) -> Scenario:
@@ -386,7 +390,7 @@ def _validate_scenario_node_property_config(
             )
 
 
-def apply_scenario_node_property(
+def get_scenario_node_property_dict(
     attack_graph: AttackGraph,
     prop_config: dict[str, dict[str, Any]],
     default_value: Optional[Any] = None,
@@ -493,76 +497,72 @@ def get_entry_point_nodes(
     """
 
     entry_points = set()
-
     for entry_point_name in entry_point_names:
         entry_point = attack_graph.get_node_by_full_name(entry_point_name)
         if not entry_point:
             raise LookupError(f'Node {entry_point_name} does not exist')
         entry_points.add(entry_point)
-
     return entry_points
 
 
 def load_simulator_agents(
-    attack_graph: AttackGraph, scenario_agents: dict[str, Any]
-) -> list[dict[str, Any]]:
+        attack_graph: AttackGraph, scenario_agents: dict[str, Any]
+    ) -> dict[str, AgentConfig]:
     """Load agents to be registered in MALSimulator
 
-    Create the agents from the specified classes,
-    register entrypoints for attackers.
+    Create policy objects from the specified classes,
+    get entrypoint nodes and goal nodes for attackers.
+    Return a dict mapping from agent names to agent configs.
 
     Args:
     - attack_graph: the attack graph
     - scenario: the scenario in question as a dict
     Return:
-    - agents: a list of agent configurations (dicts)
+    - agents: a dict of agent configurations
     """
 
-    # Create list of agents dicts
-    agents = []
+    # Create dict of simulator agents
+    agents: dict[str, AgentConfig] = {}
 
     for agent_name, agent_info in scenario_agents.items():
         agent_type = AgentType(agent_info.get('type'))
-        agent_class_name = agent_info.get('agent_class')
-        agent_class = agent_class_name_to_class.get(agent_class_name)
+        policy_class_name = (
+            agent_info.get('policy')
+            or agent_info.get('agent_class') # Backwards compatible
+        )
+        policy_class = agent_class_name_to_class.get(policy_class_name)
         agent_config = agent_info.get('config', {})
-        agent = agent_class(agent_config) if agent_class else None
-        policy = agent_class(agent_config) if agent_class else None
+        policy = policy_class(agent_config) if policy_class else None
 
-        if agent_class_name and agent_class_name not in agent_class_name_to_class:
+        if policy_class_name and policy_class_name not in agent_class_name_to_class:
             raise LookupError(
-                f"Agent class '{agent_class_name}' not supported.\n"
-                f'Must be one of: {agent_class_name_to_class.values()}'
+                f"Agent class '{policy_class_name}' not supported.\n"
+                f"Must be one of: {agent_class_name_to_class.values()}"
             )
 
         if agent_type == AgentType.ATTACKER:
-            agent_config = {
-                'name': agent_name,
-                'agent_class': agent_class,
-                'agent': agent,
-                'policy': policy,
-                'config': agent_config,
-                'entry_points': get_entry_point_nodes(
-                    attack_graph,
-                    agent_info['entry_points'],  # Required
+            agent_config = AttackerAgentConfig(
+                name=agent_name,
+                policy_class=policy_class,
+                policy=policy,
+                config=agent_config,
+                entry_points=get_entry_point_nodes(
+                    attack_graph, agent_info['entry_points'] # Required
                 ),
-                'goals': get_entry_point_nodes(
-                    attack_graph,
-                    agent_info.get('goals', []),  # Optional
+                goals=get_entry_point_nodes(
+                    attack_graph, agent_info.get('goals', []) # Optional
                 ),
-                'type': AgentType.ATTACKER,
-            }
+                type=AgentType.ATTACKER
+            )
         elif agent_type == AgentType.DEFENDER:
-            agent_config = {
-                'name': agent_name,
-                'agent_class': agent_class,
-                'agent': agent,
-                'policy': policy,
-                'config': agent_config,
-                'type': AgentType.DEFENDER,
-            }
-
-        agents.append(agent_config)
+            agent_config = DefenderAgentConfig(
+                name=agent_name,
+                policy_class=policy_class,
+                policy=policy,
+                config=agent_config,
+                type=AgentType.DEFENDER
+            )
+        agents[agent_config.name] = agent_config
 
     return agents
 
@@ -577,7 +577,6 @@ def _extend_scenario(
 
     original_scenario: dict[str, Any] = load_scenario_dict(original_scenario_path)
     resulting_scenario = original_scenario.copy()
-
     for key, value in overriding_scenario.items():
         # Override the original scenario with the
         # overriding scenario key,value pairs
@@ -585,11 +584,14 @@ def _extend_scenario(
             # The 'extends' key is not needed after extend is done
             continue
         resulting_scenario[key] = value
-
     return resulting_scenario
 
 
 def load_scenario_dict(scenario_file: str) -> dict[str, Any]:
+    """From a scenario file, load a scenario dict.
+
+    Extend it with other scenario if `extend` keyword is used.
+    """
     with open(scenario_file, 'r', encoding='utf-8') as s_file:
         scenario: dict[str, Any] = yaml.safe_load(s_file)
 
@@ -606,40 +608,4 @@ def load_scenario_dict(scenario_file: str) -> dict[str, Any]:
             scenario['model_file'] = path_relative_to_file_dir(
                 scenario['model_file'], s_file
             )
-
     return scenario
-
-
-def load_scenario(scenario_file: str) -> Scenario:
-    """Load a Scenario from a scenario file"""
-    msg = (
-        "'load_scenario' will be deprecated in mal-simulator 2.0.0, "
-        'please use Scenario.load_from_file'
-    )
-    print(msg)
-    logger.warning(msg)
-    return Scenario.load_from_file(scenario_file)
-
-
-def create_simulator_from_scenario(
-    scenario_file: str,
-    **kwargs: Any,
-) -> None:
-    """Deprecated"""
-    raise DeprecationWarning('Use MalSimulator.from_scenario instead')
-
-
-def create_scenario_dict(
-    lang_file: str,
-    model: str | Model,
-    agents: dict[str, Any],
-    settings: Optional[dict[str, Any]] = None,
-) -> dict[str, Any]:
-    """Create a scenario dict from given settings"""
-    raise DeprecationWarning('Use Scenario.to_dict')
-
-
-def save_scenario_dict(scenario_dict: dict[str, Any], file_path: str) -> None:
-    """Save scenario to file"""
-    with open(file_path, 'w', encoding='utf-8') as f:
-        yaml.safe_dump(scenario_dict, f, sort_keys=False)

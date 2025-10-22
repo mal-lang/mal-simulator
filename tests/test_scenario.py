@@ -9,9 +9,8 @@ from maltoolbox.model import Model
 from maltoolbox.attackgraph import create_attack_graph
 from malsim.scenario import (
     Scenario,
-    apply_scenario_node_property,
-    load_scenario,
-    _validate_scenario_node_property_config,
+    get_scenario_node_property_dict,
+    _validate_scenario_node_property_config
 )
 from malsim.agents import PassiveAgent, BreadthFirstAttacker
 
@@ -69,10 +68,10 @@ def test_load_scenario() -> None:
 
     # Verify attacker entrypoint was added
     attack_step = get_node(scenario.attack_graph, 'OS App:fullAccess')
-    assert attack_step in scenario.agents[0]['entry_points']
+    assert attack_step in scenario.agents['Attacker1'].entry_points
 
-    assert isinstance(scenario.agents[0]['agent'], BreadthFirstAttacker)
-    assert isinstance(scenario.agents[1]['agent'], PassiveAgent)
+    assert isinstance(scenario.agents['Attacker1'].policy, BreadthFirstAttacker)
+    assert isinstance(scenario.agents['Defender1'].policy, PassiveAgent)
 
 
 def test_save_scenario(model: Model) -> None:
@@ -106,7 +105,7 @@ def test_extend_scenario() -> None:
     """Make sure we can extend a scenario"""
 
     # Load the scenario
-    scenario = load_scenario(
+    scenario = Scenario.load_from_file(
         path_relative_to_tests(
             './testdata/scenarios/traininglang_scenario_extended.yml'
         )
@@ -132,7 +131,7 @@ def test_extend_scenario_deeper() -> None:
     """
 
     # Load the scenario from a sub folder extending another scenario
-    scenario = load_scenario(
+    scenario = Scenario.load_from_file(
         path_relative_to_tests(
             './testdata/scenarios/sub/traininglang_scenario_extended_again.yml'
         )
@@ -159,7 +158,7 @@ def test_extend_scenario_override_lang_model() -> None:
 
     # Load the scenario from a sub folder extending another scenario
     # that overrides lang and model
-    scenario = load_scenario(
+    scenario = Scenario.load_from_file(
         path_relative_to_tests(
             './testdata/scenarios/sub/traininglang_scenario_override_lang_model.yml'
         )
@@ -188,11 +187,13 @@ def test_load_scenario_no_defender_agent() -> None:
     """Make sure we can load a scenario"""
 
     # Load the scenario
-    scenario = load_scenario(
-        path_relative_to_tests('./testdata/scenarios/no_defender_agent_scenario.yml')
+    scenario = Scenario.load_from_file(
+        path_relative_to_tests(
+            './testdata/scenarios/no_defender_agent_scenario.yml'
+        )
     )
-    assert 'defender' not in [a['name'] for a in scenario.agents]
-    assert isinstance(scenario.agents[0]['agent'], BreadthFirstAttacker)
+    assert 'defender' not in scenario.agents
+    assert isinstance(scenario.agents['attacker1'].policy, BreadthFirstAttacker)
 
 
 def test_load_scenario_agent_class_error() -> None:
@@ -200,7 +201,7 @@ def test_load_scenario_agent_class_error() -> None:
 
     # Load the scenario
     with pytest.raises(LookupError):
-        load_scenario(
+        Scenario.load_from_file(
             path_relative_to_tests(
                 './testdata/scenarios/wrong_agent_classes_scenario.yml'
             )
@@ -212,7 +213,7 @@ def test_load_scenario_observability_given() -> None:
     make sure observability is applied correctly"""
 
     # Load scenario with observability specified
-    scenario = load_scenario(
+    scenario = Scenario.load_from_file(
         path_relative_to_tests(
             './testdata/scenarios/simple_filtered_observability_scenario.yml'
         )
@@ -244,8 +245,10 @@ def test_load_scenario_observability_given() -> None:
 def test_load_scenario_observability_not_given() -> None:
     """Load a scenario where no observability settings are given"""
     # Load scenario with no observability specifed
-    scenario = load_scenario(
-        path_relative_to_tests('./testdata/scenarios/simple_scenario.yml')
+    scenario = Scenario.load_from_file(
+        path_relative_to_tests(
+            './testdata/scenarios/simple_scenario.yml'
+        )
     )
 
     assert not scenario.is_observable
@@ -255,8 +258,9 @@ def test_apply_scenario_observability() -> None:
     """Try different cases for observability settings"""
 
     # Load scenario with no observability specified
-    scenario = load_scenario(
-        path_relative_to_tests('testdata/scenarios/simple_scenario.yml')
+    scenario = Scenario.load_from_file(
+        path_relative_to_tests(
+            'testdata/scenarios/simple_scenario.yml')
     )
 
     # Make Data: read, write, delete observable
@@ -270,7 +274,7 @@ def test_apply_scenario_observability() -> None:
     }
 
     # Apply observability rules
-    observable = apply_scenario_node_property(
+    observable = get_scenario_node_property_dict(
         scenario.attack_graph, observability_rules, default_value=False
     )
 
@@ -302,53 +306,54 @@ def test_apply_scenario_observability_faulty() -> None:
     """Try different failing cases for observability settings"""
 
     # Load scenario with no observability specified
-    scenario = load_scenario(
-        path_relative_to_tests('testdata/scenarios/simple_scenario.yml')
+    scenario = Scenario.load_from_file(
+        path_relative_to_tests(
+            'testdata/scenarios/simple_scenario.yml')
     )
 
     # Wrong key in rule dict
     with pytest.raises(AssertionError):
-        apply_scenario_node_property(
+        get_scenario_node_property_dict(
             scenario.attack_graph,
             {'NotAllowedKey': {'Data': ['read', 'write', 'delete']}},
         )
 
     # Correct asset type and attack step
-    apply_scenario_node_property(
+    get_scenario_node_property_dict(
         scenario.attack_graph,
         {'by_asset_type': {'Application': ['read']}},
     )
 
     # Wrong asset type in rule asset type to step dict
     with pytest.raises(AssertionError):
-        apply_scenario_node_property(
+        get_scenario_node_property_dict(
             scenario.attack_graph,
             {'by_asset_type': {'NonExistingType': ['read']}},
         )
 
     # Wrong attack step name in rule asset type to step dict
     with pytest.raises(AssertionError):
-        apply_scenario_node_property(
+        get_scenario_node_property_dict(
             scenario.attack_graph,
             {'by_asset_type': {'Data': ['nonExistingAttackStep']}},
         )
 
     # Correct asset name and attack step
-    apply_scenario_node_property(
+    get_scenario_node_property_dict(
         scenario.attack_graph,
         {'by_asset_name': {'OS App': ['read']}},
     )
 
     # Wrong asset name in rule asset name to step dict
     with pytest.raises(AssertionError):
-        apply_scenario_node_property(
+        get_scenario_node_property_dict(
             scenario.attack_graph,
             {'by_asset_name': {'NonExistingName': ['read']}},
         )
 
     # Wrong attack step name in rule asset name to step dict
     with pytest.raises(AssertionError):
-        apply_scenario_node_property(
+        get_scenario_node_property_dict(
             scenario.attack_graph,
             {'by_asset_name': {'OS App': ['nonExistingAttackStep']}},
         )
@@ -359,8 +364,10 @@ def test_load_scenario_false_positive_negative_rate() -> None:
     make sure observability is applied correctly"""
 
     # Load scenario with observability specifed
-    scenario = load_scenario(
-        path_relative_to_tests('./testdata/scenarios/traininglang_fp_fn_scenario.yml')
+    scenario = Scenario.load_from_file(
+        path_relative_to_tests(
+            './testdata/scenarios/traininglang_fp_fn_scenario.yml'
+        )
     )
 
     # Defined in scenario file
@@ -396,8 +403,9 @@ def test_apply_scenario_fpr_fnr() -> None:
     """Try different cases for false positives/negatives rates"""
 
     # Load scenario with no specified
-    scenario = load_scenario(
-        path_relative_to_tests('testdata/scenarios/simple_scenario.yml')
+    scenario = Scenario.load_from_file(
+        path_relative_to_tests(
+            'testdata/scenarios/simple_scenario.yml')
     )
 
     property_values = {
@@ -413,7 +421,7 @@ def test_apply_scenario_fpr_fnr() -> None:
     }
 
     # Apply false negative rate rules
-    false_negatives_rates = apply_scenario_node_property(
+    false_negatives_rates = get_scenario_node_property_dict(
         scenario.attack_graph, property_values
     )
 
