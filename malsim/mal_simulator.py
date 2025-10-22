@@ -174,6 +174,14 @@ class MalSimulatorSettings():
             "'run_attack_step_bernoullis'"
         )
 
+    def __post_init__(self) -> None:
+        if isinstance(self.ttc_mode, str):
+            self.ttc_mode = getattr(TTCMode, self.ttc_mode)
+        if isinstance(self.attacker_reward_mode, str):
+            self.attacker_reward_mode = getattr(RewardMode, self.attacker_reward_mode)
+        if isinstance(self.defender_reward_mode, str):
+            self.defender_reward_mode = getattr(RewardMode, self.defender_reward_mode)
+
 
 class MalSimulator():
     """A MAL Simulator that works on the AttackGraph
