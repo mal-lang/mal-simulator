@@ -1,0 +1,27 @@
+lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
+agents:
+  Attacker1:
+    type: attacker
+    entry_points:
+    - Human:attemptSocialEngineering
+model:
+  metadata:
+    name: socialEngineering_scenario
+    langVersion: 1.0.0
+    langID: org.mal-lang.coreLang
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 1.1.1
+    info: Created by the mal-toolbox model python module.
+  assets:
+    1:
+      name: Human
+      type: User
+      associated_assets:
+        userIds:
+          2: User
+    2:
+      name: User
+      type: Identity
+      associated_assets:
+        users:
+          1: Human

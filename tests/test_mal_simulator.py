@@ -12,7 +12,7 @@ from malsim.mal_simulator import (
     RewardMode
 )
 from malsim import load_scenario, run_simulation
-
+import numpy as np
 import pytest
 from .conftest import get_node
 
@@ -951,3 +951,30 @@ def test_simulator_multiple_defenders() -> None:
             'Attacker1': []
         }
     }
+
+def test_simulator_seed_setting() -> None:
+    """Test that the seed setting works"""
+
+    scenario = load_scenario(
+        'tests/testdata/scenarios/socialEngineering_scenario.yml'
+    )
+    sim = MalSimulator.from_scenario(
+        scenario
+    )
+
+    ttcs = []
+    for _ in range(100):
+        state = sim.reset()["Attacker1"]
+        state = sim.step({"Attacker1": [sim.attack_graph.get_node_by_full_name("Human:successfulSocialEngineering")]})["Attacker1"]
+        state = sim.step({"Attacker1": [sim.attack_graph.get_node_by_full_name("Human:socialEngineering")]})["Attacker1"]
+        node = sim.attack_graph.get_node_by_full_name("Human:unsafeUserActivity")
+        i = 0
+
+
+        while node in state.action_surface:
+            state = sim.step({"Attacker1": [node]})["Attacker1"]
+            i += 1
+            ttcs.append(i)
+    ttcs = np.array(ttcs)
+    variance = ttcs.var()
+    assert variance > 0, "Variance is 0, which means the TTCs are not random"
