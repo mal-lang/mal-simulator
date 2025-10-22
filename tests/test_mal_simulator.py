@@ -1,6 +1,5 @@
 """Test MalSimulator class"""
 from __future__ import annotations
-import json
 from typing import TYPE_CHECKING
 
 from maltoolbox.attackgraph import AttackGraph
