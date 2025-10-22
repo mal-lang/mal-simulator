@@ -950,11 +950,11 @@ class MalSimulator():
             # Always suceed if disabled TTCs
             return True
 
-        if self.sim_settings.ttc_mode == TTCMode.EFFORT_BASED_PER_STEP_SAMPLE:
+        elif self.sim_settings.ttc_mode == TTCMode.EFFORT_BASED_PER_STEP_SAMPLE:
             # Run trial to decide success if config says so (SANDOR mode)
             return attempt_step_ttc(node, num_attempts, self.rng)
 
-        if self.sim_settings.ttc_mode == TTCMode.PER_STEP_SAMPLE:
+        elif self.sim_settings.ttc_mode == TTCMode.PER_STEP_SAMPLE:
             # Sample ttc value every time if config says so (ANDREI mode)
             node_ttc_value = ttc_value_from_node(
                 node, ProbCalculationMethod.SAMPLE, self.rng
@@ -963,8 +963,12 @@ class MalSimulator():
 
         # Compare attempts to ttc expected value in EXPECTED_VALUE mode
         # or presampled ttcs in PRE_SAMPLE mode
-        node_ttc_value = self._ttc_values.get(node, 0)
-        return num_attempts + 1 >= node_ttc_value
+        elif self.sim_settings.ttc_mode == TTCMode.EXPECTED_VALUE or self.sim_settings.ttc_mode == TTCMode.PRE_SAMPLE:
+            node_ttc_value = self._ttc_values.get(node, 0)
+            return num_attempts + 1 >= node_ttc_value
+
+        else:
+            raise ValueError(f"Invalid TTC mode: {self.sim_settings.ttc_mode}")
 
     def _attacker_step(
         self, agent: MalSimAttackerState, nodes: list[AttackGraphNode]
