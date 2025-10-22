@@ -24,7 +24,7 @@ from malsim.mal_simulator import (
 )
 
 from malsim.scenario import (
-    load_scenario
+    Scenario
 )
 
 __title__ = "malsim"
@@ -33,7 +33,7 @@ __authors__ = ["Andrei Buhaiu", "Joakim Loxdal", "Jakob Nyberg", "Nikolaos Kakou
 __license__ = "Apache 2.0"
 __docformat__ = "restructuredtext en"
 
-__all__ = ["MalSimulator", "MalSimulatorSettings", "run_simulation", "load_scenario"]
+__all__ = ["MalSimulator", "MalSimulatorSettings", "run_simulation", "Scenario"]
 
 
 # TODO: Make sure logging dir exists and make it configurable (or use same as maltoolbox)

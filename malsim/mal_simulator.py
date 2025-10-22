@@ -28,17 +28,15 @@ from malsim.graph_processing import (
 )
 
 from malsim.scenario import (
-    AgentType,
     AgentConfig,
     AttackerAgentConfig,
     DefenderAgentConfig,
-    load_scenario
+    Scenario
 )
 
 from malsim.visualization.malsim_gui_client import MalSimGUIClient
 
 if TYPE_CHECKING:
-    from malsim.scenario import Scenario
     from malsim.agents import DecisionAgent
 
 
@@ -279,17 +277,6 @@ class MalSimulator():
     ) -> MalSimulator:
         """Create a MalSimulator object from a Scenario"""
 
-        def register_agent_dict(agent_config: dict[str, Any]) -> None:
-            """Register an agent specified in a dictionary"""
-            if agent_config['type'] == AgentType.ATTACKER:
-                sim.register_attacker(
-                    agent_config['name'],
-                    agent_config['entry_points'],
-                    agent_config.get('goals')
-                )
-            elif agent_config['type'] == AgentType.DEFENDER:
-                sim.register_defender(agent_config['name'])
-
         def register_agent_config(agent_config: AgentConfig) -> None:
             """Register an agent config in simulator"""
             if isinstance(agent_config, AttackerAgentConfig):
@@ -303,7 +290,7 @@ class MalSimulator():
 
         if isinstance(scenario, str):
             # Load scenario if file was given
-            scenario = load_scenario(scenario)
+            scenario = Scenario.load_from_file(scenario)
 
         sim = cls(
             scenario.attack_graph,
@@ -319,11 +306,8 @@ class MalSimulator():
         )
 
         if register_agents:
-            for agent_config in scenario.agents:
-                if isinstance(agent_config, dict):
-                    register_agent_dict(agent_config)
-                elif isinstance(agent_config, AgentConfig):
-                    register_agent_config(agent_config)
+            for agent_config in scenario.agents.values():
+                register_agent_config(agent_config)
 
         return sim
 
@@ -1275,14 +1259,14 @@ class MalSimulator():
 
 
 def run_simulation(
-        sim: MalSimulator, agents: list[dict[str, Any]]
+        sim: MalSimulator, agents: dict[str, AgentConfig]
     ) -> dict[str, list[AttackGraphNode]]:
     """Run a simulation with agents
 
     Return selected actions by each agent in each step
     """
     agent_actions: dict[str, list[AttackGraphNode]] = {}
-    total_rewards = {agent_config['name']: 0.0 for agent_config in agents}
+    total_rewards = {agent_name: 0.0 for agent_name in agents}
 
     logger.info("Starting CLI env simulator.")
     states = sim.reset()
@@ -1292,9 +1276,8 @@ def run_simulation(
         actions: dict[str, list[AttackGraphNode]] = {}
 
         # Select actions for each agent
-        for agent_config in agents:
-            decision_agent: Optional[DecisionAgent] = agent_config['agent']
-            agent_name = agent_config['name']
+        for agent_name, agent_config in agents.items():
+            decision_agent: Optional[DecisionAgent] = agent_config.policy
             if decision_agent is None:
                 print(
                     f'Agent "{agent_name}" has no decision agent class '
@@ -1317,16 +1300,15 @@ def run_simulation(
 
         # Perform next step of simulation
         states = sim.step(actions)
-        for agent_config in agents:
-            total_rewards[agent_config['name']] += sim.agent_reward(agent_config['name'])
+        for agent_name in agents:
+            total_rewards[agent_name] += sim.agent_reward(agent_name)
 
         print("---")
 
     print(f"Simulation over after {sim.cur_iter} steps.")
 
     # Print total rewards
-    for agent_config in agents:
-        agent_name = agent_config['name']
-        print(f'Total reward "{agent_name}"', total_rewards[agent_config['name']])
+    for agent_name in agents:
+        print(f'Total reward "{agent_name}"', total_rewards[agent_name])
 
     return agent_actions

@@ -2,7 +2,7 @@ from malsim.mal_simulator import (
     MalSimulator, MalSimulatorSettings, TTCMode
 )
 from malsim.agents import get_shortest_path_to
-from malsim.scenario import load_scenario
+from malsim.scenario import Scenario
 
 def test_path_finding() -> None:
     r"""
@@ -11,7 +11,7 @@ def test_path_finding() -> None:
     scenario_file = (
         "tests/testdata/scenarios/traininglang_scenario.yml"
     )
-    scenario = load_scenario(scenario_file)
+    scenario = Scenario.load_from_file(scenario_file)
     sim = MalSimulator.from_scenario(scenario, register_agents=False)
     user_3_phish = sim.get_node('User:3:phishing')
     host_0_connect = sim.get_node('Host:0:connect')
@@ -38,7 +38,7 @@ def test_path_finding_ttc_lang() -> None:
     scenario_file = (
         "tests/testdata/scenarios/ttc_lang_scenario.yml"
     )
-    scenario = load_scenario(scenario_file)
+    scenario = Scenario.load_from_file(scenario_file)
     sim = MalSimulator.from_scenario(
         scenario,
         sim_settings=MalSimulatorSettings(
