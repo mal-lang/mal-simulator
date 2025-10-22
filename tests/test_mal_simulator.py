@@ -58,14 +58,6 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
         n.full_name for n in attacker_state.action_surface
     }
 
-    for node, viable in sim._viability_per_node.items():
-        # viability is the same after reset
-        assert viability_before[node.full_name] == viable
-
-    for node, necessary in sim._necessity_per_node.items():
-        # viability is the same after reset
-        assert necessity_before[node.full_name] == necessary
-
     assert enabled_defenses == {
         n.full_name for n in sim._enabled_defenses
     }
@@ -85,6 +77,17 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     assert action_surface_before == {
         n.full_name for n in attacker_state.action_surface
     }
+
+    # Re-creating the simulator object with the same seed
+    # should result in getting the same viability and necessity values
+    sim = MalSimulator(attack_graph, sim_settings=MalSimulatorSettings(seed=10))
+    for node, viable in sim._viability_per_node.items():
+        # viability is the same after reset
+        assert viability_before[node.full_name] == viable
+
+    for node, necessary in sim._necessity_per_node.items():
+        # necessity is the same after reset
+        assert necessity_before[node.full_name] == necessary
 
 
 def test_register_agent_attacker(
