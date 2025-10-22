@@ -24,7 +24,7 @@ def test_ttc_avoider() -> None:
     goal = sim.get_node('DataD:read')
     sim.register_attacker(attacker_agent_name, {entry_point}, {goal})
 
-    states = sim.reset()
+    states = sim.agent_states
     attacker_state = states[attacker_agent_name]
 
     while not sim.done():

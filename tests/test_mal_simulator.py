@@ -12,7 +12,7 @@ from malsim.mal_simulator import (
     RewardMode
 )
 from malsim import load_scenario, run_simulation
-
+import numpy as np
 import pytest
 from .conftest import get_node
 
@@ -58,14 +58,6 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
         n.full_name for n in attacker_state.action_surface
     }
 
-    for node, viable in sim._viability_per_node.items():
-        # viability is the same after reset
-        assert viability_before[node.full_name] == viable
-
-    for node, necessary in sim._necessity_per_node.items():
-        # viability is the same after reset
-        assert necessity_before[node.full_name] == necessary
-
     assert enabled_defenses == {
         n.full_name for n in sim._enabled_defenses
     }
@@ -85,6 +77,17 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     assert action_surface_before == {
         n.full_name for n in attacker_state.action_surface
     }
+
+    # Re-creating the simulator object with the same seed
+    # should result in getting the same viability and necessity values
+    sim = MalSimulator(attack_graph, sim_settings=MalSimulatorSettings(seed=10))
+    for node, viable in sim._viability_per_node.items():
+        # viability is the same after reset
+        assert viability_before[node.full_name] == viable
+
+    for node, necessary in sim._necessity_per_node.items():
+        # necessity is the same after reset
+        assert necessity_before[node.full_name] == necessary
 
 
 def test_register_agent_attacker(
@@ -451,7 +454,7 @@ def test_agent_state_views_simple(corelang_lang_graph: LanguageGraph, model: Mod
     sim.register_defender(defender_name)
 
     # Evaluate the agent state views after reset
-    state_views = sim.reset()
+    state_views = sim.agent_states
     entry_point = get_node(attack_graph, 'OS App:fullAccess')
 
     pre_enabled_defenses = set(sim._enabled_defenses)
@@ -622,7 +625,7 @@ def test_step_attacker_defender_action_surface_updates() -> None:
     )
     sim.register_defender(defender_agent_id)
 
-    states = sim.reset()
+    states = sim.agent_states
 
     attacker_agent = states[attacker_agent_id]
     defender_agent = states[defender_agent_id]
@@ -663,13 +666,9 @@ def test_default_simulator_default_settings_eviction() -> None:
     )
     sim = MalSimulator.from_scenario(scenario)
 
-    # Register the agents
     attacker_agent_id = "Attacker1"
     defender_agent_id = "Defender1"
 
-    # sim.register_attacker(attacker_agent_id, set())
-    # sim.register_defender(defender_agent_id)
-    sim.reset()
     attacker_agent = sim.agent_states[attacker_agent_id]
     defender_agent = sim.agent_states[defender_agent_id]
 
@@ -951,3 +950,45 @@ def test_simulator_multiple_defenders() -> None:
             'Attacker1': []
         }
     }
+
+def test_simulator_seed_setting() -> None:
+    """Test that the seed setting works"""
+
+    scenario = load_scenario(
+        'tests/testdata/scenarios/socialEngineering_scenario.yml'
+    )
+    sim = MalSimulator.from_scenario(
+        scenario, sim_settings=MalSimulatorSettings(
+            uncompromise_untraversable_steps=False,
+            ttc_mode=TTCMode.PER_STEP_SAMPLE,
+            seed=100,
+            attack_surface_skip_compromised=True,
+            attack_surface_skip_unviable=True,
+            attack_surface_skip_unnecessary=False,
+            run_defense_step_bernoullis=False,
+            run_attack_step_bernoullis=False,
+            attacker_reward_mode=RewardMode.ONE_OFF,
+            defender_reward_mode=RewardMode.CUMULATIVE,
+        )
+    )
+
+    ttcs = []
+    for _ in range(100):
+        state = sim.reset()["Attacker1"]
+        node = sim.attack_graph.get_node_by_full_name("Human:successfulSocialEngineering")
+        assert node in state.action_surface
+        state = sim.step({"Attacker1": [node]})["Attacker1"]
+        node = sim.attack_graph.get_node_by_full_name("Human:socialEngineering")
+        assert node in state.action_surface
+        state = sim.step({"Attacker1": [node]})["Attacker1"]
+        node = sim.attack_graph.get_node_by_full_name("Human:unsafeUserActivity")
+        assert node in state.action_surface
+        i = 0
+        while node in state.action_surface:
+            state = sim.step({"Attacker1": [node]})["Attacker1"]
+            i += 1
+        ttcs.append(i)
+
+    ttc_array = np.array(ttcs)
+    variance = ttc_array.var()
+    assert variance > 0, "Variance is 0, which means the TTCs are not random"

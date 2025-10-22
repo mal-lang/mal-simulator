@@ -20,7 +20,7 @@ class MalSimEnv(ABC):
     ) -> None:
         if seed is not None:
             self.sim.sim_settings.seed = seed
-        self.sim.reset(options = options)
+        self.sim.reset()
 
     def register_attacker(
             self, attacker_name: str, entry_points: set[AttackGraphNode]

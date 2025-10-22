@@ -25,7 +25,6 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     It then verifies that rewards and actions performed are what we expected.
     """
 
-
     scenario_file = (
         "tests/testdata/scenarios/bfs_vs_bfs_network_app_data_scenario.yml"
     )
@@ -206,7 +205,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     attacker_actions = []
     defender_actions = []
 
-    states = sim.reset()
+    states = sim.agent_states
     attacker_state = states[attacker_agent_name]
     defender_state = states[defender_agent_name]
 
@@ -340,7 +339,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
     attacker_actions = []
     defender_actions = []
 
-    states = sim.reset()
+    states = sim.agent_states
     attacker_state = states[attacker_agent_name]
     defender_state = states[defender_agent_name]
 

@@ -5,7 +5,8 @@ authors = [
   { name="Andrei Buhaiu", email="buhaiu@kth.se" },
   { name="Joakim Loxdal", email="loxdal@kth.se" },
   { name="Jakob Nyberg", email="jaknyb@kth.se" },
-  { name="Nikolaos Kakouros", email="nkak@kth.se" }
+  { name="Nikolaos Kakouros", email="nkak@kth.se" },
+  { name="Sandor Berglund", email="sandorb@kth.se" }
 ]
 description = "A MAL compliant simulator."
 readme = "README.md"
