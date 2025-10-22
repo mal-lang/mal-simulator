@@ -8,7 +8,7 @@ from . import (
     MalSimulator,
     MalSimulatorSettings,
     run_simulation,
-    load_scenario,
+    Scenario
 )
 from .mal_simulator import TTCMode
 
@@ -52,7 +52,7 @@ def main() -> None:
         help='If set, simulator will send actions to malsim-gui',
     )
     args = parser.parse_args()
-    scenario = load_scenario(args.scenario_file)
+    scenario = Scenario.load_from_file(args.scenario_file)
     sim = MalSimulator.from_scenario(
         scenario,
         MalSimulatorSettings(
