@@ -959,22 +959,32 @@ def test_simulator_seed_setting() -> None:
         'tests/testdata/scenarios/socialEngineering_scenario.yml'
     )
     sim = MalSimulator.from_scenario(
-        scenario
+        scenario, sim_settings=MalSimulatorSettings(
+            uncompromise_untraversable_steps=False,
+            ttc_mode=TTCMode.PER_STEP_SAMPLE,
+            seed=100,
+            attack_surface_skip_compromised=True,
+            attack_surface_skip_unviable=True,
+            attack_surface_skip_unnecessary=False,
+            run_defense_step_bernoullis=False,
+            run_attack_step_bernoullis=False,
+            attacker_reward_mode=RewardMode.ONE_OFF,
+            defender_reward_mode=RewardMode.CUMULATIVE,
+        )
     )
 
     ttcs = []
-    for _ in range(100):
+    for _ in range(1000):
         state = sim.reset()["Attacker1"]
         state = sim.step({"Attacker1": [sim.attack_graph.get_node_by_full_name("Human:successfulSocialEngineering")]})["Attacker1"]
         state = sim.step({"Attacker1": [sim.attack_graph.get_node_by_full_name("Human:socialEngineering")]})["Attacker1"]
         node = sim.attack_graph.get_node_by_full_name("Human:unsafeUserActivity")
         i = 0
-
-
         while node in state.action_surface:
             state = sim.step({"Attacker1": [node]})["Attacker1"]
             i += 1
-            ttcs.append(i)
+        ttcs.append(i)
+
     ttcs = np.array(ttcs)
     variance = ttcs.var()
     assert variance > 0, "Variance is 0, which means the TTCs are not random"
