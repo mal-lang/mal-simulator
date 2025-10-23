@@ -312,6 +312,56 @@ def test_attacker_step_rewards_cumulative(
         }
     }
 
+
+def test_is_traversable(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
+
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    entry_point = get_node(attack_graph, 'OS App:fullAccess')
+    sim = MalSimulator(attack_graph)
+
+    attacker_name = "Test Attacker"
+    sim.register_attacker(attacker_name, {entry_point})
+    attacker_state = sim.agent_states[attacker_name]
+
+    # Compromise all or steps it can
+    or_steps = list(attacker_state.action_surface)
+    while or_steps:
+        attacker_state = sim.step({attacker_name: or_steps})[attacker_name]
+        or_steps = [
+            n for n in sim.agent_states[attacker_name].action_surface
+            if n.type == 'or'
+        ]
+    assert isinstance(attacker_state, MalSimAttackerState)
+    children_of_reached_nodes = set()
+    for n in attacker_state.performed_nodes:
+        children_of_reached_nodes |= n.children
+
+    for node in sim.attack_graph.nodes.values():
+        if node in attacker_state.entry_points:
+            # Unclear traversability of entry points
+            continue
+
+        if node in children_of_reached_nodes:
+            if node.type == 'and':
+                if not sim.node_is_traversable(
+                    attacker_state.performed_nodes, node
+                ):
+                    assert not all(
+                        p in attacker_state.performed_nodes
+                        for p in node.parents if p.type in ('or', 'and')
+                    ) or not sim.node_is_viable(node)
+            if node.type == 'or':
+                if not sim.node_is_traversable(attacker_state.performed_nodes, node):
+                    assert not sim.node_is_viable(node)
+        else:
+            if sim.node_is_traversable(attacker_state.performed_nodes, node):
+                breakpoint()
+            assert not sim.node_is_traversable(
+                attacker_state.performed_nodes, node
+            )
+
 def test_attacker_step_rewards_one_off(
         corelang_lang_graph: LanguageGraph, model: Model
     ) -> None:
