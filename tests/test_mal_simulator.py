@@ -12,6 +12,7 @@ from malsim.mal_simulator import (
     RewardMode
 )
 from malsim import load_scenario, run_simulation
+from dataclasses import asdict
 import numpy as np
 import pytest
 from .conftest import get_node
@@ -992,3 +993,13 @@ def test_simulator_seed_setting() -> None:
     ttc_array = np.array(ttcs)
     variance = ttc_array.var()
     assert variance > 0, "Variance is 0, which means the TTCs are not random"
+
+def test_settings_serialization() -> None:
+    """Test that the settings serialization works"""
+    settings = MalSimulatorSettings(
+            ttc_mode=TTCMode.PER_STEP_SAMPLE,
+            attacker_reward_mode=RewardMode.ONE_OFF,
+            defender_reward_mode=RewardMode.CUMULATIVE,
+        )
+    deserialized_settings = MalSimulatorSettings(**asdict(settings))
+    assert deserialized_settings == settings
