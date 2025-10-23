@@ -356,11 +356,115 @@ def test_is_traversable(
                 if not sim.node_is_traversable(attacker_state.performed_nodes, node):
                     assert not sim.node_is_viable(node)
         else:
-            if sim.node_is_traversable(attacker_state.performed_nodes, node):
-                breakpoint()
             assert not sim.node_is_traversable(
                 attacker_state.performed_nodes, node
             )
+
+def test_is_compromised(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
+
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    entry_point = get_node(attack_graph, 'OS App:fullAccess')
+    sim = MalSimulator(attack_graph)
+
+    attacker_name = "Test Attacker"
+    sim.register_attacker(attacker_name, {entry_point})
+    attacker_state = sim.agent_states[attacker_name]
+
+    # Compromise all or steps it can
+    or_steps = list(attacker_state.action_surface)
+    while or_steps:
+        attacker_state = sim.step({attacker_name: or_steps})[attacker_name]
+        or_steps = [
+            n for n in sim.agent_states[attacker_name].action_surface
+            if n.type == 'or'
+        ]
+    assert isinstance(attacker_state, MalSimAttackerState)
+
+    for node in sim.attack_graph.nodes.values():
+        if node in attacker_state.performed_nodes:
+            # Unclear traversability of entry points
+            assert sim.node_is_compromised(node)
+        else:
+            assert not sim.node_is_compromised(node)
+
+
+def test_get_node(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
+
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    sim = MalSimulator(attack_graph)
+
+    assert sim.get_node('OS App:fullAccess')
+
+    with pytest.raises(AssertionError):
+        sim.get_node('nonExisting:node')
+
+
+def test_simulation_done(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
+
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    entry_point = get_node(attack_graph, 'OS App:fullAccess')
+    sim = MalSimulator(attack_graph, max_iter=9)
+
+    defender_name = "Test defender"
+    sim.register_defender(defender_name)
+
+    attacker_name = "Test Attacker"
+    sim.register_attacker(attacker_name, {entry_point})
+    states = sim.reset()
+
+    for _ in range(10):
+        # Do nothing 10 steps
+        states = sim.step({})
+    
+    attacker_state = states[attacker_name]
+    assert isinstance(attacker_state, MalSimAttackerState)
+    defender_state = states[defender_name]
+    assert isinstance(defender_state, MalSimDefenderState)
+
+    assert sim.done() # simulation is done because truncated
+    assert not sim._defender_is_terminated() # not terminated
+    assert not sim._attacker_is_terminated(attacker_state) # not terminated 
+
+
+def test_simulation_terminations(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
+
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    entry_point = get_node(attack_graph, 'OS App:fullAccess')
+    sim = MalSimulator(attack_graph)
+
+    defender_name = "Test defender"
+    sim.register_defender(defender_name)
+
+    attacker_name = "Test Attacker"
+    sim.register_attacker(attacker_name, {entry_point})
+    states = sim.reset()
+    attacker_state = states[attacker_name]
+    assert isinstance(attacker_state, MalSimAttackerState)
+
+    while(attacker_state.action_surface):
+        # Perform entire action surface of attacker
+        states = sim.step(
+            {attacker_name: list(attacker_state.action_surface)}
+        )
+        attacker_state = states[attacker_name]
+
+    attacker_state = states[attacker_name]
+    assert isinstance(attacker_state, MalSimAttackerState)
+    defender_state = states[defender_name]
+    assert isinstance(defender_state, MalSimDefenderState)
+
+    assert sim.done() # simulation is done because all agents terminated
+    assert sim._defender_is_terminated()
+    assert sim._attacker_is_terminated(attacker_state)
+
 
 def test_attacker_step_rewards_one_off(
         corelang_lang_graph: LanguageGraph, model: Model

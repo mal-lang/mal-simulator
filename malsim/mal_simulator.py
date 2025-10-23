@@ -430,29 +430,30 @@ class MalSimulator():
         if not self.node_is_viable(node):
             return False
 
+        if node.type in ('defense', 'exist', 'notExist'):
+            # Only attack steps have traversability
+            return False
+
         if not node.parents & performed_nodes:
             # If no parent is reached, the node can not be traversable
             return False
 
-        match(node.type):
-            case 'or':
-                traversable = any(
-                    parent in performed_nodes
-                    for parent in node.parents
-                )
-            case 'and':
-                traversable = all(
-                    parent in performed_nodes
-                    or not self.node_is_necessary(parent)
-                    for parent in node.parents
-                )
-            case 'exist' | 'notExist' | 'defense':
-                traversable = False
-            case _:
-                raise TypeError(
-                    f'Node "{node.full_name}"({node.id})'
-                    f'has an unknown type "{node.type}".'
-                )
+        if node.type == 'or':
+            traversable = any(
+                parent in performed_nodes
+                for parent in node.parents
+            )
+        elif node.type == 'and':
+            traversable = all(
+                parent in performed_nodes
+                or not self.node_is_necessary(parent)
+                for parent in node.parents
+            )
+        else:
+            raise TypeError(
+                f'Node "{node.full_name}"({node.id})'
+                f'has an unknown type "{node.type}".'
+            )
         return traversable
 
     def node_reward(self, node: AttackGraphNode) -> float:
