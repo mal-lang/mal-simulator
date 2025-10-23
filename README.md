@@ -325,8 +325,11 @@ options:
                         If set to a path, attack graph will be dumped there
   -s SEED, --seed SEED  If set to a seed, simulator will use it as setting
   -t TTC_MODE, --ttc-mode TTC_MODE
-                        0: EFFORT_BASED_PER_STEP_SAMPLE 1: PER_STEP_SAMPLE 2: PRE_SAMPLE 3: EXPECTED_VALUE 4:
-                        DISABLED
+                        0: EFFORT_BASED_PER_STEP_SAMPLE
+                        1: PER_STEP_SAMPLE
+                        2: PRE_SAMPLE
+                        3: EXPECTED_VALUE
+                        4: DISABLED
   -g, --send-to-gui     If set, simulator will send actions to malsim-gui
   ```
 
@@ -562,9 +565,13 @@ Observability means that a node is observed by a defender when it is compromised
 Actionability currently has no impact in the base simulator, but is used in Vejde MALSIM it controls whether a certain type of attack step can be used as an action by agents or not.
 
 
-## GUI (slightly experimental)
+## GUI, Visualization (slightly experimental)
 
-It is possible to view simulation runs graphically with the [malsim-gui](https://github.com/mal-lang/malsim-gui). Recommended way to run it is through docker.
+![MAL GUI](docs/malgui.png)
+
+It is possible to view simulation runs graphically with the [malsim-gui](https://github.com/mal-lang/malsim-gui). Recommended way to run it is through docker:
+
+`docker run -p 8888:8888 mrkickling/malsim-gui`
 
 When you run simulations in the simulator, set `send_to_api=True` in the Malsimulator init or use the `-g` flag when running the simulator from command line.
 
