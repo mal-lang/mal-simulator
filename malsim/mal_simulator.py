@@ -972,7 +972,7 @@ class MalSimulator():
 
         # Compare attempts to ttc expected value in EXPECTED_VALUE mode
         # or presampled ttcs in PRE_SAMPLE mode
-        elif self.sim_settings.ttc_mode == TTCMode.EXPECTED_VALUE or self.sim_settings.ttc_mode == TTCMode.PRE_SAMPLE:
+        elif self.sim_settings.ttc_mode in (TTCMode.EXPECTED_VALUE, TTCMode.PRE_SAMPLE):
             node_ttc_value = self._ttc_values.get(node, 0)
             return num_attempts + 1 >= node_ttc_value
 
