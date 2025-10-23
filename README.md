@@ -571,7 +571,7 @@ Actionability currently has no impact in the base simulator, but is used in Vejd
 
 It is possible to view simulation runs graphically with the [malsim-gui](https://github.com/mal-lang/malsim-gui). Recommended way to run it is through docker:
 
-`docker run -p 8888:8888 mrkickling/malsim-gui`
+`docker run -p 8888:8888 mrkickling/malsim-gui:0.0.0`
 
 When you run simulations in the simulator, set `send_to_api=True` in the Malsimulator init or use the `-g` flag when running the simulator from command line.
 
