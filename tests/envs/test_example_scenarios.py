@@ -45,6 +45,8 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
 
     attacker_agent = scenario.agents[attacker_agent_name].policy
     defender_agent = scenario.agents[defender_agent_name].policy
+    assert attacker_agent
+    assert defender_agent
 
     total_reward_defender = 0.0
     total_reward_attacker = 0.0
@@ -189,6 +191,8 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
 
     attacker_agent = scenario.agents[attacker_agent_name].policy
     defender_agent = scenario.agents[defender_agent_name].policy
+    assert attacker_agent
+    assert defender_agent
 
     total_reward_defender = 0.0
     attacker_failed_steps = 0
@@ -324,6 +328,8 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
 
     attacker_agent = scenario.agents[attacker_agent_name].policy
     defender_agent = scenario.agents[defender_agent_name].policy
+    assert attacker_agent
+    assert defender_agent
 
     total_reward_defender = 0.0
     total_reward_attacker = 0.0
