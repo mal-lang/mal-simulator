@@ -175,12 +175,13 @@ class MalSimulatorSettings():
         )
 
     def __post_init__(self) -> None:
+        """Allow ttc/reward mode to be given as strings - convert to enums"""
         if isinstance(self.ttc_mode, str):
-            self.ttc_mode = getattr(TTCMode, self.ttc_mode)
+            self.ttc_mode = TTCMode[self.ttc_mode]
         if isinstance(self.attacker_reward_mode, str):
-            self.attacker_reward_mode = getattr(RewardMode, self.attacker_reward_mode)
+            self.attacker_reward_mode = RewardMode[self.attacker_reward_mode]
         if isinstance(self.defender_reward_mode, str):
-            self.defender_reward_mode = getattr(RewardMode, self.defender_reward_mode)
+            self.defender_reward_mode = RewardMode[self.defender_reward_mode]
 
 
 class MalSimulator():
