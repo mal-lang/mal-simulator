@@ -439,6 +439,10 @@ class MalSimulator():
         if not self.node_is_viable(node):
             return False
 
+        if not node.parents & performed_nodes:
+            # If no parent is reached, the node can not be traversable
+            return False
+
         match(node.type):
             case 'or':
                 traversable = any(
