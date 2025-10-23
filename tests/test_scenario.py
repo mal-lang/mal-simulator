@@ -8,6 +8,7 @@ from maltoolbox.model import Model
 from maltoolbox.attackgraph import create_attack_graph
 from malsim.scenario import (
     Scenario,
+    AttackerAgentConfig,
     get_scenario_node_property_dict,
     _validate_scenario_node_property_config
 )
@@ -54,7 +55,9 @@ def test_load_scenario() -> None:
 
     # Verify attacker entrypoint was added
     attack_step = get_node(scenario.attack_graph, 'OS App:fullAccess')
-    assert attack_step in scenario.agents['Attacker1'].entry_points
+    attacker1 = scenario.agents['Attacker1']
+    assert isinstance(attacker1, AttackerAgentConfig)
+    assert attack_step in attacker1.entry_points
 
     assert isinstance(scenario.agents['Attacker1'].policy, BreadthFirstAttacker)
     assert isinstance(scenario.agents['Defender1'].policy, PassiveAgent)
