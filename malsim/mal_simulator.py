@@ -1108,8 +1108,6 @@ class MalSimulator():
                 else:
                     raise ValueError(f"Invalid RewardMode when TTC mode is DISABLED: {reward_mode}")
 
-            step_reward -= len(attacker_state.step_performed_nodes)
-
         if reward_mode == RewardMode.CUMULATIVE:
             # To make it cumulative, add previous step reward
             step_reward += self.agent_reward(attacker_state.name)
