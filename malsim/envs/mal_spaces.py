@@ -10,39 +10,31 @@ class HeteroDataSpace(Space):
     This space can store different types of nodes and edges, each with their own attributes,
     facilitating the modeling of complex relationships in heterogeneous graph data.
     
+    Node and edge types are fixed at initialization and cannot be modified afterward.
+    
     Example usage:
-        space = HeteroDataSpace()
-        space.add_node_type('asset', Box(0, 1, shape=(10,), dtype=np.float32))
-        space.add_node_type('attack_step', Box(0, 1, shape=(5,), dtype=np.float32))
-        space.add_edge_type(('asset', 'has', 'attack_step'), Box(0, 1, shape=(2,), dtype=np.int64))
+        space = HeteroDataSpace({
+            'asset': Box(0, 1, shape=(10,), dtype=np.float32),
+            'attack_step': Box(0, 1, shape=(5,), dtype=np.float32)
+        }, {
+            ('asset', 'has', 'attack_step'): Box(0, 1, shape=(2,), dtype=np.int64)
+        })
     """
     
-    def __init__(self):
+    def __init__(self, node_spaces: Dict[str, Space], edge_spaces: Dict[Tuple[str, str, str], Space]):
+        """
+        Initialize HeteroDataSpace with fixed node and edge types.
+        
+        Args:
+            node_spaces: Dictionary mapping node type names to their spaces
+            edge_spaces: Dictionary mapping edge type tuples to their spaces
+        """
         super().__init__()
-        self._node_spaces: Dict[str, Space] = {}
-        self._edge_spaces: Dict[Tuple[str, str, str], Space] = {}
+        self._node_spaces: Dict[str, Space] = dict(node_spaces)  # Make a copy
+        self._edge_spaces: Dict[Tuple[str, str, str], Space] = dict(edge_spaces)  # Make a copy
         self._node_features: Dict[str, Any] = {}
         self._edge_features: Dict[Tuple[str, str, str], Any] = {}
-    
-    def add_node_type(self, node_type: str, space: Space) -> None:
-        """
-        Add a node type with its corresponding space.
-        
-        Args:
-            node_type: Name of the node type (e.g., 'asset', 'attack_step')
-            space: Gymnasium space defining the structure of this node type
-        """
-        self._node_spaces[node_type] = space
-    
-    def add_edge_type(self, edge_type: Tuple[str, str, str], space: Space) -> None:
-        """
-        Add an edge type with its corresponding space.
-        
-        Args:
-            edge_type: Tuple of (source_type, relation, target_type)
-            space: Gymnasium space defining the structure of this edge type
-        """
-        self._edge_spaces[edge_type] = space
+        self._initialized = True
     
     def set_node_features(self, node_type: str, features: Any) -> None:
         """
@@ -53,7 +45,7 @@ class HeteroDataSpace(Space):
             features: Feature data for this node type
         """
         if node_type not in self._node_spaces:
-            raise ValueError(f"Node type '{node_type}' not found. Add it first with add_node_type().")
+            raise ValueError(f"Node type '{node_type}' not found in this space.")
         self._node_features[node_type] = features
     
     def set_edge_features(self, edge_type: Tuple[str, str, str], features: Any) -> None:
@@ -65,7 +57,7 @@ class HeteroDataSpace(Space):
             features: Feature data for this edge type
         """
         if edge_type not in self._edge_spaces:
-            raise ValueError(f"Edge type '{edge_type}' not found. Add it first with add_edge_type().")
+            raise ValueError(f"Edge type '{edge_type}' not found in this space.")
         self._edge_features[edge_type] = features
     
     def get_node_features(self, node_type: str) -> Any:
@@ -160,30 +152,30 @@ def create_mal_hetero_space(
     Returns:
         Configured HeteroDataSpace for MAL simulator
     """
-    space = HeteroDataSpace()
+    # Define node spaces
+    node_spaces = {
+        'asset': Box(
+            low=0, high=1, 
+            shape=(num_assets, asset_feature_dim), 
+            dtype=np.float32
+        ),
+        'attack_step': Box(
+            low=0, high=1, 
+            shape=(num_attack_steps, attack_step_feature_dim), 
+            dtype=np.float32
+        )
+    }
     
-    # Add node types
-    space.add_node_type('asset', Box(
-        low=0, high=1, 
-        shape=(num_assets, asset_feature_dim), 
-        dtype=np.float32
-    ))
+    # Define edge spaces for attack graph relationships
+    edge_spaces = {
+        ('asset', 'has', 'attack_step'): Box(
+            low=0, high=max(num_assets, num_attack_steps),
+            shape=(2,), dtype=np.int64
+        ),
+        ('attack_step', 'leads_to', 'attack_step'): Box(
+            low=0, high=num_attack_steps,
+            shape=(2,), dtype=np.int64
+        )
+    }
     
-    space.add_node_type('attack_step', Box(
-        low=0, high=1, 
-        shape=(num_attack_steps, attack_step_feature_dim), 
-        dtype=np.float32
-    ))
-    
-    # Add edge types for attack graph relationships
-    space.add_edge_type(('asset', 'has', 'attack_step'), Box(
-        low=0, high=max(num_assets, num_attack_steps),
-        shape=(2,), dtype=np.int64
-    ))
-    
-    space.add_edge_type(('attack_step', 'leads_to', 'attack_step'), Box(
-        low=0, high=num_attack_steps,
-        shape=(2,), dtype=np.int64
-    ))
-    
-    return space
+    return HeteroDataSpace(node_spaces, edge_spaces)
