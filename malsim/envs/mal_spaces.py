@@ -313,6 +313,8 @@ class MALObs(Space[MALObsInstance]):
                 "attack_step_traversable": sample.attack_steps.traversable.tolist(),
                 "asset_type": sample.assets.type.tolist(),
                 "attack_step_type": sample.attack_steps.type.tolist(),
+                "attack_step_tags": sample.attack_steps.tags.tolist(),
+                "attack_step_id": sample.attack_steps.id.tolist(),
                 "attack_step_class": sample.attack_steps.logic_class.tolist(),
                 "association_type": sample.associations.type.tolist(),
                 "logic_gate_type": sample.logic_gates.type.tolist(),
@@ -331,6 +333,7 @@ class MALObs(Space[MALObsInstance]):
         for sample in sample_n:
             attack_step = AttackStep(
                 type=np.array(sample["attack_step_type"], dtype=self.attack_step_type.dtype),
+                id=np.array(sample["attack_step_id"], dtype=self.attack_step_id.dtype),
                 logic_class=np.array(sample["attack_step_class"], dtype=self.attack_step_class.dtype),
                 tags=np.array(sample["attack_step_tags"], dtype=self.attack_step_tags.dtype),
                 compromised=np.array(sample["attack_step_compromised"], dtype=self.attack_step_compromised.dtype),
