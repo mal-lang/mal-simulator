@@ -56,7 +56,8 @@ class LangSerializer:
                 attack_step.name: i for i, attack_step in enumerate(all_attack_steps)
             }
         # NOTE: The actual logic-class of the attack step
-        self.attack_step_class = {attack_step.type: i for i, attack_step in enumerate(all_attack_steps)}
+        all_attack_step_classes = set(attack_step.type for attack_step in all_attack_steps)
+        self.attack_step_class = {class_name: i for i, class_name in enumerate(all_attack_step_classes)}
 
         # NOTE: Add None tag for steps without tags
         all_attack_step_tags = [None] + sorted(list(tag for attack_step in all_attack_steps for tag in attack_step.tags))
