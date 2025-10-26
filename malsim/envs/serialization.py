@@ -10,6 +10,8 @@ class LangSerializer:
             split_assoc_types: If True, split association types into separate types for each asset type
         """
         self._lang = lang
+        self.split_assoc_types = split_assoc_types
+        self.split_attack_step_types = split_attack_step_types
 
         # TODO: Remove abstract classes?
         self.asset_type = {
@@ -60,6 +62,6 @@ class LangSerializer:
         self.attack_step_class = {class_name: i for i, class_name in enumerate(all_attack_step_classes)}
 
         # NOTE: Add None tag for steps without tags
-        all_attack_step_tags = [None] + sorted(list(tag for attack_step in all_attack_steps for tag in attack_step.tags))
+        all_attack_step_tags = [None] + sorted(set(tag for attack_step in all_attack_steps for tag in attack_step.tags))
         self.attack_step_tag = {tag: i for i, tag in enumerate(all_attack_step_tags)}        
         

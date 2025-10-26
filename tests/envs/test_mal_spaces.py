@@ -1,8 +1,8 @@
 from maltoolbox.language import LanguageGraphAssociation
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.envs.serialization import LangSerializer
-from malsim.envs.mal_spaces import MALObs, MALObsInstance, AttackStep, Assets, Association, LogicGate
-from malsim.scenario import Scenario
+from malsim.envs.mal_spaces import MALObs, MALObsInstance, AttackStep, Assets, Association, LogicGate, attacker_state2graph
+from malsim.scenario import Scenario, AgentType
 from malsim.mal_simulator import MalSimulator
 import numpy as np
 
@@ -13,7 +13,7 @@ def test_mal_obs() -> None:
     )
     scenario = Scenario.load_from_file(scenario_file)
     serializer = LangSerializer(scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True)
-    obs_space = MALObs(serializer)
+    obs_space = MALObs(serializer, use_logic_gates=True)
     sim = MalSimulator(scenario.attack_graph)
 
     def state2instance(sim: MalSimulator) -> MALObsInstance:
@@ -30,6 +30,7 @@ def test_mal_obs() -> None:
         sorted_attack_steps = [sim.attack_graph.nodes[node_id] for node_id in sorted(sim.attack_graph.nodes.keys())]
         attack_steps = AttackStep(
             type=np.array([serializer.attack_step_type[node.model_asset.type][node.name] for node in sorted_attack_steps]),
+            id=np.array([node.id for node in sorted_attack_steps]),
             logic_class=np.array([serializer.attack_step_class[node.type] for node in sorted_attack_steps]),
             tags=np.array([serializer.attack_step_tag[node.tags[0] if len(node.tags) > 0 else None] for node in sorted_attack_steps]),
             compromised=np.array([sim.node_is_compromised(node) for node in sorted_attack_steps]),
@@ -39,7 +40,10 @@ def test_mal_obs() -> None:
         step2step = {(node.id, child.id) for node in sorted_attack_steps for child in node.children}
         
         sorted_assets = [sim.attack_graph.model.assets[asset_id] for asset_id in sorted(sim.attack_graph.model.assets.keys())]
-        assets = Assets(type=np.array([serializer.asset_type[asset.type] for asset in sorted_assets]))
+        assets = Assets(
+            type=np.array([serializer.asset_type[asset.type] for asset in sorted_assets]),
+            id=np.array([asset.id for asset in sorted_assets]),
+        )
         step2asset = {(node.id, node.model_asset.id) for node in sorted_attack_steps}
 
         associations: list[tuple[LanguageGraphAssociation, int, int]] = []
@@ -92,3 +96,24 @@ def test_mal_obs() -> None:
             actions[agent_name] = [state.action_surface[0]]
         states = sim.step(actions)
         assert obs_space.contains(state2instance(sim))
+
+def test_obs_creation() -> None:
+    scenario_file = (
+        "tests/testdata/scenarios/simple_scenario.yml"
+    )
+    scenario = Scenario.load_from_file(scenario_file)
+    attacker = next(agent for agent in scenario.agents if agent['type'] == AgentType.ATTACKER)
+    agent_name = attacker['name']
+    serializer = LangSerializer(scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True)
+    obs_space = MALObs(serializer, use_logic_gates=False)
+    sim = MalSimulator.from_scenario(scenario)
+
+    state = sim.reset()[agent_name]
+    obs = attacker_state2graph(state, serializer, use_logic_gates=False)
+    assert obs_space.contains(obs)
+
+    for _ in range(10):
+        actions = {agent_name: [next(iter(state.action_surface))]}
+        state = sim.step(actions)[agent_name]
+        assert obs_space.contains(attacker_state2graph(state, serializer, use_logic_gates=False))
+
