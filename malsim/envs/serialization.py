@@ -43,7 +43,7 @@ class LangSerializer:
                             for attack_step in asset.attack_steps.values()], key=lambda x: x.name)
         # NOTE: This looks odd, but the attack step name is the type of the action
         if split_attack_step_types:
-            self.attack_step_type = {}
+            self.attack_step_type: dict[str, dict[str, int]] = {}
             type_idx = 0
             for attack_step in all_attack_steps:
                 if attack_step.asset.name not in self.attack_step_type:
@@ -52,12 +52,13 @@ class LangSerializer:
                     self.attack_step_type[attack_step.asset.name][attack_step.name] = type_idx
                 type_idx += 1
         else:
-            self.attack_step_type = {
+            self.attack_step_type: dict[str, int] = {
                 attack_step.name: i for i, attack_step in enumerate(all_attack_steps)
             }
         # NOTE: The actual logic-class of the attack step
         self.attack_step_class = {attack_step.type: i for i, attack_step in enumerate(all_attack_steps)}
 
-        all_attack_step_tags = sorted(list(tag for attack_step in all_attack_steps for tag in attack_step.tags))
+        # NOTE: Add None tag for steps without tags
+        all_attack_step_tags = [None] + sorted(list(tag for attack_step in all_attack_steps for tag in attack_step.tags))
         self.attack_step_tag = {tag: i for i, tag in enumerate(all_attack_step_tags)}        
         
