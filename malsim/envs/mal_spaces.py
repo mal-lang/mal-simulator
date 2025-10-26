@@ -7,7 +7,9 @@ from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.language import LanguageGraphAssociation
 from malsim.envs.serialization import LangSerializer
 from malsim.mal_simulator import MalSimAgentState, MalSimAttackerState
+import logging
 
+logger = logging.getLogger(__name__)
 
 class Assets(NamedTuple):
     type: NDArray[np.int64]
@@ -63,7 +65,7 @@ class MALObs(Space[MALObsInstance]):
         self.use_logic_gates = use_logic_gates
         # MAL Features
         self.attack_step_tags = Discrete(
-            len(set(lang_serializer.attack_step_tag.values()))
+            max(set(lang_serializer.attack_step_tag.values())) + 1
         )
         if use_logic_gates:
             self.logic_gate_type = Discrete(2)  # 0 for AND, 1 for OR
@@ -71,7 +73,7 @@ class MALObs(Space[MALObsInstance]):
             self.logic_gate_type = None
 
         # Language Features
-        self.asset_type = Discrete(len(set(lang_serializer.asset_type.values())))
+        self.asset_type = Discrete(max(set(lang_serializer.asset_type.values())) + 1)
         if isinstance(
             lang_serializer.attack_step_type[
                 next(iter(lang_serializer.attack_step_type))
@@ -83,16 +85,16 @@ class MALObs(Space[MALObsInstance]):
                 for asset_type in lang_serializer.attack_step_type
                 for attack_step_name in lang_serializer.attack_step_type[asset_type]
             }
-            self.attack_step_type = Discrete(len(attack_step_type_ids))
+            self.attack_step_type = Discrete(len(attack_step_type_ids) + 1)
         else:
             self.attack_step_type = Discrete(
-                len(set(lang_serializer.attack_step_type.values()))
+                max(set(lang_serializer.attack_step_type.values())) + 1
             )
         self.attack_step_class = Discrete(
-            len(set(lang_serializer.attack_step_class.values()))
+            max(set(lang_serializer.attack_step_class.values())) + 1
         )
         self.association_type = Discrete(
-            len(set(lang_serializer.association_type.values()))
+            max(set(lang_serializer.association_type.values())) + 1
         )
 
         # Simulator Features
@@ -206,6 +208,19 @@ class MALObs(Space[MALObsInstance]):
                 and attack_step_tags_valid
             )
 
+            logger.warning(
+                (f"time_valid: {time_valid}, "
+                 f"attack_step_compromised_valid: {attack_step_compromised_valid}, "
+                 f"attack_step_attempts_valid: {attack_step_attempts_valid}, "
+                 f"attack_step_traversable_valid: {attack_step_traversable_valid}, "
+                 f"asset_type_valid: {asset_type_valid}, "
+                 f"attack_step_type_valid: {attack_step_type_valid}, "
+                 f"attack_step_class_valid: {attack_step_class_valid}, "
+                 f"association_type_valid: {association_type_valid}, "
+                 f"logic_gate_type_valid: {logic_gate_type_valid}, "
+                 f"attack_step_tags_valid: {attack_step_tags_valid}")
+            )
+
             # Edges
             if (isinstance(x.step2asset, np.ndarray)
                 and isinstance(x.assoc2asset, np.ndarray | None)
@@ -254,6 +269,14 @@ class MALObs(Space[MALObsInstance]):
                         and step2step_valid
                         and logic2step_valid
                         and step2logic_valid
+                    )
+
+                    logger.warning(
+                        (f"step2asset_valid: {step2asset_valid}, "
+                         f"assoc2asset_valid: {assoc2asset_valid}, "
+                         f"step2step_valid: {step2step_valid}, "
+                         f"logic2step_valid: {logic2step_valid}, "
+                         f"step2logic_valid: {step2logic_valid}")
                     )
 
                     return feature_valid and edge_valid

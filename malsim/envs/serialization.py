@@ -54,8 +54,9 @@ class LangSerializer:
                     self.attack_step_type[attack_step.asset.name][attack_step.name] = type_idx
                 type_idx += 1
         else:
+            all_attack_step_names = set(attack_step.name for attack_step in all_attack_steps)
             self.attack_step_type: dict[str, int] = {
-                attack_step.name: i for i, attack_step in enumerate(all_attack_steps)
+                attack_step_name: i for i, attack_step_name in enumerate(all_attack_step_names)
             }
         # NOTE: The actual logic-class of the attack step
         all_attack_step_classes = set(attack_step.type for attack_step in all_attack_steps)
