@@ -166,34 +166,22 @@ class MALObs(Space[MALObsInstance]):
                 x.attack_steps.tags[0]
             )
             if self.use_logic_gates:
-                logic_gate_type_valid = self.logic_gate_type.contains(x.logic_gates.type[0])
+                logic_gate_type_valid = all(x.logic_gates.type[i] in self.logic_gate_type for i in range(len(x.logic_gates.type)))
             else:
                 logic_gate_type_valid = x.logic_gates is None and x.logic2step is None and x.step2logic is None
 
-            asset_type_valid = self.asset_type.contains(x.assets.type[0])
-            attack_step_type_valid = self.attack_step_type.contains(
-                x.attack_steps.type[0]
-            )
-            attack_step_class_valid = self.attack_step_class.contains(
-                x.attack_steps.logic_class[0]
-            )
+            asset_type_valid = all(x.assets.type[i] in self.asset_type for i in range(len(x.assets.type)))
+            attack_step_type_valid = all(x.attack_steps.type[i] in self.attack_step_type for i in range(len(x.attack_steps.type)))
+            attack_step_class_valid = all(x.attack_steps.logic_class[i] in self.attack_step_class for i in range(len(x.attack_steps.logic_class)))
             if x.associations is not None:
-                association_type_valid = self.association_type.contains(
-                    x.associations.type[0]
-                )
+                association_type_valid = all(x.associations.type[i] in self.association_type for i in range(len(x.associations.type)))
             else:
                 association_type_valid = True
 
             time_valid = self.time.contains(x.time)
-            attack_step_compromised_valid = self.attack_step_compromised.contains(
-                x.attack_steps.compromised[0]
-            )
-            attack_step_attempts_valid = self.attack_step_attempts.contains(
-                x.attack_steps.attempts[0]
-            )
-            attack_step_traversable_valid = self.attack_step_traversable.contains(
-                x.attack_steps.traversable[0]
-            )
+            attack_step_compromised_valid = all(x.attack_steps.compromised[i] in self.attack_step_compromised for i in range(len(x.attack_steps.compromised)))
+            attack_step_attempts_valid = all(x.attack_steps.attempts[i] in self.attack_step_attempts for i in range(len(x.attack_steps.attempts)))
+            attack_step_traversable_valid = all(x.attack_steps.traversable[i] in self.attack_step_traversable for i in range(len(x.attack_steps.traversable)))
 
             feature_valid = (
                 time_valid
