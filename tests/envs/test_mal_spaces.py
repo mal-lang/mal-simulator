@@ -1,7 +1,7 @@
 from maltoolbox.language import LanguageGraphAssociation
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.envs.serialization import LangSerializer
-from malsim.envs.mal_spaces import MALObs, MALObsInstance, AttackStep, Assets, Association, LogicGate, attacker_state2graph
+from malsim.envs.mal_spaces import MALObs, MALObsInstance, AttackStep, Assets, Association, LogicGate, attacker_state2graph, AttackGraphNodeSpace
 from malsim.scenario import Scenario, AgentType
 from malsim.mal_simulator import MalSimulator
 import numpy as np
@@ -116,4 +116,22 @@ def test_obs_creation() -> None:
         actions = {agent_name: [next(iter(state.action_surface))]}
         state = sim.step(actions)[agent_name]
         assert obs_space.contains(attacker_state2graph(state, serializer, use_logic_gates=False))
+
+def test_node_space() -> None:
+    scenario_file = (
+        "tests/testdata/scenarios/simple_scenario.yml"
+    )
+    scenario = Scenario.load_from_file(scenario_file)
+    attacker = next(agent for agent in scenario.agents if agent['type'] == AgentType.ATTACKER)
+    agent_name = attacker['name']
+    sim = MalSimulator.from_scenario(scenario)
+    action_space = AttackGraphNodeSpace(sim.attack_graph)
+
+    state = sim.reset()[agent_name]
+
+    while not sim.agent_is_terminated(agent_name):
+        action = next(iter(state.action_surface))
+        assert action_space.contains(action.id)
+        actions = {agent_name: [action]}
+        state = sim.step(actions)[agent_name]
 
