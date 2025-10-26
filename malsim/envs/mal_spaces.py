@@ -1,12 +1,11 @@
-from re import S
-from gymnasium.spaces import Box, MultiBinary, Space, Discrete, MultiDiscrete
+from gymnasium.spaces import Box, Space, Discrete, MultiDiscrete
 import numpy as np
 from typing import NamedTuple, Sequence
 from numpy.typing import NDArray
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.language import LanguageGraphAssociation
 from malsim.envs.serialization import LangSerializer
-from malsim.mal_simulator import MalSimAgentState, MalSimAttackerState
+from malsim.mal_simulator import MalSimAttackerState
 import logging
 
 logger = logging.getLogger(__name__)
