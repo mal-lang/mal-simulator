@@ -50,7 +50,7 @@ class LangSerializer:
                     self.attack_step_type[attack_step.asset.name] = {}
                 if attack_step.name not in self.attack_step_type[attack_step.asset.name]:
                     self.attack_step_type[attack_step.asset.name][attack_step.name] = type_idx
-            type_idx += 1
+                type_idx += 1
         else:
             self.attack_step_type = {
                 attack_step.name: i for i, attack_step in enumerate(all_attack_steps)
@@ -59,8 +59,5 @@ class LangSerializer:
         self.attack_step_class = {attack_step.type: i for i, attack_step in enumerate(all_attack_steps)}
 
         all_attack_step_tags = sorted(list(tag for attack_step in all_attack_steps for tag in attack_step.tags))
-        self.attack_step_tag = {tag: i for i, tag in enumerate(all_attack_step_tags)}
-
-        # TODO: Serialize TTCs
-        
+        self.attack_step_tag = {tag: i for i, tag in enumerate(all_attack_step_tags)}        
         

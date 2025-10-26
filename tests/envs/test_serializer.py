@@ -44,3 +44,62 @@ def test_serializer() -> None:
     tag_values = list(serializer.attack_step_tag.values())
     assert len(tag_values) == len(set(tag_values)), "attack_step_tag integer values are not unique"
     assert all(isinstance(v, int) for v in tag_values), "Not all attack step tags map to integers"
+
+    serializer = LangSerializer(lang, split_assoc_types=True, split_attack_step_types=True)
+
+    # Test for split_assoc_types=True, split_attack_step_types=True
+    # This should build nested dicts for association_type and attack_step_type
+
+    # Check association_type structure
+    for assoc in lang.associations:
+        assoc_dict = serializer.association_type.get(assoc.name)
+        assert isinstance(assoc_dict, dict), f"association_type[{assoc.name}] should be dict"
+        left_type = assoc.left_field.asset.name
+        right_type = assoc.right_field.asset.name
+        assert left_type in assoc_dict, (
+            f"association_type[{assoc.name}] missing left asset type {left_type}"
+        )
+        assert right_type in assoc_dict[left_type], (
+            f"association_type[{assoc.name}][{left_type}] missing right asset type {right_type}"
+        )
+        id_val = assoc_dict[left_type][right_type]
+        assert isinstance(id_val, int), (
+            f"Final value in association_type[{assoc.name}][{left_type}][{right_type}] "
+            "should be int"
+        )
+
+    # Check that all (assoc name, left type, right type) combos are unique
+    seen_assoc_ids = set()
+    for assoc_dict in serializer.association_type.values():
+        for left_dict in assoc_dict.values():
+            for right_val in left_dict.values():
+                assert right_val not in seen_assoc_ids, "Duplicate assoc_type id found"
+                seen_assoc_ids.add(right_val)
+
+    # Check attack_step_type structure
+    all_attack_steps = sorted(
+        [attack_step
+            for asset in lang.assets.values()
+            for attack_step in asset.attack_steps.values()],
+        key=lambda x: x.name)
+    for attack_step in all_attack_steps:
+        asset_name = attack_step.asset.name
+        attack_name = attack_step.name
+        assert asset_name in serializer.attack_step_type, (
+            f"attack_step_type missing asset {asset_name}"
+        )
+        asset_dict = serializer.attack_step_type[asset_name]
+        assert attack_name in asset_dict, (
+            f"attack_step_type[{asset_name}] missing attack step {attack_name}"
+        )
+        attack_id = asset_dict[attack_name]
+        assert isinstance(attack_id, int), (
+            f"attack_step_type[{asset_name}][{attack_name}] should be int"
+        )
+
+    # Check that all (asset_type, attack_step_name) combos are unique ids
+    seen_attackstep_ids = set()
+    for asset_dict in serializer.attack_step_type.values():
+        for val in asset_dict.values():
+            assert val not in seen_attackstep_ids, "Duplicate attack_step_type id found"
+            seen_attackstep_ids.add(val)
