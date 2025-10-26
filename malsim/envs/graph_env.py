@@ -1,8 +1,7 @@
 import gymnasium as gym
 from typing import Any
 
-from gymnasium.spaces import GraphInstance
-from .mal_spaces import AttackGraphNodeSpace, MALObs, attacker_state2graph
+from .mal_spaces import AttackGraphNodeSpace, MALObs, MALObsInstance, attacker_state2graph
 from os import PathLike
 from malsim.scenario import AgentType, Scenario
 from malsim.mal_simulator import MalSimulator, MalSimulatorSettings, TTCMode, RewardMode
@@ -29,7 +28,7 @@ def register_envs(scenario: Scenario | PathLike) -> None:
         }
     )
 
-class GraphAttackerEnv(gym.Env[MALObs, AttackGraphNodeSpace]):
+class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
     metadata = {'render_modes': []}
 
     spec: EnvSpec = EnvSpec(
@@ -62,17 +61,17 @@ class GraphAttackerEnv(gym.Env[MALObs, AttackGraphNodeSpace]):
         self.model = self.attack_graph.model
         assert self.model, "Attack graph must have a model"
         self.lang_serializer = LangSerializer(self.attack_graph.lang_graph)
-        self.observation_space = MALObs(self.lang_serializer, sim_settings.seed)
+        self.observation_space = MALObs(self.lang_serializer, self.use_logic_gates, sim_settings.seed)
         self.action_space = AttackGraphNodeSpace(self.attack_graph)
 
-    def reset(self, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[GraphInstance, dict[str, Any]]:
+    def reset(self, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[MALObsInstance, dict[str, Any]]:
         super().reset(seed=seed, options=options)
         state = self.sim.reset()[self.agent_name]
         obs = attacker_state2graph(state, self.lang_serializer, self.use_logic_gates)
         info = {"state": state}
         return obs, info
 
-    def step(self, action: np.int64) -> tuple[GraphInstance, SupportsFloat, bool, bool, dict[str, Any]]:
+    def step(self, action: np.int64) -> tuple[MALObsInstance, SupportsFloat, bool, bool, dict[str, Any]]:
         action_node = self.attack_graph.nodes[int(action)]
         state = self.sim.step({self.agent_name: [action_node]})[self.agent_name]
         obs = attacker_state2graph(state, self.lang_serializer, self.use_logic_gates)
