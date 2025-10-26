@@ -39,7 +39,7 @@ def test_serializer() -> None:
     assert len(attack_step_class_values) == len(set(attack_step_class_values)), "attack_step_class integer values are not unique"
     assert all(isinstance(v, int) for v in attack_step_class_values), "Not all attack step classes map to integers"
 
-    attack_step_tags = set(tag for attack_step in all_attack_steps for tag in attack_step.tags)
+    attack_step_tags = set(tag for attack_step in all_attack_steps for tag in attack_step.tags).union({None})
     assert set(serializer.attack_step_tag.keys()) == attack_step_tags, "attack_step_tag key mismatch"
     tag_values = list(serializer.attack_step_tag.values())
     assert len(tag_values) == len(set(tag_values)), "attack_step_tag integer values are not unique"

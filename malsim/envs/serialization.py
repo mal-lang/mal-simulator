@@ -62,6 +62,6 @@ class LangSerializer:
         self.attack_step_class = {class_name: i for i, class_name in enumerate(all_attack_step_classes)}
 
         # NOTE: Add None tag for steps without tags
-        all_attack_step_tags = [None] + sorted(set(tag for attack_step in all_attack_steps for tag in attack_step.tags))
-        self.attack_step_tag = {tag: i for i, tag in enumerate(all_attack_step_tags)}        
+        all_attack_step_tags: list[str | None] = [None] + sorted(set(tag for attack_step in all_attack_steps for tag in attack_step.tags))
+        self.attack_step_tag: dict[str | None, int] = {tag: i for i, tag in enumerate(all_attack_step_tags)}        
         
