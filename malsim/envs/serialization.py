@@ -14,12 +14,12 @@ class LangSerializer:
         self.split_attack_step_types = split_attack_step_types
 
         # TODO: Remove abstract classes?
-        self.asset_type = {
+        self.asset_type: dict[str, int] = {
             asset_type: i for i, asset_type in enumerate(sorted(self._lang.assets.keys()))
         }
 
         if split_assoc_types:
-            self.association_type = {}
+            self.association_type: dict[str, dict[str, dict[str, int]]] = {}
             type_idx = 0
             for association in sorted(self._lang.associations, key=lambda x: x.name):
                 left_asset_type = association.left_field.asset.name
@@ -33,7 +33,7 @@ class LangSerializer:
                 type_idx += 1
 
         else:
-            self.association_type = {
+            self.association_type: dict[str, int] = {
                 association.name: i for i, association in enumerate(sorted(self._lang.associations, key=lambda x: x.name))
             }
 
@@ -52,9 +52,9 @@ class LangSerializer:
                     self.attack_step_type[attack_step.asset.name] = {}
                 if attack_step.name not in self.attack_step_type[attack_step.asset.name]:
                     self.attack_step_type[attack_step.asset.name][attack_step.name] = type_idx
-                type_idx += 1
+                    type_idx += 1
         else:
-            all_attack_step_names = set(attack_step.name for attack_step in all_attack_steps)
+            all_attack_step_names: set[str] = set(attack_step.name for attack_step in all_attack_steps)
             self.attack_step_type: dict[str, int] = {
                 attack_step_name: i for i, attack_step_name in enumerate(all_attack_step_names)
             }

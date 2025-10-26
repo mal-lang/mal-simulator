@@ -10,7 +10,7 @@ from gymnasium.envs.registration import EnvSpec
 import numpy as np
 from typing import SupportsFloat
 
-def register_envs(scenario: Scenario | PathLike) -> None:
+def register_envs(scenario: Scenario | PathLike[str]) -> None:
 
     gym.register(
         id='GraphAttackerEnv-v0',
@@ -47,11 +47,11 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
         }
     )
 
-    def __init__(self, scenario: PathLike | Scenario, use_logic_gates: bool, sim_settings: MalSimulatorSettings, **kwargs: dict[str, Any]) -> None:
-        self.render_mode = kwargs.pop('render_mode', None)
+    def __init__(self, scenario: PathLike[str] | Scenario, use_logic_gates: bool, sim_settings: MalSimulatorSettings, **kwargs: dict[str, Any]) -> None:
+        self.render_mode: str | None = kwargs.pop('render_mode', None)
 
         if not isinstance(scenario, Scenario):
-            scenario = Scenario.load_from_file(scenario)
+            scenario = Scenario.load_from_file(str(scenario))
 
         self.scenario = scenario
         self.use_logic_gates = use_logic_gates
