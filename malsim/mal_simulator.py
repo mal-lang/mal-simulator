@@ -126,8 +126,10 @@ class TTCMode(Enum):
 
 class RewardMode(Enum):
     """Two different ways to generate rewards"""
-    CUMULATIVE = 1  # Reward calculated on all previous steps actions
-    ONE_OFF = 2     # Reward calculated only for current step actions
+    CUMULATIVE = 1   # Reward calculated on all previous steps actions
+    ONE_OFF = 2      # Reward calculated only for current step actions
+    EXPECTED_TTC = 3 # Penalty calculated based on expected TTC value
+    SAMPLE_TTC = 4   # Penalty calculated based on sampled TTC value
 
 @dataclass
 class MalSimulatorSettings():
@@ -1094,6 +1096,19 @@ class MalSimulator():
             self.node_reward(n)
             for n in attacker_state.step_performed_nodes
         )
+
+        if self.sim_settings.ttc_mode in (TTCMode.EFFORT_BASED_PER_STEP_SAMPLE, TTCMode.PER_STEP_SAMPLE, TTCMode.EXPECTED_VALUE, TTCMode.PRE_SAMPLE):
+            step_reward -= len(attacker_state.step_attempted_nodes)
+        elif self.sim_settings.ttc_mode == TTCMode.DISABLED:
+            for node in attacker_state.step_attempted_nodes:
+                if RewardMode.EXPECTED_TTC:
+                    step_reward -= ttc_value_from_node(node, ProbCalculationMethod.EXPECTED, self.rng)
+                elif RewardMode.SAMPLE_TTC:
+                    step_reward -= ttc_value_from_node(node, ProbCalculationMethod.SAMPLE, self.rng)
+                else:
+                    raise ValueError(f"Invalid RewardMode when TTC mode is DISABLED: {reward_mode}")
+
+            step_reward -= len(attacker_state.step_performed_nodes)
 
         if reward_mode == RewardMode.CUMULATIVE:
             # To make it cumulative, add previous step reward
