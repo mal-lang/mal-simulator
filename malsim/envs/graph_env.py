@@ -1,5 +1,5 @@
 import gymnasium as gym
-from typing import Any, Literal
+from typing import Any
 
 from gymnasium.spaces import GraphInstance
 from .mal_spaces import AttackGraphNodeSpace, MALObs, attacker_state2graph
@@ -10,6 +10,24 @@ from malsim.envs.serialization import LangSerializer
 from gymnasium.envs.registration import EnvSpec
 import numpy as np
 from typing import SupportsFloat
+
+def register_envs(scenario: Scenario | PathLike) -> None:
+
+    gym.register(
+        id='GraphAttackerEnv-v0',
+        entry_point='malsim.envs.graph_env:GraphAttackerEnv',
+        kwargs={
+            "scenario": scenario,
+            "use_logic_gates": False,
+            'sim_settings': MalSimulatorSettings(
+                ttc_mode=TTCMode.PER_STEP_SAMPLE,
+                run_defense_step_bernoullis=False,
+                run_attack_step_bernoullis=False,
+                attack_surface_skip_unnecessary=False,
+                attacker_reward_mode=RewardMode.ONE_OFF,
+            ),
+        }
+    )
 
 class GraphAttackerEnv(gym.Env[MALObs, AttackGraphNodeSpace]):
     metadata = {'render_modes': []}
