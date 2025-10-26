@@ -495,11 +495,15 @@ def test_attacker_step_rewards_one_off(
     sim.register_attacker(attacker_name, {entry_point})
     sim.reset()
 
-    state = sim.step({attacker_name: [attempt_read]})[attacker_name]
-    assert sim.agent_reward(attacker_name) == node_rewards[attempt_read] - len(state.step_attempted_nodes)
+    sim.step({attacker_name: [attempt_read]})
+    state1 = sim.agent_states[attacker_name]
+    assert isinstance(state1, MalSimAttackerState)
+    assert sim.agent_reward(attacker_name) == node_rewards[attempt_read] - float(len(state1.step_attempted_nodes))
 
-    state = sim.step({attacker_name: [access_network_and_conn]})[attacker_name]
-    assert sim.agent_reward(attacker_name) == node_rewards[access_network_and_conn] - len(state.step_attempted_nodes)
+    sim.step({attacker_name: [access_network_and_conn]})
+    state2 = sim.agent_states[attacker_name]
+    assert isinstance(state2, MalSimAttackerState)
+    assert sim.agent_reward(attacker_name) == node_rewards[access_network_and_conn] - float(len(state2.step_attempted_nodes))
 
 
 def test_defender_step_rewards_cumulative(
