@@ -137,7 +137,7 @@ class MALObs(Space[MALObsInstance]):
         elif isinstance(seed, int):
             super_seed = super().seed(seed)
             node_seed = int(self.np_random.integers(np.iinfo(np.int32).max))
-            # this is necessary such that after int or list/tuple seeding, the Graph PRNG are equivalent
+            # this is necessary such that after int, the Graph PRNG are equivalent
             # REFERENCE: https://gymnasium.farama.org/_modules/gymnasium/spaces/graph/#Graph
             super().seed(seed)
             return {
