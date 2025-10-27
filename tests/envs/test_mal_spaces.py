@@ -14,7 +14,7 @@ def test_mal_obs() -> None:
     scenario = Scenario.load_from_file(scenario_file)
     serializer = LangSerializer(scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True)
     obs_space = MALObs(serializer, use_logic_gates=True)
-    sim = MalSimulator(scenario.attack_graph)
+    sim = MalSimulator.from_scenario(scenario)
 
     def state2instance(sim: MalSimulator) -> MALObsInstance:
         def get_total_attempts(node: AttackGraphNode) -> int:
@@ -89,13 +89,13 @@ def test_mal_obs() -> None:
         )
 
     states = sim.reset()
-    assert obs_space.contains(state2instance(sim))
+    assert state2instance(sim) in obs_space
     for _ in range(10):
         actions = {}
         for agent_name, state in states.items():
             actions[agent_name] = [state.action_surface[0]]
         states = sim.step(actions)
-        assert obs_space.contains(state2instance(sim))
+        assert state2instance(sim) in obs_space
 
 def test_obs_creation() -> None:
     scenario_file = (
@@ -110,12 +110,12 @@ def test_obs_creation() -> None:
 
     state = sim.reset()[agent_name]
     obs = attacker_state2graph(state, serializer, use_logic_gates=False)
-    assert obs_space.contains(obs)
+    assert obs in obs_space
 
-    for _ in range(10):
+    while not sim.agent_is_terminated(agent_name):
         actions = {agent_name: [next(iter(state.action_surface))]}
         state = sim.step(actions)[agent_name]
-        assert obs_space.contains(attacker_state2graph(state, serializer, use_logic_gates=False))
+        assert attacker_state2graph(state, serializer, use_logic_gates=False) in obs_space
 
 def test_node_space() -> None:
     scenario_file = (
@@ -131,7 +131,25 @@ def test_node_space() -> None:
 
     while not sim.agent_is_terminated(agent_name):
         action = next(iter(state.action_surface))
-        assert action_space.contains(action.id)
+        assert action.id in action_space
         actions = {agent_name: [action]}
         state = sim.step(actions)[agent_name]
 
+def test_jsonable() -> None:
+    scenario_file = (
+        "tests/testdata/scenarios/simple_scenario.yml"
+    )
+    scenario = Scenario.load_from_file(scenario_file)
+    attacker = next(agent for agent in scenario.agents if agent['type'] == AgentType.ATTACKER)
+    agent_name = attacker['name']
+    serializer = LangSerializer(scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True)
+    obs_space = MALObs(serializer, use_logic_gates=False)
+    sim = MalSimulator.from_scenario(scenario)
+
+    state = sim.reset()[agent_name]
+    obs = attacker_state2graph(state, serializer, use_logic_gates=False)
+    assert obs in obs_space
+
+    jsonable = obs_space.to_jsonable([obs])
+    obs_from_jsonable = obs_space.from_jsonable(jsonable)[0]
+    assert obs_from_jsonable in obs_space
