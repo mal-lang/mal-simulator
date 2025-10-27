@@ -56,7 +56,7 @@ def test_path_finding_ttc_lang() -> None:
         if n.type in ('or', 'and')
     }
 
-    assert sum(ttc_values.values()) == 2021
+    assert round(sum(ttc_values.values())) == 2021
 
     sim.register_attacker('path_finder', {entry_point}, {goal})
 

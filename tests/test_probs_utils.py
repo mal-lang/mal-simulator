@@ -5,13 +5,8 @@ from maltoolbox.model import Model
 from maltoolbox.attackgraph.attackgraph import AttackGraph
 from maltoolbox.language.languagegraph import LanguageGraph
 
-from malsim.ttc_utils import (
-    ttc_value_from_node,
-    ProbCalculationMethod,
-    predef_ttcs,
-    get_ttc_dict,
-    attempt_node_bernoulli
-)
+from malsim.ttc_utils import TTCDist, named_ttc_dists
+
 from .conftest import path_testdata
 
 def test_probs_utils(model: Model) -> None:
@@ -32,19 +27,14 @@ def test_probs_utils(model: Model) -> None:
 
     for node in attack_graph.nodes.values():
         #TODO: Actually check some of the results
-        ttc_value_from_node(
-            node,
-            ProbCalculationMethod.SAMPLE,
-            np.random.default_rng(10)
-        )
+        if node.type not in ('exist', 'notExist'):
+            TTCDist.from_node(node).sample_value(np.random.default_rng(10))
 
     for node in attack_graph.nodes.values():
         #TODO: Actually check some of the results
-        ttc_value_from_node(
-            node,
-            ProbCalculationMethod.EXPECTED,
-            np.random.default_rng(10)
-        )
+        if node.type not in ('exist', 'notExist'):
+            TTCDist.from_node(node).expected_value
+
 
 
 def test_bernoulli(model: Model) -> None:
@@ -56,7 +46,7 @@ def test_bernoulli(model: Model) -> None:
     rng = np.random.default_rng(10)
 
     bernoulli_samples = (
-        attempt_node_bernoulli(uncertain_step, rng) for _ in range(10)
+        TTCDist.from_node(uncertain_step).attempt_bernoulli(rng) for _ in range(10)
     )
     # A step will give True
     assert True in bernoulli_samples
@@ -116,10 +106,18 @@ def test_get_ttc_dict_defenses(corelang_lang_graph: LanguageGraph) -> None:
     }
 
     for node in attack_graph.nodes.values():
-        if node.type == 'defense' and get_ttc_dict(node) != predef_ttcs['Disabled']:
+        if node.type in ('exist', 'notExist'):
+            continue
+
+        ttc_dist = TTCDist.from_node(node)
+        if node.type == 'defense' and not (
+            ttc_dist.function.name == "BERNOULLI" and ttc_dist.args == [0.0]
+        ):
             assert node.full_name not in expected_bernoulli_0_defenses
 
-        if node.type == 'defense' and get_ttc_dict(node) == predef_ttcs['Disabled']:
+        if node.type == 'defense' and (
+            ttc_dist.function.name == "BERNOULLI" and ttc_dist.args == [0.0]
+        ):
             assert node.full_name in expected_bernoulli_0_defenses
 
 
@@ -137,11 +135,11 @@ def test_get_ttc_dict_attacksteps(corelang_lang_graph: LanguageGraph) -> None:
     instant_steps = set(
         n for n in attack_graph.nodes.values()
         if n.type in ('or', 'and')
-        and get_ttc_dict(n) == predef_ttcs['Instant']
+        and TTCDist.from_node(n) == named_ttc_dists['Instant']
     )
     assert len(instant_steps) == 454
 
     # Check some nodes that have diferent TTC
     bypass_sa = attack_graph.get_node_by_full_name('User:12:bypassSecurityAwareness')
     assert bypass_sa
-    assert get_ttc_dict(bypass_sa) == predef_ttcs['VeryHardAndUncertain']
+    assert TTCDist.from_node(bypass_sa) == named_ttc_dists['VeryHardAndUncertain']
