@@ -1097,9 +1097,11 @@ class MalSimulator():
             for n in attacker_state.step_performed_nodes
         )
 
-        if self.sim_settings.ttc_mode in (TTCMode.EFFORT_BASED_PER_STEP_SAMPLE, TTCMode.PER_STEP_SAMPLE, TTCMode.EXPECTED_VALUE, TTCMode.PRE_SAMPLE):
+        if self.sim_settings.ttc_mode != TTCMode.DISABLED:
+            # If TTC Mode is not disabled, attacker is penalized for each attempt
             step_reward -= len(attacker_state.step_attempted_nodes)
         elif self.sim_settings.ttc_mode == TTCMode.DISABLED:
+            # If TTC Mode is disabled but reward mode uses TTCs, penalize attacker with TTCs
             for node in attacker_state.step_attempted_nodes:
                 if self.sim_settings.attacker_reward_mode == RewardMode.EXPECTED_TTC:
                     step_reward -= ttc_value_from_node(node, ProbCalculationMethod.EXPECTED, self.rng)
