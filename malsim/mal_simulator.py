@@ -1104,11 +1104,11 @@ class MalSimulator():
             # If TTC Mode is disabled but reward mode uses TTCs, penalize attacker with TTCs
             for node in attacker_state.step_performed_nodes:
                 if self.sim_settings.attacker_reward_mode == RewardMode.EXPECTED_TTC:
-                    step_reward -= ttc_value_from_node(node, ProbCalculationMethod.EXPECTED, self.rng)
+                    step_reward -= ttc_value_from_node(node, ProbCalculationMethod.EXPECTED, self.rng) if node.ttc else 0
                 elif self.sim_settings.attacker_reward_mode == RewardMode.SAMPLE_TTC:
-                    step_reward -= ttc_value_from_node(node, ProbCalculationMethod.SAMPLE, self.rng)
+                    step_reward -= ttc_value_from_node(node, ProbCalculationMethod.SAMPLE, self.rng) if node.ttc else 0
                 else:
-                    raise ValueError(f"Invalid RewardMode when TTC mode is DISABLED: {reward_mode}")
+                    logger.warning(f"Invalid RewardMode when TTC mode is DISABLED: {reward_mode}")
 
         # Cumulative reward mode for attacker makes no sense
         # If I hack someones computer, do I just keep getting rewarded for it?
