@@ -1102,7 +1102,7 @@ class MalSimulator():
             step_reward -= len(attacker_state.step_attempted_nodes)
         elif self.sim_settings.ttc_mode == TTCMode.DISABLED:
             # If TTC Mode is disabled but reward mode uses TTCs, penalize attacker with TTCs
-            for node in attacker_state.step_attempted_nodes:
+            for node in attacker_state.step_performed_nodes:
                 if self.sim_settings.attacker_reward_mode == RewardMode.EXPECTED_TTC:
                     step_reward -= ttc_value_from_node(node, ProbCalculationMethod.EXPECTED, self.rng)
                 elif self.sim_settings.attacker_reward_mode == RewardMode.SAMPLE_TTC:
@@ -1110,7 +1110,9 @@ class MalSimulator():
                 else:
                     raise ValueError(f"Invalid RewardMode when TTC mode is DISABLED: {reward_mode}")
 
-        # Who asked for this? I would really like to remove this.
+        # Cumulative reward mode for attacker makes no sense
+        # If I hack someones computer, do I just keep getting rewarded for it?
+        # Day after day I receive somekind of time payback that allows me to keep hacking?
         if reward_mode == RewardMode.CUMULATIVE:
             # To make it cumulative, add previous step reward
             step_reward += self.agent_reward(attacker_state.name)
