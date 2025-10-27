@@ -4,6 +4,8 @@ from malsim.mal_simulator import (
 from malsim.agents import get_shortest_path_to
 from malsim.scenario import load_scenario
 
+import numpy as np
+
 def test_path_finding() -> None:
     r"""
 
@@ -56,8 +58,7 @@ def test_path_finding_ttc_lang() -> None:
         if n.type in ('or', 'and')
     }
 
-    assert round(sum(ttc_values.values())) == 2021
-
+    assert np.isclose(sum(ttc_values.values()), 2021)
     sim.register_attacker('path_finder', {entry_point}, {goal})
 
     path = get_shortest_path_to(

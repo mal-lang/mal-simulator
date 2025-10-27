@@ -167,7 +167,7 @@ def test_ttcs_effort_based(model: Model) -> None:
     )
     assert very_hard_uncertain_node
     ttc_dist = TTCDist.from_node(very_hard_uncertain_node)
-    assert round(ttc_dist.success_probability(1), 2) == 0.01 # success prob after 1 attempt is 1%
+    assert np.isclose(ttc_dist.success_probability(1), 0.01, atol=[0.001]) # success prob after 1 attempt is 1%
     assert not ttc_dist.attempt_ttc_with_effort(1, rng)      # 1 effort will not succeed in this seed
     assert ttc_dist.attempt_ttc_with_effort(500, rng)        # 500 effort will succeed in this seed
 
@@ -176,14 +176,14 @@ def test_ttcs_effort_based(model: Model) -> None:
     )
     assert hard_uncertain_node
     ttc_dist = TTCDist.from_node(hard_uncertain_node)
-    assert round(ttc_dist.success_probability(1), 2) == 0.1 # success prob after 1 attempt is 10%
+    assert np.isclose(ttc_dist.success_probability(1), 0.1, atol=[0.01]) # success prob after 1 attempt is 10%
     assert not ttc_dist.attempt_ttc_with_effort(1, rng)     # 1 effort will not succeed in this seed
     assert ttc_dist.attempt_ttc_with_effort(50, rng)        # 50 effort will succeed in this seed
 
     instant_node = attack_graph.get_node_by_full_name('App:attemptRead')
     assert instant_node
     ttc_dist = TTCDist.from_node(instant_node)
-    assert round(ttc_dist.success_probability(1), 2) == 1.0 # success prob after 1 attempt is 100%
+    assert np.isclose(ttc_dist.success_probability(1), 1.0) # success prob after 1 attempt is 100%
     assert ttc_dist.attempt_ttc_with_effort(1, rng)         # 1 effort will succeed always (instant)
 
     exp_001_node = attack_graph.get_node_by_full_name('User1:deliverMaliciousRemovableMedia')
