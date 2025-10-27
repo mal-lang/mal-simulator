@@ -24,11 +24,25 @@ class DistFunction(Enum):
 
 class Operation(Enum):
     # TODO: check that these match MAL
-    SUM = "sum"
-    SUBTRACT = "sub"
-    MULTIPLY = "multiply"
-    DIVIDE = "divide"
+    ADDITION = "addition"
+    SUBTRACTION = "subtraction"
+    MULTIPLICATION = "multiplication"
+    DIVISION = "division"
     EXPONENTIATION = "exponentiation"
+
+def perform_operation(op: Operation, a: float, b: float) -> float:
+    if op == Operation.ADDITION:
+        return a + b
+    elif op == Operation.SUBTRACTION:
+        return a - b
+    elif op == Operation.MULTIPLICATION:
+        return a * b
+    elif op == Operation.DIVISION:
+        return a / b
+    elif op == Operation.EXPONENTIATION:
+        return float(a ** b)
+    else:
+        raise ValueError(f"Unknown operation {op}")
 
 def default_ttc_dist(node: AttackGraphNode) -> TTCDist:
     """ttc distribution if no ttc is set in lang or model"""
@@ -76,45 +90,21 @@ class TTCDist:
     @property
     def expected_value(self) -> float:
         """Return the expected value of a TTCDist"""
-
         value = float(self.dist.expect())
-
-        if self.combine_with:
-            # Combine with other distribution if TTC is combined
-            if self.combine_op == Operation.SUM:
-                value += self.combine_with.expected_value
-            elif self.combine_op == Operation.SUBTRACT:
-                value -= self.combine_with.expected_value
-            elif self.combine_op == Operation.MULTIPLY:
-                value *= self.combine_with.expected_value
-            elif self.combine_op == Operation.DIVIDE:
-                value /= self.combine_with.expected_value
-            elif self.combine_op == Operation.EXPONENTIATION:
-                value = value ** self.combine_with.expected_value
-            else:
-                raise ValueError(f"Unknown operation {self.combine_op}")
-
+        if self.combine_with and self.combine_op:
+            value = perform_operation(
+                self.combine_op, value, self.combine_with.expected_value
+            )
         return value
 
     def sample_value(self, rng: Optional[np.random.Generator] = None) -> float:
         """Sample a value from the TTC Distribution"""
+        rng = rng or np.random.default_rng()
         value = float(self.dist.rvs(random_state=rng))
-
-        if self.combine_with:
-            # Combine with other distribution if TTC is combined
-            if self.combine_op == Operation.SUM:
-                value += self.combine_with.sample_value(rng)
-            elif self.combine_op == Operation.SUBTRACT:
-                value -= self.combine_with.sample_value(rng)
-            elif self.combine_op == Operation.MULTIPLY:
-                value *= self.combine_with.sample_value(rng)
-            elif self.combine_op == Operation.DIVIDE:
-                value /= self.combine_with.sample_value(rng)
-            elif self.combine_op == Operation.EXPONENTIATION:
-                value = float(pow(value, self.combine_with.sample_value(rng)))
-            else:
-                raise ValueError(f"Unknown operation {self.combine_op}")
-
+        if self.combine_with and self.combine_op:
+            value = perform_operation(
+                self.combine_op, value, self.combine_with.sample_value(rng)
+            )
         return value
 
     def success_probability(self, effort: int) -> float:
@@ -139,12 +129,15 @@ class TTCDist:
         """Attempt bernoulli from a TTC Distribution"""
         rng = rng or np.random.default_rng()
         if self.function == DistFunction.BERNOULLI:
+            # If current TTCDist is a Bernoulli, sample from it to attempt
             threshold = float(self.args[0])
             bernoulli_success = rng.random() <= threshold
             return bernoulli_success
         elif self.combine_with:
+            # Dig deeper in the distribution after Bernoullis
             return self.combine_with.attempt_bernoulli(rng)
         else:
+            # If no Bernoulli set, attempt is successful
             return True
 
     @classmethod
@@ -194,14 +187,14 @@ named_ttc_dists: dict[str, TTCDist] = {
         combine_with=TTCDist(
             DistFunction.BERNOULLI, [0.5]
         ),
-        combine_op=Operation.MULTIPLY
+        combine_op=Operation.MULTIPLICATION
     ),
     'VeryHardAndUncertain': TTCDist(
         DistFunction.EXPONENTIAL, [0.01],
         combine_with=TTCDist(
             DistFunction.BERNOULLI, [0.5]
         ),
-        combine_op=Operation.MULTIPLY
+        combine_op=Operation.MULTIPLICATION
     ),
     'EasyAndCertain': TTCDist(
         DistFunction.EXPONENTIAL, [1.0]
