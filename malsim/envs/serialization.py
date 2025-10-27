@@ -17,9 +17,9 @@ class LangSerializer:
         self.asset_type: dict[str, int] = {
             asset_type: i for i, asset_type in enumerate(sorted(self._lang.assets.keys()))
         }
-
+        self.association_type: dict[str, dict[str, dict[str, int]]] | dict[str, int] = {}
         if split_assoc_types:
-            self.association_type: dict[str, dict[str, dict[str, int]]] = {}
+            self.association_type = {}
             type_idx = 0
             for association in sorted(self._lang.associations, key=lambda x: x.name):
                 left_asset_type = association.left_field.asset.name
@@ -30,10 +30,10 @@ class LangSerializer:
                     self.association_type[association.name][left_asset_type] = {}
                 if right_asset_type not in self.association_type[association.name][left_asset_type]:
                     self.association_type[association.name][left_asset_type][right_asset_type] = type_idx
-                type_idx += 1
+                    type_idx += 1
 
         else:
-            self.association_type: dict[str, int] = {
+            self.association_type = {
                 association.name: i for i, association in enumerate(sorted(self._lang.associations, key=lambda x: x.name))
             }
 

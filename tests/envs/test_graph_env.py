@@ -1,9 +1,10 @@
+from typing_extensions import cast
 from malsim.envs.graph_env import GraphAttackerEnv, register_graph_envs
 from malsim.scenario import Scenario
 from malsim.mal_simulator import MalSimulatorSettings, TTCMode, RewardMode
 from gymnasium.utils.env_checker import check_env
 import numpy as np
-from malsim.envs.mal_spaces import MALObs
+from malsim.envs.mal_spaces import MALObs, LogicGate
 
 def test_graph_env() -> None:
     scenario_file = (
@@ -34,7 +35,7 @@ def test_obs_in_space() -> None:
         attack_surface_skip_unnecessary=False,
         attacker_reward_mode=RewardMode.ONE_OFF,
     ))
-    obs_space: MALObs = env.observation_space
+    obs_space: MALObs = cast(MALObs, env.observation_space)
 
     done = False
     obs, info = env.reset()
@@ -57,8 +58,10 @@ def test_obs_in_space() -> None:
         assert all(obs.attack_steps.traversable[i] in obs_space.attack_step_traversable for i in range(len(obs.attack_steps.traversable)))
         if obs.associations is not None:
             assert all(obs.associations.type[i] in obs_space.association_type for i in range(len(obs.associations.type)))
-        if env.use_logic_gates and obs.logic_gates is not None:
-            assert all(obs.logic_gates.type[i] in obs_space.logic_gate_type for i in range(len(obs.logic_gates.type)))
+        logic_gates = obs.logic_gates
+        logic_gate_type_space = obs_space.logic_gate_type
+        if env.use_logic_gates and isinstance(logic_gates, LogicGate) and logic_gate_type_space is not None:
+            assert all(logic_gates.type[i] in logic_gate_type_space for i in range(len(logic_gates.type)))
         done = terminated or truncated
 
     env.close()
@@ -76,7 +79,7 @@ def test_obs_in_space_w_logic_gates() -> None:
         attack_surface_skip_unnecessary=False,
         attacker_reward_mode=RewardMode.ONE_OFF,
     ))
-    obs_space: MALObs = env.observation_space
+    obs_space: MALObs = cast(MALObs, env.observation_space)
 
     done = False
     obs, info = env.reset()
@@ -99,8 +102,10 @@ def test_obs_in_space_w_logic_gates() -> None:
         assert all(obs.attack_steps.traversable[i] in obs_space.attack_step_traversable for i in range(len(obs.attack_steps.traversable)))
         if obs.associations is not None:
             assert all(obs.associations.type[i] in obs_space.association_type for i in range(len(obs.associations.type)))
-        if env.use_logic_gates and obs.logic_gates is not None:
-            assert all(obs.logic_gates.type[i] in obs_space.logic_gate_type for i in range(len(obs.logic_gates.type)))
+        logic_gates = obs.logic_gates
+        logic_gate_type_space = obs_space.logic_gate_type
+        if env.use_logic_gates and isinstance(logic_gates, LogicGate) and logic_gate_type_space is not None:
+            assert all(logic_gates.type[i] in logic_gate_type_space for i in range(len(logic_gates.type)))
         done = terminated or truncated
 
     env.close()

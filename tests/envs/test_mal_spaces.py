@@ -3,7 +3,7 @@ from maltoolbox.attackgraph import AttackGraphNode
 from malsim.envs.serialization import LangSerializer
 from malsim.envs.mal_spaces import MALObs, MALObsInstance, AttackStep, Assets, Association, LogicGate, attacker_state2graph, AttackGraphNodeSpace
 from malsim.scenario import Scenario, AgentType
-from malsim.mal_simulator import MalSimulator
+from malsim.mal_simulator import MalSimulator, MalSimAttackerState
 import numpy as np
 
 def test_mal_obs() -> None:
@@ -57,7 +57,7 @@ def test_mal_obs() -> None:
                     ):
                         associations.append((assoc, asset.id, other_asset.id))
         sorted_associations = sorted(associations, key=lambda x: (x[0].name, x[1], x[2]))
-        associations = Association(
+        association = Association(
             type=np.array([serializer.association_type[assoc.name] for (assoc, _, _) in sorted_associations])
         )
         assoc2asset: set[tuple[int, int]] = set()
@@ -76,10 +76,10 @@ def test_mal_obs() -> None:
             
 
         return MALObsInstance(
-            time=sim.cur_iter,
+            time=np.int64(sim.cur_iter),
             assets=assets,
             attack_steps=attack_steps,
-            associations=associations,
+            associations=association,
             logic_gates=logic_gates,
             step2asset=np.array(list(zip(*step2asset))),
             step2step=np.array(list(zip(*step2step))),
@@ -93,7 +93,7 @@ def test_mal_obs() -> None:
     for _ in range(10):
         actions = {}
         for agent_name, state in states.items():
-            actions[agent_name] = [state.action_surface[0]]
+            actions[agent_name] = [list(state.action_surface)[0]]
         states = sim.step(actions)
         assert state2instance(sim) in obs_space
 
@@ -109,12 +109,14 @@ def test_obs_creation() -> None:
     sim = MalSimulator.from_scenario(scenario)
 
     state = sim.reset()[agent_name]
+    assert isinstance(state, MalSimAttackerState)
     obs = attacker_state2graph(state, serializer, use_logic_gates=False)
     assert obs in obs_space
 
     while not sim.agent_is_terminated(agent_name):
         actions = {agent_name: [next(iter(state.action_surface))]}
         state = sim.step(actions)[agent_name]
+        assert isinstance(state, MalSimAttackerState)
         assert attacker_state2graph(state, serializer, use_logic_gates=False) in obs_space
 
 def test_node_space() -> None:
@@ -147,6 +149,7 @@ def test_jsonable() -> None:
     sim = MalSimulator.from_scenario(scenario)
 
     state = sim.reset()[agent_name]
+    assert isinstance(state, MalSimAttackerState)
     obs = attacker_state2graph(state, serializer, use_logic_gates=False)
     assert obs in obs_space
 

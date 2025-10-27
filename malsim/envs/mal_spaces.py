@@ -1,6 +1,6 @@
 from gymnasium.spaces import Box, Space, Discrete, MultiDiscrete
 import numpy as np
-from typing import NamedTuple, Sequence
+from typing import Any, NamedTuple, Sequence
 from numpy.typing import NDArray
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.language import LanguageGraphAssociation
@@ -63,10 +63,10 @@ class MALObs(Space[MALObsInstance]):
         self.attack_step_tags = Discrete(
             max(set(lang_serializer.attack_step_tag.values())) + 1
         )
+
+        self.logic_gate_type: Discrete | None = None
         if use_logic_gates:
             self.logic_gate_type = Discrete(2)  # 0 for AND, 1 for OR
-        else:
-            self.logic_gate_type = None
 
         # Language Features
         self.asset_type = Discrete(max(set(lang_serializer.asset_type.values())) + 1)
@@ -104,7 +104,7 @@ class MALObs(Space[MALObsInstance]):
         super().__init__(None, None, seed)
 
     @property
-    def is_np_flattenable(self):
+    def is_np_flattenable(self) -> bool:
         """Checks whether this space can be flattened to a :class:`spaces.Box`."""
         return False
 
@@ -115,13 +115,13 @@ class MALObs(Space[MALObsInstance]):
             "Sample space generation is not implemented for MALObs"
         )
 
-    def seed(self, seed: int | None = None):
+    def seed(self, seed: int | None = None) -> dict[str, int | list[int] | dict[str, int]]:
 
         if seed is None:
             return {
                 "self": super().seed(None),
                 "attack_step_tags": self.attack_step_tags.seed(None),
-                "logic_gate_type": self.logic_gate_type.seed(None),
+                "logic_gate_type": self.logic_gate_type.seed(None) if self.logic_gate_type else None,
                 "asset_type": self.asset_type.seed(None),
                 "attack_step_type": self.attack_step_type.seed(None),
                 "attack_step_class": self.attack_step_class.seed(None),
@@ -141,7 +141,7 @@ class MALObs(Space[MALObsInstance]):
             return {
                 "self": super_seed,
                 "attack_step_tags": self.attack_step_tags.seed(node_seed),
-                "logic_gate_type": self.logic_gate_type.seed(node_seed),
+                "logic_gate_type": self.logic_gate_type.seed(node_seed) if self.logic_gate_type else None,
                 "asset_type": self.asset_type.seed(node_seed),
                 "attack_step_type": self.attack_step_type.seed(node_seed),
                 "attack_step_class": self.attack_step_class.seed(node_seed),
@@ -162,7 +162,11 @@ class MALObs(Space[MALObsInstance]):
                 x.attack_steps.tags[0]
             )
             if self.use_logic_gates:
-                logic_gate_type_valid = all(x.logic_gates.type[i] in self.logic_gate_type for i in range(len(x.logic_gates.type)))
+                logic_gates = x.logic_gates
+                if not isinstance(logic_gates, LogicGate):
+                    logic_gate_type_valid = False
+                else:
+                    logic_gate_type_valid = all(logic_gates.type[i] in self.logic_gate_type for i in range(len(logic_gates.type)))
             else:
                 logic_gate_type_valid = x.logic_gates is None and x.logic2step is None and x.step2logic is None
 
@@ -278,7 +282,7 @@ class MALObs(Space[MALObsInstance]):
             and self.logic_gate_type == other.logic_gate_type
         )
 
-    def to_jsonable(self, sample_n: Sequence[MALObsInstance]) -> list[dict[str, list[int | float]]]:
+    def to_jsonable(self, sample_n: Sequence[MALObsInstance]) -> list[dict[str, Any]]:
         """Convert a batch of samples from this space to a JSONable data type."""
         ret_n = []
         for sample in sample_n:
@@ -304,7 +308,7 @@ class MALObs(Space[MALObsInstance]):
             ret_n.append(ret)
         return ret_n
 
-    def from_jsonable(self, sample_n: Sequence[dict[str, list[list[int] | list[float]]]]) -> list[MALObsInstance]:
+    def from_jsonable(self, sample_n: Sequence[dict[str, Any]]) -> list[MALObsInstance]:
         """Convert a JSONable data type to a batch of samples from this space."""
         ret_n: list[MALObsInstance] = []
         for sample in sample_n:
@@ -416,7 +420,7 @@ def attacker_state2graph(state: MalSimAttackerState, lang_serializer: LangSerial
         step2logic = None
 
     return MALObsInstance(
-        time=state.sim.cur_iter,
+        time=np.int64(state.sim.cur_iter),
         assets=assets,
         attack_steps=attack_steps,
         associations=associations,
