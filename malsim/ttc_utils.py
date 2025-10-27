@@ -4,12 +4,13 @@ from __future__ import annotations
 import logging
 import math
 from enum import Enum
+from dataclasses import dataclass
 
 from typing import Any, Optional, TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy.stats import expon
+from scipy.stats import expon, gamma, binom, lognorm, uniform, bernoulli
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
@@ -20,461 +21,211 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-predef_ttcs: dict[str, dict[str, Any]] = {
-    'EasyAndUncertain':
-    {
-        'arguments': [0.5],
-        'name': 'Bernoulli',
-        'type': 'function'
-    },
-    'HardAndUncertain':
-    {
-        'lhs':
-        {
-            'arguments': [0.1],
-            'name': 'Exponential',
-            'type': 'function'
-        },
-        'rhs':
-        {
-            'arguments': [0.5],
-            'name': 'Bernoulli',
-            'type': 'function'
-        },
-        'type': 'multiplication'
-    },
-    'VeryHardAndUncertain':
-    {
-        'lhs':
-        {
-            'arguments': [0.01],
-            'name': 'Exponential',
-            'type': 'function'
-        },
-        'rhs':
-        {
-            'arguments': [0.5],
-            'name': 'Bernoulli',
-            'type': 'function'
-        },
-        'type': 'multiplication'
-    },
-    'EasyAndCertain':
-    {
-        'arguments': [1.0],
-        'name': 'Exponential',
-        'type': 'function'
-    },
-    'HardAndCertain':
-    {
-        'arguments': [0.1],
-        'name': 'Exponential',
-        'type': 'function'
-    },
-    'VeryHardAndCertain':
-    {
-        'arguments': [0.01],
-        'name': 'Exponential',
-        'type': 'function'
-    },
-    'Enabled':
-    {
-        'arguments': [1.0],
-        'name': 'Bernoulli',
-        'type': 'function'
-    },
-    'Instant':
-    {
-        'arguments': [1.0],
-        'name': 'Bernoulli',
-        'type': 'function'
-    },
-    'Disabled':
-    {
-        'arguments': [0.0],
-        'name': 'Bernoulli',
-        'type': 'function'
-    },
-}
+class DistFunction(Enum):
+    BERNOULLI = "Bernoulli"
+    EXPONENTIAL = "Exponential"
+    BINOMIAL = "Binomial"
+    GAMMA = "Gamma"
+    LOG_NORMAL = "LogNormal"
+    UNIFORM = "Uniform"
 
+class Operation(Enum):
+    # TODO: check that these match MAL
+    SUM = "sum"
+    SUBTRACT = "sub"
+    MULTIPLY = "multiply"
+    DIVIDE = "divide"
+    EXPONENTIATION = "exponentiation"
 
-def default_ttc(node: AttackGraphNode) -> Optional[dict[str, Any]]:
+def default_ttc_dist(node: AttackGraphNode) -> TTCDist:
     """ttc distribution if no ttc is set in lang or model"""
     if node.type == 'defense':
-        return predef_ttcs['Disabled']
+        return named_ttc_dists['Disabled']
     if node.type in ('or', 'and'):
-        return predef_ttcs['Instant']
+        return named_ttc_dists['Instant']
 
     # Other steps have no ttc
-    return None
-
-
-def get_ttc_dict(
-        node: AttackGraphNode,
-    ) -> Optional[dict[str, Any]]:
-    """Convert step TTC to a TTC distribution dict if needed
-
-    - If the TTC provided is a predefined name replace it with the
-      ttc distribution dict it corresponds to.
-    - Otherwise return the TTC distribution as is.
-
-    Arguments:
-    node - Attack graph node to get ttc dict for
-
-    Returns:
-    A dict with the steps TTC distribution or None if no ttc applies
-    """
-
-    step_ttc = node.ttc or default_ttc(node)
-    if not step_ttc:
-        return None
-
-    if 'name' in step_ttc and step_ttc['name'] in predef_ttcs:
-        # Predefined step ttc set in language, fetch from dict
-        step_ttc = predef_ttcs[step_ttc['name']].copy()
-
-    return step_ttc
-
-
-def attempt_node_bernoulli(
-    node: AttackGraphNode, rng: np.random.Generator
-) -> bool:
-    """
-    Return True if Bernoulli trial succeeds or if no Bernoulli is set
-        -> for defenses this means it should be enabled
-        -> for attack steps this means the step is possible
-    Return False if Bernoulli trial fails
-        -> for defenses this means it should not be enabled
-        -> for attack steps this means the step is impossible
-    """
-    def _attempt_distribution_bernoulli(ttc_dict: dict[str, Any]) -> bool:
-        threshold = float(ttc_dict['arguments'][0])
-        bernoulli_success = rng.random() <= threshold
-        return bernoulli_success
-
-    ttc_dict = get_ttc_dict(node)
-    if not ttc_dict:
-        return True # No ttc set -> attempt is successful
-    if ttc_dict['type'] != 'function':
-        # A function can have a Bernoulli in either lhs or rhs
-        lhs = ttc_dict['lhs']
-        if lhs['name'] == 'Bernoulli':
-            return _attempt_distribution_bernoulli(lhs)
-        rhs = ttc_dict['rhs']
-        if rhs['name'] == 'Bernoulli':
-            return _attempt_distribution_bernoulli(rhs)
-    else:
-        # If type is 'function' it can be a Bernoulli
-        if ttc_dict['name'] == 'Bernoulli':
-            return _attempt_distribution_bernoulli(ttc_dict)
-
-    return True # Node with no Bernoulli set -> attempt is successful
-
-class ProbCalculationMethod(Enum):
-    SAMPLE = 1
-    EXPECTED = 2
-
-def _sample_value(
-        probs_dict: dict[str, Any], rng: np.random.Generator
-    ) -> float:
-    """Calculate the sampled value from a probability distribution function
-    Note: Bernoullis are excluded, sample Bernoullis with 'sample_bernoulli'
-
-    Arguments:
-    probs_dict  - a dictionary containing the probability
-                  distribution function
-    Return:
-    The float value obtained from sampling the function provided.
-    """
-
-    if probs_dict is None:
-        raise ValueError('Probabilities dictionary was missing.')
-
-    if probs_dict['type'] != 'function':
-        raise ValueError(
-            'Sample probability method requires a function '
-            f'probability distribution, but got "{probs_dict["type"]}"'
-        )
-
-    match(probs_dict['name']):
-        case 'Bernoulli':
-            # Bernoullis will give 1.0 whatever happens.
-            # Run Bernoulli sampling separately with 'sample_bernoulli'.
-            return 1.0
-
-        case 'Exponential':
-            lambd = float(probs_dict['arguments'][0])
-            return rng.exponential(scale=1.0 / lambd)
-
-        case 'Binomial':
-            n = int(probs_dict['arguments'][0])
-            p = float(probs_dict['arguments'][1])
-            return rng.binomial(n, p)
-
-        case 'Gamma':
-            alpha = float(probs_dict['arguments'][0])
-            beta = float(probs_dict['arguments'][1])
-            return rng.gamma(shape=alpha, scale=beta)
-
-        case 'LogNormal':
-            mu = float(probs_dict['arguments'][0])
-            sigma = float(probs_dict['arguments'][1])
-            return rng.lognormal(mean=mu, sigma=sigma)
-
-        case 'Uniform':
-            a = float(probs_dict['arguments'][0])
-            b = float(probs_dict['arguments'][1])
-            return rng.uniform(a, b)
-
-        case 'Pareto' | 'Truncated Normal':
-            raise NotImplementedError(
-                f'"{probs_dict["name"]}" distribution not supported!'
-            )
-
-        case _:
-            raise ValueError(
-                'Unknown probability distribution '
-                f'function encountered "{probs_dict["name"]}"!'
-            )
-
-
-def _expected_value(probs_dict: dict[str, Any]) -> float:
-    """Calculate the expected value from a probability distribution function
-    Arguments:
-    probs_dict      - a dictionary containing the probability distribution
-                      function
-
-    Return:
-    The float value obtained from calculating the expected value corresponding
-    to the function provided.
-    """
-
-    if probs_dict is None:
-        raise ValueError('Probabilities dictionary was missing.')
-
-    if probs_dict['type'] != 'function':
-        raise ValueError(
-            'Expected value probability method requires a '
-            'function probability distribution, but got '
-            f'"{probs_dict["type"]}"'
-        )
-
-    match(probs_dict['name']):
-        case 'Bernoulli':
-            # This expected value estimation was added so that we can use
-            # non-zero and non-unit Bernoulli values. Failing a Bernoulli
-            # yields an infinite value and multiplying any non-zero value by
-            # infinity does nothing. We decided to simply use the
-            # multiplicative inverse(e.g. 0.1 -> 10, 0.25 -> 4) since most
-            # often the Bernoulli is used a multiplication factor.
-            threshold = (
-                1 / float(probs_dict['arguments'][0])
-                if probs_dict['arguments'][0] != 0
-                else math.inf
-            )
-            return threshold
-
-        case 'Exponential':
-            lambd = float(probs_dict['arguments'][0])
-            return 1/lambd
-
-        case 'Binomial':
-            n = int(probs_dict['arguments'][0])
-            p = float(probs_dict['arguments'][1])
-            # TODO: Someone with basic probabilities competences should
-            # actually check if this is correct.
-            return n * p
-
-        case 'Gamma':
-            alpha = float(probs_dict['arguments'][0])
-            beta = float(probs_dict['arguments'][1])
-            return alpha * beta
-
-        case 'LogNormal':
-            mu = float(probs_dict['arguments'][0])
-            sigma = float(probs_dict['arguments'][1])
-            return float(pow(math.e, (mu + (pow(sigma, 2)/2))))
-
-        case 'Uniform':
-            a = float(probs_dict['arguments'][0])
-            b = float(probs_dict['arguments'][1])
-            return (a + b)/2
-
-        case 'Pareto' | 'Truncated Normal':
-            raise NotImplementedError(
-                f'"{probs_dict["name"]}" '
-                'probability distribution is not currently supported!'
-            )
-
-        case _:
-            raise ValueError('Unknown probability distribution '
-                f'function encountered "{probs_dict["name"]}"!')
-
-
-def _ttc_value_from_ttc_dict(
-    node: AttackGraphNode,
-    probs_dict: Optional[dict[str, Any]],
-    method: ProbCalculationMethod,
-    rng: np.random.Generator
-) -> float:
-    """Calculate the value from a probability distribution
-    Arguments:
-    probs_dict      - a dictionary containing the probability distribution
-                      function
-    method          - the method to use in calculating the probability
-                      values(currently supporting sampled or expected values)
-
-    Return:
-    The float value obtained from calculating the probability distribution.
-
-    TTC Distributions in MAL:
-    https://mal-lang.org/mal-langspec/apidocs/org.mal_lang.langspec/org/mal_lang/langspec/ttc/TtcDistribution.html
-    """
-    if not probs_dict:
-        return math.nan
-
-    match(probs_dict['type']):
-        case 'addition' | 'subtraction' | 'multiplication' | \
-                'division' | 'exponentiation':
-            lv = _ttc_value_from_ttc_dict(node, probs_dict['lhs'], method, rng)
-            rv = _ttc_value_from_ttc_dict(node, probs_dict['rhs'], method, rng)
-            match(probs_dict['type']):
-                case 'addition':
-                    return lv + rv
-                case 'subtraction':
-                    return lv - rv
-                case 'multiplication':
-                    return lv * rv
-                case 'division':
-                    return lv / rv
-                case 'exponentiation':
-                    return float(pow(lv, rv))
-
-        case 'function':
-            match(method):
-                case ProbCalculationMethod.SAMPLE:
-                    return _sample_value(probs_dict, rng)
-                case ProbCalculationMethod.EXPECTED:
-                    return _expected_value(probs_dict)
-                case _:
-                    raise ValueError(
-                        'Unknown Probability Calculation method '
-                        f'encountered "{method}"!'
-                    )
-
-        case _:
-            raise ValueError(
-                'Unknown probability distribution type '
-                f'encountered "{probs_dict["type"]}"!'
-            )
-
-
-def ttc_value_from_node(
-    node: AttackGraphNode,
-    method: ProbCalculationMethod,
-    rng: np.random.Generator
-) -> float:
-    """Return a value (sampled or expected) from a nodes ttc distribution"""
-    ttc_dict = get_ttc_dict(node)
-    return _ttc_value_from_ttc_dict(node, ttc_dict, method, rng)
-
-
-### SANDOR TTC IMPLEMENTATION
-
-def attempt_step_ttc(
-    node: AttackGraphNode,
-    step_working_time: int,
-    rng: Optional[np.random.Generator] = None
-) -> bool:
-    """
-    Attempt to compromise a step by sampling a success probability
-    proportional to the TTC distribution, given previous attempts.
-    """
-    if not rng:
-        rng = np.random.default_rng()
-
-    success_prob = (
-        _get_time_distribution(node.ttc)
-        .success_probability(step_working_time)
+    raise ValueError(
+        f'Can only get default TTC of defense and attack steps, not of "{node.type}" steps'
     )
-    return success_prob > rng.random()
 
 
 class TTCDist:
+
     def __init__(
-        self, obj: float | rv_continuous_frozen | rv_discrete_frozen
-    ) -> None:
-        self.obj = obj
+        self,
+        function: DistFunction,
+        args: list[float],
+        combine_with: Optional[TTCDist] = None,
+        combine_op: Optional[Operation] = None
+    ):
+        self.function = function
+        self.args = args
 
-    def rvs(
-        self, size: Optional[int] = None, **kwargs: Any
-    ) -> NDArray[np.float64] | NDArray[np.int64] | float:
-        if isinstance(self.obj, float):
-            return self.obj if size is None else np.full(size, self.obj)
-        return self.obj.rvs(size=size, **kwargs) # type: ignore
+        if function == DistFunction.BERNOULLI:
+            self.dist = bernoulli(self.args[0])
+        elif function == DistFunction.BINOMIAL:
+            self.dist = binom(n=args[0], p=args[1])
+        elif function == DistFunction.EXPONENTIAL:
+            self.dist = expon(scale=1 / args[0])
+        elif function == DistFunction.GAMMA:
+            self.dist = gamma(args[0])
+        elif function == DistFunction.LOG_NORMAL:
+            self.dist = lognorm(args[0])
+        elif function == DistFunction.UNIFORM:
+            self.dist = uniform()
+        else:
+            raise ValueError(f"Unknown distribution {function}")
 
-    def success_probability(self, t: float) -> float:
-        if isinstance(self.obj, float):
-            return 1.0 if t >= self.obj else 0.0
-        return self.obj.cdf(t) # type: ignore
+        self.combine_with = combine_with
+        self.combine_op = combine_op
+
+    @property
+    def expected_value(self):
+        """Return the expected value of a TTCDist"""
+
+        value = self.dist.expect()
+
+        if self.combine_with:
+            # Combine with other distribution if TTC is combined
+            if self.combine_op == Operation.SUM:
+                value += self.combine_with.expected_value
+            elif self.combine_op == Operation.SUBTRACT:
+                value -= self.combine_with.expected_value
+            elif self.combine_op == Operation.MULTIPLY:
+                value *= self.combine_with.expected_value
+            elif self.combine_op == Operation.DIVIDE:
+                value /= self.combine_with.expected_value
+            elif self.combine_op == Operation.EXPONENTIATION:
+                value = float(pow(value, self.combine_with.expected_value))
+            else:
+                raise ValueError(f"Unknown operation {self.combine_op}")
+
+        return value
+
+    def sample_value(self, rng: Optional[np.random.Generator] = None):
+        """Sample a value from the TTC Distribution"""
+        value = self.dist.rvs(random_state=rng)
+
+        if self.combine_with:
+            # Combine with other distribution if TTC is combined
+            if self.combine_op == Operation.SUM:
+                value += self.combine_with.sample_value(rng)
+            elif self.combine_op == Operation.SUBTRACT:
+                value -= self.combine_with.sample_value(rng)
+            elif self.combine_op == Operation.MULTIPLY:
+                value *= self.combine_with.sample_value(rng)
+            elif self.combine_op == Operation.DIVIDE:
+                value /= self.combine_with.sample_value(rng)
+            elif self.combine_op == Operation.EXPONENTIATION:
+                value = float(pow(value, self.combine_with.sample_value(rng)))
+            else:
+                raise ValueError(f"Unknown operation {self.combine_op}")
+
+        return value
+
+    def success_probability(self, effort: int) -> float:
+        """The probability to succeed with given effort (previous attempts)"""
+        return self.dist.cdf(effort)
+
+    def attempt_ttc_with_effort(
+        self, effort: int, rng: Optional[np.random.Generator] = None
+    ) -> bool:
+        """
+        Attempt to compromise a step by sampling a success probability
+        proportional to the TTC distribution, given previous attempts.
+        Note: Ignores Bernoullis.
+        """
+        if not rng:
+            rng = np.random.default_rng()
+
+        success_prob = self.success_probability(effort)
+        return success_prob > rng.random()
+
+    def attempt_bernoulli(self, rng: Optional[np.random.Generator] = None):
+        """Attempt bernoulli from a TTC Distribution"""
+        rng = rng or np.random.default_rng()
+        if self.function == DistFunction.BERNOULLI:
+            threshold = float(self.args[0])
+            bernoulli_success = rng.random() <= threshold
+            return bernoulli_success
+        elif self.combine_with:
+            return self.combine_with.attempt_bernoulli(rng)
+        else:
+            return True
+
+    @classmethod
+    def from_dict(cls, ttc_dict: dict) -> TTCDist:
+        """TTCs are stored as dict in the MAL-toolbox, convert to TTCDist
+        - If the TTC provided is a predefined name, return that.
+        - Otherwise create the TTCDist object (recursively)
+        """
+
+        if 'name' in ttc_dict:
+            if ttc_dict['name'] in named_ttc_dists:
+                # Predefined step ttc set in language, fetch from dict
+                return named_ttc_dists[ttc_dict['name']]
+
+            else:
+                return TTCDist(
+                    DistFunction[ttc_dict['name'].upper()],
+                    args=ttc_dict['arguments']
+                )
+
+        # If lhs, rhs is set, we combine the distributions
+        return cls(
+            DistFunction[ttc_dict['lhs']['name']],
+            ttc_dict['lhs']['arguments'],
+            combine_with = TTCDist.from_dict(ttc_dict['rhs']),
+            combine_op = Operation[ttc_dict['operation'].upper()]
+        )
+
+    @classmethod
+    def from_node(cls, node: AttackGraphNode,) -> TTCDist:
+        """Create a TTCDist based on an AttackGraphNode"""
+
+        if node.ttc is None:
+            return default_ttc_dist(node)
+
+        # Not predefined, must parse the dict to create a TTCDist
+        return TTCDist.from_dict(node.ttc)
 
 
-def _get_time_distribution(ttc: Optional[dict[str, Any]]) -> TTCDist:
-    """Get TTC Distribution from predefined names in MAL"""
-    if not ttc:
-        return TTCDist(0.0)
-
-    name = ttc.get("name")
-    arguments = ttc.get("arguments", [])
-
-    if name == "VeryHardAndUncertain":
-        # Ber(0.5) * Exp(0.01)
-        return TTCDist(expon(scale=1 / 0.01))
-
-    elif name == "HardAndUncertain":
-        # Ber(0.5) * Exp(0.1)
-        return TTCDist(expon(scale=1 / 0.1))
-
-    elif name == "EasyAndCertain":
-        # Exp(1.0)
-        return TTCDist(expon(scale=1 / 1.0))
-
-    elif name == "EasyAndUncertain":
-        # Ber(0.5)
-        return TTCDist(0.0)
-
-    elif name == "HardAndCertain":
-        # Exp(0.1)
-        return TTCDist(expon(scale=1 / 0.1))
-
-    elif name == "VeryHardAndCertain":
-        # Exp(0.01)
-        return TTCDist(expon(scale=1 / 0.01))
-
-    elif name == "Infinity":
-        # No sampling, effectively infinity
-        return TTCDist(float("inf"))
-
-    elif name == "Zero":
-        # No sampling, effectively zero
-        return TTCDist(0.0)
-
-    elif name == "Enabled":
-        # Always 1
-        return TTCDist(1.0)
-
-    elif name == "Disabled":
-        # Always 0
-        return TTCDist(0.0)
-
-    elif name == "Exponential":
-        # Exponential distribution with lambda
-        if len(arguments) != 1:
-            raise ValueError(
-                "Exponential requires exactly one argument (lambda)."
-            )
-        lam = arguments[0]
-        return TTCDist(expon(scale=1 / lam))
-
-    else:
-        raise ValueError(f"Unsupported distribution name: {name}")
+# These are MAL supported mappings from name to distribution 
+named_ttc_dists: dict[str, TTCDist] = {
+    'EasyAndUncertain': TTCDist(
+        DistFunction.BERNOULLI, [0.5]
+    ),
+    'HardAndUncertain': TTCDist(
+        DistFunction.EXPONENTIAL, [0.1],
+        combine_with=TTCDist(
+            DistFunction.BERNOULLI, [0.5]
+        ),
+        combine_op=Operation.MULTIPLY
+    ),
+    'VeryHardAndUncertain': TTCDist(
+        DistFunction.EXPONENTIAL, [0.01],
+        combine_with=TTCDist(
+            DistFunction.BERNOULLI, [0.5]
+        ),
+        combine_op=Operation.MULTIPLY
+    ),
+    'EasyAndCertain': TTCDist(
+        DistFunction.EXPONENTIAL, [1.0]
+    ),
+    'HardAndCertain': TTCDist(
+        DistFunction.EXPONENTIAL, [0.1]
+    ),
+    'VeryHardAndCertain': TTCDist(
+        DistFunction.EXPONENTIAL, [0.01]
+    ),
+    'Enabled': TTCDist(
+        DistFunction.BERNOULLI, [1.0]
+    ),
+    'Instant': TTCDist(
+        DistFunction.BERNOULLI, [1.0]
+    ),
+    'Disabled': TTCDist(
+        DistFunction.BERNOULLI, [0.0]
+    )
+}

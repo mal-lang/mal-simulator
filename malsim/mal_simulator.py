@@ -14,12 +14,7 @@ from maltoolbox.attackgraph import (
     AttackGraphNode
 )
 
-from malsim.ttc_utils import (
-    attempt_step_ttc,
-    ttc_value_from_node,
-    attempt_node_bernoulli,
-    ProbCalculationMethod,
-)
+from malsim.ttc_utils import TTCDist
 
 from malsim.graph_processing import (
     calculate_necessity,
@@ -552,14 +547,10 @@ class MalSimulator():
         for node in self.attack_graph.attack_steps:
             match(self.sim_settings.ttc_mode):
                 case TTCMode.EXPECTED_VALUE:
-                    ttc_values[node] = ttc_value_from_node(
-                        node, ProbCalculationMethod.EXPECTED, self.rng
-                    )
+                    ttc_values[node] = TTCDist.from_node(node).expected_value
                 case TTCMode.PRE_SAMPLE:
                     # Otherwise sample
-                    ttc_values[node] = ttc_value_from_node(
-                        node, ProbCalculationMethod.SAMPLE, self.rng
-                    )
+                    ttc_values[node] = TTCDist.from_node(node).sample_value(self.rng)
 
         return ttc_values
 
@@ -571,7 +562,7 @@ class MalSimulator():
         pre_enabled_defenses = set()
         for node in self.attack_graph.defense_steps:
             if node.type == 'defense':
-                if attempt_node_bernoulli(node, self.rng):
+                if TTCDist.from_node(node).attempt_bernoulli(self.rng):
                     pre_enabled_defenses.add(node)
         return pre_enabled_defenses
 
@@ -583,7 +574,7 @@ class MalSimulator():
         impossible_attack_steps = set()
 
         for node in self.attack_graph.attack_steps:
-            if not attempt_node_bernoulli(node, self.rng):
+            if not TTCDist.from_node(node).attempt_bernoulli(self.rng):
                 impossible_attack_steps.add(node)
         return impossible_attack_steps
 
@@ -968,13 +959,11 @@ class MalSimulator():
 
         elif self.sim_settings.ttc_mode == TTCMode.EFFORT_BASED_PER_STEP_SAMPLE:
             # Run trial to decide success if config says so (SANDOR mode)
-            return attempt_step_ttc(node, num_attempts, self.rng)
+            return TTCDist.from_node(node).attempt_ttc_with_effort(num_attempts, self.rng)
 
         elif self.sim_settings.ttc_mode == TTCMode.PER_STEP_SAMPLE:
             # Sample ttc value every time if config says so (ANDREI mode)
-            node_ttc_value = ttc_value_from_node(
-                node, ProbCalculationMethod.SAMPLE, self.rng
-            )
+            node_ttc_value = TTCDist.from_node(node).sample_value(self.rng)
             return node_ttc_value <= 1
 
         # Compare attempts to ttc expected value in EXPECTED_VALUE mode
