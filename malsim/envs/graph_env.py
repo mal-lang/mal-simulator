@@ -4,7 +4,7 @@ from typing import Any
 from .mal_spaces import AttackGraphNodeSpace, MALObs, MALObsInstance, attacker_state2graph
 from os import PathLike
 from malsim.scenario import AgentType, Scenario
-from malsim.mal_simulator import MalSimulator, MalSimulatorSettings, TTCMode, RewardMode
+from malsim.mal_simulator import MalSimulator, MalSimulatorSettings, TTCMode, RewardMode, MalSimAttackerState
 from malsim.envs.serialization import LangSerializer
 from gymnasium.envs.registration import EnvSpec
 import numpy as np
@@ -48,7 +48,7 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
     )
 
     def __init__(self, scenario: PathLike[str] | Scenario, use_logic_gates: bool, sim_settings: MalSimulatorSettings, **kwargs: dict[str, Any]) -> None:
-        self.render_mode: str | None = kwargs.pop('render_mode', None)
+        self.render_mode: Any | None = kwargs.pop('render_mode', None)
 
         if not isinstance(scenario, Scenario):
             scenario = Scenario.load_from_file(str(scenario))
@@ -67,6 +67,7 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
     def reset(self, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[MALObsInstance, dict[str, Any]]:
         super().reset(seed=seed, options=options)
         state = self.sim.reset()[self.agent_name]
+        assert isinstance(state, MalSimAttackerState)
         obs = attacker_state2graph(state, self.lang_serializer, self.use_logic_gates)
         info = {"state": state}
         return obs, info
@@ -74,6 +75,7 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
     def step(self, action: np.int64) -> tuple[MALObsInstance, SupportsFloat, bool, bool, dict[str, Any]]:
         action_node = self.attack_graph.nodes[int(action)]
         state = self.sim.step({self.agent_name: [action_node]})[self.agent_name]
+        assert isinstance(state, MalSimAttackerState)
         obs = attacker_state2graph(state, self.lang_serializer, self.use_logic_gates)
         terminated = self.sim.agent_is_terminated(self.agent_name)
         reward = self.sim.agent_reward(self.agent_name)
@@ -89,4 +91,5 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
 def get_agent_name(scenario: Scenario, type: AgentType) -> str:
     agents = [agent for agent in scenario.agents if agent["type"] == type]
     assert len(agents) == 1, f"Expected exactly one agent of type {type}, got {len(agents)} agents"
-    return agents[0]["name"]
+    agent_name = agents[0]["name"]
+    return str(agent_name)

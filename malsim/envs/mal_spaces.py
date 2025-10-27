@@ -225,7 +225,7 @@ class MALObs(Space[MALObsInstance]):
                         ((x.step2step[0] >= 0) & (x.step2step[0] < x.attack_steps.type.shape[0])).all()
                         and ((x.step2step[1] >= 0) & (x.step2step[1] < x.attack_steps.type.shape[0])).all()
                     )
-                    if self.use_logic_gates:
+                    if self.use_logic_gates and isinstance(x.logic_gates, LogicGate) and self.logic_gate_type:
                         logic2step_valid = (
                             ((x.logic2step[0] >= 0) & (x.logic2step[0] < x.logic_gates.type.shape[0])).all()
                             and ((x.logic2step[1] >= 0) & (x.logic2step[1] < x.attack_steps.type.shape[0])).all()
@@ -261,7 +261,7 @@ class MALObs(Space[MALObsInstance]):
             f"attack_step_class={self.attack_step_class.shape}, "
             f"association_type={self.association_type.shape})"
         )
-        if self.use_logic_gates:
+        if self.use_logic_gates and self.logic_gate_type:
             repr_str = repr_str[:-1] + f", logic_gate_type={self.logic_gate_type.shape})"
         return repr_str
 
@@ -330,9 +330,9 @@ class MALObs(Space[MALObsInstance]):
             ) if sample["association_type"] else None
             logic_gates = LogicGate(
                 type=np.array(sample["logic_gate_type"], dtype=self.logic_gate_type.dtype),
-            ) if sample["logic_gate_type"] else None
+            ) if sample["logic_gate_type"] and self.logic_gate_type else None
             ret = MALObsInstance(
-                time=int(sample["time"]),
+                time=np.int64(sample["time"]),
                 attack_steps=attack_step,
                 assets=assets,
                 associations=associations,
@@ -347,17 +347,17 @@ class MALObs(Space[MALObsInstance]):
         return ret_n
 
 
-    def sample(self, num_assets: int) -> MALObsInstance:
+    def sample(self, mask: Any | None = ..., probability: Any | None = ...) -> MALObsInstance:
         """Sample a random MAL observation."""
         raise NotImplementedError("Sampling is not implemented for MALObs")
 
 
 def attacker_state2graph(state: MalSimAttackerState, lang_serializer: LangSerializer, use_logic_gates: bool) -> MALObsInstance:
-    visible_assets = (
-        {node.model_asset for node in state.performed_nodes} 
-        | {node.model_asset for node in state.action_surface}
+    visible_assets_set = (
+        {node.model_asset for node in state.performed_nodes if node.model_asset} 
+        | {node.model_asset for node in state.action_surface if node.model_asset}
     )
-    visible_assets = sorted(visible_assets, key=lambda asset: asset.id)
+    visible_assets = sorted(visible_assets_set, key=lambda asset: asset.id)
     assets = Assets(
         type=np.array([lang_serializer.asset_type[asset.type] for asset in visible_assets]),
         id=np.array([asset.id for asset in visible_assets]),
@@ -367,7 +367,7 @@ def attacker_state2graph(state: MalSimAttackerState, lang_serializer: LangSerial
         node for node in state.sim.attack_graph.nodes.values() if node.model_asset in visible_assets
     }, key=lambda attack_step: attack_step.id)
     if lang_serializer.split_attack_step_types:
-        attack_step_type = np.array([lang_serializer.attack_step_type[node.model_asset.type][node.name] for node in visible_attack_steps])
+        attack_step_type = np.array([lang_serializer.attack_step_type[node.model_asset.type][node.name] for node in visible_attack_steps if node.model_asset])
     else:
         attack_step_type = np.array([lang_serializer.attack_step_type[node.name] for node in visible_attack_steps])
     attack_steps = AttackStep(
@@ -379,7 +379,7 @@ def attacker_state2graph(state: MalSimAttackerState, lang_serializer: LangSerial
         attempts=np.array([state.num_attempts.get(node, 0) for node in visible_attack_steps]),
         traversable=np.array([state.sim.node_is_traversable(state.performed_nodes, node) for node in visible_attack_steps]),
     )
-    step2asset = {(visible_attack_steps.index(node), visible_assets.index(node.model_asset)) for node in visible_attack_steps}
+    step2asset = {(visible_attack_steps.index(node), visible_assets.index(node.model_asset)) for node in visible_attack_steps if node.model_asset}
     step2step = {(visible_attack_steps.index(node), visible_attack_steps.index(child)) for node in visible_attack_steps for child in node.children if child in visible_attack_steps}
 
     if len(visible_assets) > 1:
@@ -395,13 +395,13 @@ def attacker_state2graph(state: MalSimAttackerState, lang_serializer: LangSerial
                         assoc_idx = associations.index((assoc, asset1.id, asset2.id))
                         assoc2asset.add((assoc_idx, visible_assets.index(asset1)))
                         assoc2asset.add((assoc_idx, visible_assets.index(asset2)))
-        associations = Association(
+        association = Association(
             type=np.array([lang_serializer.association_type[assoc.name] for (assoc, _, _) in associations]),
         )
-        assoc2asset = np.array(list(zip(*assoc2asset)))
+        assoc2asset_links = np.array(list(zip(*assoc2asset)))
     else:
-        associations = None
-        assoc2asset = None
+        association = None
+        assoc2asset_links = None
 
     if use_logic_gates:
         visible_and_or_steps = [node for node in visible_attack_steps if node.type in ('and', 'or')]
@@ -412,24 +412,24 @@ def attacker_state2graph(state: MalSimAttackerState, lang_serializer: LangSerial
             logic2step.add((logic_gate_id, visible_attack_steps.index(node)))
             for child in filter(lambda child: child in visible_attack_steps, node.children):
                 step2logic.add((visible_attack_steps.index(child), logic_gate_id))
-        logic2step = np.array(list(zip(*logic2step)))
-        step2logic = np.array(list(zip(*step2logic)))
+        logic2step_links = np.array(list(zip(*logic2step)))
+        step2logic_links = np.array(list(zip(*step2logic)))
     else:
         logic_gates = None
-        logic2step = None
-        step2logic = None
+        logic2step_links = None
+        step2logic_links = None
 
     return MALObsInstance(
         time=np.int64(state.sim.cur_iter),
         assets=assets,
         attack_steps=attack_steps,
-        associations=associations,
+        associations=association,
         logic_gates=logic_gates,
         step2asset=np.array(list(zip(*step2asset))),
         step2step=np.array(list(zip(*step2step))),
-        assoc2asset=assoc2asset,
-        logic2step=logic2step,
-        step2logic=step2logic,
+        assoc2asset=assoc2asset_links,
+        logic2step=logic2step_links,
+        step2logic=step2logic_links,
     )
 
 class AttackGraphNodeSpace(Discrete):

@@ -18,18 +18,16 @@ def test_mal_obs() -> None:
 
     def state2instance(sim: MalSimulator) -> MALObsInstance:
         def get_total_attempts(node: AttackGraphNode) -> int:
-            return sum(sim.agent_states[agent].num_attempts[node] 
-                for agent in sim.agent_states.keys() 
-                if hasattr(sim.agent_states[agent], 'num_attempts')
+            return sum(state.num_attempts[node] 
+                for state in sim._get_attacker_agents()
             )
         def is_traversable_by_any(node: AttackGraphNode) -> bool:
-            return any(sim.node_is_traversable(sim.agent_states[agent].performed_nodes, node) 
-                for agent in sim.agent_states.keys() 
-                if hasattr(sim.agent_states[agent], 'performed_nodes')
+            return any(sim.node_is_traversable(state.performed_nodes, node) 
+                for state in sim._get_attacker_agents()
             )
         sorted_attack_steps = [sim.attack_graph.nodes[node_id] for node_id in sorted(sim.attack_graph.nodes.keys())]
         attack_steps = AttackStep(
-            type=np.array([serializer.attack_step_type[node.model_asset.type][node.name] for node in sorted_attack_steps]),
+            type=np.array([serializer.attack_step_type[node.model_asset.type][node.name] for node in sorted_attack_steps if node.model_asset]),
             id=np.array([node.id for node in sorted_attack_steps]),
             logic_class=np.array([serializer.attack_step_class[node.type] for node in sorted_attack_steps]),
             tags=np.array([serializer.attack_step_tag[node.tags[0] if len(node.tags) > 0 else None] for node in sorted_attack_steps]),
@@ -37,14 +35,15 @@ def test_mal_obs() -> None:
             attempts=np.array([get_total_attempts(node) for node in sorted_attack_steps]),
             traversable=np.array([is_traversable_by_any(node) for node in sorted_attack_steps]),
         )
-        step2step = {(node.id, child.id) for node in sorted_attack_steps for child in node.children}
+        step2step = {(sorted_attack_steps.index(node), sorted_attack_steps.index(child)) for node in sorted_attack_steps for child in node.children if child in sorted_attack_steps}
         
+        assert sim.attack_graph.model, "Attack graph needs to have a model attached to it"
         sorted_assets = [sim.attack_graph.model.assets[asset_id] for asset_id in sorted(sim.attack_graph.model.assets.keys())]
         assets = Assets(
             type=np.array([serializer.asset_type[asset.type] for asset in sorted_assets]),
             id=np.array([asset.id for asset in sorted_assets]),
         )
-        step2asset = {(node.id, node.model_asset.id) for node in sorted_attack_steps}
+        step2asset = {(sorted_attack_steps.index(node), sorted_assets.index(node.model_asset)) for node in sorted_attack_steps if node.model_asset in sorted_assets}
 
         associations: list[tuple[LanguageGraphAssociation, int, int]] = []
         for asset in sorted_assets:
