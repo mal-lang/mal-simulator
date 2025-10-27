@@ -10,7 +10,7 @@ from gymnasium.envs.registration import EnvSpec
 import numpy as np
 from typing import SupportsFloat
 
-def register_envs(scenario: Scenario | PathLike[str]) -> None:
+def register_graph_envs(scenario: Scenario | PathLike[str]) -> None:
 
     gym.register(
         id='GraphAttackerEnv-v0',
