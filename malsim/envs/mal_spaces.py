@@ -95,9 +95,9 @@ class MALObs(Space[MALObsInstance]):
 
         # Simulator Features
         self.time = Box(0, np.inf, shape=[], dtype=np.int64)
-        self.attack_step_compromised = Box(0, 1, shape=[], dtype=np.bool)
+        self.attack_step_compromised = Box(0, 1, shape=[], dtype=np.int8)
         self.attack_step_attempts = Box(0, np.inf, shape=[], dtype=np.int64)
-        self.attack_step_traversable = Box(0, 1, shape=[], dtype=np.bool)
+        self.attack_step_traversable = Box(0, 1, shape=[], dtype=np.int8)
         self.attack_step_id = Box(0, np.inf, shape=[], dtype=np.int64)
         self.asset_id = Box(0, np.inf, shape=[], dtype=np.int64)
 
