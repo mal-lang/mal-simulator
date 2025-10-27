@@ -115,13 +115,11 @@ class MALObs(Space[MALObsInstance]):
             "Sample space generation is not implemented for MALObs"
         )
 
-    def seed(self, seed: int | None = None) -> dict[str, int | list[int] | dict[str, int]]:
-
+    def seed(self, seed: int | None = None) -> int | list[int] | dict[str, int]:
         if seed is None:
-            return {
+            seeds = {
                 "self": super().seed(None),
                 "attack_step_tags": self.attack_step_tags.seed(None),
-                "logic_gate_type": self.logic_gate_type.seed(None) if self.logic_gate_type else None,
                 "asset_type": self.asset_type.seed(None),
                 "attack_step_type": self.attack_step_type.seed(None),
                 "attack_step_class": self.attack_step_class.seed(None),
@@ -131,6 +129,9 @@ class MALObs(Space[MALObsInstance]):
                 "attack_step_attempts": self.attack_step_attempts.seed(None),
                 "attack_step_traversable": self.attack_step_traversable.seed(None),
             }
+            if self.logic_gate_type:
+                seeds["logic_gate_type"] = self.logic_gate_type.seed(None)
+            return seeds  # type: ignore
 
         elif isinstance(seed, int):
             super_seed = super().seed(seed)
@@ -138,10 +139,9 @@ class MALObs(Space[MALObsInstance]):
             # this is necessary such that after int, the Graph PRNG are equivalent
             # REFERENCE: https://gymnasium.farama.org/_modules/gymnasium/spaces/graph/#Graph
             super().seed(seed)
-            return {
+            seeds = {
                 "self": super_seed,
                 "attack_step_tags": self.attack_step_tags.seed(node_seed),
-                "logic_gate_type": self.logic_gate_type.seed(node_seed) if self.logic_gate_type else None,
                 "asset_type": self.asset_type.seed(node_seed),
                 "attack_step_type": self.attack_step_type.seed(node_seed),
                 "attack_step_class": self.attack_step_class.seed(node_seed),
@@ -151,6 +151,9 @@ class MALObs(Space[MALObsInstance]):
                 "attack_step_attempts": self.attack_step_attempts.seed(node_seed),
                 "attack_step_traversable": self.attack_step_traversable.seed(node_seed),
             }
+            if self.logic_gate_type:
+                seeds["logic_gate_type"] = self.logic_gate_type.seed(node_seed)
+            return seeds  # type: ignore
 
         else:
             raise TypeError(f"Expects `None` or int, actual type: {type(seed)}")
@@ -161,12 +164,8 @@ class MALObs(Space[MALObsInstance]):
             attack_step_tags_valid = self.attack_step_tags.contains(
                 x.attack_steps.tags[0]
             )
-            if self.use_logic_gates:
-                logic_gates = x.logic_gates
-                if not isinstance(logic_gates, LogicGate):
-                    logic_gate_type_valid = False
-                else:
-                    logic_gate_type_valid = all(logic_gates.type[i] in self.logic_gate_type for i in range(len(logic_gates.type)))
+            if self.use_logic_gates and isinstance(x.logic_gates, LogicGate) and self.logic_gate_type and x.step2logic and x.logic2step:
+                logic_gate_type_valid = all(x.logic_gates.type[i] in self.logic_gate_type for i in range(len(x.logic_gates.type)))
             else:
                 logic_gate_type_valid = x.logic_gates is None and x.logic2step is None and x.step2logic is None
 
@@ -207,14 +206,14 @@ class MALObs(Space[MALObsInstance]):
                     np.issubdtype(x.step2asset.dtype, np.integer)
                     and (x.assoc2asset is None or np.issubdtype(x.assoc2asset.dtype, np.integer))
                     and np.issubdtype(x.step2step.dtype, np.integer)
-                    and (not self.use_logic_gates or np.issubdtype(x.logic2step.dtype, np.integer))
-                    and (not self.use_logic_gates or np.issubdtype(x.step2logic.dtype, np.integer))
+                    and (x.logic2step and np.issubdtype(x.logic2step.dtype, np.integer))
+                    and (x.step2logic and np.issubdtype(x.step2logic.dtype, np.integer))
                 ):
                     step2asset_valid = (
                         ((x.step2asset[0] >= 0) & (x.step2asset[0] < x.attack_steps.type.shape[0])).all()
                         and ((x.step2asset[1] >= 0) & (x.step2asset[1] < x.assets.type.shape[0])).all()
                     )
-                    if x.assoc2asset is not None:
+                    if x.assoc2asset and isinstance(x.associations, Association):
                         assoc2asset_valid = (
                             ((x.assoc2asset[0] >= 0) & (x.assoc2asset[0] < x.associations.type.shape[0])).all()
                             and ((x.assoc2asset[1] >= 0) & (x.assoc2asset[1] < x.assets.type.shape[0])).all()
@@ -225,7 +224,7 @@ class MALObs(Space[MALObsInstance]):
                         ((x.step2step[0] >= 0) & (x.step2step[0] < x.attack_steps.type.shape[0])).all()
                         and ((x.step2step[1] >= 0) & (x.step2step[1] < x.attack_steps.type.shape[0])).all()
                     )
-                    if self.use_logic_gates and isinstance(x.logic_gates, LogicGate) and self.logic_gate_type:
+                    if self.use_logic_gates and isinstance(x.logic_gates, LogicGate) and self.logic_gate_type and x.step2logic and x.logic2step:
                         logic2step_valid = (
                             ((x.logic2step[0] >= 0) & (x.logic2step[0] < x.logic_gates.type.shape[0])).all()
                             and ((x.logic2step[1] >= 0) & (x.logic2step[1] < x.attack_steps.type.shape[0])).all()
