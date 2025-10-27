@@ -406,7 +406,7 @@ def attacker_state2graph(state: MalSimAttackerState, lang_serializer: LangSerial
         logic2step = set()
         for logic_gate_id, node in enumerate(visible_and_or_steps):
             logic2step.add((logic_gate_id, visible_attack_steps.index(node)))
-            for child in node.children:
+            for child in filter(lambda child: child in visible_attack_steps, node.children):
                 step2logic.add((visible_attack_steps.index(child), logic_gate_id))
         logic2step = np.array(list(zip(*logic2step)))
         step2logic = np.array(list(zip(*step2logic)))
