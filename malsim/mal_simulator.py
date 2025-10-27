@@ -1101,13 +1101,14 @@ class MalSimulator():
             step_reward -= len(attacker_state.step_attempted_nodes)
         elif self.sim_settings.ttc_mode == TTCMode.DISABLED:
             for node in attacker_state.step_attempted_nodes:
-                if RewardMode.EXPECTED_TTC:
+                if self.sim_settings.attacker_reward_mode == RewardMode.EXPECTED_TTC:
                     step_reward -= ttc_value_from_node(node, ProbCalculationMethod.EXPECTED, self.rng)
-                elif RewardMode.SAMPLE_TTC:
+                elif self.sim_settings.attacker_reward_mode == RewardMode.SAMPLE_TTC:
                     step_reward -= ttc_value_from_node(node, ProbCalculationMethod.SAMPLE, self.rng)
                 else:
                     raise ValueError(f"Invalid RewardMode when TTC mode is DISABLED: {reward_mode}")
 
+        # Who asked for this? I would really like to remove this.
         if reward_mode == RewardMode.CUMULATIVE:
             # To make it cumulative, add previous step reward
             step_reward += self.agent_reward(attacker_state.name)
