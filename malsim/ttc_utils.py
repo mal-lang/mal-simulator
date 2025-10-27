@@ -2,22 +2,15 @@
 
 from __future__ import annotations
 import logging
-import math
 from enum import Enum
-from dataclasses import dataclass
 
 from typing import Any, Optional, TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import NDArray
 from scipy.stats import expon, gamma, binom, lognorm, uniform, bernoulli
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
-    from scipy.stats._distn_infrastructure import (
-        rv_continuous_frozen,
-        rv_discrete_frozen
-    )
 
 logger = logging.getLogger(__name__)
 
@@ -81,10 +74,10 @@ class TTCDist:
         self.combine_op = combine_op
 
     @property
-    def expected_value(self):
+    def expected_value(self) -> float:
         """Return the expected value of a TTCDist"""
 
-        value = self.dist.expect()
+        value = float(self.dist.expect())
 
         if self.combine_with:
             # Combine with other distribution if TTC is combined
@@ -97,15 +90,15 @@ class TTCDist:
             elif self.combine_op == Operation.DIVIDE:
                 value /= self.combine_with.expected_value
             elif self.combine_op == Operation.EXPONENTIATION:
-                value = float(pow(value, self.combine_with.expected_value))
+                value = value ** self.combine_with.expected_value
             else:
                 raise ValueError(f"Unknown operation {self.combine_op}")
 
         return value
 
-    def sample_value(self, rng: Optional[np.random.Generator] = None):
+    def sample_value(self, rng: Optional[np.random.Generator] = None) -> float:
         """Sample a value from the TTC Distribution"""
-        value = self.dist.rvs(random_state=rng)
+        value = float(self.dist.rvs(random_state=rng))
 
         if self.combine_with:
             # Combine with other distribution if TTC is combined
@@ -126,7 +119,7 @@ class TTCDist:
 
     def success_probability(self, effort: int) -> float:
         """The probability to succeed with given effort (previous attempts)"""
-        return self.dist.cdf(effort)
+        return float(self.dist.cdf(effort))
 
     def attempt_ttc_with_effort(
         self, effort: int, rng: Optional[np.random.Generator] = None
@@ -142,7 +135,7 @@ class TTCDist:
         success_prob = self.success_probability(effort)
         return success_prob > rng.random()
 
-    def attempt_bernoulli(self, rng: Optional[np.random.Generator] = None):
+    def attempt_bernoulli(self, rng: Optional[np.random.Generator] = None) -> bool:
         """Attempt bernoulli from a TTC Distribution"""
         rng = rng or np.random.default_rng()
         if self.function == DistFunction.BERNOULLI:
@@ -155,7 +148,7 @@ class TTCDist:
             return True
 
     @classmethod
-    def from_dict(cls, ttc_dict: dict) -> TTCDist:
+    def from_dict(cls, ttc_dict: dict[str, Any]) -> TTCDist:
         """TTCs are stored as dict in the MAL-toolbox, convert to TTCDist
         - If the TTC provided is a predefined name, return that.
         - Otherwise create the TTCDist object (recursively)
