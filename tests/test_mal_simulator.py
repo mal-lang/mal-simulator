@@ -11,6 +11,8 @@ from malsim.mal_simulator import (
     TTCMode,
     RewardMode
 )
+from malsim.ttc_utils import ttc_value_from_node, ProbCalculationMethod
+
 from malsim import load_scenario, run_simulation
 from dataclasses import asdict
 import numpy as np
@@ -504,6 +506,45 @@ def test_attacker_step_rewards_one_off(
     state2 = sim.agent_states[attacker_name]
     assert isinstance(state2, MalSimAttackerState)
     assert sim.agent_reward(attacker_name) == node_rewards[access_network_and_conn] - float(len(state2.step_attempted_nodes))
+
+
+def test_attacker_step_rewards_expected_ttc(
+        corelang_lang_graph: LanguageGraph, model: Model
+    ) -> None:
+
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    entry_point = get_node(attack_graph, 'OS App:fullAccess')
+
+    # Set some random rewards for each node
+    node_rewards = {
+        n: np.random.random() * 100 for n in attack_graph.attack_steps
+    }
+    sim = MalSimulator(
+        attack_graph,
+        node_rewards=node_rewards,
+        sim_settings=MalSimulatorSettings(
+            attacker_reward_mode=RewardMode.EXPECTED_TTC
+        )
+    )
+    attacker_name = "Test Attacker"
+    sim.register_attacker(attacker_name, {entry_point})
+    state = sim.reset()[attacker_name]
+
+    while not sim.done():
+        # Run a simulation and make sure rewards are as they should be
+        state = sim.step({attacker_name: list(state.action_surface)})[attacker_name]
+        assert isinstance(state, MalSimAttackerState)
+
+        # Penalized with expected ttc value (since ttc mode is disabled)
+        ttc_penalty = sum(
+            ttc_value_from_node(node, ProbCalculationMethod.EXPECTED, np.random.default_rng())
+            for node in state.step_performed_nodes
+        )
+        # Rewarded by node rewards
+        reward = sum(
+            node_rewards.get(node, 0) for node in state.step_performed_nodes
+        )
+        assert sim.agent_reward(attacker_name) == reward - ttc_penalty
 
 
 def test_defender_step_rewards_cumulative(
