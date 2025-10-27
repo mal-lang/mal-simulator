@@ -7,7 +7,7 @@ from maltoolbox.language import LanguageGraphAssociation
 from malsim.envs.serialization import LangSerializer
 from malsim.mal_simulator import MalSimAttackerState
 
-class Assets(NamedTuple):
+class Asset(NamedTuple):
     type: NDArray[np.int64]
     id: NDArray[np.int64]
 
@@ -38,7 +38,7 @@ class MALObsInstance(NamedTuple):
 
     time: np.int64
 
-    assets: Assets
+    assets: Asset
     attack_steps: AttackStep
     associations: Association | None
     logic_gates: LogicGate | None
@@ -164,7 +164,7 @@ class MALObs(Space[MALObsInstance]):
             attack_step_tags_valid = self.attack_step_tags.contains(
                 x.attack_steps.tags[0]
             )
-            if self.use_logic_gates and isinstance(x.logic_gates, LogicGate) and self.logic_gate_type and x.step2logic and x.logic2step:
+            if self.use_logic_gates and isinstance(x.logic_gates, LogicGate) and self.logic_gate_type and x.step2logic is not None and x.logic2step is not None:
                 logic_gate_type_valid = all(x.logic_gates.type[i] in self.logic_gate_type for i in range(len(x.logic_gates.type)))
             else:
                 logic_gate_type_valid = x.logic_gates is None and x.logic2step is None and x.step2logic is None
@@ -206,14 +206,14 @@ class MALObs(Space[MALObsInstance]):
                     np.issubdtype(x.step2asset.dtype, np.integer)
                     and (x.assoc2asset is None or np.issubdtype(x.assoc2asset.dtype, np.integer))
                     and np.issubdtype(x.step2step.dtype, np.integer)
-                    and (x.logic2step and np.issubdtype(x.logic2step.dtype, np.integer))
-                    and (x.step2logic and np.issubdtype(x.step2logic.dtype, np.integer))
+                    and (x.logic2step is None or np.issubdtype(x.logic2step.dtype, np.integer))
+                    and (x.step2logic is None or np.issubdtype(x.step2logic.dtype, np.integer))
                 ):
                     step2asset_valid = (
                         ((x.step2asset[0] >= 0) & (x.step2asset[0] < x.attack_steps.type.shape[0])).all()
                         and ((x.step2asset[1] >= 0) & (x.step2asset[1] < x.assets.type.shape[0])).all()
                     )
-                    if x.assoc2asset and isinstance(x.associations, Association):
+                    if x.assoc2asset is not None and isinstance(x.associations, Association):
                         assoc2asset_valid = (
                             ((x.assoc2asset[0] >= 0) & (x.assoc2asset[0] < x.associations.type.shape[0])).all()
                             and ((x.assoc2asset[1] >= 0) & (x.assoc2asset[1] < x.assets.type.shape[0])).all()
@@ -224,7 +224,7 @@ class MALObs(Space[MALObsInstance]):
                         ((x.step2step[0] >= 0) & (x.step2step[0] < x.attack_steps.type.shape[0])).all()
                         and ((x.step2step[1] >= 0) & (x.step2step[1] < x.attack_steps.type.shape[0])).all()
                     )
-                    if self.use_logic_gates and isinstance(x.logic_gates, LogicGate) and self.logic_gate_type and x.step2logic and x.logic2step:
+                    if self.use_logic_gates and isinstance(x.logic_gates, LogicGate) and self.logic_gate_type and x.step2logic is not None and x.logic2step is not None:
                         logic2step_valid = (
                             ((x.logic2step[0] >= 0) & (x.logic2step[0] < x.logic_gates.type.shape[0])).all()
                             and ((x.logic2step[1] >= 0) & (x.logic2step[1] < x.attack_steps.type.shape[0])).all()
@@ -320,7 +320,7 @@ class MALObs(Space[MALObsInstance]):
                 attempts=np.array(sample["attack_step_attempts"], dtype=self.attack_step_attempts.dtype),
                 traversable=np.array(sample["attack_step_traversable"], dtype=self.attack_step_traversable.dtype),
             )
-            assets = Assets(
+            assets = Asset(
                 type=np.array(sample["asset_type"], dtype=self.asset_type.dtype),
                 id=np.array(sample["asset_id"], dtype=self.asset_id.dtype),
             )
@@ -357,7 +357,7 @@ def attacker_state2graph(state: MalSimAttackerState, lang_serializer: LangSerial
         | {node.model_asset for node in state.action_surface if node.model_asset}
     )
     visible_assets = sorted(visible_assets_set, key=lambda asset: asset.id)
-    assets = Assets(
+    assets = Asset(
         type=np.array([lang_serializer.asset_type[asset.type] for asset in visible_assets]),
         id=np.array([asset.id for asset in visible_assets]),
     )

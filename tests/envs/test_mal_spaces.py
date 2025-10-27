@@ -1,7 +1,7 @@
 from maltoolbox.language import LanguageGraphAssociation
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.envs.serialization import LangSerializer
-from malsim.envs.mal_spaces import MALObs, MALObsInstance, AttackStep, Assets, Association, LogicGate, attacker_state2graph, AttackGraphNodeSpace
+from malsim.envs.mal_spaces import MALObs, MALObsInstance, AttackStep, Asset, Association, LogicGate, attacker_state2graph, AttackGraphNodeSpace
 from malsim.scenario import Scenario, AgentType
 from malsim.mal_simulator import MalSimulator, MalSimAttackerState
 import numpy as np
@@ -18,7 +18,7 @@ def test_mal_obs() -> None:
 
     def state2instance(sim: MalSimulator) -> MALObsInstance:
         def get_total_attempts(node: AttackGraphNode) -> int:
-            return sum(state.num_attempts[node] 
+            return sum(state.num_attempts.get(node, 0) 
                 for state in sim._get_attacker_agents()
             )
         def is_traversable_by_any(node: AttackGraphNode) -> bool:
@@ -39,7 +39,7 @@ def test_mal_obs() -> None:
         
         assert sim.attack_graph.model, "Attack graph needs to have a model attached to it"
         sorted_assets = [sim.attack_graph.model.assets[asset_id] for asset_id in sorted(sim.attack_graph.model.assets.keys())]
-        assets = Assets(
+        assets = Asset(
             type=np.array([serializer.asset_type[asset.type] for asset in sorted_assets]),
             id=np.array([asset.id for asset in sorted_assets]),
         )
@@ -92,7 +92,10 @@ def test_mal_obs() -> None:
     for _ in range(10):
         actions = {}
         for agent_name, state in states.items():
-            actions[agent_name] = [list(state.action_surface)[0]]
+            if len(state.action_surface) > 0:
+                actions[agent_name] = [list(state.action_surface)[0]]
+            else:
+                actions[agent_name] = []
         states = sim.step(actions)
         assert state2instance(sim) in obs_space
 
