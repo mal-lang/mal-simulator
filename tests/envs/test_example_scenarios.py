@@ -10,8 +10,10 @@ from malsim.scenario import load_scenario
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
+    RewardMode,
     TTCMode,
-    MalSimDefenderState
+    MalSimDefenderState,
+    MalSimAttackerState
 )
 
 def test_bfs_vs_bfs_state_and_reward() -> None:
@@ -184,6 +186,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         sim_settings = MalSimulatorSettings(
             seed=23,
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
+            attacker_reward_mode=RewardMode.ONE_OFF
         )
     )
 
@@ -200,6 +203,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     )
 
     total_reward_defender = 0.0
+    attacker_failed_steps = 0
     total_reward_attacker = 0.0
 
     attacker_actions = []
@@ -221,6 +225,8 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         }
         states = sim.step(actions)
         attacker_state = states[attacker_agent_name]
+        assert isinstance(attacker_state, MalSimAttackerState)
+        attacker_failed_steps += len(attacker_state.step_attempted_nodes)
         defender_state = states[defender_agent_name]
         assert isinstance(defender_state, MalSimDefenderState)
 
@@ -301,10 +307,11 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         assert node in defender_state.performed_nodes
 
     # Verify rewards in latest run and total rewards
-    assert sim.agent_reward(attacker_state.name) == 0
+    assert isinstance(attacker_state, MalSimAttackerState)
+    assert sim.agent_reward(attacker_state.name) == -len(attacker_state.step_attempted_nodes)
     assert sim.agent_reward(defender_state.name) == -19
 
-    assert total_reward_attacker == 0
+    assert total_reward_attacker == -attacker_failed_steps
     assert total_reward_defender == -3710.0
 
 
@@ -317,7 +324,8 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
     sim = MalSimulator.from_scenario(
         scenario, sim_settings = MalSimulatorSettings(
             seed=100,
-            ttc_mode=TTCMode.EFFORT_BASED_PER_STEP_SAMPLE
+            ttc_mode=TTCMode.EFFORT_BASED_PER_STEP_SAMPLE,
+            attacker_reward_mode=RewardMode.ONE_OFF
         )
     )
 
@@ -337,6 +345,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
     total_reward_attacker = 0.0
 
     attacker_actions = []
+    attacker_failed_steps = 0
     defender_actions = []
 
     states = sim.agent_states
@@ -356,6 +365,8 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
         states = sim.step(actions)
         defender_state = states[defender_agent_name]
         attacker_state = states[attacker_agent_name]
+        assert isinstance(attacker_state, MalSimAttackerState)
+        attacker_failed_steps += len(attacker_state.step_attempted_nodes)
         assert isinstance(defender_state, MalSimDefenderState)
 
         # If actions were performed, add them to respective list
@@ -410,10 +421,11 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
         assert node in defender_state.performed_nodes
 
     # Verify rewards in latest run and total rewards
-    assert sim.agent_reward(attacker_state.name) == 0
+    assert isinstance(attacker_state, MalSimAttackerState)
+    assert sim.agent_reward(attacker_state.name) == -len(attacker_state.step_attempted_nodes)
     assert sim.agent_reward(defender_state.name) == -19
 
-    assert total_reward_attacker == 0
+    assert total_reward_attacker == -attacker_failed_steps
     assert total_reward_defender == -366.0
 
 
@@ -427,7 +439,8 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
     sim = MalSimulator.from_scenario(
         scenario, sim_settings = MalSimulatorSettings(
             seed=1,
-            ttc_mode=TTCMode.EXPECTED_VALUE
+            ttc_mode=TTCMode.EXPECTED_VALUE,
+            attacker_reward_mode=RewardMode.ONE_OFF
         )
     )
 
@@ -447,6 +460,7 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
     total_reward_attacker = 0.0
 
     attacker_actions = []
+    attacker_failed_steps = 0
     defender_actions = []
 
     states = sim.reset()
@@ -466,6 +480,8 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         states = sim.step(actions)
         defender_state = states[defender_agent_name]
         attacker_state = states[attacker_agent_name]
+        assert isinstance(attacker_state, MalSimAttackerState)
+        attacker_failed_steps += len(attacker_state.step_attempted_nodes)
         assert isinstance(defender_state, MalSimDefenderState)
 
         # If actions were performed, add them to respective list
@@ -520,8 +536,9 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         assert node in defender_state.performed_nodes
 
     # Verify rewards in latest run and total rewards
-    assert sim.agent_reward(attacker_state.name) == 0
+    assert isinstance(attacker_state, MalSimAttackerState)
+    assert sim.agent_reward(attacker_state.name) == -len(attacker_state.step_attempted_nodes)
     assert sim.agent_reward(defender_state.name) == -19
 
-    assert total_reward_attacker == 0
+    assert total_reward_attacker == -attacker_failed_steps
     assert total_reward_defender == -3881.0

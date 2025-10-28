@@ -126,8 +126,10 @@ class TTCMode(Enum):
 
 class RewardMode(Enum):
     """Two different ways to generate rewards"""
-    CUMULATIVE = 1  # Reward calculated on all previous steps actions
-    ONE_OFF = 2     # Reward calculated only for current step actions
+    CUMULATIVE = 1   # Reward calculated on all previous steps actions
+    ONE_OFF = 2      # Reward calculated only for current step actions
+    EXPECTED_TTC = 3 # Penalty calculated based on expected TTC value
+    SAMPLE_TTC = 4   # Penalty calculated based on sampled TTC value
 
 @dataclass
 class MalSimulatorSettings():
@@ -1095,6 +1097,22 @@ class MalSimulator():
             for n in attacker_state.step_performed_nodes
         )
 
+        if self.sim_settings.ttc_mode != TTCMode.DISABLED:
+            # If TTC Mode is not disabled, attacker is penalized for each attempt
+            step_reward -= len(attacker_state.step_attempted_nodes)
+        elif self.sim_settings.ttc_mode == TTCMode.DISABLED:
+            # If TTC Mode is disabled but reward mode uses TTCs, penalize attacker with TTCs
+            for node in attacker_state.step_performed_nodes:
+                if self.sim_settings.attacker_reward_mode == RewardMode.EXPECTED_TTC:
+                    step_reward -= ttc_value_from_node(node, ProbCalculationMethod.EXPECTED, self.rng) if node.ttc else 0
+                elif self.sim_settings.attacker_reward_mode == RewardMode.SAMPLE_TTC:
+                    step_reward -= ttc_value_from_node(node, ProbCalculationMethod.SAMPLE, self.rng) if node.ttc else 0
+                else:
+                    logger.warning(f"Invalid RewardMode when TTC mode is DISABLED: {reward_mode}")
+
+        # Cumulative reward mode for attacker makes no sense
+        # If I hack someones computer, do I just keep getting rewarded for it?
+        # Day after day I receive somekind of time payback that allows me to keep hacking?
         if reward_mode == RewardMode.CUMULATIVE:
             # To make it cumulative, add previous step reward
             step_reward += self.agent_reward(attacker_state.name)
