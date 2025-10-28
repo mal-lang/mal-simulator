@@ -23,21 +23,22 @@ from malsim.mal_simulator import (
     run_simulation,
 )
 
-from malsim.scenario import (
-    load_scenario
+from malsim.scenario import load_scenario
+
+__title__ = 'malsim'
+__version__ = '1.2.0'
+__authors__ = ['Andrei Buhaiu', 'Joakim Loxdal', 'Jakob Nyberg', 'Nikolaos Kakouros']
+__license__ = 'Apache 2.0'
+__docformat__ = 'restructuredtext en'
+
+__all__ = ['MalSimulator', 'MalSimulatorSettings', 'run_simulation', 'load_scenario']
+
+
+# TODO: Make sure logging dir exists and make it configurable
+# (or use same as maltoolbox)
+formatter = logging.Formatter(
+    '%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%m-%d %H:%M'
 )
-
-__title__ = "malsim"
-__version__ = "1.2.0"
-__authors__ = ["Andrei Buhaiu", "Joakim Loxdal", "Jakob Nyberg", "Nikolaos Kakouros"]
-__license__ = "Apache 2.0"
-__docformat__ = "restructuredtext en"
-
-__all__ = ["MalSimulator", "MalSimulatorSettings", "run_simulation", "load_scenario"]
-
-
-# TODO: Make sure logging dir exists and make it configurable (or use same as maltoolbox)
-formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%m-%d %H:%M')
 file_handler = logging.FileHandler('logs/malsim_log.txt', mode='w')
 file_handler.setFormatter(formatter)
 

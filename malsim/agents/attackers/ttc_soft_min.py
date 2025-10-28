@@ -11,11 +11,12 @@ if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
     from mal_simulator import MalSimAttackerState
 
+
 class TTCSoftMinAttacker:
     """An agent that selects random actions"""
 
     def __init__(self, agent_config: dict[str, Any]):
-        seed = agent_config.get("seed")
+        seed = agent_config.get('seed')
         self.rng = random.Random(seed)
 
     def get_next_action(
@@ -23,9 +24,7 @@ class TTCSoftMinAttacker:
     ) -> Optional[AttackGraphNode]:
         """Sample node from the action surface based on ttc softargmax"""
 
-        possible_choices: list[AttackGraphNode] = (
-            list(agent_state.action_surface)
-        )
+        possible_choices: list[AttackGraphNode] = list(agent_state.action_surface)
         if not possible_choices:
             return None
 

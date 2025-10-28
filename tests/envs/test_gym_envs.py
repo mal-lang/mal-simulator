@@ -104,7 +104,8 @@ def test_episode() -> None:
         _return += reward
 
     assert done
-    # assert _return < 0.0 # If the defender does nothing then it will get a penalty for being attacked
+    # If the defender does nothing then it will get a penalty for being attacked
+    # assert _return < 0.0
 
 
 def test_mask() -> None:
@@ -219,8 +220,7 @@ def test_attacker(env: MalSimVectorizedObsEnv, attacker_class) -> None:
     step_limit = 1000000
     done = False
     while not done and steps < step_limit:
-        action_node = attacker.get_next_action(
-            env.get_agent_state(AGENT_ATTACKER))
+        action_node = attacker.get_next_action(env.get_agent_state(AGENT_ATTACKER))
         action = (0, None)
         if action_node:
             action = (1, env.node_to_index(action_node))

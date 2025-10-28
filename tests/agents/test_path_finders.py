@@ -1,18 +1,13 @@
-from malsim.mal_simulator import (
-    MalSimulator, MalSimulatorSettings, TTCMode
-)
+from malsim.mal_simulator import MalSimulator, MalSimulatorSettings, TTCMode
 from malsim.agents import get_shortest_path_to
 from malsim.scenario import load_scenario
 
 import numpy as np
 
-def test_path_finding() -> None:
-    r"""
 
-    """
-    scenario_file = (
-        "tests/testdata/scenarios/traininglang_scenario.yml"
-    )
+def test_path_finding() -> None:
+    r""" """
+    scenario_file = 'tests/testdata/scenarios/traininglang_scenario.yml'
     scenario = load_scenario(scenario_file)
     sim = MalSimulator.from_scenario(scenario, register_agents=False)
     user_3_phish = sim.get_node('User:3:phishing')
@@ -26,28 +21,19 @@ def test_path_finding() -> None:
         sim.attack_graph,
         list(agent_state.performed_nodes),
         data_2_read,
-        ttc_values={
-            n: 1.0 for n in sim.attack_graph.nodes.values()
-        }
+        ttc_values={n: 1.0 for n in sim.attack_graph.nodes.values()},
     )
-    assert [n.full_name for n in path] == ["Host:0:access", "Data:2:read"]
+    assert [n.full_name for n in path] == ['Host:0:access', 'Data:2:read']
 
 
 def test_path_finding_ttc_lang() -> None:
-    r"""
-
-    """
-    scenario_file = (
-        "tests/testdata/scenarios/ttc_lang_scenario.yml"
-    )
+    r""" """
+    scenario_file = 'tests/testdata/scenarios/ttc_lang_scenario.yml'
     scenario = load_scenario(scenario_file)
     sim = MalSimulator.from_scenario(
         scenario,
-        sim_settings=MalSimulatorSettings(
-            ttc_mode=TTCMode.EXPECTED_VALUE,
-            seed=100
-        ),
-        register_agents=False
+        sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.EXPECTED_VALUE, seed=100),
+        register_agents=False,
     )
 
     entry_point = sim.get_node('Net1:easyAccess')
@@ -62,13 +48,10 @@ def test_path_finding_ttc_lang() -> None:
     sim.register_attacker('path_finder', {entry_point}, {goal})
 
     path = get_shortest_path_to(
-        sim.attack_graph,
-        [entry_point],
-        goal,
-        ttc_values=ttc_values
+        sim.attack_graph, [entry_point], goal, ttc_values=ttc_values
     )
 
     assert path
     for node in path:
         # Should only have picked the low ttc steps
-        assert ('easy' in node.full_name or node == goal)
+        assert 'easy' in node.full_name or node == goal

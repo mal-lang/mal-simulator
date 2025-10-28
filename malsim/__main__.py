@@ -23,38 +23,44 @@ def main() -> None:
     parser.add_argument(
         'scenario_file',
         type=str,
-        help="Can be found in https://github.com/mal-lang/malsim-scenarios/"
+        help='Can be found in https://github.com/mal-lang/malsim-scenarios/',
     )
     parser.add_argument(
-        '-o', '--output-attack-graph', type=str,
-        help="If set to a path, attack graph will be dumped there",
+        '-o',
+        '--output-attack-graph',
+        type=str,
+        help='If set to a path, attack graph will be dumped there',
     )
     parser.add_argument(
-        '-s', '--seed', type=int,
-        help="If set to a seed, simulator will use it as setting",
+        '-s',
+        '--seed',
+        type=int,
+        help='If set to a seed, simulator will use it as setting',
     )
     parser.add_argument(
-        '-t', '--ttc-mode', type=int,
-        help=(
-            "\t\n".join(
-                [f"{e.value}: {e.name}" for e in TTCMode]
-            )
-        ),
-        default=TTCMode.DISABLED.value
+        '-t',
+        '--ttc-mode',
+        type=int,
+        help=('\t\n'.join([f'{e.value}: {e.name}' for e in TTCMode])),
+        default=TTCMode.DISABLED.value,
     )
     parser.add_argument(
-        '-g', '--send-to-gui', action='store_true', default=False,
-        help="If set, simulator will send actions to malsim-gui"
+        '-g',
+        '--send-to-gui',
+        action='store_true',
+        default=False,
+        help='If set, simulator will send actions to malsim-gui',
     )
     args = parser.parse_args()
     scenario = load_scenario(args.scenario_file)
     sim = MalSimulator.from_scenario(
-        scenario, MalSimulatorSettings(
+        scenario,
+        MalSimulatorSettings(
             seed=args.seed,
             ttc_mode=TTCMode(args.ttc_mode),
-            attack_surface_skip_unnecessary=False
+            attack_surface_skip_unnecessary=False,
         ),
-        send_to_api=args.send_to_gui
+        send_to_api=args.send_to_gui,
     )
 
     if args.output_attack_graph:

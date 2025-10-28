@@ -11,27 +11,25 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class DefendCompromisedDefender:
     """A defender that defends compromised assets using notPresent"""
 
     def __init__(self, agent_config: dict[str, Any], **_: Any):
         # Seed and rng not currently used
         seed = (
-            agent_config["seed"]
-            if agent_config.get("seed")
+            agent_config['seed']
+            if agent_config.get('seed')
             else np.random.SeedSequence().entropy
         )
         self.rng = (
-            np.random.default_rng(seed)
-            if agent_config.get("randomize")
-            else None
+            np.random.default_rng(seed) if agent_config.get('randomize') else None
         )
         self.compromised_nodes: set[AttackGraphNode] = set()
 
     def get_next_action(
         self, agent_state: MalSimDefenderState, **kwargs: Any
     ) -> Optional[AttackGraphNode]:
-
         """Return an action that disables a compromised node"""
 
         self.compromised_nodes |= agent_state.step_compromised_nodes
@@ -44,7 +42,6 @@ class DefendCompromisedDefender:
         possible_choices.sort(key=lambda n: n.id)
 
         for node in possible_choices:
-
             if node in self.compromised_nodes:
                 continue
 
@@ -54,12 +51,8 @@ class DefendCompromisedDefender:
             # - Enabled the cheapest defense node
             #   that has compromised child nodes
             if node_cost < selected_node_cost:
-
-                node_has_compromised_child = (
-                    any(
-                        child_node in self.compromised_nodes
-                        for child_node in node.children
-                    )
+                node_has_compromised_child = any(
+                    child_node in self.compromised_nodes for child_node in node.children
                 )
 
                 if node_has_compromised_child:
@@ -75,21 +68,18 @@ class DefendFutureCompromisedDefender:
     def __init__(self, agent_config: dict[str, Any], **_: Any):
         # Seed and rng not currently used
         seed = (
-            agent_config["seed"]
-            if agent_config.get("seed")
+            agent_config['seed']
+            if agent_config.get('seed')
             else np.random.SeedSequence().entropy
         )
         self.rng = (
-            np.random.default_rng(seed)
-            if agent_config.get("randomize")
-            else None
+            np.random.default_rng(seed) if agent_config.get('randomize') else None
         )
         self.compromised_nodes: set[AttackGraphNode] = set()
 
     def get_next_action(
         self, agent_state: MalSimDefenderState, **kwargs: Any
     ) -> Optional[AttackGraphNode]:
-
         """Return an action that disables a compromised node"""
 
         self.compromised_nodes |= agent_state.step_compromised_nodes
@@ -102,7 +92,6 @@ class DefendFutureCompromisedDefender:
         possible_choices.sort(key=lambda n: n.id)
 
         for node in possible_choices:
-
             if node in self.compromised_nodes:
                 continue
 
@@ -113,16 +102,10 @@ class DefendFutureCompromisedDefender:
             #   that has a non compromised child
             #   that has a compromised parent.
             if node_cost < selected_node_cost:
-
-                node_has_child_that_can_be_compromised = (
-                    any(
-                        any(
-                            p in self.compromised_nodes
-                            for p in child_node.parents
-                        )
-                        and child_node not in self.compromised_nodes
-                        for child_node in node.children
-                    )
+                node_has_child_that_can_be_compromised = any(
+                    any(p in self.compromised_nodes for p in child_node.parents)
+                    and child_node not in self.compromised_nodes
+                    for child_node in node.children
                 )
 
                 if node_has_child_that_can_be_compromised:

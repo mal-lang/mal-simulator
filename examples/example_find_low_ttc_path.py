@@ -1,13 +1,16 @@
 """
-Attacker agents can have goals, and we can use the TTCSoftMinAttacker to find a 'cheap' path to the goal.
+Attacker agents can have goals, and we can use the TTCSoftMinAttacker
+to find a 'cheap' path to the goal.
 """
+
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
     run_simulation,
-    TTCMode
+    TTCMode,
 )
 from malsim.scenario import Scenario
+
 
 def test_run_scenario_ttc_soft_min_attacker() -> None:
     scenario = Scenario(
@@ -18,13 +21,10 @@ def test_run_scenario_ttc_soft_min_attacker() -> None:
                 'type': 'attacker',
                 'agent_class': 'TTCSoftMinAttacker',
                 'entry_points': ['User:3:phishing', 'Host:0:connect'],
-                'goals': ['Data:2:read']
+                'goals': ['Data:2:read'],
             },
-            'Defender1': {
-                'type': 'defender',
-                'agent_class': 'PassiveAgent'
-            }
-        }
+            'Defender1': {'type': 'defender', 'agent_class': 'PassiveAgent'},
+        },
     )
 
     mal_simulator = MalSimulator.from_scenario(
