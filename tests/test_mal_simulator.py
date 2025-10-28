@@ -926,6 +926,25 @@ def test_simulator_false_positives() -> None:
     assert len(defender_state.observed_nodes) > len(defender_state.compromised_nodes)
 
 
+def test_simulator_false_positives_reset() -> None:
+    """Create a simulator with false positives"""
+
+    scenario = load_scenario(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
+    )
+
+    scenario.false_negative_rates = {}
+    sim = MalSimulator.from_scenario(
+        scenario, sim_settings=MalSimulatorSettings(
+            seed=7
+        ), max_iter=100
+    )
+    defender_state = sim.reset()['defender']
+    assert isinstance(defender_state, MalSimDefenderState)
+    # Should be false positive in defender state even on reset
+    assert len(defender_state.observed_nodes) > len(defender_state.compromised_nodes)
+
+
 def test_simulator_false_negatives() -> None:
     """Create a simulator with false negatives"""
 

@@ -765,14 +765,18 @@ class MalSimulator():
             compromised_steps |= attacker_state.performed_nodes
 
         defense_surface = self._get_defense_surface()
+        step_observed_nodes = (
+            self._defender_observed_nodes(compromised_steps)
+        )
+
         defender_state = MalSimDefenderState(
             name,
             sim = self,
             performed_nodes = frozenset(self._enabled_defenses),
             compromised_nodes = frozenset(compromised_steps),
             step_compromised_nodes = frozenset(compromised_steps),
-            observed_nodes = frozenset(compromised_steps),
-            step_observed_nodes = frozenset(compromised_steps),
+            observed_nodes = frozenset(step_observed_nodes),
+            step_observed_nodes = frozenset(step_observed_nodes),
             action_surface = frozenset(defense_surface),
             step_action_surface_additions = frozenset(defense_surface),
             step_action_surface_removals = frozenset(),
