@@ -7,7 +7,7 @@ from maltoolbox.language.languagegraph import LanguageGraph
 
 from malsim.ttc_utils import TTCDist, named_ttc_dists
 
-from .conftest import path_testdata
+from .conftest import path_testdata, get_node
 
 def test_probs_utils(model: Model) -> None:
     """Test TTC calculation for nodes"""
@@ -192,3 +192,88 @@ def test_ttcs_effort_based(model: Model) -> None:
     assert round(ttc_dist.success_probability(1), 2) == 0.01 # success prob after 1 attempt is 1%
     assert not ttc_dist.attempt_ttc_with_effort(1, rng)      # 1 effort will not succeed in this seed
     assert ttc_dist.attempt_ttc_with_effort(500, rng)        # 500 effort will succeed in this seed
+
+
+def test_all_ttc_distributions() -> None:
+    """Make sure TTCs are set correctly for attacks"""
+
+    weird_ttc_lang_graph = LanguageGraph.from_mal_spec(
+        path_testdata("langs/weird_ttc_lang.mal")
+    )
+    model = Model("Test model", weird_ttc_lang_graph)
+    model.add_asset("Asset", "TheAsset")
+    attack_graph = AttackGraph(
+        lang_graph=weird_ttc_lang_graph, model=model
+    )
+
+    # Instant TTC (Bernoulli(1.0))
+    node = get_node(attack_graph, "TheAsset:instantStep")
+    ttc_dist = TTCDist.from_node(node)
+    assert np.isclose(ttc_dist.expected_value, 1.0)
+
+    # Easy and certain (Exponential(1.0))
+    node = get_node(attack_graph, "TheAsset:easyAndCertainStep")
+    ttc_dist = TTCDist.from_node(node)
+    assert np.isclose(ttc_dist.expected_value, 1.0)
+
+    # Hard and certain (Exponential(0.1))
+    node = get_node(attack_graph, "TheAsset:hardAndCertainStep")
+    ttc_dist = TTCDist.from_node(node)
+    assert np.isclose(ttc_dist.expected_value, 10.0)
+
+    # Very hard and certain (Exponential(0.01))
+    node = get_node(attack_graph, "TheAsset:veryHardAndCertainStep")
+    ttc_dist = TTCDist.from_node(node)
+    assert np.isclose(ttc_dist.expected_value, 100.0)
+
+    # Easy and uncertain (Bernoulli(0.5))
+    node = get_node(attack_graph, "TheAsset:easyAndUncertainStep")
+    ttc_dist = TTCDist.from_node(node)
+    assert np.isclose(ttc_dist.expected_value, 1.0)
+
+    # Hard and uncertain (Exponential(0.1) * Bernoulli(0.5))
+    node = get_node(attack_graph, "TheAsset:hardAndUncertainStep")
+    ttc_dist = TTCDist.from_node(node)
+    assert np.isclose(ttc_dist.expected_value, 10.0)
+
+    # Very hard and uncertain (Exponential(0.01) * Bernoulli(0.5))
+    node = get_node(attack_graph, "TheAsset:veryHardAndUncertainStep")
+    ttc_dist = TTCDist.from_node(node)
+    assert np.isclose(ttc_dist.expected_value, 100.0)
+
+    # Bernoulli(0.5)
+    node = get_node(attack_graph, "TheAsset:bernoulliStep")
+    ttc_dist = TTCDist.from_node(node)
+    assert np.isclose(ttc_dist.expected_value, 1.0)
+
+    # Bernoulli(0.5) + Exponential(0.1)
+    node = get_node(attack_graph, "TheAsset:selfMadeComboAddition")
+    ttc_dist = TTCDist.from_node(node)
+    expected = 1 + (1 / 0.1)
+    assert np.isclose(ttc_dist.expected_value, expected)
+
+    # Bernoulli(0.5) - Binomial(10, 0.1)
+    node = get_node(attack_graph, "TheAsset:selfMadeComboSubtract")
+    ttc_dist = TTCDist.from_node(node)
+    expected = 1 - (10 * 0.1)
+    assert np.isclose(ttc_dist.expected_value, expected)
+
+    # Bernoulli(0.5) * Gamma(1.0, 0.1)
+    node = get_node(attack_graph, "TheAsset:selfMadeComboMultiply")
+    ttc_dist = TTCDist.from_node(node)
+    expected = 1 * (1.0 * 0.1)
+    assert np.isclose(ttc_dist.expected_value, expected)
+
+    # Bernoulli(0.5) / LogNormal(1.0, 0.1)
+    node = get_node(attack_graph, "TheAsset:selfMadeComboDivision")
+    ttc_dist = TTCDist.from_node(node)
+    lognorm_mean = np.exp(1.0 + 0.1**2 / 2)
+    expected = 1 / lognorm_mean
+    assert np.isclose(ttc_dist.expected_value, expected)
+
+    # Bernoulli(0.5) * Uniform(0.1)
+    node = get_node(attack_graph, "TheAsset:selfMadeComboMultiplyUniform")
+    ttc_dist = TTCDist.from_node(node)
+    uniform_mean = 0.5  # mean of Uniform(0,1)
+    expected = 1 * uniform_mean
+    assert np.isclose(ttc_dist.expected_value, expected)

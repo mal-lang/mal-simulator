@@ -1,0 +1,49 @@
+// vim:ft=mal
+#id: "test"
+#version: "0.0.0"
+
+category TestAssets{
+    asset Asset {
+
+        | instantStep
+            -> hardAndCertainStep
+        | easyAndCertainStep [EasyAndCertain]
+            -> hardAndCertainStep
+        | hardAndCertainStep [HardAndCertain]
+            -> veryHardAndCertainStep
+        | veryHardAndCertainStep [VeryHardAndCertain]
+            -> easyAndUncertainStep,
+               hardAndUncertainStep,
+               veryHardAndUncertainStep,
+               bernoulliStep,
+               selfMadeComboAddition,
+               selfMadeComboSubtract,
+               selfMadeComboDivision,
+               selfMadeComboMultiply,
+               selfMadeComboMultiplyUniform
+
+        | easyAndUncertainStep [EasyAndUncertain]
+
+        | hardAndUncertainStep [HardAndUncertain]
+
+        | veryHardAndUncertainStep [VeryHardAndUncertain]
+
+        | bernoulliStep [Bernoulli(0.5)]
+
+        | selfMadeComboAddition [Bernoulli(0.5) + Exponential(0.1)]
+
+        | selfMadeComboSubtract [Bernoulli(0.5) - Binomial(10, 0.1)]
+
+        | selfMadeComboMultiply [Bernoulli(0.5) * Gamma(1.0, 0.1)]
+
+        | selfMadeComboDivision [Bernoulli(0.5) / LogNormal(1.0, 0.1)]
+
+        | selfMadeComboMultiplyUniform [Bernoulli(0.5) * Uniform(0.1)]
+
+    }
+
+}
+
+associations {
+  Asset       [fromAssets] *    <-- AssetsToAssets -->          * [toAssets] Asset
+}

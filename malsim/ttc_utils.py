@@ -19,7 +19,7 @@ class DistFunction(Enum):
     EXPONENTIAL = "Exponential"
     BINOMIAL = "Binomial"
     GAMMA = "Gamma"
-    LOG_NORMAL = "LogNormal"
+    LOGNORMAL = "LogNormal"
     UNIFORM = "Uniform"
 
 class Operation(Enum):
@@ -72,13 +72,17 @@ class TTCDist:
         if function == DistFunction.BERNOULLI:
             self.dist = bernoulli(self.args[0])
         elif function == DistFunction.BINOMIAL:
-            self.dist = binom(n=args[0], p=args[1])
+            n, p = args
+            self.dist = binom(n=n, p=p)
         elif function == DistFunction.EXPONENTIAL:
-            self.dist = expon(scale=1 / args[0])
+            rate, = args
+            self.dist = expon(scale=1 / rate)
         elif function == DistFunction.GAMMA:
-            self.dist = gamma(args[0])
-        elif function == DistFunction.LOG_NORMAL:
-            self.dist = lognorm(args[0])
+            shape, scale = args
+            self.dist = gamma(a=shape, scale=scale)
+        elif function == DistFunction.LOGNORMAL:
+            mean, std = args
+            self.dist = lognorm(s=std, scale=np.exp(mean))
         elif function == DistFunction.UNIFORM:
             self.dist = uniform()
         else:
@@ -90,7 +94,15 @@ class TTCDist:
     @property
     def expected_value(self) -> float:
         """Return the expected value of a TTCDist"""
-        value = float(self.dist.expect())
+
+        if self.function == DistFunction.BERNOULLI:
+            # Expected value of Bernoulli should affect existence (for attack steps)
+            # and initial state (defenses). When fetching expected value we assume
+            # the Bernoulli trial was successful.
+            value = 1.0
+        else:
+            value = float(self.dist.expect())
+
         if self.combine_with and self.combine_op:
             value = perform_operation(
                 self.combine_op, value, self.combine_with.expected_value
@@ -100,7 +112,14 @@ class TTCDist:
     def sample_value(self, rng: Optional[np.random.Generator] = None) -> float:
         """Sample a value from the TTC Distribution"""
         rng = rng or np.random.default_rng()
-        value = float(self.dist.rvs(random_state=rng))
+
+        if self.function == DistFunction.BERNOULLI:
+            # Sampled value of Bernoulli should affect existence (for attack steps)
+            # and initial state (defenses). When fetching expected value we assume
+            # the Bernoulli trial was successful.
+            value = 1.0
+        else:
+            value = float(self.dist.rvs(random_state=rng))
         if self.combine_with and self.combine_op:
             value = perform_operation(
                 self.combine_op, value, self.combine_with.sample_value(rng)
@@ -147,24 +166,29 @@ class TTCDist:
         - Otherwise create the TTCDist object (recursively)
         """
 
+        all_dist_fun_names =  [d.value for d in DistFunction]
+
         if 'name' in ttc_dict:
             if ttc_dict['name'] in named_ttc_dists:
                 # Predefined step ttc set in language, fetch from dict
                 return named_ttc_dists[ttc_dict['name']]
 
             else:
+                if ttc_dict['name'] not in all_dist_fun_names:
+                    raise ValueError(
+                        f"Unknown distribution function name '{ttc_dict['name']}'. \n"
+                        f"Must be one of: {', '.join(all_dist_fun_names)}"
+                    )
                 return TTCDist(
                     DistFunction[ttc_dict['name'].upper()],
                     args=ttc_dict['arguments']
                 )
 
         # If lhs, rhs is set, we combine the distributions
-        return cls(
-            DistFunction[ttc_dict['lhs']['name']],
-            ttc_dict['lhs']['arguments'],
-            combine_with = TTCDist.from_dict(ttc_dict['rhs']),
-            combine_op = Operation[ttc_dict['operation'].upper()]
-        )
+        lhs = TTCDist.from_dict(ttc_dict['lhs'])
+        lhs.combine_op = Operation[ttc_dict['type'].upper()]
+        lhs.combine_with = TTCDist.from_dict(ttc_dict['rhs'])
+        return lhs
 
     @classmethod
     def from_node(cls, node: AttackGraphNode,) -> TTCDist:

@@ -312,7 +312,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     assert sim.agent_reward(defender_state.name) == -19
 
     assert total_reward_attacker == -attacker_failed_steps
-    assert total_reward_defender == -651
+    assert total_reward_defender == -3710
 
 
 def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
@@ -495,7 +495,7 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         total_reward_defender += sim.agent_reward(defender_state.name)
         total_reward_attacker += sim.agent_reward(attacker_state.name)
 
-    assert sim.cur_iter == 61
+    assert sim.cur_iter == 111
 
     # Make sure the actions performed were as expected
     assert attacker_actions == [
@@ -541,4 +541,4 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
     assert sim.agent_reward(defender_state.name) == -19
 
     assert total_reward_attacker == -attacker_failed_steps
-    assert total_reward_defender == -1050.0
+    assert total_reward_defender == -2000.0
