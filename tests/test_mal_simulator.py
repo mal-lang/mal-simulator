@@ -11,7 +11,7 @@ from malsim.mal_simulator import (
     TTCMode,
     RewardMode
 )
-from malsim.ttc_utils import ttc_value_from_node, ProbCalculationMethod
+from malsim.ttc_utils import TTCDist
 
 from malsim import load_scenario, run_simulation
 from dataclasses import asdict
@@ -537,7 +537,7 @@ def test_attacker_step_rewards_expected_ttc(
 
         # Penalized with expected ttc value (since ttc mode is disabled)
         ttc_penalty = sum(
-            ttc_value_from_node(node, ProbCalculationMethod.EXPECTED, np.random.default_rng()) if node.ttc else 0.0
+            TTCDist.from_node(node).expected_value if node.ttc else 0.0
             for node in state.step_performed_nodes
         )
         # Rewarded by node rewards
