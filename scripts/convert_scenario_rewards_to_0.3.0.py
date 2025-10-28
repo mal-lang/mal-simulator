@@ -5,13 +5,14 @@ Script that takes a scenario file and converts the rewards from the old format
 
 import yaml
 
+
 def _get_new_rewards_config(rewards: dict[str, float]) -> dict:
     # Set the rewards according to new format
     new_rewards = {'by_asset_name': {}}
     for attack_step_full_name, reward in rewards.items():
         # Split the attack step full name into asset name and step name
         parts = attack_step_full_name.split(':')
-        asset_name = ":".join(parts[:-1])  # All parts except the last one
+        asset_name = ':'.join(parts[:-1])  # All parts except the last one
         step_name = parts[-1]  # The last part is the step name
         new_rewards['by_asset_name'].setdefault(asset_name, {})
         new_rewards['by_asset_name'][asset_name][step_name] = reward
@@ -33,9 +34,7 @@ def _convert_scenario_rewards_to_0_3_0(scenario_file: str) -> dict:
         if 'rewards' not in scenario:
             return scenario
         # Convert the rewards to the new format
-        scenario['rewards'] = _get_new_rewards_config(
-            scenario.get('rewards', {})
-        )
+        scenario['rewards'] = _get_new_rewards_config(scenario.get('rewards', {}))
         return scenario
 
 
@@ -49,14 +48,14 @@ def convert_scenario_rewards(scenario_file: str) -> str:
     new_scenario = _convert_scenario_rewards_to_0_3_0(scenario_file)
     # Make new scenario file be in the same directory as the original
     # but different name (old file extension can be .yml or .yaml)
-    new_scenario_file = ""
+    new_scenario_file = ''
 
     if scenario_file.endswith('.yml'):
         new_scenario_file = scenario_file.replace('.yml', '_converted.yml')
     elif scenario_file.endswith('.yaml'):
         new_scenario_file = scenario_file.replace('.yaml', '_converted.yaml')
     else:
-        raise ValueError("Scenario file must have a .yaml or .yml extension")
+        raise ValueError('Scenario file must have a .yaml or .yml extension')
 
     with open(new_scenario_file, 'w', encoding='utf-8') as out_file:
         yaml.safe_dump(new_scenario, out_file, sort_keys=False)
@@ -75,4 +74,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     o_file = convert_scenario_rewards(args.scenario_file)
-    print(f"Created new scenario `{o_file}` with new format for rewards.")
+    print(f'Created new scenario `{o_file}` with new format for rewards.')

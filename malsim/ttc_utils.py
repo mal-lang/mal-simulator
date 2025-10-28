@@ -14,21 +14,24 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class DistFunction(Enum):
-    BERNOULLI = "Bernoulli"
-    EXPONENTIAL = "Exponential"
-    BINOMIAL = "Binomial"
-    GAMMA = "Gamma"
-    LOGNORMAL = "LogNormal"
-    UNIFORM = "Uniform"
+    BERNOULLI = 'Bernoulli'
+    EXPONENTIAL = 'Exponential'
+    BINOMIAL = 'Binomial'
+    GAMMA = 'Gamma'
+    LOGNORMAL = 'LogNormal'
+    UNIFORM = 'Uniform'
+
 
 class Operation(Enum):
     # TODO: check that these match MAL
-    ADDITION = "addition"
-    SUBTRACTION = "subtraction"
-    MULTIPLICATION = "multiplication"
-    DIVISION = "division"
-    EXPONENTIATION = "exponentiation"
+    ADDITION = 'addition'
+    SUBTRACTION = 'subtraction'
+    MULTIPLICATION = 'multiplication'
+    DIVISION = 'division'
+    EXPONENTIATION = 'exponentiation'
+
 
 def perform_operation(op: Operation, a: float, b: float) -> float:
     if op == Operation.ADDITION:
@@ -40,9 +43,10 @@ def perform_operation(op: Operation, a: float, b: float) -> float:
     elif op == Operation.DIVISION:
         return a / b
     elif op == Operation.EXPONENTIATION:
-        return float(a ** b)
+        return float(a**b)
     else:
-        raise ValueError(f"Unknown operation {op}")
+        raise ValueError(f'Unknown operation {op}')
+
 
 def default_ttc_dist(node: AttackGraphNode) -> TTCDist:
     """ttc distribution if no ttc is set in lang or model"""
@@ -53,18 +57,18 @@ def default_ttc_dist(node: AttackGraphNode) -> TTCDist:
 
     # Other steps have no ttc
     raise ValueError(
-        f'Can only get default TTC of defense and attack steps, not of "{node.type}" steps'
+        'Can only get default TTC of defense and attack steps,'
+        f' not of "{node.type}" steps'
     )
 
 
 class TTCDist:
-
     def __init__(
         self,
         function: DistFunction,
         args: list[float],
         combine_with: Optional[TTCDist] = None,
-        combine_op: Optional[Operation] = None
+        combine_op: Optional[Operation] = None,
     ):
         self.function = function
         self.args = args
@@ -75,7 +79,7 @@ class TTCDist:
             n, p = args
             self.dist = binom(n=n, p=p)
         elif function == DistFunction.EXPONENTIAL:
-            rate, = args
+            (rate,) = args
             self.dist = expon(scale=1 / rate)
         elif function == DistFunction.GAMMA:
             shape, scale = args
@@ -86,7 +90,7 @@ class TTCDist:
         elif function == DistFunction.UNIFORM:
             self.dist = uniform()
         else:
-            raise ValueError(f"Unknown distribution {function}")
+            raise ValueError(f'Unknown distribution {function}')
 
         self.combine_with = combine_with
         self.combine_op = combine_op
@@ -166,7 +170,7 @@ class TTCDist:
         - Otherwise create the TTCDist object (recursively)
         """
 
-        all_dist_fun_names =  [d.value for d in DistFunction]
+        all_dist_fun_names = [d.value for d in DistFunction]
 
         if 'name' in ttc_dict:
             if ttc_dict['name'] in named_ttc_dists:
@@ -177,11 +181,10 @@ class TTCDist:
                 if ttc_dict['name'] not in all_dist_fun_names:
                     raise ValueError(
                         f"Unknown distribution function name '{ttc_dict['name']}'. \n"
-                        f"Must be one of: {', '.join(all_dist_fun_names)}"
+                        f'Must be one of: {", ".join(all_dist_fun_names)}'
                     )
                 return TTCDist(
-                    DistFunction[ttc_dict['name'].upper()],
-                    args=ttc_dict['arguments']
+                    DistFunction[ttc_dict['name'].upper()], args=ttc_dict['arguments']
                 )
 
         # If lhs, rhs is set, we combine the distributions
@@ -191,7 +194,10 @@ class TTCDist:
         return lhs
 
     @classmethod
-    def from_node(cls, node: AttackGraphNode,) -> TTCDist:
+    def from_node(
+        cls,
+        node: AttackGraphNode,
+    ) -> TTCDist:
         """Create a TTCDist based on an AttackGraphNode"""
 
         if node.ttc is None:
@@ -201,41 +207,25 @@ class TTCDist:
         return TTCDist.from_dict(node.ttc)
 
 
-# These are MAL supported mappings from name to distribution 
+# These are MAL supported mappings from name to distribution
 named_ttc_dists: dict[str, TTCDist] = {
-    'EasyAndUncertain': TTCDist(
-        DistFunction.BERNOULLI, [0.5]
-    ),
+    'EasyAndUncertain': TTCDist(DistFunction.BERNOULLI, [0.5]),
     'HardAndUncertain': TTCDist(
-        DistFunction.EXPONENTIAL, [0.1],
-        combine_with=TTCDist(
-            DistFunction.BERNOULLI, [0.5]
-        ),
-        combine_op=Operation.MULTIPLICATION
+        DistFunction.EXPONENTIAL,
+        [0.1],
+        combine_with=TTCDist(DistFunction.BERNOULLI, [0.5]),
+        combine_op=Operation.MULTIPLICATION,
     ),
     'VeryHardAndUncertain': TTCDist(
-        DistFunction.EXPONENTIAL, [0.01],
-        combine_with=TTCDist(
-            DistFunction.BERNOULLI, [0.5]
-        ),
-        combine_op=Operation.MULTIPLICATION
+        DistFunction.EXPONENTIAL,
+        [0.01],
+        combine_with=TTCDist(DistFunction.BERNOULLI, [0.5]),
+        combine_op=Operation.MULTIPLICATION,
     ),
-    'EasyAndCertain': TTCDist(
-        DistFunction.EXPONENTIAL, [1.0]
-    ),
-    'HardAndCertain': TTCDist(
-        DistFunction.EXPONENTIAL, [0.1]
-    ),
-    'VeryHardAndCertain': TTCDist(
-        DistFunction.EXPONENTIAL, [0.01]
-    ),
-    'Enabled': TTCDist(
-        DistFunction.BERNOULLI, [1.0]
-    ),
-    'Instant': TTCDist(
-        DistFunction.BERNOULLI, [1.0]
-    ),
-    'Disabled': TTCDist(
-        DistFunction.BERNOULLI, [0.0]
-    )
+    'EasyAndCertain': TTCDist(DistFunction.EXPONENTIAL, [1.0]),
+    'HardAndCertain': TTCDist(DistFunction.EXPONENTIAL, [0.1]),
+    'VeryHardAndCertain': TTCDist(DistFunction.EXPONENTIAL, [0.01]),
+    'Enabled': TTCDist(DistFunction.BERNOULLI, [1.0]),
+    'Instant': TTCDist(DistFunction.BERNOULLI, [1.0]),
+    'Disabled': TTCDist(DistFunction.BERNOULLI, [0.0]),
 }

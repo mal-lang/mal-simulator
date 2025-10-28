@@ -13,8 +13,9 @@ from malsim.mal_simulator import (
     RewardMode,
     TTCMode,
     MalSimDefenderState,
-    MalSimAttackerState
+    MalSimAttackerState,
 )
+
 
 def test_bfs_vs_bfs_state_and_reward() -> None:
     """
@@ -27,26 +28,27 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     It then verifies that rewards and actions performed are what we expected.
     """
 
-    scenario_file = (
-        "tests/testdata/scenarios/bfs_vs_bfs_network_app_data_scenario.yml"
-    )
+    scenario_file = 'tests/testdata/scenarios/bfs_vs_bfs_network_app_data_scenario.yml'
     scenario = load_scenario(scenario_file)
     sim = MalSimulator.from_scenario(
-        scenario, sim_settings = MalSimulatorSettings(
+        scenario,
+        sim_settings=MalSimulatorSettings(
             attack_surface_skip_unnecessary=False,
             run_defense_step_bernoullis=False,
-            run_attack_step_bernoullis=False
-        )
+            run_attack_step_bernoullis=False,
+        ),
     )
-    defender_agent_name = "defender1"
-    attacker_agent_name = "attacker1"
+    defender_agent_name = 'defender1'
+    attacker_agent_name = 'attacker1'
 
     attacker_agent = next(
-        agent['agent'] for agent in scenario.agents
+        agent['agent']
+        for agent in scenario.agents
         if agent['name'] == attacker_agent_name
     )
     defender_agent = next(
-        agent['agent'] for agent in scenario.agents
+        agent['agent']
+        for agent in scenario.agents
         if agent['name'] == defender_agent_name
     )
 
@@ -69,7 +71,7 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         # Step
         actions = {
             defender_agent_name: [defender_node] if defender_node else [],
-            attacker_agent_name: [attacker_node] if attacker_node else []
+            attacker_agent_name: [attacker_node] if attacker_node else [],
         }
         states = sim.step(actions)
         attacker_state = states[attacker_agent_name]
@@ -95,8 +97,7 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         'Internet:networkForwardingUninspected',
         'Internet:deny',
         'Internet:accessNetworkData',
-        'ConnectionRule Internet->Linux '
-        'System:attemptConnectToApplicationsUninspected',
+        'ConnectionRule Internet->Linux System:attemptConnectToApplicationsUninspected',
         'Internet:reverseReach',
         'Internet:networkForwardingInspected',
         'ConnectionRule Internet->Linux System:attemptAccessNetworksUninspected',
@@ -108,8 +109,7 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         'ConnectionRule Internet->Linux System:connectToApplicationsUninspected',
         'ConnectionRule Internet->Linux System:attemptReverseReach',
         'ConnectionRule Internet->Linux System:attemptAccessNetworksInspected',
-        'ConnectionRule Internet->Linux '
-        'System:attemptConnectToApplicationsInspected',
+        'ConnectionRule Internet->Linux System:attemptConnectToApplicationsInspected',
         'ConnectionRule Internet->Linux System:successfulAccessNetworksUninspected',
         'ConnectionRule Internet->Linux System:deny',
         'Internet:bypassEavesdropDefense',
@@ -136,7 +136,7 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         'Linux system:attemptReverseReach',
         'ConnectionRule Internet->Linux System:accessNetworksInspected',
         'Linux system:attemptDeny',
-        'Internet:accessInspected'
+        'Internet:accessInspected',
     ]
 
     assert defender_actions == [
@@ -148,7 +148,7 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         'ConnectionRule Internet->Linux System:restricted',
         'ConnectionRule Internet->Linux System:payloadInspection',
         'Secret data:notPresent',
-        'SoftwareVuln:notPresent'
+        'SoftwareVuln:notPresent',
     ]
     for step_id in attacker_actions:
         # Make sure that all attacker actions led to compromise
@@ -179,26 +179,28 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     It then verifies that rewards and actions performed are what we expected.
     """
 
-    scenario_file = "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml"
+    scenario_file = 'tests/testdata/scenarios/bfs_vs_bfs_scenario.yml'
     scenario = load_scenario(scenario_file)
     sim = MalSimulator.from_scenario(
         scenario,
-        sim_settings = MalSimulatorSettings(
+        sim_settings=MalSimulatorSettings(
             seed=23,
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
-            attacker_reward_mode=RewardMode.ONE_OFF
-        )
+            attacker_reward_mode=RewardMode.ONE_OFF,
+        ),
     )
 
-    defender_agent_name = "defender1"
-    attacker_agent_name = "attacker1"
+    defender_agent_name = 'defender1'
+    attacker_agent_name = 'attacker1'
 
     attacker_agent = next(
-        agent['agent'] for agent in scenario.agents
+        agent['agent']
+        for agent in scenario.agents
         if agent['name'] == attacker_agent_name
     )
     defender_agent = next(
-        agent['agent'] for agent in scenario.agents
+        agent['agent']
+        for agent in scenario.agents
         if agent['name'] == defender_agent_name
     )
 
@@ -221,7 +223,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         # Step
         actions = {
             defender_agent_name: [defender_node] if defender_node else [],
-            attacker_agent_name: [attacker_node] if attacker_node else []
+            attacker_agent_name: [attacker_node] if attacker_node else [],
         }
         states = sim.step(actions)
         attacker_state = states[attacker_agent_name]
@@ -235,8 +237,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
             attacker_actions.append(attacker_node.full_name)
             assert attacker_node in defender_state.step_compromised_nodes
 
-        if defender_node and defender_node in \
-                states['defender1'].step_performed_nodes:
+        if defender_node and defender_node in states['defender1'].step_performed_nodes:
             defender_actions.append(defender_node.full_name)
 
         total_reward_defender += sim.agent_reward(defender_state.name)
@@ -280,7 +281,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         'ConnectionRule:3:accessNetworksInspected',
         'Program 2:specificAccessNetworkConnect',
         'Program 2:networkConnect',
-        'Program 2:attemptDeny'
+        'Program 2:attemptDeny',
     ]
 
     assert defender_actions == [
@@ -308,7 +309,9 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
 
     # Verify rewards in latest run and total rewards
     assert isinstance(attacker_state, MalSimAttackerState)
-    assert sim.agent_reward(attacker_state.name) == -len(attacker_state.step_attempted_nodes)
+    assert sim.agent_reward(attacker_state.name) == -len(
+        attacker_state.step_attempted_nodes
+    )
     assert sim.agent_reward(defender_state.name) == -19
 
     assert total_reward_attacker == -attacker_failed_steps
@@ -316,28 +319,28 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
 
 
 def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
-
-    scenario_file = (
-        "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml"
-    )
+    scenario_file = 'tests/testdata/scenarios/bfs_vs_bfs_scenario.yml'
     scenario = load_scenario(scenario_file)
     sim = MalSimulator.from_scenario(
-        scenario, sim_settings = MalSimulatorSettings(
+        scenario,
+        sim_settings=MalSimulatorSettings(
             seed=100,
             ttc_mode=TTCMode.EFFORT_BASED_PER_STEP_SAMPLE,
-            attacker_reward_mode=RewardMode.ONE_OFF
-        )
+            attacker_reward_mode=RewardMode.ONE_OFF,
+        ),
     )
 
-    defender_agent_name = "defender1"
-    attacker_agent_name = "attacker1"
+    defender_agent_name = 'defender1'
+    attacker_agent_name = 'attacker1'
 
     attacker_agent = next(
-        agent['agent'] for agent in scenario.agents
+        agent['agent']
+        for agent in scenario.agents
         if agent['name'] == attacker_agent_name
     )
     defender_agent = next(
-        agent['agent'] for agent in scenario.agents
+        agent['agent']
+        for agent in scenario.agents
         if agent['name'] == defender_agent_name
     )
 
@@ -360,7 +363,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
         # Step
         actions = {
             defender_agent_name: [defender_node] if defender_node else [],
-            attacker_agent_name: [attacker_node] if attacker_node else []
+            attacker_agent_name: [attacker_node] if attacker_node else [],
         }
         states = sim.step(actions)
         defender_state = states[defender_agent_name]
@@ -394,7 +397,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
         'ConnectionRule:1:attemptConnectToApplicationsUninspected',
         'ConnectionRule:1:attemptAccessNetworksInspected',
         'ConnectionRule:1:attemptConnectToApplicationsInspected',
-        'ConnectionRule:1:bypassPayloadInspection'
+        'ConnectionRule:1:bypassPayloadInspection',
     ]
 
     assert defender_actions == [
@@ -422,7 +425,9 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
 
     # Verify rewards in latest run and total rewards
     assert isinstance(attacker_state, MalSimAttackerState)
-    assert sim.agent_reward(attacker_state.name) == -len(attacker_state.step_attempted_nodes)
+    assert sim.agent_reward(attacker_state.name) == -len(
+        attacker_state.step_attempted_nodes
+    )
     assert sim.agent_reward(defender_state.name) == -19
 
     assert total_reward_attacker == -attacker_failed_steps
@@ -430,29 +435,29 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
 
 
 def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
-
-    scenario_file = (
-        "tests/testdata/scenarios/bfs_vs_bfs_scenario.yml"
-    )
+    scenario_file = 'tests/testdata/scenarios/bfs_vs_bfs_scenario.yml'
     scenario = load_scenario(scenario_file)
 
     sim = MalSimulator.from_scenario(
-        scenario, sim_settings = MalSimulatorSettings(
+        scenario,
+        sim_settings=MalSimulatorSettings(
             seed=1,
             ttc_mode=TTCMode.EXPECTED_VALUE,
-            attacker_reward_mode=RewardMode.ONE_OFF
-        )
+            attacker_reward_mode=RewardMode.ONE_OFF,
+        ),
     )
 
-    defender_agent_name = "defender1"
-    attacker_agent_name = "attacker1"
+    defender_agent_name = 'defender1'
+    attacker_agent_name = 'attacker1'
 
     attacker_agent = next(
-        agent['agent'] for agent in scenario.agents
+        agent['agent']
+        for agent in scenario.agents
         if agent['name'] == attacker_agent_name
     )
     defender_agent = next(
-        agent['agent'] for agent in scenario.agents
+        agent['agent']
+        for agent in scenario.agents
         if agent['name'] == defender_agent_name
     )
 
@@ -475,7 +480,7 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         # Step
         actions = {
             defender_agent_name: [defender_node] if defender_node else [],
-            attacker_agent_name: [attacker_node] if attacker_node else []
+            attacker_agent_name: [attacker_node] if attacker_node else [],
         }
         states = sim.step(actions)
         defender_state = states[defender_agent_name]
@@ -509,7 +514,7 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         'ConnectionRule:1:attemptConnectToApplicationsUninspected',
         'ConnectionRule:1:attemptAccessNetworksInspected',
         'ConnectionRule:1:attemptConnectToApplicationsInspected',
-        'ConnectionRule:1:bypassPayloadInspection'
+        'ConnectionRule:1:bypassPayloadInspection',
     ]
 
     assert defender_actions == [
@@ -523,7 +528,7 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         'Network:2:networkAccessControl',
         'Program 1:supplyChainAuditing',
         'Program 2:notPresent',
-        'ConnectionRule:1:restricted'
+        'ConnectionRule:1:restricted',
     ]
     for step_id in attacker_actions:
         # Make sure that all attacker actions led to compromise
@@ -537,7 +542,9 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
 
     # Verify rewards in latest run and total rewards
     assert isinstance(attacker_state, MalSimAttackerState)
-    assert sim.agent_reward(attacker_state.name) == -len(attacker_state.step_attempted_nodes)
+    assert sim.agent_reward(attacker_state.name) == -len(
+        attacker_state.step_attempted_nodes
+    )
     assert sim.agent_reward(defender_state.name) == -19
 
     assert total_reward_attacker == -attacker_failed_steps

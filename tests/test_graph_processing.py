@@ -5,13 +5,14 @@ from malsim.graph_processing import (
     _propagate_necessity_from_node,
     prune_unviable_and_unnecessary_nodes,
     calculate_necessity,
-    calculate_viability
+    calculate_viability,
 )
 from maltoolbox.language import LanguageGraph
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from maltoolbox.model import Model
 
 # Tests
+
 
 def test_viability_viable_nodes(dummy_lang_graph: LanguageGraph) -> None:
     """Make sure expected viable nodes are actually viable"""
@@ -53,9 +54,7 @@ def test_viability_viable_nodes(dummy_lang_graph: LanguageGraph) -> None:
 
     # Make sure viable
     enabled_defenses: set[AttackGraphNode] = set()
-    viable_nodes = calculate_viability(
-        attack_graph, enabled_defenses, set()
-    )
+    viable_nodes = calculate_viability(attack_graph, enabled_defenses, set())
     assert exist_node in viable_nodes
     assert not_exist_node in viable_nodes
     assert defense_step_node in viable_nodes
@@ -121,6 +120,7 @@ def test_viability_unviable_nodes(dummy_lang_graph: LanguageGraph) -> None:
     assert not viability_per_node[or_node]
     assert not viability_per_node[and_node]
 
+
 def test_necessity_necessary(dummy_lang_graph: LanguageGraph) -> None:
     """Make sure expected necessary nodes are necessary"""
 
@@ -161,9 +161,7 @@ def test_necessity_necessary(dummy_lang_graph: LanguageGraph) -> None:
     and_node_parent2.children = {and_node}
 
     enabled_defenses = {enabled_defense_step}
-    necessity_per_node = calculate_necessity(
-        attack_graph, enabled_defenses
-    )
+    necessity_per_node = calculate_necessity(attack_graph, enabled_defenses)
 
     # Calculate necessity and make sure neccessary
     assert necessity_per_node[exist_node]
@@ -206,9 +204,7 @@ def test_necessity_unnecessary(dummy_lang_graph: LanguageGraph) -> None:
     disabled_defense_step.children.add(and_node)
 
     enabled_defenses: set[AttackGraphNode] = set()
-    necessity_per_node = calculate_necessity(
-        attack_graph, enabled_defenses
-    )
+    necessity_per_node = calculate_necessity(attack_graph, enabled_defenses)
 
     # Calculate necessity and make sure unneccessary
     assert not necessity_per_node[exist_node]
@@ -217,20 +213,16 @@ def test_necessity_unnecessary(dummy_lang_graph: LanguageGraph) -> None:
     assert not necessity_per_node[or_node]
     assert not necessity_per_node[and_node]
 
-def test_analyzers_apriori_prune_unviable_and_unnecessary_nodes(
-        model: Model
-    ) -> None:
 
+def test_analyzers_apriori_prune_unviable_and_unnecessary_nodes(model: Model) -> None:
     example_attackgraph = AttackGraph(model.lang_graph, model)
 
     # Pick out an or node and make it non-necessary
     node_to_make_unnecessary = next(
-        node for node in example_attackgraph.nodes.values()
-        if node.type == 'or'
+        node for node in example_attackgraph.nodes.values() if node.type == 'or'
     )
     node_to_make_unviable = next(
-        node for node in example_attackgraph.nodes.values()
-        if node.type == 'and'
+        node for node in example_attackgraph.nodes.values() if node.type == 'and'
     )
 
     viability_per_node = calculate_viability(example_attackgraph, set(), set())
@@ -248,43 +240,29 @@ def test_analyzers_apriori_prune_unviable_and_unnecessary_nodes(
 
 
 def test_analyzers_apriori_propagate_viability(dummy_lang_graph: LanguageGraph) -> None:
-    r"""Create a graph from nodes
-    """
+    r"""Create a graph from nodes"""
 
-    dummy_or_attack_step = dummy_lang_graph.assets['DummyAsset'].\
-        attack_steps['DummyOrAttackStep']
-    dummy_and_attack_step = dummy_lang_graph.assets['DummyAsset'].\
-        attack_steps['DummyAndAttackStep']
-    dummy_defense_attack_step = dummy_lang_graph.assets['DummyAsset'].\
-        attack_steps['DummyDefenseAttackStep']
+    dummy_or_attack_step = dummy_lang_graph.assets['DummyAsset'].attack_steps[
+        'DummyOrAttackStep'
+    ]
+    dummy_and_attack_step = dummy_lang_graph.assets['DummyAsset'].attack_steps[
+        'DummyAndAttackStep'
+    ]
+    dummy_defense_attack_step = dummy_lang_graph.assets['DummyAsset'].attack_steps[
+        'DummyDefenseAttackStep'
+    ]
     attack_graph = AttackGraph(dummy_lang_graph)
 
     # Create a graph of nodes
-    vp1 = attack_graph.add_node(
-        lg_attack_step = dummy_defense_attack_step
-    )
-    vp2 = attack_graph.add_node(
-        lg_attack_step = dummy_defense_attack_step
-    )
-    uvp1 = attack_graph.add_node(
-        lg_attack_step = dummy_defense_attack_step
-    )
-    uvp2 = attack_graph.add_node(
-        lg_attack_step = dummy_defense_attack_step
-    )
+    vp1 = attack_graph.add_node(lg_attack_step=dummy_defense_attack_step)
+    vp2 = attack_graph.add_node(lg_attack_step=dummy_defense_attack_step)
+    uvp1 = attack_graph.add_node(lg_attack_step=dummy_defense_attack_step)
+    uvp2 = attack_graph.add_node(lg_attack_step=dummy_defense_attack_step)
 
-    or_1vp = attack_graph.add_node(
-        lg_attack_step = dummy_or_attack_step
-    )
-    or_2uvp = attack_graph.add_node(
-        lg_attack_step = dummy_or_attack_step
-    )
-    and_1uvp = attack_graph.add_node(
-        lg_attack_step = dummy_and_attack_step
-    )
-    and_2vp = attack_graph.add_node(
-        lg_attack_step = dummy_and_attack_step
-    )
+    or_1vp = attack_graph.add_node(lg_attack_step=dummy_or_attack_step)
+    or_2uvp = attack_graph.add_node(lg_attack_step=dummy_or_attack_step)
+    and_1uvp = attack_graph.add_node(lg_attack_step=dummy_and_attack_step)
+    and_2vp = attack_graph.add_node(lg_attack_step=dummy_and_attack_step)
 
     or_1vp.parents = {vp1, uvp1}
     or_2uvp.parents = {uvp1, uvp2}
@@ -316,42 +294,28 @@ def test_analyzers_apriori_propagate_viability(dummy_lang_graph: LanguageGraph) 
     for node in [uvp1, uvp2, or_2uvp, and_1uvp]:
         assert not viability_per_node[node]
 
-def test_analyzers_apriori_propagate_necessity(dummy_lang_graph: LanguageGraph) -> None:
-    r"""Create a graph from nodes
-    """
 
-    dummy_or_attack_step = dummy_lang_graph.assets['DummyAsset'].\
-        attack_steps['DummyOrAttackStep']
-    dummy_and_attack_step = dummy_lang_graph.assets['DummyAsset'].\
-        attack_steps['DummyAndAttackStep']
+def test_analyzers_apriori_propagate_necessity(dummy_lang_graph: LanguageGraph) -> None:
+    r"""Create a graph from nodes"""
+
+    dummy_or_attack_step = dummy_lang_graph.assets['DummyAsset'].attack_steps[
+        'DummyOrAttackStep'
+    ]
+    dummy_and_attack_step = dummy_lang_graph.assets['DummyAsset'].attack_steps[
+        'DummyAndAttackStep'
+    ]
     attack_graph = AttackGraph(dummy_lang_graph)
 
     # Create a graph of nodes
-    np1 = attack_graph.add_node(
-        lg_attack_step = dummy_or_attack_step
-    )
-    np2 = attack_graph.add_node(
-        lg_attack_step = dummy_or_attack_step
-    )
-    unp1 = attack_graph.add_node(
-        lg_attack_step = dummy_or_attack_step
-    )
-    unp2 = attack_graph.add_node(
-        lg_attack_step = dummy_or_attack_step
-    )
+    np1 = attack_graph.add_node(lg_attack_step=dummy_or_attack_step)
+    np2 = attack_graph.add_node(lg_attack_step=dummy_or_attack_step)
+    unp1 = attack_graph.add_node(lg_attack_step=dummy_or_attack_step)
+    unp2 = attack_graph.add_node(lg_attack_step=dummy_or_attack_step)
 
-    or_1unp = attack_graph.add_node(
-        lg_attack_step = dummy_or_attack_step
-    )
-    or_2np = attack_graph.add_node(
-        lg_attack_step = dummy_or_attack_step
-    )
-    and_1np = attack_graph.add_node(
-        lg_attack_step = dummy_and_attack_step
-    )
-    and_2unp = attack_graph.add_node(
-        lg_attack_step = dummy_and_attack_step
-    )
+    or_1unp = attack_graph.add_node(lg_attack_step=dummy_or_attack_step)
+    or_2np = attack_graph.add_node(lg_attack_step=dummy_or_attack_step)
+    and_1np = attack_graph.add_node(lg_attack_step=dummy_and_attack_step)
+    and_2unp = attack_graph.add_node(lg_attack_step=dummy_and_attack_step)
 
     or_1unp.parents = {np1, unp1}
     or_2np.parents = {np1, np2}
@@ -370,9 +334,7 @@ def test_analyzers_apriori_propagate_necessity(dummy_lang_graph: LanguageGraph) 
 
     changed_nodes = set()
     for parent in [np1, np2, unp1, unp2]:
-        changed_nodes |= (
-            _propagate_necessity_from_node(parent, necessity_per_node)
-        )
+        changed_nodes |= _propagate_necessity_from_node(parent, necessity_per_node)
     assert changed_nodes == {or_1unp, and_2unp}
 
     for node in [np1, np2, or_2np, and_1np]:

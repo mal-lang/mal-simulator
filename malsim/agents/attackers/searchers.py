@@ -54,12 +54,13 @@ class BreadthFirstAttacker(DecisionAgent):
         self._update_targets(
             new_nodes=set(
                 agent_state.step_action_surface_additions
-                if self._started else agent_state.action_surface
+                if self._started
+                else agent_state.action_surface
             ),
             disabled_nodes=set(
-                agent_state.step_action_surface_removals |
-                agent_state.step_performed_nodes
-            )
+                agent_state.step_action_surface_removals
+                | agent_state.step_performed_nodes
+            ),
         )
 
         self._select_next_target()
@@ -85,19 +86,14 @@ class BreadthFirstAttacker(DecisionAgent):
         if self._settings['randomize']:
             self._rng.shuffle(new_targets)
 
-        if (
-            self._current_target
-            and self._current_target not in disabled_nodes
-        ):
+        if self._current_target and self._current_target not in disabled_nodes:
             # If self.current_target was not compromised, e.g. due to TTCs,
             # it remains in action surface and should be added as a target.
             self._targets.append(self._current_target)
 
         # Enabled defenses may remove previously possible attack steps.
         if disabled_nodes:
-            self._targets = deque(
-                n for n in self._targets if n not in disabled_nodes
-            )
+            self._targets = deque(n for n in self._targets if n not in disabled_nodes)
 
         # Use the extend method to add new targets
         getattr(self._targets, self._extend_method)(new_targets)

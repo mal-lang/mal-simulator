@@ -1,6 +1,7 @@
 """
 Scenario can be created as an object directly instead of as a separate file.
 """
+
 from maltoolbox.model import Model
 from maltoolbox.language import LanguageGraph
 
@@ -16,13 +17,10 @@ def test_scenario_obj_files() -> None:
             'Attacker1': {
                 'type': 'attacker',
                 'agent_class': 'BreadthFirstAttacker',
-                'entry_points': ['User:3:phishing', 'Host:0:connect']
+                'entry_points': ['User:3:phishing', 'Host:0:connect'],
             },
-            'Defender1': {
-                'type': 'defender',
-                'agent_class': 'PassiveAgent'
-            }
-        }
+            'Defender1': {'type': 'defender', 'agent_class': 'PassiveAgent'},
+        },
     )
 
     scenario.save_to_file('scenario1.yml')
@@ -46,13 +44,10 @@ def test_scenario_obj_file_and_dict() -> None:
             'Attacker1': {
                 'type': 'attacker',
                 'agent_class': 'BreadthFirstAttacker',
-                'entry_points': ['User:3:phishing', 'Host:0:connect']
+                'entry_points': ['User:3:phishing', 'Host:0:connect'],
             },
-            'Defender1': {
-                'type': 'defender',
-                'agent_class': 'PassiveAgent'
-            }
-        }
+            'Defender1': {'type': 'defender', 'agent_class': 'PassiveAgent'},
+        },
     )
 
     scenario.save_to_file('scenario2.yml')
@@ -76,13 +71,10 @@ def test_scenario_obj_file_and_model() -> None:
             'Attacker1': {
                 'type': 'attacker',
                 'agent_class': 'BreadthFirstAttacker',
-                'entry_points': ['User:3:phishing', 'Host:0:connect']
+                'entry_points': ['User:3:phishing', 'Host:0:connect'],
             },
-            'Defender1': {
-                'type': 'defender',
-                'agent_class': 'PassiveAgent'
-            }
-        }
+            'Defender1': {'type': 'defender', 'agent_class': 'PassiveAgent'},
+        },
     )
 
     scenario.save_to_file('scenario3.yml')
