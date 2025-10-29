@@ -1,12 +1,14 @@
 from typing_extensions import cast
-from malsim.envs.graph_env import GraphAttackerEnv, register_graph_envs
+from malsim.envs.graph_env import (
+    GraphAttackerEnv, GraphDefenderEnv, register_graph_envs
+)
 from malsim.scenario import Scenario
 from malsim.mal_simulator import MalSimulatorSettings, TTCMode, RewardMode
 from gymnasium.utils.env_checker import check_env
 import numpy as np
 from malsim.envs.mal_spaces import MALObs, LogicGate
 
-def test_graph_env() -> None:
+def test_check_graph_env() -> None:
     scenario_file = (
         "tests/testdata/scenarios/simple_scenario.yml"
     )
@@ -21,6 +23,18 @@ def test_graph_env() -> None:
         ))
     check_env(env, skip_render_check=True, skip_close_check=True)
 
+    env = GraphDefenderEnv(
+        scenario,
+        use_logic_gates=False,
+        sim_settings=MalSimulatorSettings(
+            ttc_mode=TTCMode.PER_STEP_SAMPLE,
+            run_defense_step_bernoullis=False,
+            run_attack_step_bernoullis=False,
+            attack_surface_skip_unnecessary=False,
+            defender_reward_mode=RewardMode.ONE_OFF,
+        )
+    )
+    check_env(env, skip_render_check=True, skip_close_check=True)
 
 def test_obs_in_space() -> None:
     scenario_file = (
