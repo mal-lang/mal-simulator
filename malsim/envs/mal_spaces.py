@@ -1,4 +1,5 @@
 from gymnasium.spaces import Box, Space, Discrete, MultiDiscrete
+
 import numpy as np
 from typing import Any, NamedTuple, Sequence
 from numpy.typing import NDArray
@@ -518,116 +519,112 @@ def defender_state2graph(
         - Performed (observed) attack steps
     """
 
-    assert state.sim.attack_graph.model, "Graph needs a model to create state"
-    all_assets = sorted(
-        state.sim.attack_graph.model.assets.values(),
-        key=lambda asset: asset.id
-    )
-    asset_obs = Asset(
-        type=np.array([
-            lang_serializer.asset_type[asset.type]
-            for asset in all_assets
-        ]),
-        id=np.array([asset.id for asset in all_assets]),
-    )
+    assert state.sim.attack_graph.model, "Model is required."
 
-    observed_steps = sorted(
-        state.observed_nodes | state.action_surface,
-        key=lambda attack_step: attack_step.id
+    # Defender can always see all assets in the infrastructure
+    visible_assets = sorted(
+        {
+            node.model_asset for node in state.sim.attack_graph.nodes.values()
+            if node.model_asset
+        }, key=lambda asset: asset.id
+    )
+    visible_attack_steps = sorted(
+        {
+            node for node in state.sim.attack_graph.nodes.values()
+            if node.model_asset in visible_assets
+        }, key=lambda attack_step: attack_step.id
     )
 
     if lang_serializer.split_attack_step_types:
         attack_step_type = np.array([
             lang_serializer.attack_step_type[(node.model_asset.type, node.name)]
-            for node in observed_steps if node.model_asset
+            for node in visible_attack_steps if node.model_asset
         ])
     else:
         attack_step_type = np.array([
-            lang_serializer.attack_step_type[(node.name,)] for node in observed_steps
+            lang_serializer.attack_step_type[(node.name,)] for node in visible_attack_steps
         ])
 
-    observed_steps_obs = AttackStep(
-        type=attack_step_type,
-        id=np.array([node.id for node in observed_steps]),
-        logic_class=np.array([
-            lang_serializer.attack_step_class[node.type] for node in observed_steps
-        ]),
-        tags=np.array([
-            lang_serializer.attack_step_tag[node.tags[0] if len(node.tags) > 0 else None]
-            for node in observed_steps
-        ]),
-        compromised=np.array([
-            state.sim.node_is_compromised(node) for node in observed_steps
-        ]),
-        attempts=np.array([]), # Not really relevant for defender ?
-        traversable=np.array([]), # Same
-    )
     step2asset = {
-        (observed_steps.index(node), all_assets.index(node.model_asset))
-        for node in observed_steps if node.model_asset
+        (visible_attack_steps.index(node), visible_assets.index(node.model_asset))
+        for node in visible_attack_steps if node.model_asset
     }
     step2step = {
-        (observed_steps.index(node), observed_steps.index(child))
-        for node in observed_steps for child in node.children if child in observed_steps
+        (visible_attack_steps.index(node), visible_attack_steps.index(child))
+        for node in visible_attack_steps for child in node.children if child in visible_attack_steps
     }
 
-    if len(all_assets) > 1:
-        associations: list[tuple[LanguageGraphAssociation, int, int]] = []
-        assoc2asset = set()
-        for asset in all_assets:
-            for fieldname, other_assets in asset.associated_assets.items():
-                assoc = asset.lg_asset.associations[fieldname]
-                for other_asset in filter(lambda asset: asset in all_assets, other_assets):
-                    asset1, asset2 = sorted([asset, other_asset], key=lambda asset: asset.id)
-                    if (assoc, asset1.id, asset2.id) not in associations:
-                        associations.append((assoc, asset1.id, asset2.id))
-                        assoc_idx = associations.index((assoc, asset1.id, asset2.id))
-                        assoc2asset.add((assoc_idx, all_assets.index(asset1)))
-                        assoc2asset.add((assoc_idx, all_assets.index(asset2)))
-        association_obs = Association(
+    associations: list[tuple[LanguageGraphAssociation, int, int]] = []
+    assoc2asset = set()
+    for asset in visible_assets:
+        for fieldname, other_assets in asset.associated_assets.items():
+            assoc = asset.lg_asset.associations[fieldname]
+            for other_asset in filter(lambda asset: asset in visible_assets, other_assets):
+                asset1, asset2 = sorted([asset, other_asset], key=lambda asset: asset.id)
+                if (assoc, asset1.id, asset2.id) not in associations:
+                    associations.append((assoc, asset1.id, asset2.id))
+                    assoc_idx = associations.index((assoc, asset1.id, asset2.id))
+                    assoc2asset.add((assoc_idx, visible_assets.index(asset1)))
+                    assoc2asset.add((assoc_idx, visible_assets.index(asset2)))
+
+    visible_and_or_steps = [
+        node for node in visible_attack_steps if node.type in ('and', 'or')
+    ]
+    step2logic = set()
+    logic2step = set()
+    for logic_gate_id, node in enumerate(visible_and_or_steps):
+        logic2step.add((logic_gate_id, visible_attack_steps.index(node)))
+        for child in filter(lambda child: child in visible_attack_steps, node.children):
+            step2logic.add((visible_attack_steps.index(child), logic_gate_id))
+
+    return MALObsInstance(
+        time=np.int64(state.sim.cur_iter),
+        assets=Asset(
+            type=np.array([
+                lang_serializer.asset_type[asset.type]
+                for asset in visible_assets
+            ]),
+            id=np.array([asset.id for asset in visible_assets]),
+        ),
+        attack_steps=AttackStep(
+            type=attack_step_type,
+            id=np.array([node.id for node in visible_attack_steps]),
+            logic_class=np.array([
+                lang_serializer.attack_step_class[node.type]
+                for node in visible_attack_steps
+            ]),
+            tags=np.array([
+                lang_serializer.attack_step_tag[node.tags[0] if len(node.tags) > 0 else None]
+                for node in visible_attack_steps
+            ]),
+            compromised=np.array([
+                state.sim.node_is_compromised(node) for node in visible_attack_steps
+            ]),
+            attempts=np.array([
+                0 for _ in visible_attack_steps
+            ]),
+            traversable=np.array([
+                False for _ in visible_attack_steps
+            ]),
+        ),
+        associations=Association(
             type=np.array([
                 lang_serializer.association_type[(assoc.name,)]
                 for (assoc, _, _) in associations
             ]),
-        )
-        assoc2asset_links = np.array(list(zip(*assoc2asset)))
-    else:
-        association_obs = None
-        assoc2asset_links = None
-
-    if use_logic_gates:
-        visible_and_or_steps = [
-            node for node in observed_steps if node.type in ('and', 'or')
-        ]
-        logic_gates = LogicGate(
+        ) if visible_assets else None,
+        logic_gates=LogicGate(
             type=np.array([
                 (0 if node.type == 'and' else 1) for node in visible_and_or_steps
             ])
-        )
-        step2logic = set()
-        logic2step = set()
-        for logic_gate_id, node in enumerate(visible_and_or_steps):
-            logic2step.add((logic_gate_id, observed_steps.index(node)))
-            for child in filter(lambda child: child in observed_steps, node.children):
-                step2logic.add((observed_steps.index(child), logic_gate_id))
-        logic2step_links = np.array(list(zip(*logic2step)))
-        step2logic_links = np.array(list(zip(*step2logic)))
-    else:
-        logic_gates = None
-        logic2step_links = None
-        step2logic_links = None
-
-    return MALObsInstance(
-        time=np.int64(state.sim.cur_iter),
-        assets=asset_obs,
-        attack_steps=observed_steps_obs,
-        associations=association_obs,
-        logic_gates=logic_gates,
+        ) if use_logic_gates else None,
         step2asset=np.array(list(zip(*step2asset))),
         step2step=np.array(list(zip(*step2step))),
-        assoc2asset=assoc2asset_links,
-        logic2step=logic2step_links,
-        step2logic=step2logic_links,
+        assoc2asset=np.array(
+            list(zip(*assoc2asset))
+        ) if visible_assets else None,
+        logic2step=np.array(list(zip(*logic2step))) if use_logic_gates else None,
+        step2logic=np.array(list(zip(*step2logic))) if use_logic_gates else None,
     )
 
 
@@ -638,3 +635,23 @@ class AttackGraphNodeSpace(Discrete):
             seed: int | np.random.Generator | None = None
         ):
         super().__init__(n=max(attack_graph.nodes.keys()), seed=seed)
+
+class DefenseNodeSpace(Discrete):
+    def __init__(
+            self,
+            attack_graph: AttackGraph,
+            seed: int | np.random.Generator | None = None
+        ):
+        defense_nodes = attack_graph.defense_steps
+        self.defense_steps = sorted(defense_nodes, key=lambda n: n.id)
+        super().__init__(n=len(self.defense_steps), seed=seed)
+
+    def sample(
+        self,
+        mask = None,
+        probability = None,
+    ) -> np.int64:
+        # TODO: fix this implementation, it is not valid
+        idx = super().sample(mask=mask, probability=probability)
+        defense_step = self.defense_steps[idx]
+        return np.int64(defense_step.id)

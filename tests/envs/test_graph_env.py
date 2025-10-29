@@ -36,7 +36,7 @@ def test_check_graph_env() -> None:
     )
     check_env(env, skip_render_check=True, skip_close_check=True)
 
-def test_obs_in_space() -> None:
+def test_obs_in_space_attacker_env() -> None:
     scenario_file = (
         "tests/testdata/scenarios/simple_scenario.yml"
     )

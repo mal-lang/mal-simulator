@@ -3,12 +3,14 @@ from typing import Any
 
 from .mal_spaces import (
     AttackGraphNodeSpace,
+    DefenseNodeSpace,
     MALObs,
     MALObsInstance,
     attacker_state2graph,
     defender_state2graph,
 )
 from os import PathLike
+from malsim.agents import DecisionAgent
 from malsim.scenario import AgentType, Scenario
 from malsim.mal_simulator import (
     MalSimulator,
@@ -147,50 +149,67 @@ class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
 
         self.agent_name = "GraphDefenderAgent"
         self.sim.register_defender(self.agent_name)
+        self._register_attackers(self.sim, scenario.agents)
+        self.attacker_policies = self._create_attacker_policies(scenario.agents)
+
         self.attack_graph = self.sim.attack_graph
         self.model = self.attack_graph.model
         assert self.model, "Attack graph must have a model"
         self.lang_serializer = LangSerializer(self.attack_graph.lang_graph)
         self.observation_space = MALObs(self.lang_serializer, self.use_logic_gates, sim_settings.seed)
-        self.action_space = AttackGraphNodeSpace(self.attack_graph)
+        self.action_space = DefenseNodeSpace(self.attack_graph)
+
+    def _register_attackers(self, sim: MalSimulator, agents: list):
+        for agent in agents:
+            if agent['type'] == AgentType.ATTACKER:
+                sim.register_attacker(
+                    agent['name'],
+                    entry_points=agent['entry_points'],
+                    goals=agent.get('goals')
+                )
+
+    def _create_attacker_policies(self, agents: list):
+        policies: dict[str, DecisionAgent] = {}
+        for agent in agents:
+            if agent['type'] == AgentType.ATTACKER:
+                policies[agent['name']] = agent['agent_class']({})
+        return policies
 
     def reset(
         self, seed: int | None = None,
         options: dict[str, Any] | None = None
     ) -> tuple[MALObsInstance, dict[str, Any]]:
         super().reset(seed=seed, options=options)
+
         state = self.sim.reset()[self.agent_name]
         assert isinstance(state, MalSimDefenderState)
+
+        self.attacker_policies = self._create_attacker_policies(
+            self.scenario.agents
+        )
         obs = defender_state2graph(state, self.lang_serializer, self.use_logic_gates)
         info = {"state": state}
-
-
-        if obs not in self.observation_space:
-            # Check individual fields
-            for field_name in dir(obs):
-                if field_name.startswith("_"):
-                    continue
-                val = getattr(obs, field_name)
-                if callable(val):
-                    continue
-                # try to get corresponding space
-                space_attr = getattr(self.observation_space, field_name, None)
-                if space_attr is None:
-                    print(f"{field_name}: no corresponding space in observation_space, value={val}")
-                    continue
-                valid = space_attr.contains(val)
-                print(f"{field_name}: valid={valid}, value type={type(val)}, shape={getattr(val, 'shape', None)}, dtype={getattr(val, 'dtype', None)}")
 
         return obs, info
 
     def step(
         self, action: np.int64
     ) -> tuple[MALObsInstance, SupportsFloat, bool, bool, dict[str, Any]]:
+
+        actions = {}
+
+        # Store defender agents action
         action_node = self.attack_graph.nodes[int(action)]
+        actions[self.agent_name] = [action_node]
 
-        # TODO: Run opponent attacker steps as well
+        for attacker_name, policy in self.attacker_policies.items():
+            # Let each attacker take a step
+            attacker_action_node = policy.get_next_action(
+                self.sim.agent_states[attacker_name]
+            )
+            actions[attacker_name] = [attacker_action_node]
 
-        state = self.sim.step({self.agent_name: [action_node]})[self.agent_name]
+        state = self.sim.step(actions)[self.agent_name]
         assert isinstance(state, MalSimDefenderState)
         obs = defender_state2graph(state, self.lang_serializer, self.use_logic_gates)
         terminated = self.sim.agent_is_terminated(self.agent_name)
