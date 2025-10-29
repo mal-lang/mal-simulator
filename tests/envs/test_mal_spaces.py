@@ -1,7 +1,16 @@
 from maltoolbox.language import LanguageGraphAssociation
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.envs.serialization import LangSerializer
-from malsim.envs.mal_spaces import MALObs, MALObsInstance, AttackStep, Asset, Association, LogicGate, attacker_state2graph, AttackGraphNodeSpace
+from malsim.envs.mal_spaces import (
+    MALObs,
+    MALObsInstance,
+    AttackStep,
+    Asset,
+    Association,
+    LogicGate,
+    attacker_state2graph,
+    AttackGraphNodeSpace,
+)
 from malsim.scenario import Scenario, AgentType
 from malsim.mal_simulator import MalSimulator, MalSimAttackerState
 import numpy as np
@@ -12,7 +21,9 @@ def test_mal_obs() -> None:
         "tests/testdata/scenarios/simple_scenario.yml"
     )
     scenario = Scenario.load_from_file(scenario_file)
-    serializer = LangSerializer(scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True)
+    serializer = LangSerializer(
+        scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
+    )
     obs_space = MALObs(serializer, use_logic_gates=True)
     sim = MalSimulator.from_scenario(scenario)
 
@@ -25,25 +36,52 @@ def test_mal_obs() -> None:
             return any(sim.node_is_traversable(state.performed_nodes, node) 
                 for state in sim._get_attacker_agents()
             )
-        sorted_attack_steps = [sim.attack_graph.nodes[node_id] for node_id in sorted(sim.attack_graph.nodes.keys())]
+        sorted_attack_steps = [
+            sim.attack_graph.nodes[node_id]
+            for node_id in sorted(sim.attack_graph.nodes.keys())
+        ]
         attack_steps = AttackStep(
-            type=np.array([serializer.attack_step_type[node.model_asset.type][node.name] for node in sorted_attack_steps if node.model_asset]),
+            type=np.array([
+                serializer.attack_step_type[(node.model_asset.type, node.name)]
+                for node in sorted_attack_steps if node.model_asset
+            ]),
             id=np.array([node.id for node in sorted_attack_steps]),
-            logic_class=np.array([serializer.attack_step_class[node.type] for node in sorted_attack_steps]),
-            tags=np.array([serializer.attack_step_tag[node.tags[0] if len(node.tags) > 0 else None] for node in sorted_attack_steps]),
-            compromised=np.array([sim.node_is_compromised(node) for node in sorted_attack_steps]),
-            attempts=np.array([get_total_attempts(node) for node in sorted_attack_steps]),
-            traversable=np.array([is_traversable_by_any(node) for node in sorted_attack_steps]),
+            logic_class=np.array([
+                serializer.attack_step_class[node.type]
+                for node in sorted_attack_steps
+            ]),
+            tags=np.array([
+                serializer.attack_step_tag[node.tags[0] if len(node.tags) > 0 else None]
+                for node in sorted_attack_steps
+            ]),
+            compromised=np.array([
+                sim.node_is_compromised(node) for node in sorted_attack_steps
+            ]),
+            attempts=np.array([
+                get_total_attempts(node) for node in sorted_attack_steps
+            ]),
+            traversable=np.array([
+                is_traversable_by_any(node) for node in sorted_attack_steps
+            ]),
         )
-        step2step = {(sorted_attack_steps.index(node), sorted_attack_steps.index(child)) for node in sorted_attack_steps for child in node.children if child in sorted_attack_steps}
+        step2step = {
+            (sorted_attack_steps.index(node), sorted_attack_steps.index(child))
+            for node in sorted_attack_steps for child in node.children if child in sorted_attack_steps
+        }
         
         assert sim.attack_graph.model, "Attack graph needs to have a model attached to it"
-        sorted_assets = [sim.attack_graph.model.assets[asset_id] for asset_id in sorted(sim.attack_graph.model.assets.keys())]
+        sorted_assets = [
+            sim.attack_graph.model.assets[asset_id]
+            for asset_id in sorted(sim.attack_graph.model.assets.keys())
+        ]
         assets = Asset(
             type=np.array([serializer.asset_type[asset.type] for asset in sorted_assets]),
             id=np.array([asset.id for asset in sorted_assets]),
         )
-        step2asset = {(sorted_attack_steps.index(node), sorted_assets.index(node.model_asset)) for node in sorted_attack_steps if node.model_asset in sorted_assets}
+        step2asset = {(
+            sorted_attack_steps.index(node), sorted_assets.index(node.model_asset))
+            for node in sorted_attack_steps if node.model_asset in sorted_assets
+        }
 
         associations: list[tuple[LanguageGraphAssociation, int, int]] = []
         for asset in sorted_assets:
@@ -57,15 +95,23 @@ def test_mal_obs() -> None:
                         associations.append((assoc, asset.id, other_asset.id))
         sorted_associations = sorted(associations, key=lambda x: (x[0].name, x[1], x[2]))
         association = Association(
-            type=np.array([serializer.association_type[assoc.name] for (assoc, _, _) in sorted_associations])
+            type=np.array([
+                serializer.association_type[assoc.name,]
+                for (assoc, _, _) in sorted_associations
+            ])
         )
         assoc2asset: set[tuple[int, int]] = set()
         for i, (assoc, asset1_id, asset2_id) in enumerate(sorted_associations):
             assoc2asset.add((i, asset1_id))
             assoc2asset.add((i, asset2_id))
 
-        sorted_and_or_steps = sorted([node for node in sorted_attack_steps if node.type in ('and', 'or')], key=lambda x: x.id)
-        logic_gates = LogicGate(type=np.array([(0 if node.type == 'and' else 1) for node in sorted_and_or_steps]))
+        sorted_and_or_steps = sorted(
+            [node for node in sorted_attack_steps if node.type in ('and', 'or')],
+            key=lambda x: x.id
+        )
+        logic_gates = LogicGate(
+            type=np.array([(0 if node.type == 'and' else 1) for node in sorted_and_or_steps])
+        )
         step2logic = set()
         logic2step = set()
         for logic_gate_id, node in enumerate(sorted_and_or_steps):
@@ -106,7 +152,9 @@ def test_obs_creation() -> None:
     scenario = Scenario.load_from_file(scenario_file)
     attacker = next(agent for agent in scenario.agents if agent['type'] == AgentType.ATTACKER)
     agent_name = attacker['name']
-    serializer = LangSerializer(scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True)
+    serializer = LangSerializer(
+        scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
+    )
     obs_space = MALObs(serializer, use_logic_gates=False)
     sim = MalSimulator.from_scenario(scenario)
 
@@ -146,7 +194,9 @@ def test_jsonable() -> None:
     scenario = Scenario.load_from_file(scenario_file)
     attacker = next(agent for agent in scenario.agents if agent['type'] == AgentType.ATTACKER)
     agent_name = attacker['name']
-    serializer = LangSerializer(scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True)
+    serializer = LangSerializer(
+        scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
+    )
     obs_space = MALObs(serializer, use_logic_gates=False)
     sim = MalSimulator.from_scenario(scenario)
 

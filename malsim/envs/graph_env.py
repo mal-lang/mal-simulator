@@ -4,7 +4,13 @@ from typing import Any
 from .mal_spaces import AttackGraphNodeSpace, MALObs, MALObsInstance, attacker_state2graph
 from os import PathLike
 from malsim.scenario import AgentType, Scenario
-from malsim.mal_simulator import MalSimulator, MalSimulatorSettings, TTCMode, RewardMode, MalSimAttackerState
+from malsim.mal_simulator import (
+    MalSimulator,
+    MalSimulatorSettings,
+    TTCMode,
+    RewardMode,
+    MalSimAttackerState,
+)
 from malsim.envs.serialization import LangSerializer
 from gymnasium.envs.registration import EnvSpec
 import numpy as np
@@ -47,7 +53,13 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
         }
     )
 
-    def __init__(self, scenario: PathLike[str] | Scenario, use_logic_gates: bool, sim_settings: MalSimulatorSettings, **kwargs: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        scenario: PathLike[str] | Scenario,
+        use_logic_gates: bool,
+        sim_settings: MalSimulatorSettings,
+        **kwargs: dict[str, Any]
+    ) -> None:
         self.render_mode: Any | None = kwargs.pop('render_mode', None)
 
         if not isinstance(scenario, Scenario):
@@ -90,6 +102,8 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
 
 def get_agent_name(scenario: Scenario, type: AgentType) -> str:
     agents = [agent for agent in scenario.agents if agent["type"] == type]
-    assert len(agents) == 1, f"Expected exactly one agent of type {type}, got {len(agents)} agents"
+    assert len(agents) == 1, (
+        f"Expected exactly one agent of type {type}, got {len(agents)} agents"
+    )
     agent_name = agents[0]["name"]
     return str(agent_name)
