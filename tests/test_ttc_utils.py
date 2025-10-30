@@ -134,7 +134,28 @@ def test_get_ttc_dict_attacksteps(corelang_lang_graph: LanguageGraph) -> None:
     # Check some nodes that have diferent TTC
     bypass_sa = attack_graph.get_node_by_full_name('User:12:bypassSecurityAwareness')
     assert bypass_sa
-    assert TTCDist.from_node(bypass_sa) == named_ttc_dists['VeryHardAndUncertain']
+    ttc_dict = TTCDist.from_node(bypass_sa)
+    assert ttc_dict == named_ttc_dists['VeryHardAndUncertain']
+
+
+def test_ttc_dist_from_to_dict(corelang_lang_graph: LanguageGraph) -> None:
+    """Make sure to and from dict works for TTCDists"""
+
+    model = Model.load_from_file(
+        path_testdata('models/simple_example_model.yml'), corelang_lang_graph
+    )
+    attack_graph = AttackGraph(lang_graph=corelang_lang_graph, model=model)
+
+    bypass_sa = get_node(attack_graph, 'User:12:bypassSecurityAwareness')
+    ttc_dict = TTCDist.from_node(bypass_sa)
+    # Make sure from/to dict works
+    assert TTCDist.from_dict(ttc_dict.to_dict()) == ttc_dict
+
+    os_app_fa = get_node(attack_graph, 'OS App:fullAccess')
+    ttc_dict = TTCDist.from_node(os_app_fa)
+    # Make sure from/to dict works
+    assert TTCDist.from_dict(ttc_dict.to_dict()) == ttc_dict
+
 
 
 def test_ttcs_effort_based(model: Model) -> None:
