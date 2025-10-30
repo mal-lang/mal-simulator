@@ -1,5 +1,5 @@
 from maltoolbox.language import LanguageGraph
-from malsim.envs.serialization import LangSerializer
+from malsim.envs.graph.serialization import LangSerializer
 
 def test_serializer() -> None:
 

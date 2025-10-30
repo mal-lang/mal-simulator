@@ -1,16 +1,19 @@
 from maltoolbox.language import LanguageGraphAssociation
 from maltoolbox.attackgraph import AttackGraphNode
-from malsim.envs.serialization import LangSerializer
-from malsim.envs.mal_spaces import (
+from malsim.envs.graph.serialization import LangSerializer
+from malsim.envs.graph.mal_spaces import (
     MALObs,
     MALObsInstance,
-    AttackStep,
+    Step,
     Asset,
     Association,
     LogicGate,
-    attacker_state2graph,
-    AttackGraphNodeSpace,
+    MALObsAttackerActionSpace,
+    MALObsDefenderActionSpace,
+    MALAttackerObs,
+    MALDefenderObs,
 )
+from malsim.envs.graph.utils import attacker_state2graph, defender_state2graph
 from malsim.scenario import Scenario, AgentType
 from malsim.mal_simulator import MalSimulator, MalSimAttackerState
 import numpy as np
@@ -40,7 +43,7 @@ def test_mal_obs() -> None:
             sim.attack_graph.nodes[node_id]
             for node_id in sorted(sim.attack_graph.nodes.keys())
         ]
-        attack_steps = AttackStep(
+        attack_steps = Step(
             type=np.array([
                 serializer.attack_step_type[(node.model_asset.type, node.name)]
                 for node in sorted_attack_steps if node.model_asset
@@ -123,7 +126,7 @@ def test_mal_obs() -> None:
         return MALObsInstance(
             time=np.int64(sim.cur_iter),
             assets=assets,
-            attack_steps=attack_steps,
+            steps=attack_steps,
             associations=association,
             logic_gates=logic_gates,
             step2asset=np.array(list(zip(*step2asset))),
@@ -150,42 +153,33 @@ def test_obs_creation() -> None:
         "tests/testdata/scenarios/simple_scenario.yml"
     )
     scenario = Scenario.load_from_file(scenario_file)
-    attacker = next(agent for agent in scenario.agents if agent['type'] == AgentType.ATTACKER)
-    agent_name = attacker['name']
+    attacker_name = next(agent['name'] for agent in scenario.agents if agent['type'] == AgentType.ATTACKER)
+    defender_name = next(agent['name'] for agent in scenario.agents if agent['type'] == AgentType.DEFENDER)
     serializer = LangSerializer(
         scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
     )
-    obs_space = MALObs(serializer, use_logic_gates=False)
     sim = MalSimulator.from_scenario(scenario)
+    attacker_obs_space = MALAttackerObs(serializer, use_logic_gates=False)
+    attacker_action_space = MALObsAttackerActionSpace(sim)
+    defender_obs_space = MALDefenderObs(serializer, use_logic_gates=False)
+    defender_action_space = MALObsDefenderActionSpace(sim)
 
-    state = sim.reset()[agent_name]
-    assert isinstance(state, MalSimAttackerState)
-    obs = attacker_state2graph(state, serializer, use_logic_gates=False)
-    assert obs in obs_space
+    states = sim.reset()
+    while not sim.agent_is_terminated(attacker_name):
+        attacker_obs = attacker_state2graph(states[attacker_name], serializer, use_logic_gates=False, see_defense_steps=False)
+        assert attacker_obs in attacker_obs_space
+        defender_obs = defender_state2graph(states[defender_name], serializer, use_logic_gates=False)
+        assert defender_obs in defender_obs_space
+        assert isinstance(attacker_obs.steps.traversable, np.ndarray)
+        attacker_obs_idx = attacker_action_space.sample(attacker_obs.steps.traversable.astype(np.int8))
+        defender_obs_idx = defender_action_space.sample()
 
-    while not sim.agent_is_terminated(agent_name):
-        actions = {agent_name: [next(iter(state.action_surface))]}
-        state = sim.step(actions)[agent_name]
-        assert isinstance(state, MalSimAttackerState)
-        assert attacker_state2graph(state, serializer, use_logic_gates=False) in obs_space
+        attacker_step_id = attacker_obs.steps.id[attacker_obs_idx]
+        defender_step_id = defender_obs.steps.id[defender_obs_idx]
 
-def test_node_space() -> None:
-    scenario_file = (
-        "tests/testdata/scenarios/simple_scenario.yml"
-    )
-    scenario = Scenario.load_from_file(scenario_file)
-    attacker = next(agent for agent in scenario.agents if agent['type'] == AgentType.ATTACKER)
-    agent_name = attacker['name']
-    sim = MalSimulator.from_scenario(scenario)
-    action_space = AttackGraphNodeSpace(sim.attack_graph)
-
-    state = sim.reset()[agent_name]
-
-    while not sim.agent_is_terminated(agent_name):
-        action = next(iter(state.action_surface))
-        assert action.id in action_space
-        actions = {agent_name: [action]}
-        state = sim.step(actions)[agent_name]
+        attacker_action = sim.attack_graph.nodes[attacker_step_id]
+        defender_action = sim.attack_graph.nodes[defender_step_id]
+        states = sim.step({attacker_name: [attacker_action], defender_name: [defender_action]})
 
 def test_jsonable() -> None:
     scenario_file = (
@@ -208,3 +202,15 @@ def test_jsonable() -> None:
     jsonable = obs_space.to_jsonable([obs])
     obs_from_jsonable = obs_space.from_jsonable(jsonable)[0]
     assert obs_from_jsonable in obs_space
+
+    attacker_action_space = MALObsAttackerActionSpace(sim)
+    attacker_obs_idx = attacker_action_space.sample(obs.steps.traversable)
+    jsonable = attacker_action_space.to_jsonable([attacker_obs_idx])
+    attacker_obs_idx_from_jsonable = attacker_action_space.from_jsonable(jsonable)[0]
+    assert attacker_obs_idx_from_jsonable == attacker_obs_idx
+
+    defender_action_space = MALObsDefenderActionSpace(sim)
+    defender_obs_idx = defender_action_space.sample()
+    jsonable = defender_action_space.to_jsonable([defender_obs_idx])
+    defender_obs_idx_from_jsonable = defender_action_space.from_jsonable(jsonable)[0]
+    assert defender_obs_idx_from_jsonable == defender_obs_idx
