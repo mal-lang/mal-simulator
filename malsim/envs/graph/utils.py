@@ -1,6 +1,5 @@
 from maltoolbox.language import LanguageGraphAssociation
 from typing import Any
-from malsim.mal_simulator import MalSimAttackerState, MalSimDefenderState
 import numpy as np
 
 from .mal_spaces import (
