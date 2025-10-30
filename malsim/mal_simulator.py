@@ -583,7 +583,8 @@ class MalSimulator:
         return {
             node
             for node in self.attack_graph.defense_steps
-            if self.node_is_viable(node)
+            if self.node_is_actionable(node)
+            and self.node_is_viable(node)
             and 'suppress' not in node.tags
             and not self.node_is_enabled_defense(node)
         }
@@ -625,6 +626,10 @@ class MalSimulator:
                 if (
                     self.sim_settings.attack_surface_skip_unnecessary
                     and not self.node_is_necessary(child)
+                ):
+                    continue
+                if (
+                    not self.node_is_actionable(child)
                 ):
                     continue
                 if child not in attack_surface and self.node_is_traversable(
