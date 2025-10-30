@@ -1,125 +1,110 @@
-from typing_extensions import cast
 from malsim.envs.graph.graph_env import (
     GraphAttackerEnv, GraphDefenderEnv, register_graph_envs
 )
 from malsim.scenario import Scenario
 from malsim.mal_simulator import MalSimulatorSettings, TTCMode, RewardMode
 from gymnasium.utils.env_checker import check_env
-import numpy as np
-from malsim.envs.graph.mal_spaces import MALObs, LogicGate
 
-def test_check_graph_env() -> None:
+import pytest
+
+@pytest.mark.parametrize(
+    ("sim_settings", "use_logic_gates"),
+    [
+        (
+            MalSimulatorSettings(
+                ttc_mode=TTCMode.PER_STEP_SAMPLE,
+                run_defense_step_bernoullis=False,
+                run_attack_step_bernoullis=False,
+                attack_surface_skip_unnecessary=False,
+                attacker_reward_mode=RewardMode.ONE_OFF,
+            ),
+            True
+        ),
+        (
+            MalSimulatorSettings(
+                ttc_mode=TTCMode.PER_STEP_SAMPLE,
+                run_defense_step_bernoullis=False,
+                run_attack_step_bernoullis=False,
+                attack_surface_skip_unnecessary=False,
+                attacker_reward_mode=RewardMode.ONE_OFF,
+            ),
+            False
+        ),
+        (
+            MalSimulatorSettings(
+                ttc_mode=TTCMode.PRE_SAMPLE,
+                run_defense_step_bernoullis=True,
+                run_attack_step_bernoullis=True,
+                attack_surface_skip_unnecessary=True,
+                attacker_reward_mode=RewardMode.CUMULATIVE,
+            ),
+            True
+        ),
+        (
+            MalSimulatorSettings(
+                ttc_mode=TTCMode.PRE_SAMPLE,
+                run_defense_step_bernoullis=True,
+                run_attack_step_bernoullis=True,
+                attack_surface_skip_unnecessary=True,
+                attacker_reward_mode=RewardMode.CUMULATIVE,
+            ),
+            False
+        ),
+        (
+            MalSimulatorSettings(
+                ttc_mode=TTCMode.EXPECTED_VALUE,
+                run_defense_step_bernoullis=False,
+                run_attack_step_bernoullis=True,
+                attack_surface_skip_unnecessary=True,
+                attacker_reward_mode=RewardMode.ONE_OFF,
+            ),
+            True
+        ),
+        (
+            MalSimulatorSettings(
+                ttc_mode=TTCMode.EXPECTED_VALUE,
+                run_defense_step_bernoullis=False,
+                run_attack_step_bernoullis=True,
+                attack_surface_skip_unnecessary=True,
+                attacker_reward_mode=RewardMode.ONE_OFF,
+            ),
+            False
+        ),
+        (
+            MalSimulatorSettings(
+                ttc_mode=TTCMode.DISABLED,
+                run_defense_step_bernoullis=False,
+                run_attack_step_bernoullis=False,
+                attack_surface_skip_unnecessary=False,
+                attack_surface_skip_unviable=False,
+            ),
+            True
+        ),
+        (
+            MalSimulatorSettings(
+                ttc_mode=TTCMode.DISABLED,
+                run_defense_step_bernoullis=False,
+                run_attack_step_bernoullis=False,
+                attack_surface_skip_unnecessary=False,
+                attack_surface_skip_unviable=False,
+            ),
+            False
+        ),
+    ]
+)
+def test_check_graph_env(sim_settings, use_logic_gates) -> None:
     scenario_file = (
         "tests/testdata/scenarios/simple_scenario.yml"
     )
     scenario = Scenario.load_from_file(scenario_file)
-    register_graph_envs(scenario)
-    env = GraphAttackerEnv(scenario, use_logic_gates=False, sim_settings=MalSimulatorSettings(
-            ttc_mode=TTCMode.PER_STEP_SAMPLE,
-            run_defense_step_bernoullis=False,
-            run_attack_step_bernoullis=False,
-            attack_surface_skip_unnecessary=False,
-            attacker_reward_mode=RewardMode.ONE_OFF,
-        ))
+    register_graph_envs(scenario, use_logic_gates=use_logic_gates, sim_settings=sim_settings)
+    env = GraphAttackerEnv(scenario, use_logic_gates=use_logic_gates, sim_settings=sim_settings)
     check_env(env, skip_render_check=True, skip_close_check=True)
 
     env = GraphDefenderEnv(
         scenario,
-        use_logic_gates=False,
-        sim_settings=MalSimulatorSettings(
-            ttc_mode=TTCMode.PER_STEP_SAMPLE,
-            run_defense_step_bernoullis=False,
-            run_attack_step_bernoullis=False,
-            attack_surface_skip_unnecessary=False,
-            defender_reward_mode=RewardMode.ONE_OFF,
-        )
+        use_logic_gates=use_logic_gates,
+        sim_settings=sim_settings
     )
     check_env(env, skip_render_check=True, skip_close_check=True)
 
-def test_obs_in_space_attacker_env() -> None:
-    scenario_file = (
-        "tests/testdata/scenarios/simple_scenario.yml"
-    )
-    scenario = Scenario.load_from_file(scenario_file)
-    register_graph_envs(scenario)
-    env = GraphAttackerEnv(scenario, use_logic_gates=False, sim_settings=MalSimulatorSettings(
-        ttc_mode=TTCMode.DISABLED,
-        run_defense_step_bernoullis=False,
-        run_attack_step_bernoullis=False,
-        attack_surface_skip_unnecessary=False,
-        attacker_reward_mode=RewardMode.ONE_OFF,
-    ))
-    obs_space: MALObs = cast(MALObs, env.observation_space)
-
-    done = False
-    obs, info = env.reset()
-    while not done:
-        traversable = obs.steps.traversable
-        valid_actions = np.where(traversable)[0]
-        if len(valid_actions) > 0:
-            action = obs.steps.id[np.random.choice(valid_actions)]
-        else:
-            action = env.action_space.sample()
-            done = True
-        obs, reward, terminated, truncated, info = env.step(action)
-        assert obs.time in obs_space.time
-        assert all(obs.assets.type[i] in obs_space.asset_type for i in range(len(obs.assets.type)))
-        assert all(obs.steps.type[i] in obs_space.attack_step_type for i in range(len(obs.steps.type)))
-        assert all(obs.steps.logic_class[i] in obs_space.attack_step_class for i in range(len(obs.steps.logic_class)))
-        assert all(obs.steps.tags[i] in obs_space.attack_step_tags for i in range(len(obs.steps.tags)))
-        assert all(obs.steps.compromised[i] in obs_space.attack_step_compromised for i in range(len(obs.steps.compromised)))
-        assert all(obs.steps.attempts[i] in obs_space.attack_step_attempts for i in range(len(obs.steps.attempts)))
-        assert all(obs.steps.traversable[i] in obs_space.attack_step_traversable for i in range(len(obs.steps.traversable)))
-        if obs.associations is not None:
-            assert all(obs.associations.type[i] in obs_space.association_type for i in range(len(obs.associations.type)))
-        logic_gates = obs.logic_gates
-        logic_gate_type_space = obs_space.logic_gate_type
-        if env.use_logic_gates and isinstance(logic_gates, LogicGate) and logic_gate_type_space is not None:
-            assert all(logic_gates.type[i] in logic_gate_type_space for i in range(len(logic_gates.type)))
-        done = terminated or truncated
-
-    env.close()
-
-def test_obs_in_space_w_logic_gates() -> None:
-    scenario_file = (
-        "tests/testdata/scenarios/simple_scenario.yml"
-    )
-    scenario = Scenario.load_from_file(scenario_file)
-    register_graph_envs(scenario)
-    env = GraphAttackerEnv(scenario, use_logic_gates=True, sim_settings=MalSimulatorSettings(
-        ttc_mode=TTCMode.DISABLED,
-        run_defense_step_bernoullis=False,
-        run_attack_step_bernoullis=False,
-        attack_surface_skip_unnecessary=False,
-        attacker_reward_mode=RewardMode.ONE_OFF,
-    ))
-    obs_space: MALObs = cast(MALObs, env.observation_space)
-
-    done = False
-    obs, info = env.reset()
-    while not done:
-        traversable = obs.steps.traversable
-        valid_actions = np.where(traversable)[0]
-        if len(valid_actions) > 0:
-            action = obs.steps.id[np.random.choice(valid_actions)]
-        else:
-            action = env.action_space.sample()
-            done = True
-        obs, reward, terminated, truncated, info = env.step(action)
-        assert obs.time in obs_space.time
-        assert all(obs.assets.type[i] in obs_space.asset_type for i in range(len(obs.assets.type)))
-        assert all(obs.steps.type[i] in obs_space.attack_step_type for i in range(len(obs.steps.type)))
-        assert all(obs.steps.logic_class[i] in obs_space.attack_step_class for i in range(len(obs.steps.logic_class)))
-        assert all(obs.steps.tags[i] in obs_space.attack_step_tags for i in range(len(obs.steps.tags)))
-        assert all(obs.steps.compromised[i] in obs_space.attack_step_compromised for i in range(len(obs.steps.compromised)))
-        assert all(obs.steps.attempts[i] in obs_space.attack_step_attempts for i in range(len(obs.steps.attempts)))
-        assert all(obs.steps.traversable[i] in obs_space.attack_step_traversable for i in range(len(obs.steps.traversable)))
-        if obs.associations is not None:
-            assert all(obs.associations.type[i] in obs_space.association_type for i in range(len(obs.associations.type)))
-        logic_gates = obs.logic_gates
-        logic_gate_type_space = obs_space.logic_gate_type
-        if env.use_logic_gates and isinstance(logic_gates, LogicGate) and logic_gate_type_space is not None:
-            assert all(logic_gates.type[i] in logic_gate_type_space for i in range(len(logic_gates.type)))
-        done = terminated or truncated
-
-    env.close()

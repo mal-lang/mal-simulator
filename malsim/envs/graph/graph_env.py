@@ -22,42 +22,61 @@ from .serialization import LangSerializer
 from gymnasium.envs.registration import EnvSpec
 import numpy as np
 from typing import SupportsFloat
+import logging
 
-def register_graph_envs(scenario: Scenario | PathLike[str]) -> None:
+logger = logging.getLogger(__name__)
+
+
+def register_graph_envs(
+    scenario: Scenario | PathLike[str],
+    use_logic_gates: bool = False,
+    sim_settings: MalSimulatorSettings = MalSimulatorSettings(
+        ttc_mode=TTCMode.PER_STEP_SAMPLE,
+        run_defense_step_bernoullis=False,
+        run_attack_step_bernoullis=False,
+        attack_surface_skip_unnecessary=False,
+        attacker_reward_mode=RewardMode.ONE_OFF,
+    ),
+) -> None:
 
     gym.register(
-        id='GraphAttackerEnv-v0',
-        entry_point='malsim.envs.graph.graph_env:GraphAttackerEnv',
+        id="GraphAttackerEnv-v0",
+        entry_point="malsim.envs.graph.graph_env:GraphAttackerEnv",
         kwargs={
             "scenario": scenario,
+            "use_logic_gates": use_logic_gates,
+            "sim_settings": sim_settings,
+        },
+    )
+
+    gym.register(
+        id="GraphDefenderEnv-v0",
+        entry_point="malsim.envs.graph.graph_env:GraphDefenderEnv",
+        kwargs={
+            "scenario": scenario,
+            "use_logic_gates": use_logic_gates,
+            "sim_settings": sim_settings,
+        },
+    )
+
+
+class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
+    metadata = {"render_modes": []}
+
+    spec: EnvSpec = EnvSpec(
+        id="GraphAttackerEnv-v0",
+        entry_point="malsim.envs.graph.graph_env:GraphAttackerEnv",
+        nondeterministic=True,
+        kwargs={
             "use_logic_gates": False,
-            'sim_settings': MalSimulatorSettings(
+            "sim_settings": MalSimulatorSettings(
                 ttc_mode=TTCMode.PER_STEP_SAMPLE,
                 run_defense_step_bernoullis=False,
                 run_attack_step_bernoullis=False,
                 attack_surface_skip_unnecessary=False,
                 attacker_reward_mode=RewardMode.ONE_OFF,
             ),
-        }
-    )
-
-class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
-    metadata = {'render_modes': []}
-
-    spec: EnvSpec = EnvSpec(
-        id='GraphAttackerEnv-v0',
-        entry_point='malsim.envs.graph.graph_env:GraphAttackerEnv',
-        nondeterministic=True,
-        kwargs={
-            "use_logic_gates": False,
-            'sim_settings': MalSimulatorSettings(
-            ttc_mode=TTCMode.PER_STEP_SAMPLE,
-            run_defense_step_bernoullis=False,
-            run_attack_step_bernoullis=False,
-            attack_surface_skip_unnecessary=False,
-            attacker_reward_mode=RewardMode.ONE_OFF,
-        ),
-        }
+        },
     )
 
     def __init__(
@@ -65,9 +84,9 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
         scenario: PathLike[str] | Scenario,
         use_logic_gates: bool,
         sim_settings: MalSimulatorSettings,
-        **kwargs: dict[str, Any]
+        **kwargs: dict[str, Any],
     ) -> None:
-        self.render_mode: Any | None = kwargs.pop('render_mode', None)
+        self.render_mode: Any | None = kwargs.pop("render_mode", None)
 
         if not isinstance(scenario, Scenario):
             scenario = Scenario.load_from_file(str(scenario))
@@ -80,10 +99,14 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
         self.model = self.attack_graph.model
         assert self.model, "Attack graph must have a model"
         self.lang_serializer = LangSerializer(self.attack_graph.lang_graph)
-        self.observation_space = MALObs(self.lang_serializer, self.use_logic_gates, sim_settings.seed)
+        self.observation_space = MALObs(
+            self.lang_serializer, self.use_logic_gates, sim_settings.seed
+        )
         self.action_space = MALObsAttackerActionSpace(self.sim)
 
-    def reset(self, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[MALObsInstance, dict[str, Any]]:
+    def reset(
+        self, seed: int | None = None, options: dict[str, Any] | None = None
+    ) -> tuple[MALObsInstance, dict[str, Any]]:
         super().reset(seed=seed, options=options)
         state = self.sim.reset()[self.agent_name]
         assert isinstance(state, MalSimAttackerState)
@@ -92,9 +115,17 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
         info = {"state": state}
         return obs, info
 
-    def step(self, action: np.int64) -> tuple[MALObsInstance, SupportsFloat, bool, bool, dict[str, Any]]:
-        action_node = self.attack_graph.nodes[int(self._obs.steps.id[action])]
-        state = self.sim.step({self.agent_name: [action_node]})[self.agent_name]
+    def step(
+        self, action: np.int64
+    ) -> tuple[MALObsInstance, SupportsFloat, bool, bool, dict[str, Any]]:
+        try:
+            action_node = self.attack_graph.nodes[int(self._obs.steps.id[action])]
+        except (KeyError, IndexError):
+            logger.error(f"Action {action} is not valid for observation {self._obs}")
+            action_node = None
+        state = self.sim.step({self.agent_name: [action_node] if action_node else []})[
+            self.agent_name
+        ]
         assert isinstance(state, MalSimAttackerState)
         obs = attacker_state2graph(state, self.lang_serializer, self.use_logic_gates)
         self._obs = obs
@@ -111,22 +142,22 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
 
 
 class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
-    metadata = {'render_modes': []}
+    metadata = {"render_modes": []}
 
     spec: EnvSpec = EnvSpec(
-        id='GraphDefenderEnv-v0',
-        entry_point='malsim.envs.graph.graph_env:GraphDefenderEnv',
+        id="GraphDefenderEnv-v0",
+        entry_point="malsim.envs.graph.graph_env:GraphDefenderEnv",
         nondeterministic=True,
         kwargs={
             "use_logic_gates": False,
-            'sim_settings': MalSimulatorSettings(
-            ttc_mode=TTCMode.PER_STEP_SAMPLE,
-            run_defense_step_bernoullis=False,
-            run_attack_step_bernoullis=False,
-            attack_surface_skip_unnecessary=False,
-            attacker_reward_mode=RewardMode.ONE_OFF,
-        ),
-        }
+            "sim_settings": MalSimulatorSettings(
+                ttc_mode=TTCMode.PER_STEP_SAMPLE,
+                run_defense_step_bernoullis=False,
+                run_attack_step_bernoullis=False,
+                attack_surface_skip_unnecessary=False,
+                attacker_reward_mode=RewardMode.ONE_OFF,
+            ),
+        },
     )
 
     def __init__(
@@ -134,9 +165,9 @@ class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
         scenario: PathLike[str] | Scenario,
         use_logic_gates: bool,
         sim_settings: MalSimulatorSettings,
-        **kwargs: dict[str, Any]
+        **kwargs: dict[str, Any],
     ) -> None:
-        self.render_mode: Any | None = kwargs.pop('render_mode', None)
+        self.render_mode: Any | None = kwargs.pop("render_mode", None)
 
         if not isinstance(scenario, Scenario):
             scenario = Scenario.load_from_file(str(scenario))
@@ -149,10 +180,14 @@ class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
         self.model = self.attack_graph.model
         assert self.model, "Attack graph must have a model"
         self.lang_serializer = LangSerializer(self.attack_graph.lang_graph)
-        self.observation_space = MALObs(self.lang_serializer, self.use_logic_gates, sim_settings.seed)
+        self.observation_space = MALObs(
+            self.lang_serializer, self.use_logic_gates, sim_settings.seed
+        )
         self.action_space = MALObsDefenderActionSpace(self.sim)
 
-    def reset(self, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[MALObsInstance, dict[str, Any]]:
+    def reset(
+        self, seed: int | None = None, options: dict[str, Any] | None = None
+    ) -> tuple[MALObsInstance, dict[str, Any]]:
         super().reset(seed=seed, options=options)
         state = self.sim.reset()[self.agent_name]
         assert isinstance(state, MalSimDefenderState)
@@ -161,9 +196,17 @@ class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
         info = {"state": state}
         return obs, info
 
-    def step(self, action: np.int64) -> tuple[MALObsInstance, SupportsFloat, bool, bool, dict[str, Any]]:
-        action_node = self.attack_graph.nodes[int(self._obs.steps.id[action])]
-        state = self.sim.step({self.agent_name: [action_node]})[self.agent_name]
+    def step(
+        self, action: np.int64
+    ) -> tuple[MALObsInstance, SupportsFloat, bool, bool, dict[str, Any]]:
+        action_node = (
+            self.attack_graph.nodes[int(self._obs.steps.id[action])]
+            if action is not None
+            else None
+        )
+        state = self.sim.step({self.agent_name: [action_node] if action_node else []})[
+            self.agent_name
+        ]
         assert isinstance(state, MalSimDefenderState)
         obs = defender_state2graph(state, self.lang_serializer, self.use_logic_gates)
         self._obs = obs
@@ -181,8 +224,8 @@ class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
 
 def get_agent_name(scenario: Scenario, type: AgentType) -> str:
     agents = [agent for agent in scenario.agents if agent["type"] == type]
-    assert len(agents) == 1, (
-        f"Expected exactly one agent of type {type}, got {len(agents)} agents"
-    )
+    assert (
+        len(agents) == 1
+    ), f"Expected exactly one agent of type {type}, got {len(agents)} agents"
     agent_name = agents[0]["name"]
     return str(agent_name)

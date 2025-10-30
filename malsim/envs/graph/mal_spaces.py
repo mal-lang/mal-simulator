@@ -483,12 +483,12 @@ class MALObsAttackerActionSpace(Discrete):
             for step in actionable_attack_steps
         ])
 
-    def sample(self, traversable: np.ndarray[np.bool]) -> np.int64:
+    def sample(self, traversable: np.ndarray[np.bool] | None = None) -> np.int64:
         # The first n nodes are assumed to be AND/OR steps
-        if traversable.shape[0] < self.n:
+        if traversable is not None and traversable.shape[0] < self.n:
             traversable = np.concatenate([traversable, np.zeros(self.n - traversable.shape[0], dtype=np.bool)])
         # TODO: Decide if actionability should be used for attacker as well
-        return super().sample(mask=traversable.astype(np.int8))
+        return super().sample(mask=traversable.astype(np.int8) if traversable is not None else None)
 
 class MALObsDefenderActionSpace(Discrete):
     def __init__(
