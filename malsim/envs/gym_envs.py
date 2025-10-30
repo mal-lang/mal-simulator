@@ -35,7 +35,8 @@ class AttackerEnv(gym.Env[Any, Any]):
         self.sim = MalSimVectorizedObsEnv(MalSimulator(scenario.attack_graph))
 
         attacker_agents = [
-            agent for agent in scenario.agents.values() if agent.type == AgentType.ATTACKER
+            agent for agent in scenario.agents.values()
+            if agent.type == AgentType.ATTACKER
         ]
 
         assert len(attacker_agents) == 1, (
