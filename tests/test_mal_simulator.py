@@ -325,17 +325,17 @@ def test_is_traversable(corelang_lang_graph: LanguageGraph, model: Model) -> Non
 
         if node in children_of_reached_nodes:
             if node.type == 'and':
-                if not sim.node_is_traversable(attacker_state.performed_nodes, node):
+                if not sim.node_is_traversable(set(), attacker_state.performed_nodes, node):
                     assert not all(
                         p in attacker_state.performed_nodes
                         for p in node.parents
                         if p.type in ('or', 'and')
                     ) or not sim.node_is_viable(node)
             if node.type == 'or':
-                if not sim.node_is_traversable(attacker_state.performed_nodes, node):
+                if not sim.node_is_traversable(set(), attacker_state.performed_nodes, node):
                     assert not sim.node_is_viable(node)
         else:
-            assert not sim.node_is_traversable(attacker_state.performed_nodes, node)
+            assert not sim.node_is_traversable(set(), attacker_state.performed_nodes, node)
 
 
 def test_is_compromised(corelang_lang_graph: LanguageGraph, model: Model) -> None:
