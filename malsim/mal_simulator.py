@@ -156,6 +156,10 @@ class MalSimulatorSettings:
     # attack_surface_skip_unnecessary
     # - if true do not add unnecessary nodes to the attack surface
     attack_surface_skip_unnecessary: bool = True
+    # If set to True, each attacker compromises/performs their
+    # entry point nodes at the start of the simulation
+    compromise_entrypoints_at_start: bool = True
+
     # run_defense_step_bernoullis
     # - if true, sample defenses bernoullis to decide their initial states
     run_defense_step_bernoullis: bool = True
@@ -421,7 +425,10 @@ class MalSimulator:
         return False
 
     def node_is_traversable(
-        self, performed_nodes: Set[AttackGraphNode], node: AttackGraphNode
+        self,
+        entry_points: Set[AttackGraphNode],
+        performed_nodes: Set[AttackGraphNode],
+        node: AttackGraphNode
     ) -> bool:
         """
         Return True or False depending if the node specified is traversable
@@ -444,7 +451,11 @@ class MalSimulator:
             # Only attack steps have traversability
             return False
 
-        if not node.parents & performed_nodes:
+        if node in entry_points:
+            # Viable entry point nodes can always be traversed
+            return True
+
+        if not (node.parents & performed_nodes):
             # If no parent is reached, the node can not be traversable
             return False
 
@@ -586,8 +597,10 @@ class MalSimulator:
 
     def _get_attack_surface(
         self,
+        entry_points: Set[AttackGraphNode],
         performed_nodes: Set[AttackGraphNode],
         from_nodes: Optional[Set[AttackGraphNode]] = None,
+        include_entry_points: bool = False
     ) -> frozenset[AttackGraphNode]:
         """
         Calculate the attack surface of the attacker.
@@ -624,9 +637,13 @@ class MalSimulator:
                 ):
                     continue
                 if child not in attack_surface and self.node_is_traversable(
-                    performed_nodes, child
+                    entry_points, performed_nodes, child
                 ):
                     attack_surface.add(child)
+
+        if include_entry_points:
+            # Add legal entry points to attack surface
+            attack_surface |= entry_points
 
         return frozenset(attack_surface)
 
@@ -647,18 +664,25 @@ class MalSimulator:
             if goals
             else None
         )
-
-        attack_surface = self._get_attack_surface(entry_points)
+        compromised_nodes = (
+            entry_points
+            if self.sim_settings.compromise_entrypoints_at_start else frozenset()
+        )
+        attack_surface = self._get_attack_surface(
+            entry_points,
+            compromised_nodes,
+            include_entry_points=not self.sim_settings.compromise_entrypoints_at_start
+        )
         attacker_state = MalSimAttackerState(
             name,
             sim=self,
             entry_points=entry_points,
             goals=goals,
-            performed_nodes=entry_points,
+            performed_nodes=compromised_nodes,
             action_surface=frozenset(attack_surface),
             step_action_surface_additions=frozenset(attack_surface),
             step_action_surface_removals=frozenset(),
-            step_performed_nodes=entry_points,
+            step_performed_nodes=compromised_nodes,
             step_unviable_nodes=frozenset(),
             step_attempted_nodes=frozenset(),
             num_attempts=MappingProxyType(
@@ -682,8 +706,12 @@ class MalSimulator:
         # Find what nodes attacker can reach this step
         action_surface_additions = (
             self._get_attack_surface(
+                attacker_state.entry_points,
                 attacker_state.performed_nodes | step_agent_compromised_nodes,
                 from_nodes=step_agent_compromised_nodes,
+                include_entry_points=(
+                    not self.sim_settings.compromise_entrypoints_at_start
+                )
             )
             - attacker_state.action_surface
         )
@@ -986,7 +1014,9 @@ class MalSimulator:
             )
 
             # Compromise node if possible
-            if self.node_is_traversable(agent.performed_nodes, node):
+            if self.node_is_traversable(
+                agent.entry_points, agent.performed_nodes, node
+            ):
                 if self._attempt_attacker_step(agent, node):
                     successful_compromises.append(node)
                     logger.info(
