@@ -1,4 +1,5 @@
 from maltoolbox.language import LanguageGraphAssociation
+from typing import Any
 from malsim.mal_simulator import MalSimAttackerState, MalSimDefenderState
 import numpy as np
 
@@ -12,7 +13,7 @@ from .mal_spaces import (
 from .serialization import LangSerializer
 
 def attacker_state2graph(
-    state: MalSimAttackerState, lang_serializer: LangSerializer, use_logic_gates: bool, see_defense_steps: bool = False
+    state: Any, lang_serializer: LangSerializer, use_logic_gates: bool, see_defense_steps: bool = False
 ) -> MALObsInstance:
     """Create a MALObsInstance of an attackers observation"""
 
@@ -144,10 +145,12 @@ def attacker_state2graph(
 
 
 def defender_state2graph(
-    state: MalSimDefenderState, lang_serializer: LangSerializer, use_logic_gates: bool
+    state: Any, lang_serializer: LangSerializer, use_logic_gates: bool
 ) -> MALObsInstance:
     """Create a MALObsInstance of a defender's observation"""
-    visible_assets = list(sorted(state.sim.attack_graph.model.assets.values(), key=lambda asset: asset.id))
+    model = state.sim.attack_graph.model
+    assert model is not None, "Attack graph must have a model"
+    visible_assets = list(sorted(model.assets.values(), key=lambda asset: asset.id))
     assets = Asset(
         type=np.array([
             lang_serializer.asset_type[asset.type] for asset in visible_assets
@@ -168,7 +171,7 @@ def defender_state2graph(
     if lang_serializer.split_attack_step_types:
         attack_step_type = np.array([
             lang_serializer.attack_step_type[(node.model_asset.type, node.name)]
-            for node in visible_steps
+            for node in visible_steps if node.model_asset is not None
         ])
     else:
         attack_step_type = np.array([

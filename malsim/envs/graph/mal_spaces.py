@@ -2,31 +2,32 @@ from gymnasium.spaces import Box, Space, Discrete, MultiDiscrete
 
 import numpy as np
 from typing import Any, NamedTuple, Sequence
+from numpy.typing import NDArray
 from .serialization import LangSerializer
 from malsim.mal_simulator import MalSimulator
 
 
 class Asset(NamedTuple):
-    type: np.ndarray[np.int64]
-    id: np.ndarray[np.int64]
+    type: NDArray[np.int64]
+    id: NDArray[np.int64]
 
 
 class Step(NamedTuple):
-    type: np.ndarray[np.int64]
-    id: np.ndarray[np.int64]
-    logic_class: np.ndarray[np.int64]
-    tags: np.ndarray[np.int64]
-    compromised: np.ndarray[np.bool]
-    attempts: np.ndarray[np.int64] | None
-    traversable: np.ndarray[np.bool] | None
+    type: NDArray[np.int64]
+    id: NDArray[np.int64]
+    logic_class: NDArray[np.int64]
+    tags: NDArray[np.int64]
+    compromised: NDArray[np.bool_]
+    attempts: NDArray[np.int64] | None
+    traversable: NDArray[np.bool_] | None
 
 
 class Association(NamedTuple):
-    type: np.ndarray[np.int64]
+    type: NDArray[np.int64]
 
 
 class LogicGate(NamedTuple):
-    type: np.ndarray[np.int64]
+    type: NDArray[np.int64]
 
 
 class MALObsInstance(NamedTuple):
@@ -42,11 +43,11 @@ class MALObsInstance(NamedTuple):
     associations: Association | None
     logic_gates: LogicGate | None
 
-    step2asset: np.ndarray[np.int64]
-    assoc2asset: np.ndarray[np.int64] | None
-    step2step: np.ndarray[np.int64]
-    logic2step: np.ndarray[np.int64] | None
-    step2logic: np.ndarray[np.int64] | None
+    step2asset: NDArray[np.int64]
+    assoc2asset: NDArray[np.int64] | None
+    step2step: NDArray[np.int64]
+    logic2step: NDArray[np.int64] | None
+    step2logic: NDArray[np.int64] | None
 
 
 class MALObs(Space[MALObsInstance]):
@@ -345,15 +346,15 @@ class MALObs(Space[MALObsInstance]):
             and self.logic_gate_type == other.logic_gate_type
         )
 
-    def to_jsonable(self, sample_n: Sequence[MALObsInstance]) -> list[dict[str, Any]]:
+    def to_jsonable(self, sample_n: Sequence[MALObsInstance]) -> list[Any]:
         """Convert a batch of samples from this space to a JSONable data type."""
         ret_n = []
         for sample in sample_n:
             ret = {
                 "time": sample.time,
                 "attack_step_compromised": sample.steps.compromised.tolist(),
-                "attack_step_attempts": sample.steps.attempts.tolist(),
-                "attack_step_traversable": sample.steps.traversable.tolist(),
+                "attack_step_attempts": sample.steps.attempts.tolist() if sample.steps.attempts is not None else None,
+                "attack_step_traversable": sample.steps.traversable.tolist() if sample.steps.traversable is not None else None,
                 "asset_type": sample.assets.type.tolist(),
                 "asset_id": sample.assets.id.tolist(),
                 "attack_step_type": sample.steps.type.tolist(),
@@ -381,7 +382,7 @@ class MALObs(Space[MALObsInstance]):
             ret_n.append(ret)
         return ret_n
 
-    def from_jsonable(self, sample_n: Sequence[dict[str, Any]]) -> list[MALObsInstance]:
+    def from_jsonable(self, sample_n: Sequence[Any]) -> list[MALObsInstance]:
         """Convert a JSONable data type to a batch of samples from this space."""
         ret_n: list[MALObsInstance] = []
         for sample in sample_n:
@@ -400,13 +401,13 @@ class MALObs(Space[MALObsInstance]):
                     sample["attack_step_compromised"],
                     dtype=self.attack_step_compromised.dtype,
                 ),
-                attempts=np.array(
-                    sample["attack_step_attempts"],
-                    dtype=self.attack_step_attempts.dtype,
+                attempts=(
+                    np.array(sample["attack_step_attempts"], dtype=self.attack_step_attempts.dtype)
+                    if sample["attack_step_attempts"] is not None else None
                 ),
-                traversable=np.array(
-                    sample["attack_step_traversable"],
-                    dtype=self.attack_step_traversable.dtype,
+                traversable=(
+                    np.array(sample["attack_step_traversable"], dtype=self.attack_step_traversable.dtype)
+                    if sample["attack_step_traversable"] is not None else None
                 ),
             )
             assets = Asset(
@@ -483,12 +484,13 @@ class MALObsAttackerActionSpace(Discrete):
             for step in actionable_attack_steps
         ])
 
-    def sample(self, traversable: np.ndarray[np.bool] | None = None) -> np.int64:
-        # The first n nodes are assumed to be AND/OR steps
-        if traversable is not None and traversable.shape[0] < self.n:
-            traversable = np.concatenate([traversable, np.zeros(self.n - traversable.shape[0], dtype=np.bool)])
+    def sample(
+        self,
+        mask: Any | None = None,
+        probability: Any | None = None,
+    ) -> np.int64:
         # TODO: Decide if actionability should be used for attacker as well
-        return super().sample(mask=traversable.astype(np.int8) if traversable is not None else None)
+        return super().sample(mask=mask, probability=probability)
 
 class MALObsDefenderActionSpace(Discrete):
     def __init__(
@@ -507,8 +509,19 @@ class MALObsDefenderActionSpace(Discrete):
             for step in actionable_defense_steps
         ])
 
-    def sample(self) -> np.int64:
-        return super().sample(mask=self.actionability.astype(np.int8))
+    def sample(
+        self,
+        mask: Any | None = None,
+        probability: Any | None = None,
+    ) -> np.int64:
+        base_mask = self.actionability.astype(np.int8)
+        if mask is not None:
+            # combine masks conservatively
+            length = min(len(base_mask), len(mask))
+            combined = base_mask.copy()
+            combined[:length] = (base_mask[:length] & (mask[:length] > 0)).astype(np.int8)
+            base_mask = combined
+        return super().sample(mask=base_mask, probability=probability)
 
     def __repr__(self) -> str:
         return f"MALObsDefenderActionSpace(n={self.n})"
@@ -516,10 +529,10 @@ class MALObsDefenderActionSpace(Discrete):
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, MALObsDefenderActionSpace):
             return False
-        return self.n == other.n and np.all(self.actionability == other.actionability)
+        return self.n == other.n and bool(np.all(self.actionability == other.actionability))
 
     def contains(self, x: Any) -> bool:
-        return super().contains(x) and self.actionability[x]
+        return bool(super().contains(x)) and bool(self.actionability[int(x)])
 
 class MALAttackerObs(MALObs):
 
@@ -643,4 +656,8 @@ class MALDefenderObs(MALObs):
             )
             ret_n.append(ret)
         return ret_n
+
+# Backwards-compatibility aliases for tests
+AttackStep = Step
+AttackStepSpace = Discrete
 

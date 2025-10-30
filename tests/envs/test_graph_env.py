@@ -2,6 +2,7 @@ from malsim.envs.graph.graph_env import (
     GraphAttackerEnv, GraphDefenderEnv, register_graph_envs
 )
 from malsim.scenario import Scenario
+from typing import Any
 from malsim.mal_simulator import MalSimulatorSettings, TTCMode, RewardMode
 from gymnasium.utils.env_checker import check_env
 
@@ -92,13 +93,13 @@ import pytest
         ),
     ]
 )
-def test_check_graph_env(sim_settings, use_logic_gates) -> None:
+def test_check_graph_env(sim_settings: MalSimulatorSettings, use_logic_gates: bool) -> None:
     scenario_file = (
         "tests/testdata/scenarios/simple_scenario.yml"
     )
     scenario = Scenario.load_from_file(scenario_file)
     register_graph_envs(scenario, use_logic_gates=use_logic_gates, sim_settings=sim_settings)
-    env = GraphAttackerEnv(scenario, use_logic_gates=use_logic_gates, sim_settings=sim_settings)
+    env: Any = GraphAttackerEnv(scenario, use_logic_gates=use_logic_gates, sim_settings=sim_settings)
     check_env(env, skip_render_check=True, skip_close_check=True)
 
     env = GraphDefenderEnv(
