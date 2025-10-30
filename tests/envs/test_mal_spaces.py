@@ -170,7 +170,8 @@ def test_obs_creation() -> None:
         assert attacker_obs in attacker_obs_space
         defender_obs = defender_state2graph(states[defender_name], serializer, use_logic_gates=False)
         assert defender_obs in defender_obs_space
-        attacker_obs_idx = attacker_action_space.sample(attacker_obs.steps.traversable)
+        assert isinstance(attacker_obs.steps.traversable, np.ndarray)
+        attacker_obs_idx = attacker_action_space.sample(attacker_obs.steps.traversable.astype(np.int8))
         defender_obs_idx = defender_action_space.sample()
 
         attacker_step_id = attacker_obs.steps.id[attacker_obs_idx]
