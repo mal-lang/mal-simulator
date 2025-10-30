@@ -13,8 +13,8 @@ from malsim.mal_simulator import (
     RewardMode,
 )
 from malsim.ttc_utils import TTCDist
+from malsim import Scenario, run_simulation
 
-from malsim import load_scenario, run_simulation
 from dataclasses import asdict
 import numpy as np
 import pytest
@@ -129,7 +129,7 @@ def test_simulator_initialize_agents(
 ) -> None:
     """Test _initialize_agents"""
 
-    scenario = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
+    scenario = Scenario.load_from_file('tests/testdata/scenarios/simple_scenario.yml')
     sim = MalSimulator.from_scenario(scenario, register_agents=False)
 
     # Register the agents
@@ -146,7 +146,7 @@ def test_simulator_initialize_agents(
 def test_get_agents() -> None:
     """Test _get_attacker_agents and _get_defender_agents"""
 
-    scenario = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
+    scenario = Scenario.load_from_file('tests/testdata/scenarios/simple_scenario.yml')
     sim = MalSimulator.from_scenario(scenario)
     sim.reset()
 
@@ -743,7 +743,9 @@ def test_agent_state_views_simple(
 
 
 def test_step_attacker_defender_action_surface_updates() -> None:
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_scenario.yml'
+    )
 
     sim = MalSimulator.from_scenario(scenario, register_agents=False)
     # Register the agents
@@ -791,7 +793,9 @@ def test_step_attacker_defender_action_surface_updates() -> None:
 def test_default_simulator_default_settings_eviction() -> None:
     """Test attacker node eviction using MalSimulatorSettings default"""
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_scenario.yml'
+    )
     sim = MalSimulator.from_scenario(scenario)
 
     attacker_agent_id = 'Attacker1'
@@ -828,7 +832,9 @@ def test_default_simulator_default_settings_eviction() -> None:
 def test_simulator_false_positives() -> None:
     """Create a simulator with false positives"""
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_fp_fn_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
+    )
 
     scenario.false_negative_rates = {}
 
@@ -849,7 +855,9 @@ def test_simulator_false_positives() -> None:
 def test_simulator_false_positives_reset() -> None:
     """Create a simulator with false positives"""
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_fp_fn_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
+    )
 
     scenario.false_negative_rates = {}
     sim = MalSimulator.from_scenario(
@@ -864,7 +872,9 @@ def test_simulator_false_positives_reset() -> None:
 def test_simulator_false_negatives() -> None:
     """Create a simulator with false negatives"""
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_fp_fn_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
+    )
 
     scenario.false_positive_rates = {}
 
@@ -885,7 +895,9 @@ def test_simulator_false_negatives() -> None:
 def test_simulator_no_fpr_fnr() -> None:
     """Create a simulator with no fnr fpr"""
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_fp_fn_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
+    )
 
     sim = MalSimulator.from_scenario(
         scenario, sim_settings=MalSimulatorSettings(seed=100), max_iter=100
@@ -904,7 +916,9 @@ def test_simulator_no_fpr_fnr() -> None:
 def test_simulator_ttcs() -> None:
     """Create a simulator and check TTCs, then reset and check TTCs again"""
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_scenario.yml'
+    )
     sim = MalSimulator.from_scenario(
         scenario, sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.PER_STEP_SAMPLE)
     )
@@ -958,7 +972,9 @@ def test_simulator_multiple_attackers() -> None:
     full action surface every step. Defender is passive.
     """
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_scenario.yml'
+    )
 
     sim = MalSimulator.from_scenario(
         scenario,
@@ -1016,7 +1032,9 @@ def test_simulator_multiple_defenders() -> None:
     if use forces it. It makes no sense.
     """
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_scenario.yml'
+    )
 
     sim = MalSimulator.from_scenario(
         scenario,
@@ -1064,7 +1082,9 @@ def test_simulator_multiple_defenders() -> None:
 def test_simulator_seed_setting() -> None:
     """Test that the seed setting works"""
 
-    scenario = load_scenario('tests/testdata/scenarios/socialEngineering_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/socialEngineering_scenario.yml'
+    )
     sim = MalSimulator.from_scenario(
         scenario,
         sim_settings=MalSimulatorSettings(
