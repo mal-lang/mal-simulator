@@ -95,6 +95,16 @@ class TTCDist:
         self.combine_with = combine_with
         self.combine_op = combine_op
 
+    def __eq__(self, other: object) -> bool:
+        """Override equality comparison"""
+        return (
+            isinstance(other, TTCDist)
+            and self.function == other.function
+            and self.args == other.args
+            and self.combine_op == other.combine_op
+            and self.combine_with == other.combine_with
+        )
+
     @property
     def expected_value(self) -> float:
         """Return the expected value of a TTCDist"""
@@ -192,6 +202,21 @@ class TTCDist:
         lhs.combine_op = Operation[ttc_dict['type'].upper()]
         lhs.combine_with = TTCDist.from_dict(ttc_dict['rhs'])
         return lhs
+
+    def to_dict(self) -> dict[str, Any]:
+        ttc_dict = {
+            'name': self.function.value,
+            'arguments': self.args,
+            'type': 'function',
+        }
+        if self.combine_with and self.combine_op:
+            return {
+                'lhs': ttc_dict,
+                'rhs': self.combine_with.to_dict(),
+                'type': self.combine_op.value
+            }
+        else:
+            return ttc_dict
 
     @classmethod
     def from_node(
