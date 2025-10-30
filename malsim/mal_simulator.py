@@ -156,6 +156,10 @@ class MalSimulatorSettings:
     # attack_surface_skip_unnecessary
     # - if true do not add unnecessary nodes to the attack surface
     attack_surface_skip_unnecessary: bool = True
+    # If set to True, each attacker compromises/performs their
+    # entry point nodes at the start of the simulation
+    compromise_entrypoints_at_start: bool = True
+
     # run_defense_step_bernoullis
     # - if true, sample defenses bernoullis to decide their initial states
     run_defense_step_bernoullis: bool = True
@@ -444,7 +448,7 @@ class MalSimulator:
             # Only attack steps have traversability
             return False
 
-        if not node.parents & performed_nodes:
+        if not (node.parents & performed_nodes):
             # If no parent is reached, the node can not be traversable
             return False
 
@@ -647,18 +651,27 @@ class MalSimulator:
             if goals
             else None
         )
+        compromised_nodes = (
+            entry_points
+            if self.sim_settings.compromise_entrypoints_at_start else frozenset()
+        )
+        attack_surface = self._get_attack_surface(compromised_nodes)
 
-        attack_surface = self._get_attack_surface(entry_points)
+        if not self.sim_settings.compromise_entrypoints_at_start:
+            # If entrypoints not compromised at start,
+            # we need to put them in action surface
+            attack_surface |= entry_points
+
         attacker_state = MalSimAttackerState(
             name,
             sim=self,
             entry_points=entry_points,
             goals=goals,
-            performed_nodes=entry_points,
+            performed_nodes=compromised_nodes,
             action_surface=frozenset(attack_surface),
             step_action_surface_additions=frozenset(attack_surface),
             step_action_surface_removals=frozenset(),
-            step_performed_nodes=entry_points,
+            step_performed_nodes=compromised_nodes,
             step_unviable_nodes=frozenset(),
             step_attempted_nodes=frozenset(),
             num_attempts=MappingProxyType(
@@ -985,22 +998,22 @@ class MalSimulator:
                 'comes from the agents action surface.'
             )
 
-            # Compromise node if possible
-            if self.node_is_traversable(agent.performed_nodes, node):
+            traversable = self.node_is_traversable(agent.performed_nodes, node)
+            if node in agent.entry_points:
+                # Entrypoints are traversable as long as they are viable
+                traversable = self.node_is_viable(node)
+
+            if traversable:
                 if self._attempt_attacker_step(agent, node):
                     successful_compromises.append(node)
                     logger.info(
                         'Attacker agent "%s" compromised "%s" (reward: %d).',
-                        agent.name,
-                        node.full_name,
-                        self.node_reward(node),
+                        agent.name, node.full_name, self.node_reward(node),
                     )
                 else:
                     logger.info(
                         'Attacker agent "%s" attempted "%s" (attempt %d).',
-                        agent.name,
-                        node.full_name,
-                        agent.num_attempts[node],
+                        agent.name, node.full_name, agent.num_attempts[node],
                     )
                     attempted_compromises.append(node)
 

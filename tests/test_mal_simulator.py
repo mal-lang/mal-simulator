@@ -338,6 +338,56 @@ def test_is_traversable(corelang_lang_graph: LanguageGraph, model: Model) -> Non
             assert not sim.node_is_traversable(attacker_state.performed_nodes, node)
 
 
+def test_not_initial_compromise_entrypoints(
+    corelang_lang_graph: LanguageGraph, model: Model
+) -> None:
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    entry_point = get_node(attack_graph, 'OS App:fullAccess')
+    sim = MalSimulator(
+        attack_graph,
+        sim_settings=MalSimulatorSettings(
+            compromise_entrypoints_at_start=False
+        )
+    )
+    attacker_name = 'Test Attacker'
+    sim.register_attacker(attacker_name, {entry_point})
+    attacker_state = sim.reset()[attacker_name]
+
+    # No performed nodes, action surface is only the entrypoint
+    assert attacker_state.performed_nodes == set()
+    assert attacker_state.action_surface == {entry_point}
+
+    # Step through entrypoint adds it to performed nodes and extends the action surface
+    attacker_state = sim.step({attacker_name: [entry_point]})[attacker_name]
+    assert attacker_state.performed_nodes == {entry_point}
+    assert attacker_state.action_surface == {n for n in entry_point.children}
+
+
+def test_not_initial_compromise_entrypoints_unviable_step(
+    corelang_lang_graph: LanguageGraph, model: Model
+) -> None:
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    sim = MalSimulator(
+        attack_graph,
+        sim_settings=MalSimulatorSettings(
+            compromise_entrypoints_at_start=False
+        )
+    )
+    attacker_name = 'Test Attacker'
+    defender_name = 'Test Defender'
+    sim.register_attacker(attacker_name, {'OS App:fullAccess'})
+    sim.register_defender(defender_name)
+    attacker_state = sim.reset()[attacker_name]
+
+    # Step should not succeed if defender defended the entrypoint
+    attacker_state = sim.step({
+        attacker_name: ['OS App:fullAccess'],
+        defender_name: ['OS App:notPresent']
+    })[attacker_name]
+    assert attacker_state.performed_nodes == set()
+    assert attacker_state.action_surface == set()
+
+
 def test_is_compromised(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
     entry_point = get_node(attack_graph, 'OS App:fullAccess')
