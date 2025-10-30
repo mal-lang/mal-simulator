@@ -20,7 +20,7 @@ from malsim.mal_simulator import (
     MalSimAttackerState,
     MalSimDefenderState,
 )
-from malsim.envs.serialization import LangSerializer
+from .serialization import LangSerializer
 from gymnasium.envs.registration import EnvSpec
 import numpy as np
 from typing import SupportsFloat

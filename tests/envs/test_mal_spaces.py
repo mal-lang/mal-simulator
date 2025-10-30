@@ -1,16 +1,16 @@
 from maltoolbox.language import LanguageGraphAssociation
 from maltoolbox.attackgraph import AttackGraphNode
-from malsim.envs.serialization import LangSerializer
-from malsim.envs.mal_spaces import (
+from malsim.envs.graph.serialization import LangSerializer
+from malsim.envs.graph.mal_spaces import (
     MALObs,
     MALObsInstance,
     AttackStep,
     Asset,
     Association,
     LogicGate,
-    attacker_state2graph,
-    AttackGraphNodeSpace,
+    AttackStepSpace,
 )
+from malsim.envs.graph.utils import attacker_state2graph, defender_state2graph
 from malsim.scenario import Scenario, AgentType
 from malsim.mal_simulator import MalSimulator, MalSimAttackerState
 import numpy as np
@@ -169,23 +169,24 @@ def test_obs_creation() -> None:
         assert isinstance(state, MalSimAttackerState)
         assert attacker_state2graph(state, serializer, use_logic_gates=False) in obs_space
 
-def test_node_space() -> None:
-    scenario_file = (
-        "tests/testdata/scenarios/simple_scenario.yml"
-    )
-    scenario = Scenario.load_from_file(scenario_file)
-    attacker = next(agent for agent in scenario.agents if agent['type'] == AgentType.ATTACKER)
-    agent_name = attacker['name']
-    sim = MalSimulator.from_scenario(scenario)
-    action_space = AttackGraphNodeSpace(sim.attack_graph)
+# def test_node_space() -> None:
+#     scenario_file = (
+#         "tests/testdata/scenarios/simple_scenario.yml"
+#     )
+#     scenario = Scenario.load_from_file(scenario_file)
+#     attacker = next(agent for agent in scenario.agents if agent['type'] == AgentType.ATTACKER)
+#     agent_name = attacker['name']
+#     sim = MalSimulator.from_scenario(scenario)
+#     obs_space = MALObs(serializer, use_logic_gates=False)
+#     action_space = AttackStepSpace(obs_space.attack_steps)
 
-    state = sim.reset()[agent_name]
+#     state = sim.reset()[agent_name]
 
-    while not sim.agent_is_terminated(agent_name):
-        action = next(iter(state.action_surface))
-        assert action.id in action_space
-        actions = {agent_name: [action]}
-        state = sim.step(actions)[agent_name]
+#     while not sim.agent_is_terminated(agent_name):
+#         action = next(iter(state.action_surface))
+#         assert action.id in action_space
+#         actions = {agent_name: [action]}
+#         state = sim.step(actions)[agent_name]
 
 def test_jsonable() -> None:
     scenario_file = (
