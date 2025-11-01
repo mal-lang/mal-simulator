@@ -63,7 +63,7 @@ def test_mal_obs() -> None:
             attempts=np.array([
                 get_total_attempts(node) for node in sorted_attack_steps
             ]),
-            traversable=np.array([
+            action_mask=np.array([
                 is_traversable_by_any(node) for node in sorted_attack_steps
             ]),
         )
@@ -174,8 +174,8 @@ def test_obs_creation() -> None:
         assert isinstance(defender_state, MalSimDefenderState)
         defender_obs = defender_state2graph(defender_state, serializer, use_logic_gates=False)
         assert defender_obs in defender_obs_space
-        assert isinstance(attacker_obs.steps.traversable, np.ndarray)
-        attacker_obs_idx = attacker_action_space.sample(attacker_obs.steps.traversable.astype(np.int8))
+        assert isinstance(attacker_obs.steps.action_mask, np.ndarray)
+        attacker_obs_idx = attacker_action_space.sample(attacker_obs.steps.action_mask.astype(np.int8))
         defender_obs_idx = defender_action_space.sample()
 
         attacker_step_id = attacker_obs.steps.id[attacker_obs_idx]
@@ -208,7 +208,7 @@ def test_jsonable() -> None:
     assert obs_from_jsonable in obs_space
 
     attacker_action_space = MALObsAttackerActionSpace(sim)
-    attacker_obs_idx = attacker_action_space.sample(obs.steps.traversable)
+    attacker_obs_idx = attacker_action_space.sample(obs.steps.action_mask)
     jsonable = attacker_action_space.to_jsonable([attacker_obs_idx])
     attacker_obs_idx_from_jsonable = attacker_action_space.from_jsonable(jsonable)[0]
     assert attacker_obs_idx_from_jsonable == attacker_obs_idx

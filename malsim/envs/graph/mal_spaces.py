@@ -19,7 +19,7 @@ class Step(NamedTuple):
     tags: NDArray[np.int64]
     compromised: NDArray[np.bool_]
     attempts: NDArray[np.int64] | None
-    traversable: NDArray[np.bool_]
+    action_mask: NDArray[np.bool_]
 
 
 class Association(NamedTuple):
@@ -93,7 +93,7 @@ class MALObs(Space[MALObsInstance]):
         self.time = Box(0, np.inf, shape=[], dtype=np.int64)
         self.attack_step_compromised = Box(0, 1, shape=[], dtype=np.int8)
         self.attack_step_attempts = Box(0, np.inf, shape=[], dtype=np.int64)
-        self.attack_step_traversable = Box(0, 1, shape=[], dtype=np.int8)
+        self.attack_step_action_mask = Box(0, 1, shape=[], dtype=np.int8)
         self.attack_step_id = Box(0, np.inf, shape=[], dtype=np.int64)
         self.asset_id = Box(0, np.inf, shape=[], dtype=np.int64)
 
@@ -123,7 +123,7 @@ class MALObs(Space[MALObsInstance]):
                 "time": self.time.seed(None),
                 "attack_step_compromised": self.attack_step_compromised.seed(None),
                 "attack_step_attempts": self.attack_step_attempts.seed(None),
-                "attack_step_traversable": self.attack_step_traversable.seed(None),
+                "attack_step_action_mask": self.attack_step_action_mask.seed(None),
             }
             if self.logic_gate_type:
                 seeds["logic_gate_type"] = self.logic_gate_type.seed(None)
@@ -145,7 +145,7 @@ class MALObs(Space[MALObsInstance]):
                 "time": self.time.seed(node_seed),
                 "attack_step_compromised": self.attack_step_compromised.seed(node_seed),
                 "attack_step_attempts": self.attack_step_attempts.seed(node_seed),
-                "attack_step_traversable": self.attack_step_traversable.seed(node_seed),
+                "attack_step_action_mask": self.attack_step_action_mask.seed(node_seed),
             }
             if self.logic_gate_type:
                 seeds["logic_gate_type"] = self.logic_gate_type.seed(node_seed)
@@ -207,19 +207,19 @@ class MALObs(Space[MALObsInstance]):
                 )
             else:
                 attack_step_attempts_valid = True
-            if x.steps.traversable is not None:
-                attack_step_traversable_valid = all(
-                    x.steps.traversable[i] in self.attack_step_traversable
-                    for i in range(len(x.steps.traversable))
+            if x.steps.action_mask is not None:
+                attack_step_action_mask_valid = all(
+                    x.steps.action_mask[i] in self.attack_step_action_mask
+                    for i in range(len(x.steps.action_mask))
                 )
             else:
-                attack_step_traversable_valid = True
+                attack_step_action_mask_valid = True
 
             feature_valid = (
                 time_valid
                 and attack_step_compromised_valid
                 and attack_step_attempts_valid
-                and attack_step_traversable_valid
+                and attack_step_action_mask_valid
                 and asset_type_valid
                 and attack_step_type_valid
                 and attack_step_class_valid
@@ -318,7 +318,7 @@ class MALObs(Space[MALObsInstance]):
             f"MALObs(time={self.time.shape}, "
             f"attack_step_compromised={self.attack_step_compromised.shape}, "
             f"attack_step_attempts={self.attack_step_attempts.shape}, "
-            f"attack_step_traversable={self.attack_step_traversable.shape}, "
+            f"attack_step_action_mask={self.attack_step_action_mask.shape}, "
             f"asset_type={self.asset_type.shape}, "
             f"attack_step_type={self.attack_step_type.shape}, "
             f"attack_step_class={self.attack_step_class.shape}, "
@@ -338,7 +338,7 @@ class MALObs(Space[MALObsInstance]):
             self.time == other.time
             and self.attack_step_compromised == other.attack_step_compromised
             and self.attack_step_attempts == other.attack_step_attempts
-            and self.attack_step_traversable == other.attack_step_traversable
+            and self.attack_step_action_mask == other.attack_step_action_mask
             and self.asset_type == other.asset_type
             and self.attack_step_type == other.attack_step_type
             and self.attack_step_class == other.attack_step_class
@@ -354,7 +354,7 @@ class MALObs(Space[MALObsInstance]):
                 "time": sample.time,
                 "attack_step_compromised": sample.steps.compromised.tolist(),
                 "attack_step_attempts": sample.steps.attempts.tolist() if sample.steps.attempts is not None else None,
-                "attack_step_traversable": sample.steps.traversable.tolist() if sample.steps.traversable is not None else None,
+                "attack_step_action_mask": sample.steps.action_mask.tolist() if sample.steps.action_mask is not None else None,
                 "asset_type": sample.assets.type.tolist(),
                 "asset_id": sample.assets.id.tolist(),
                 "attack_step_type": sample.steps.type.tolist(),
@@ -405,8 +405,8 @@ class MALObs(Space[MALObsInstance]):
                     np.array(sample["attack_step_attempts"], dtype=self.attack_step_attempts.dtype)
                     if sample["attack_step_attempts"] is not None else None
                 ),
-                traversable=(
-                    np.array(sample["attack_step_traversable"], dtype=self.attack_step_traversable.dtype)
+                action_mask=(
+                    np.array(sample["attack_step_action_mask"], dtype=self.attack_step_action_mask.dtype)
                 ),
             )
             assets = Asset(
@@ -538,14 +538,14 @@ class MALAttackerObs(MALObs):
     def contains(self, x: MALObsInstance) -> bool:
         if not super().contains(x):
             return False
-        # Attacker observations must include attempts and traversable arrays
+        # Attacker observations must include attempts
         return x.steps.attempts is not None
 
 
 class MALDefenderObs(MALObs):
 
     def contains(self, x: MALObsInstance) -> bool:
-        # Defender observations must NOT include attempts and traversable
+        # Defender observations must NOT include attempts
         if x.steps.attempts is not None:
             return False
         return super().contains(x)
@@ -553,12 +553,12 @@ class MALDefenderObs(MALObs):
     def to_jsonable(self, sample_n: Sequence[MALObsInstance]) -> list[dict[str, Any]]:
         ret_n = []
         for sample in sample_n:
-            # Force attempts and traversable to None for defender
+            # Force attempts and action_mask to None for defender
             ret = {
                 "time": sample.time,
                 "attack_step_compromised": sample.steps.compromised.tolist(),
                 "attack_step_attempts": None,
-                "attack_step_traversable": sample.steps.traversable.tolist(),
+                "attack_step_action_mask": sample.steps.action_mask.tolist(),
                 "asset_type": sample.assets.type.tolist(),
                 "asset_id": sample.assets.id.tolist(),
                 "attack_step_type": sample.steps.type.tolist(),
@@ -605,7 +605,7 @@ class MALDefenderObs(MALObs):
                     dtype=self.attack_step_compromised.dtype,
                 ),
                 attempts=None,
-                traversable=np.array(sample["attack_step_traversable"], dtype=self.attack_step_traversable.dtype),
+                action_mask=np.array(sample["attack_step_action_mask"], dtype=self.attack_step_action_mask.dtype),
             )
             assets = Asset(
                 type=np.array(sample["asset_type"], dtype=self.asset_type.dtype),

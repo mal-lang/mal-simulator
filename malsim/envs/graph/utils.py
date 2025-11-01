@@ -69,7 +69,7 @@ def attacker_state2graph(
         attempts=np.array([
             state.num_attempts.get(node, 0) for node in visible_steps
         ]),
-        traversable=np.array([
+        action_mask=np.array([
             state.sim.node_is_traversable(state.performed_nodes, node)
             for node in visible_steps
         ]),
@@ -152,9 +152,8 @@ def attacker_update_obs(
     attempted_node_ids = np.array([node.id for node in state.step_attempted_nodes])
     compromised_node_ids = np.array([node.id for node in state.performed_nodes])
 
-    if obs.steps.traversable is not None:
-        obs.steps.traversable[np.where(traversable_node_ids == obs.steps.id)] = True
-        obs.steps.traversable[np.where(untraversable_node_ids == obs.steps.id)] = False
+    obs.steps.action_mask[np.where(traversable_node_ids == obs.steps.id)] = True
+    obs.steps.action_mask[np.where(untraversable_node_ids == obs.steps.id)] = False
     if obs.steps.attempts is not None:
         obs.steps.attempts[np.where(attempted_node_ids == obs.steps.id)] += 1
     obs.steps.compromised[np.where(compromised_node_ids == obs.steps.id)] = True
@@ -209,7 +208,7 @@ def defender_state2graph(
             (True if node in state.observed_nodes else False) for node in visible_steps
         ]),
         attempts=None,
-        traversable=np.array([True if node in state.action_surface else False for node in visible_steps], dtype=np.bool_),
+        action_mask=np.array([True if node in state.action_surface else False for node in visible_steps], dtype=np.bool_),
     )
     step2asset_links = np.array(list(zip(*{
         (visible_steps.index(node), visible_assets.index(node.model_asset))
@@ -286,8 +285,8 @@ def defender_update_obs(
     """Update the observation of the serialized obs defender"""
     actionable_node_ids = np.array([node.id for node in state.step_action_surface_additions])
     non_actionable_node_ids = np.array([node.id for node in state.step_action_surface_removals])
-    obs.steps.traversable[np.where(actionable_node_ids == obs.steps.id)] = True
-    obs.steps.traversable[np.where(non_actionable_node_ids == obs.steps.id)] = False
+    obs.steps.action_mask[np.where(actionable_node_ids == obs.steps.id)] = True
+    obs.steps.action_mask[np.where(non_actionable_node_ids == obs.steps.id)] = False
 
     observed_node_ids = np.array([node.id for node in state.observed_nodes])
     obs.steps.compromised[np.where(observed_node_ids == obs.steps.id)] = True
