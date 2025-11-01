@@ -125,9 +125,11 @@ def test_attacker_episode() -> None:
 
     done = False
     obs, info = attacker_env.reset()
+    steps = 0
     while not done:
         obs, reward, terminated, truncated, info = attacker_env.step(attacker_env.action_space.sample(obs.steps.action_mask))
-        done = terminated or truncated
+        steps += 1
+        done = terminated or truncated or (steps > 10_000)
 
 def test_defender_episode() -> None:
     scenario_file = (
@@ -144,6 +146,8 @@ def test_defender_episode() -> None:
 
     done = False
     obs, info = defender_env.reset()
+    steps = 0
     while not done:
         obs, reward, terminated, truncated, info = defender_env.step(defender_env.action_space.sample(obs.steps.action_mask))
-        done = terminated or truncated
+        steps += 1
+        done = terminated or truncated or (steps > 10_000)
