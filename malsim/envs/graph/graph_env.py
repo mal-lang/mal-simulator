@@ -7,7 +7,7 @@ from .mal_spaces import (
     MALObs,
     MALObsInstance,
 )
-from .utils import attacker_state2graph, defender_state2graph
+from .utils import attacker_state2graph, attacker_update_obs, defender_state2graph, defender_update_obs
 from os import PathLike
 from malsim.scenario import AgentType, Scenario
 from malsim.mal_simulator import (
@@ -127,12 +127,11 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
             self.agent_name
         ]
         assert isinstance(state, MalSimAttackerState)
-        obs = attacker_state2graph(state, self.lang_serializer, self.use_logic_gates)
-        self._obs = obs
+        self._obs = attacker_update_obs(self._obs, state)
         terminated = self.sim.agent_is_terminated(self.agent_name)
         reward = self.sim.agent_reward(self.agent_name)
         info = {"state": state}
-        return obs, reward, terminated, False, info
+        return self._obs, reward, terminated, False, info
 
     def render(self) -> None:
         raise NotImplementedError("Render not implemented")
@@ -208,12 +207,11 @@ class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
             self.agent_name
         ]
         assert isinstance(state, MalSimDefenderState)
-        obs = defender_state2graph(state, self.lang_serializer, self.use_logic_gates)
-        self._obs = obs
+        self._obs = defender_update_obs(self._obs, state)
         terminated = self.sim.agent_is_terminated(self.agent_name)
         reward = self.sim.agent_reward(self.agent_name)
         info = {"state": state}
-        return obs, reward, terminated, False, info
+        return self._obs, reward, terminated, False, info
 
     def render(self) -> None:
         raise NotImplementedError("Render not implemented")

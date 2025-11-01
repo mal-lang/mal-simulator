@@ -152,11 +152,14 @@ def attacker_update_obs(
     attempted_node_ids = np.array([node.id for node in state.step_attempted_nodes])
     compromised_node_ids = np.array([node.id for node in state.performed_nodes])
 
-    obs.steps.action_mask[np.where(traversable_node_ids == obs.steps.id)] = True
-    obs.steps.action_mask[np.where(untraversable_node_ids == obs.steps.id)] = False
-    if obs.steps.attempts is not None:
-        obs.steps.attempts[np.where(attempted_node_ids == obs.steps.id)] += 1
-    obs.steps.compromised[np.where(compromised_node_ids == obs.steps.id)] = True
+    if traversable_node_ids.size > 0:
+        obs.steps.action_mask[np.where(np.tile(traversable_node_ids, (len(obs.steps.id), 1)) == obs.steps.id[:, np.newaxis])[0]] = True
+    if untraversable_node_ids.size > 0:
+        obs.steps.action_mask[np.where(np.tile(untraversable_node_ids, (len(obs.steps.id), 1)) == obs.steps.id[:, np.newaxis])[0]] = False
+    if obs.steps.attempts is not None and attempted_node_ids.size > 0:
+        obs.steps.attempts[np.where(np.tile(attempted_node_ids, (len(obs.steps.id), 1)) == obs.steps.id[:, np.newaxis])[0]] += 1
+    if compromised_node_ids.size > 0:
+        obs.steps.compromised[np.where(np.tile(compromised_node_ids, (len(obs.steps.id), 1)) == obs.steps.id[:, np.newaxis])[0]] = True
     
     return obs
 
@@ -285,10 +288,13 @@ def defender_update_obs(
     """Update the observation of the serialized obs defender"""
     actionable_node_ids = np.array([node.id for node in state.step_action_surface_additions])
     non_actionable_node_ids = np.array([node.id for node in state.step_action_surface_removals])
-    obs.steps.action_mask[np.where(actionable_node_ids == obs.steps.id)] = True
-    obs.steps.action_mask[np.where(non_actionable_node_ids == obs.steps.id)] = False
+    if actionable_node_ids.size > 0:
+        obs.steps.action_mask[np.where(np.tile(actionable_node_ids, (len(obs.steps.id), 1)) == obs.steps.id[:, np.newaxis])[0]] = True
+    if non_actionable_node_ids.size > 0:
+        obs.steps.action_mask[np.where(np.tile(non_actionable_node_ids, (len(obs.steps.id), 1)) == obs.steps.id[:, np.newaxis])[0]] = False
 
     observed_node_ids = np.array([node.id for node in state.observed_nodes])
-    obs.steps.compromised[np.where(observed_node_ids == obs.steps.id)] = True
-    obs.steps.compromised[np.where(observed_node_ids != obs.steps.id)] = False
+    if observed_node_ids.size > 0:
+        obs.steps.compromised[np.where(np.tile(observed_node_ids, (len(obs.steps.id), 1)) == obs.steps.id[:, np.newaxis])[0]] = True
+        obs.steps.compromised[np.where(np.tile(observed_node_ids, (len(obs.steps.id), 1)) != obs.steps.id[:, np.newaxis])[0]] = False
     return obs

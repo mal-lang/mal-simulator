@@ -519,6 +519,8 @@ class MALObsDefenderActionSpace(Discrete):
         if mask is not None:
             if isinstance(mask, np.ndarray) and mask.shape[0] < self.n:
                 mask = np.concatenate([mask, np.zeros(self.n - mask.shape[0], dtype=np.int8)])
+            elif isinstance(mask, np.ndarray) and mask.shape[0] > self.n:
+                mask = mask[:self.n]
             base_mask = base_mask & mask
         return super().sample(mask=base_mask, probability=probability)
 
