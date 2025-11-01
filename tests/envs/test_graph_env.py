@@ -109,3 +109,22 @@ def test_check_graph_env(sim_settings: MalSimulatorSettings, use_logic_gates: bo
     )
     check_env(env, skip_render_check=True, skip_close_check=True)
 
+
+def test_graph_env_episode() -> None:
+    scenario_file = (
+        "tests/testdata/scenarios/simple_scenario.yml"
+    )
+    scenario = Scenario.load_from_file(scenario_file)
+    attacker_env = GraphAttackerEnv(scenario, use_logic_gates=True, sim_settings=MalSimulatorSettings(
+        ttc_mode=TTCMode.PER_STEP_SAMPLE,
+        run_defense_step_bernoullis=False,
+        run_attack_step_bernoullis=False,
+        attack_surface_skip_unnecessary=False,
+        attacker_reward_mode=RewardMode.ONE_OFF,
+    ))
+
+    done = False
+    obs, info = attacker_env.reset()
+    while not done:
+        obs, reward, terminated, truncated, info = attacker_env.step(attacker_env.action_space.sample(obs.steps.action_mask))
+        done = terminated or truncated
