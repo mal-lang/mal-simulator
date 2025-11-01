@@ -19,7 +19,7 @@ class Step(NamedTuple):
     tags: NDArray[np.int64]
     compromised: NDArray[np.bool_]
     attempts: NDArray[np.int64] | None
-    traversable: NDArray[np.bool_] | None
+    traversable: NDArray[np.bool_]
 
 
 class Association(NamedTuple):
@@ -407,7 +407,6 @@ class MALObs(Space[MALObsInstance]):
                 ),
                 traversable=(
                     np.array(sample["attack_step_traversable"], dtype=self.attack_step_traversable.dtype)
-                    if sample["attack_step_traversable"] is not None else None
                 ),
             )
             assets = Asset(
@@ -518,11 +517,9 @@ class MALObsDefenderActionSpace(Discrete):
     ) -> np.int64:
         base_mask = self.actionability.astype(np.int8)
         if mask is not None:
-            # combine masks conservatively
-            length = min(len(base_mask), len(mask))
-            combined = base_mask.copy()
-            combined[:length] = (base_mask[:length] & (mask[:length] > 0)).astype(np.int8)
-            base_mask = combined
+            if isinstance(mask, np.ndarray) and mask.shape[0] < self.n:
+                mask = np.concatenate([mask, np.zeros(self.n - mask.shape[0], dtype=np.int8)])
+            base_mask = base_mask & mask
         return super().sample(mask=base_mask, probability=probability)
 
     def __repr__(self) -> str:
@@ -542,14 +539,14 @@ class MALAttackerObs(MALObs):
         if not super().contains(x):
             return False
         # Attacker observations must include attempts and traversable arrays
-        return x.steps.attempts is not None and x.steps.traversable is not None
+        return x.steps.attempts is not None
 
 
 class MALDefenderObs(MALObs):
 
     def contains(self, x: MALObsInstance) -> bool:
         # Defender observations must NOT include attempts and traversable
-        if x.steps.attempts is not None or x.steps.traversable is not None:
+        if x.steps.attempts is not None:
             return False
         return super().contains(x)
 
@@ -561,7 +558,7 @@ class MALDefenderObs(MALObs):
                 "time": sample.time,
                 "attack_step_compromised": sample.steps.compromised.tolist(),
                 "attack_step_attempts": None,
-                "attack_step_traversable": None,
+                "attack_step_traversable": sample.steps.traversable.tolist(),
                 "asset_type": sample.assets.type.tolist(),
                 "asset_id": sample.assets.id.tolist(),
                 "attack_step_type": sample.steps.type.tolist(),
@@ -608,7 +605,7 @@ class MALDefenderObs(MALObs):
                     dtype=self.attack_step_compromised.dtype,
                 ),
                 attempts=None,
-                traversable=None,
+                traversable=np.array(sample["attack_step_traversable"], dtype=self.attack_step_traversable.dtype),
             )
             assets = Asset(
                 type=np.array(sample["asset_type"], dtype=self.asset_type.dtype),
@@ -658,8 +655,4 @@ class MALDefenderObs(MALObs):
             )
             ret_n.append(ret)
         return ret_n
-
-# Backwards-compatibility aliases for tests
-AttackStep = Step
-AttackStepSpace = Discrete
 

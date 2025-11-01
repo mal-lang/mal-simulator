@@ -1,5 +1,4 @@
 from maltoolbox.language import LanguageGraphAssociation
-from typing import Any
 import numpy as np
 
 from .mal_spaces import (
@@ -10,9 +9,10 @@ from .mal_spaces import (
     MALObsInstance,
 )
 from .serialization import LangSerializer
+from malsim.mal_simulator import MalSimAttackerState, MalSimDefenderState
 
 def attacker_state2graph(
-    state: Any, lang_serializer: LangSerializer, use_logic_gates: bool, see_defense_steps: bool = False
+    state: MalSimAttackerState, lang_serializer: LangSerializer, use_logic_gates: bool, see_defense_steps: bool = False
 ) -> MALObsInstance:
     """Create a MALObsInstance of an attackers observation"""
 
@@ -142,9 +142,27 @@ def attacker_state2graph(
         step2logic=step2logic_links,
     )
 
+def attacker_update_obs(
+    obs: MALObsInstance,
+    state: MalSimAttackerState,
+) -> MALObsInstance:
+    """Update the observation of the serialized obs attacker"""
+    traversable_node_ids = np.array([node.id for node in state.step_action_surface_additions])
+    untraversable_node_ids = np.array([node.id for node in state.step_action_surface_removals])
+    attempted_node_ids = np.array([node.id for node in state.step_attempted_nodes])
+    compromised_node_ids = np.array([node.id for node in state.performed_nodes])
+
+    if obs.steps.traversable is not None:
+        obs.steps.traversable[np.where(traversable_node_ids == obs.steps.id)] = True
+        obs.steps.traversable[np.where(untraversable_node_ids == obs.steps.id)] = False
+    if obs.steps.attempts is not None:
+        obs.steps.attempts[np.where(attempted_node_ids == obs.steps.id)] += 1
+    obs.steps.compromised[np.where(compromised_node_ids == obs.steps.id)] = True
+    
+    return obs
 
 def defender_state2graph(
-    state: Any, lang_serializer: LangSerializer, use_logic_gates: bool
+    state: MalSimDefenderState, lang_serializer: LangSerializer, use_logic_gates: bool
 ) -> MALObsInstance:
     """Create a MALObsInstance of a defender's observation"""
     model = state.sim.attack_graph.model
@@ -191,7 +209,7 @@ def defender_state2graph(
             (True if node in state.observed_nodes else False) for node in visible_steps
         ]),
         attempts=None,
-        traversable=None,
+        traversable=np.array([True if node in state.action_surface else False for node in visible_steps], dtype=np.bool_),
     )
     step2asset_links = np.array(list(zip(*{
         (visible_steps.index(node), visible_assets.index(node.model_asset))
@@ -260,3 +278,18 @@ def defender_state2graph(
         logic2step=logic2step_links,
         step2logic=step2logic_links,
     )
+
+def defender_update_obs(
+    obs: MALObsInstance,
+    state: MalSimDefenderState,
+) -> MALObsInstance:
+    """Update the observation of the serialized obs defender"""
+    actionable_node_ids = np.array([node.id for node in state.step_action_surface_additions])
+    non_actionable_node_ids = np.array([node.id for node in state.step_action_surface_removals])
+    obs.steps.traversable[np.where(actionable_node_ids == obs.steps.id)] = True
+    obs.steps.traversable[np.where(non_actionable_node_ids == obs.steps.id)] = False
+
+    observed_node_ids = np.array([node.id for node in state.observed_nodes])
+    obs.steps.compromised[np.where(observed_node_ids == obs.steps.id)] = True
+    obs.steps.compromised[np.where(observed_node_ids != obs.steps.id)] = False
+    return obs

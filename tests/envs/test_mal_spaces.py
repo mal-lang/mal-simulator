@@ -15,7 +15,7 @@ from malsim.envs.graph.mal_spaces import (
 )
 from malsim.envs.graph.utils import attacker_state2graph, defender_state2graph
 from malsim.scenario import Scenario, AgentType
-from malsim.mal_simulator import MalSimulator, MalSimAttackerState
+from malsim.mal_simulator import MalSimulator, MalSimAttackerState, MalSimDefenderState
 import numpy as np
 
 def test_mal_obs() -> None:
@@ -166,9 +166,13 @@ def test_obs_creation() -> None:
 
     states = sim.reset()
     while not sim.agent_is_terminated(attacker_name):
-        attacker_obs = attacker_state2graph(states[attacker_name], serializer, use_logic_gates=False, see_defense_steps=False)
+        attacker_state = states[attacker_name]
+        assert isinstance(attacker_state, MalSimAttackerState)
+        attacker_obs = attacker_state2graph(attacker_state, serializer, use_logic_gates=False, see_defense_steps=False)
         assert attacker_obs in attacker_obs_space
-        defender_obs = defender_state2graph(states[defender_name], serializer, use_logic_gates=False)
+        defender_state = states[defender_name]
+        assert isinstance(defender_state, MalSimDefenderState)
+        defender_obs = defender_state2graph(defender_state, serializer, use_logic_gates=False)
         assert defender_obs in defender_obs_space
         assert isinstance(attacker_obs.steps.traversable, np.ndarray)
         attacker_obs_idx = attacker_action_space.sample(attacker_obs.steps.traversable.astype(np.int8))
