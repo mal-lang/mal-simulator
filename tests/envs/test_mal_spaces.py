@@ -13,7 +13,7 @@ from malsim.envs.graph.mal_spaces import (
     MALAttackerObs,
     MALDefenderObs,
 )
-from malsim.envs.graph.utils import attacker_state2graph, defender_state2graph
+from malsim.envs.graph.utils import attacker_state2graph, defender_state2graph, create_full_obs, full_obs2attacker_obs, full_obs2defender_obs
 from malsim.scenario import Scenario, AgentType
 from malsim.mal_simulator import MalSimulator, MalSimAttackerState, MalSimDefenderState
 import numpy as np
@@ -30,114 +30,9 @@ def test_mal_obs() -> None:
     obs_space = MALObs(serializer, use_logic_gates=True)
     sim = MalSimulator.from_scenario(scenario)
 
-    def state2instance(sim: MalSimulator) -> MALObsInstance:
-        def get_total_attempts(node: AttackGraphNode) -> int:
-            return sum(state.num_attempts.get(node, 0) 
-                for state in sim._get_attacker_agents()
-            )
-        def is_traversable_by_any(node: AttackGraphNode) -> bool:
-            return any(sim.node_is_traversable(state.performed_nodes, node) 
-                for state in sim._get_attacker_agents()
-            )
-        sorted_attack_steps = [
-            sim.attack_graph.nodes[node_id]
-            for node_id in sorted(sim.attack_graph.nodes.keys())
-        ]
-        attack_steps = Step(
-            type=np.array([
-                serializer.attack_step_type[(node.model_asset.type, node.name)]
-                for node in sorted_attack_steps if node.model_asset
-            ]),
-            id=np.array([node.id for node in sorted_attack_steps]),
-            logic_class=np.array([
-                serializer.attack_step_class[node.type]
-                for node in sorted_attack_steps
-            ]),
-            tags=np.array([
-                serializer.attack_step_tag[node.tags[0] if len(node.tags) > 0 else None]
-                for node in sorted_attack_steps
-            ]),
-            compromised=np.array([
-                sim.node_is_compromised(node) for node in sorted_attack_steps
-            ]),
-            attempts=np.array([
-                get_total_attempts(node) for node in sorted_attack_steps
-            ]),
-            action_mask=np.array([
-                is_traversable_by_any(node) for node in sorted_attack_steps
-            ]),
-        )
-        step2step = {
-            (sorted_attack_steps.index(node), sorted_attack_steps.index(child))
-            for node in sorted_attack_steps for child in node.children if child in sorted_attack_steps
-        }
-        
-        assert sim.attack_graph.model, "Attack graph needs to have a model attached to it"
-        sorted_assets = [
-            sim.attack_graph.model.assets[asset_id]
-            for asset_id in sorted(sim.attack_graph.model.assets.keys())
-        ]
-        assets = Asset(
-            type=np.array([serializer.asset_type[asset.type] for asset in sorted_assets]),
-            id=np.array([asset.id for asset in sorted_assets]),
-        )
-        step2asset = {(
-            sorted_attack_steps.index(node), sorted_assets.index(node.model_asset))
-            for node in sorted_attack_steps if node.model_asset in sorted_assets
-        }
-
-        associations: list[tuple[LanguageGraphAssociation, int, int]] = []
-        for asset in sorted_assets:
-            for fieldname, other_assets in asset.associated_assets.items():
-                assoc = asset.lg_asset.associations[fieldname]
-                for other_asset in other_assets:
-                    if (
-                        (assoc, asset.id, other_asset.id) not in associations 
-                        and (assoc, other_asset.id, asset.id) not in associations
-                    ):
-                        associations.append((assoc, asset.id, other_asset.id))
-        sorted_associations = sorted(associations, key=lambda x: (x[0].name, x[1], x[2]))
-        association = Association(
-            type=np.array([
-                serializer.association_type[assoc.name,]
-                for (assoc, _, _) in sorted_associations
-            ])
-        )
-        assoc2asset: set[tuple[int, int]] = set()
-        for i, (assoc, asset1_id, asset2_id) in enumerate(sorted_associations):
-            assoc2asset.add((i, asset1_id))
-            assoc2asset.add((i, asset2_id))
-
-        sorted_and_or_steps = sorted(
-            [node for node in sorted_attack_steps if node.type in ('and', 'or')],
-            key=lambda x: x.id
-        )
-        logic_gates = LogicGate(
-            type=np.array([(0 if node.type == 'and' else 1) for node in sorted_and_or_steps])
-        )
-        step2logic = set()
-        logic2step = set()
-        for logic_gate_id, node in enumerate(sorted_and_or_steps):
-            logic2step.add((logic_gate_id, node.id))
-            for child in node.children:
-                step2logic.add((child.id, logic_gate_id))
-            
-
-        return MALObsInstance(
-            time=np.int64(sim.cur_iter),
-            assets=assets,
-            steps=attack_steps,
-            associations=association,
-            logic_gates=logic_gates,
-            step2asset=np.array(list(zip(*step2asset))),
-            step2step=np.array(list(zip(*step2step))),
-            assoc2asset=np.array(list(zip(*assoc2asset))),
-            logic2step=np.array(list(zip(*logic2step))),
-            step2logic=np.array(list(zip(*step2logic))),
-        )
-
     states = sim.reset()
-    assert state2instance(sim) in obs_space
+    obs = create_full_obs(sim, serializer)
+    assert obs in obs_space
     for _ in range(10):
         actions = {}
         for agent_name, state in states.items():
@@ -146,44 +41,77 @@ def test_mal_obs() -> None:
             else:
                 actions[agent_name] = []
         states = sim.step(actions)
-        assert state2instance(sim) in obs_space
+        obs = create_full_obs(sim, serializer)
+        assert obs in obs_space
 
-def test_obs_creation() -> None:
+def test_attacker_obs() -> None:
     scenario_file = (
         "tests/testdata/scenarios/simple_scenario.yml"
     )
     scenario = Scenario.load_from_file(scenario_file)
     attacker_name = next(agent['name'] for agent in scenario.agents if agent['type'] == AgentType.ATTACKER)
+    serializer = LangSerializer(
+        scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
+    )
+    sim = MalSimulator.from_scenario(scenario)
+    AG = scenario.attack_graph
+    full_obs = create_full_obs(sim, serializer)
+    attacker_obs_space = MALAttackerObs(serializer, use_logic_gates=True)
+    attacker_state = sim.reset()[attacker_name]
+    assert isinstance(attacker_state, MalSimAttackerState)
+    attacker_obs = full_obs2attacker_obs(full_obs, attacker_state, see_defense_steps=False)
+    assert attacker_obs in attacker_obs_space
+
+    while not sim.agent_is_terminated(attacker_name):
+        attacker_state = sim.step({attacker_name: [list(attacker_state.action_surface)[0]]})[attacker_name]
+        assert isinstance(attacker_state, MalSimAttackerState)
+        attacker_obs = full_obs2attacker_obs(full_obs, attacker_state, see_defense_steps=False)
+        assert attacker_obs in attacker_obs_space
+
+        visible_assets = {node.model_asset for node in attacker_state.performed_nodes if node.model_asset} | {node.model_asset for node in attacker_state.action_surface if node.model_asset}
+
+        for idx in range(len(attacker_obs.steps.id)):
+            node = AG.nodes[attacker_obs.steps.id[idx]]
+            if serializer.split_attack_step_types:
+                assert attacker_obs.steps.type[idx] == serializer.attack_step_type[(node.model_asset.type, node.name)]
+            else:
+                assert attacker_obs.steps.type[idx] == serializer.attack_step_type[(node.name,)]
+            assert attacker_obs.steps.logic_class[idx] == serializer.attack_step_class[node.type]
+            assert attacker_obs.steps.tags[idx] == serializer.attack_step_tag[node.tags[0] if len(node.tags) > 0 else None]
+            assert attacker_obs.steps.compromised[idx] == sim.node_is_compromised(node)
+            assert attacker_obs.steps.attempts[idx] == attacker_state.num_attempts.get(node, 0)
+            assert attacker_obs.steps.action_mask[idx] == sim.node_is_traversable(attacker_state.performed_nodes, node)
+            assert node.model_asset in visible_assets
+            children = {AG.nodes[attacker_obs.steps.id[child_idx]] for child_idx in attacker_obs.step2step[:, attacker_obs.step2step[0] == idx][1]}
+            assert all(child in node.children for child in children)
+            assert all(child.model_asset in visible_assets for child in children)
+            parents = {AG.nodes[attacker_obs.steps.id[parent_idx]] for parent_idx in attacker_obs.step2step[:, attacker_obs.step2step[1] == idx][0]}
+            assert all(parent in node.parents for parent in parents)
+            assert all(parent.model_asset in visible_assets for parent in parents)
+
+
+def test_defender_obs() -> None:
+    scenario_file = (
+        "tests/testdata/scenarios/simple_scenario.yml"
+    )
+    scenario = Scenario.load_from_file(scenario_file)
     defender_name = next(agent['name'] for agent in scenario.agents if agent['type'] == AgentType.DEFENDER)
     serializer = LangSerializer(
         scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
-    attacker_obs_space = MALAttackerObs(serializer, use_logic_gates=False)
-    attacker_action_space = MALObsAttackerActionSpace(sim)
-    defender_obs_space = MALDefenderObs(serializer, use_logic_gates=False)
-    defender_action_space = MALObsDefenderActionSpace(sim)
+    full_obs = create_full_obs(sim, serializer)
+    defender_obs_space = MALDefenderObs(serializer, use_logic_gates=True)
+    defender_state = sim.reset()[defender_name]
+    assert isinstance(defender_state, MalSimDefenderState)
+    defender_obs = full_obs2defender_obs(full_obs, defender_state)
+    assert defender_obs in defender_obs_space
 
-    states = sim.reset()
-    while not sim.agent_is_terminated(attacker_name):
-        attacker_state = states[attacker_name]
-        assert isinstance(attacker_state, MalSimAttackerState)
-        attacker_obs = attacker_state2graph(attacker_state, serializer, use_logic_gates=False, see_defense_steps=False)
-        assert attacker_obs in attacker_obs_space
-        defender_state = states[defender_name]
+    while len(defender_state.action_surface) > 0:
+        defender_state = sim.step({defender_name: [list(defender_state.action_surface)[0]]})[defender_name]
         assert isinstance(defender_state, MalSimDefenderState)
-        defender_obs = defender_state2graph(defender_state, serializer, use_logic_gates=False)
+        defender_obs = full_obs2defender_obs(full_obs, defender_state)
         assert defender_obs in defender_obs_space
-        assert isinstance(attacker_obs.steps.action_mask, np.ndarray)
-        attacker_obs_idx = attacker_action_space.sample(attacker_obs.steps.action_mask.astype(np.int8))
-        defender_obs_idx = defender_action_space.sample()
-
-        attacker_step_id = attacker_obs.steps.id[attacker_obs_idx]
-        defender_step_id = defender_obs.steps.id[defender_obs_idx]
-
-        attacker_action = sim.attack_graph.nodes[attacker_step_id]
-        defender_action = sim.attack_graph.nodes[defender_step_id]
-        states = sim.step({attacker_name: [attacker_action], defender_name: [defender_action]})
 
 def test_jsonable() -> None:
     scenario_file = (

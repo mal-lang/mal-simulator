@@ -27,6 +27,8 @@ class Association(NamedTuple):
 
 
 class LogicGate(NamedTuple):
+    """The ID of the node which the logic gate belongs to."""
+    id: NDArray[np.int64]
     type: NDArray[np.int64]
 
 
