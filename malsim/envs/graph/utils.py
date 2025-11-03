@@ -13,7 +13,7 @@ from malsim.mal_simulator import MalSimAttackerState, MalSimDefenderState, MalSi
 from maltoolbox.attackgraph import AttackGraphNode
 
 
-def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInstance:
+def create_full_obs(sim: MalSimulator, serializer: LangSerializer, use_logic_gates: bool) -> MALObsInstance:
     def get_total_attempts(node: AttackGraphNode) -> int:
         return sum(state.num_attempts.get(node, 0) 
             for state in sim._get_attacker_agents()
@@ -26,10 +26,15 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         sim.attack_graph.nodes[node_id]
         for node_id in sorted(sim.attack_graph.nodes.keys())
     ]
+    step_type_keys: list[tuple[str, ...]]
+    if serializer.split_attack_step_types:
+        step_type_keys = [(node.model_asset.type, node.name) for node in sorted_attack_steps if node.model_asset]
+    else:
+        step_type_keys = [(node.name,) for node in sorted_attack_steps]
     steps = Step(
         type=np.array([
-            serializer.attack_step_type[(node.model_asset.type, node.name)]
-            for node in sorted_attack_steps if node.model_asset
+            serializer.attack_step_type[step_type_key]
+            for step_type_key in step_type_keys
         ]),
         id=np.array([node.id for node in sorted_attack_steps]),
         logic_class=np.array([
@@ -95,16 +100,23 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         [node for node in sorted_attack_steps if node.type in ('and', 'or')],
         key=lambda x: x.id
     )
-    logic_gates = LogicGate(
-        type=np.array([(0 if node.type == 'and' else 1) for node in sorted_and_or_steps]),
-        id=np.array([node.id for node in sorted_and_or_steps]),
-    )
-    step2logic = set()
-    logic2step = set()
-    for logic_gate_id, node in enumerate(sorted_and_or_steps):
-        logic2step.add((logic_gate_id, node.id))
-        for child in node.children:
-            step2logic.add((child.id, logic_gate_id))
+    if use_logic_gates:
+        logic_gates = LogicGate(
+            type=np.array([(0 if node.type == 'and' else 1) for node in sorted_and_or_steps]),
+            id=np.array([node.id for node in sorted_and_or_steps]),
+        )
+        step2logic: set[tuple[int, int]] = set()
+        logic2step: set[tuple[int, int]] = set()
+        for logic_gate_id, node in enumerate(sorted_and_or_steps):
+            logic2step.add((logic_gate_id, node.id))
+            for child in node.children:
+                step2logic.add((child.id, logic_gate_id))
+        logic2step_links = np.array(list(zip(*logic2step)))
+        step2logic_links = np.array(list(zip(*step2logic)))
+    else:
+        logic_gates = None
+        step2logic_links = None
+        logic2step_links = None
         
 
     return MALObsInstance(
@@ -116,8 +128,8 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         step2asset=np.array(list(zip(*step2asset))),
         step2step=np.array(list(zip(*step2step))),
         assoc2asset=np.array(list(zip(*assoc2asset))),
-        logic2step=np.array(list(zip(*logic2step))),
-        step2logic=np.array(list(zip(*step2logic))),
+        logic2step=logic2step_links,
+        step2logic=step2logic_links,
     )
 
 def full_obs2attacker_obs(full_obs: MALObsInstance, state: MalSimAttackerState, see_defense_steps: bool = False) -> MALObsInstance:

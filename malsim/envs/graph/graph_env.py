@@ -7,7 +7,7 @@ from .mal_spaces import (
     MALObs,
     MALObsInstance,
 )
-from .utils import attacker_state2graph, attacker_update_obs, defender_state2graph, defender_update_obs
+from .utils import create_full_obs, full_obs2attacker_obs, full_obs2defender_obs
 from os import PathLike
 from malsim.scenario import AgentType, Scenario
 from malsim.mal_simulator import (
@@ -103,6 +103,7 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
             self.lang_serializer, self.use_logic_gates, sim_settings.seed
         )
         self.action_space = MALObsAttackerActionSpace(self.sim)
+        self.full_obs = create_full_obs(self.sim, self.lang_serializer, self.use_logic_gates)
 
     def reset(
         self, seed: int | None = None, options: dict[str, Any] | None = None
@@ -110,7 +111,7 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
         super().reset(seed=seed, options=options)
         state = self.sim.reset()[self.agent_name]
         assert isinstance(state, MalSimAttackerState)
-        obs = attacker_state2graph(state, self.lang_serializer, self.use_logic_gates)
+        obs = full_obs2attacker_obs(self.full_obs, state, see_defense_steps=False)
         self._obs = obs
         info = {"state": state}
         return obs, info
@@ -123,15 +124,17 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
         except (KeyError, IndexError):
             logger.error(f"Action {action} is not valid for observation {self._obs}")
             action_node = None
+        del self._obs
         state = self.sim.step({self.agent_name: [action_node] if action_node else []})[
             self.agent_name
         ]
         assert isinstance(state, MalSimAttackerState)
-        self._obs = attacker_update_obs(self._obs, state)
+        obs = full_obs2attacker_obs(self.full_obs, state, see_defense_steps=False)
+        self._obs = obs
         terminated = self.sim.agent_is_terminated(self.agent_name)
         reward = self.sim.agent_reward(self.agent_name)
         info = {"state": state}
-        return self._obs, reward, terminated, False, info
+        return obs, reward, terminated, False, info
 
     def render(self) -> None:
         raise NotImplementedError("Render not implemented")
@@ -183,6 +186,7 @@ class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
             self.lang_serializer, self.use_logic_gates, sim_settings.seed
         )
         self.action_space = MALObsDefenderActionSpace(self.sim)
+        self.full_obs = create_full_obs(self.sim, self.lang_serializer, self.use_logic_gates)
 
     def reset(
         self, seed: int | None = None, options: dict[str, Any] | None = None
@@ -190,7 +194,7 @@ class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
         super().reset(seed=seed, options=options)
         state = self.sim.reset()[self.agent_name]
         assert isinstance(state, MalSimDefenderState)
-        obs = defender_state2graph(state, self.lang_serializer, self.use_logic_gates)
+        obs = full_obs2defender_obs(self.full_obs, state)
         self._obs = obs
         info = {"state": state}
         return obs, info
@@ -198,20 +202,22 @@ class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
     def step(
         self, action: np.int64
     ) -> tuple[MALObsInstance, SupportsFloat, bool, bool, dict[str, Any]]:
-        action_node = (
-            self.attack_graph.nodes[int(self._obs.steps.id[action])]
-            if action is not None
-            else None
-        )
+        try:
+            action_node = self.attack_graph.nodes[int(self._obs.steps.id[action])]
+        except (KeyError, IndexError):
+            logger.error(f"Action {action} is not valid for observation {self._obs}")
+            action_node = None
+        del self._obs
         state = self.sim.step({self.agent_name: [action_node] if action_node else []})[
             self.agent_name
         ]
         assert isinstance(state, MalSimDefenderState)
-        self._obs = defender_update_obs(self._obs, state)
+        obs = full_obs2defender_obs(self.full_obs, state)
+        self._obs = obs
         terminated = self.sim.agent_is_terminated(self.agent_name)
         reward = self.sim.agent_reward(self.agent_name)
         info = {"state": state}
-        return self._obs, reward, terminated, False, info
+        return obs, reward, terminated, False, info
 
     def render(self) -> None:
         raise NotImplementedError("Render not implemented")

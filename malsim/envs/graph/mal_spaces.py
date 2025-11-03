@@ -490,6 +490,8 @@ class MALObsAttackerActionSpace(Discrete):
         mask: Any | None = None,
         probability: Any | None = None,
     ) -> np.int64:
+        if mask is not None and isinstance(mask, np.ndarray):
+            mask = mask.astype(np.int8)
         if mask is not None and isinstance(mask, np.ndarray) and mask.shape[0] < self.n:
             mask = np.concatenate([mask, np.zeros(self.n - mask.shape[0], dtype=np.int8)])
         # TODO: Decide if actionability should be used for attacker as well
