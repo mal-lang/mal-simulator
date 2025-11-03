@@ -31,7 +31,7 @@ def test_mal_obs() -> None:
     sim = MalSimulator.from_scenario(scenario)
 
     states = sim.reset()
-    obs = create_full_obs(sim, serializer)
+    obs = create_full_obs(sim, serializer, use_logic_gates=True)
     assert obs in obs_space
     for _ in range(10):
         actions = {}
@@ -41,7 +41,7 @@ def test_mal_obs() -> None:
             else:
                 actions[agent_name] = []
         states = sim.step(actions)
-        obs = create_full_obs(sim, serializer)
+        obs = create_full_obs(sim, serializer, use_logic_gates=True)
         assert obs in obs_space
 
 def test_attacker_obs() -> None:
@@ -55,7 +55,7 @@ def test_attacker_obs() -> None:
     )
     sim = MalSimulator.from_scenario(scenario)
     AG = scenario.attack_graph
-    full_obs = create_full_obs(sim, serializer)
+    full_obs = create_full_obs(sim, serializer, use_logic_gates=True)
     attacker_obs_space = MALAttackerObs(serializer, use_logic_gates=True)
     attacker_state = sim.reset()[attacker_name]
     assert isinstance(attacker_state, MalSimAttackerState)
@@ -72,14 +72,14 @@ def test_attacker_obs() -> None:
 
         for idx in range(len(attacker_obs.steps.id)):
             node = AG.nodes[attacker_obs.steps.id[idx]]
-            if serializer.split_attack_step_types:
+            if serializer.split_attack_step_types and node.model_asset:
                 assert attacker_obs.steps.type[idx] == serializer.attack_step_type[(node.model_asset.type, node.name)]
             else:
                 assert attacker_obs.steps.type[idx] == serializer.attack_step_type[(node.name,)]
             assert attacker_obs.steps.logic_class[idx] == serializer.attack_step_class[node.type]
             assert attacker_obs.steps.tags[idx] == serializer.attack_step_tag[node.tags[0] if len(node.tags) > 0 else None]
             assert attacker_obs.steps.compromised[idx] == sim.node_is_compromised(node)
-            assert attacker_obs.steps.attempts[idx] == attacker_state.num_attempts.get(node, 0)
+            assert attacker_obs.steps.attempts is not None and attacker_obs.steps.attempts[idx] == attacker_state.num_attempts.get(node, 0)
             assert attacker_obs.steps.action_mask[idx] == sim.node_is_traversable(attacker_state.performed_nodes, node)
             assert node.model_asset in visible_assets
             children = {AG.nodes[attacker_obs.steps.id[child_idx]] for child_idx in attacker_obs.step2step[:, attacker_obs.step2step[0] == idx][1]}
@@ -100,7 +100,7 @@ def test_defender_obs() -> None:
         scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
-    full_obs = create_full_obs(sim, serializer)
+    full_obs = create_full_obs(sim, serializer, use_logic_gates=True)
     defender_obs_space = MALDefenderObs(serializer, use_logic_gates=True)
     defender_state = sim.reset()[defender_name]
     assert isinstance(defender_state, MalSimDefenderState)

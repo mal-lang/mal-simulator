@@ -11,6 +11,7 @@ from .mal_spaces import (
 from .serialization import LangSerializer
 from malsim.mal_simulator import MalSimAttackerState, MalSimDefenderState, MalSimulator
 from maltoolbox.attackgraph import AttackGraphNode
+from maltoolbox.model import ModelAsset
 
 
 def create_full_obs(sim: MalSimulator, serializer: LangSerializer, use_logic_gates: bool) -> MALObsInstance:
@@ -74,7 +75,7 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer, use_logic_gat
         for node in sorted_attack_steps if node.model_asset in sorted_assets
     }
 
-    associations: list[tuple[LanguageGraphAssociation, int, int]] = []
+    associations: list[tuple[LanguageGraphAssociation, ModelAsset, ModelAsset]] = []
     for asset in sorted_assets:
         for fieldname, other_assets in asset.associated_assets.items():
             assoc = asset.lg_asset.associations[fieldname]
@@ -146,12 +147,12 @@ def full_obs2attacker_obs(full_obs: MALObsInstance, state: MalSimAttackerState, 
 
     visible_steps = sorted(
         {node for node in state.sim.attack_graph.nodes.values()
-        if node.model_asset.id in visible_asset_ids and node.type in ("and", "or")
+        if node.model_asset and node.model_asset.id in visible_asset_ids and node.type in ("and", "or")
     }, key=lambda step: step.id)
     if see_defense_steps:
         visible_steps += sorted(
             {node for node in state.sim.attack_graph.nodes.values()
-            if node.model_asset.id in visible_asset_ids and node.type in ('defense', 'exist', 'notExist')
+            if node.model_asset and node.model_asset.id in visible_asset_ids and node.type in ('defense', 'exist', 'notExist')
         }, key=lambda step: step.id)
     visible_step_ids = np.array([step.id for step in visible_steps])
     compromised_steps = np.array([step in state.performed_nodes for step in visible_steps])
@@ -184,7 +185,7 @@ def full_obs2attacker_obs(full_obs: MALObsInstance, state: MalSimAttackerState, 
         np.array([old2new_asset_idx[old_asset_idx] for old_asset_idx in visible_old_step2asset[1]]),
     ), axis=0)
 
-    if len(visible_asset_ids) > 1:
+    if len(visible_asset_ids) > 1 and full_obs.associations is not None and full_obs.assoc2asset is not None:
         # Get all associations connected to visible assets
         visible_assets_old_assoc2asset = full_obs.assoc2asset[:, np.isin(full_obs.assoc2asset[1], old_asset_idx)]
         # Filter out associations that are connected to only one visible asset
@@ -371,6 +372,7 @@ def attacker_state2graph(
             node for node in visible_steps if node.type in ('and', 'or')
         ]
         logic_gates = LogicGate(
+            id=np.array([node.id for node in visible_and_or_steps]),
             type=np.array([
                 (0 if node.type == 'and' else 1) for node in visible_and_or_steps
             ])
@@ -510,6 +512,7 @@ def defender_state2graph(
             node for node in visible_steps if node.type in ('and', 'or')
         ]
         logic_gates = LogicGate(
+            id=np.array([node.id for node in visible_and_or_steps]),
             type=np.array([
                 (0 if node.type == 'and' else 1) for node in visible_and_or_steps
             ])

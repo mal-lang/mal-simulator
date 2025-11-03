@@ -426,6 +426,7 @@ class MALObs(Space[MALObsInstance]):
             )
             logic_gates = (
                 LogicGate(
+                    id=np.array(sample["logic_gate_id"], dtype=self.attack_step_id.dtype),
                     type=np.array(
                         sample["logic_gate_type"], dtype=self.logic_gate_type.dtype
                     ),
@@ -628,6 +629,7 @@ class MALDefenderObs(MALObs):
             )
             logic_gates = (
                 LogicGate(
+                    id=np.array(sample["logic_gate_id"], dtype=self.attack_step_id.dtype),
                     type=np.array(
                         sample["logic_gate_type"], dtype=self.logic_gate_type.dtype
                     ),
