@@ -1,14 +1,17 @@
 from malsim.envs.graph.serialization import LangSerializer
 from malsim.envs.graph.mal_spaces import (
     MALObs,
-    MALObsAttackerActionSpace,
-    MALObsDefenderActionSpace,
+    MALObsAttackStepSpace,
+    MALObsDefenseStepSpace,
     MALAttackerObs,
     MALDefenderObs,
+    MALObsAssetAction,
+    MALObsInstance,
 )
 from malsim.envs.graph.utils import attacker_state2graph, create_full_obs, full_obs2attacker_obs, full_obs2defender_obs
 from malsim.scenario import Scenario, AgentType
 from malsim.mal_simulator import MalSimulator, MalSimAttackerState, MalSimDefenderState
+import numpy as np
 
 def test_mal_obs() -> None:
 
@@ -81,7 +84,6 @@ def test_attacker_obs() -> None:
             assert all(parent in node.parents for parent in parents)
             assert all(parent.model_asset in visible_assets for parent in parents)
 
-
 def test_defender_obs() -> None:
     scenario_file = (
         "tests/testdata/scenarios/simple_scenario.yml"
@@ -127,14 +129,58 @@ def test_jsonable() -> None:
     obs_from_jsonable = obs_space.from_jsonable(jsonable)[0]
     assert obs_from_jsonable in obs_space
 
-    attacker_action_space = MALObsAttackerActionSpace(sim)
+    attacker_action_space = MALObsAttackStepSpace(sim)
     attacker_obs_idx = attacker_action_space.sample(obs.steps.action_mask)
     jsonable = attacker_action_space.to_jsonable([attacker_obs_idx])
     attacker_obs_idx_from_jsonable = attacker_action_space.from_jsonable(jsonable)[0]
     assert attacker_obs_idx_from_jsonable == attacker_obs_idx
 
-    defender_action_space = MALObsDefenderActionSpace(sim)
+    defender_action_space = MALObsDefenseStepSpace(sim)
     defender_obs_idx = defender_action_space.sample()
     jsonable = defender_action_space.to_jsonable([defender_obs_idx])
     defender_obs_idx_from_jsonable = defender_action_space.from_jsonable(jsonable)[0]
     assert defender_obs_idx_from_jsonable == defender_obs_idx
+
+def test_attacker_asset_action() -> None:
+    scenario_file = (
+        "tests/testdata/scenarios/simple_scenario.yml"
+    )
+    scenario = Scenario.load_from_file(scenario_file)
+    attacker_name = next(agent['name'] for agent in scenario.agents if agent['type'] == AgentType.ATTACKER)
+    serializer = LangSerializer(
+        scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
+    )
+    sim = MalSimulator.from_scenario(scenario)
+    model = sim.attack_graph.model
+    full_obs = create_full_obs(sim, serializer)
+
+    attacker_obs_space = MALAttackerObs(serializer)
+    attacker_asset_action_space = MALObsAssetAction(model, serializer)
+
+    def action_mask_for_asset(asset_idx: int, attacker_obs: MALObsInstance) -> np.ndarray:
+        asset_step_indicies = attacker_obs.step2asset[0, np.where(attacker_obs.step2asset[1] == asset_idx)[0]]
+        asset_step_types = attacker_obs.steps.type[asset_step_indicies]
+        action_mask = np.zeros(attacker_asset_action_space.action.n, dtype=np.bool_)
+        action_mask[asset_step_types] = True
+        return action_mask
+
+    attacker_state = sim.reset()[attacker_name]
+    assert isinstance(attacker_state, MalSimAttackerState)
+    attacker_obs = full_obs2attacker_obs(full_obs, attacker_state, see_defense_steps=False)
+    assert attacker_obs in attacker_obs_space
+
+    while not sim.agent_is_terminated(attacker_name):
+        
+        action_mask = np.zeros((attacker_asset_action_space.asset.n, attacker_asset_action_space.action.n), dtype=np.int8)
+        for asset_idx in range(attacker_obs.assets.type.shape[0]):
+            action_mask[asset_idx] = action_mask_for_asset(asset_idx, attacker_obs)
+        asset_mask = (action_mask.sum(axis=1) > 0).astype(np.int8)
+
+        asset_idx, action = attacker_asset_action_space.sample(mask=(asset_mask, action_mask))
+        asset = model.assets[attacker_obs.assets.id[asset_idx]]
+        action_name = next(key for key, val in serializer.attack_step_type.items() if val == int(action))[-1]
+        asset_action = f"{asset.name}:{action_name}"
+        attacker_state = sim.step({attacker_name: [asset_action]})[attacker_name]
+        assert isinstance(attacker_state, MalSimAttackerState)
+        attacker_obs = full_obs2attacker_obs(full_obs, attacker_state, see_defense_steps=False)
+        assert attacker_obs in attacker_obs_space

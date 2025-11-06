@@ -2,8 +2,8 @@ import gymnasium as gym
 from typing import Any
 
 from .mal_spaces import (
-    MALObsAttackerActionSpace,
-    MALObsDefenderActionSpace,
+    MALObsAttackStepSpace,
+    MALObsDefenseStepSpace,
     MALObs,
     MALObsInstance,
 )
@@ -96,7 +96,7 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
         self.observation_space = MALObs(
             self.lang_serializer, sim_settings.seed
         )
-        self.action_space = MALObsAttackerActionSpace(self.sim)
+        self.action_space = MALObsAttackStepSpace(self.sim)
         self.full_obs = create_full_obs(self.sim, self.lang_serializer)
 
     def reset(
@@ -176,7 +176,7 @@ class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
         self.observation_space = MALObs(
             self.lang_serializer, sim_settings.seed
         )
-        self.action_space = MALObsDefenderActionSpace(self.sim)
+        self.action_space = MALObsDefenseStepSpace(self.sim)
         self.full_obs = create_full_obs(self.sim, self.lang_serializer)
 
     def reset(
