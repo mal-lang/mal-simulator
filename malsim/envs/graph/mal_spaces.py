@@ -57,18 +57,14 @@ class MALObs(Space[MALObsInstance]):
     def __init__(
         self,
         lang_serializer: LangSerializer,
-        use_logic_gates: bool,
         seed: int | np.random.Generator | None = None,
     ):
-        self.use_logic_gates = use_logic_gates
         # MAL Features
         self.attack_step_tags = Discrete(
             max(set(lang_serializer.attack_step_tag.values())) + 1
         )
 
-        self.logic_gate_type: Discrete | None = None
-        if use_logic_gates:
-            self.logic_gate_type = Discrete(2)  # 0 for AND, 1 for OR
+        self.logic_gate_type = Discrete(2)  # 0 for AND, 1 for OR
 
         # Language Features
         self.asset_type = Discrete(max(set(lang_serializer.asset_type.values())) + 1)
@@ -126,9 +122,8 @@ class MALObs(Space[MALObsInstance]):
                 "attack_step_compromised": self.attack_step_compromised.seed(None),
                 "attack_step_attempts": self.attack_step_attempts.seed(None),
                 "attack_step_action_mask": self.attack_step_action_mask.seed(None),
+                "logic_gate_type": self.logic_gate_type.seed(None),
             }
-            if self.logic_gate_type:
-                seeds["logic_gate_type"] = self.logic_gate_type.seed(None)
             return seeds  # type: ignore
 
         elif isinstance(seed, int):
@@ -148,9 +143,8 @@ class MALObs(Space[MALObsInstance]):
                 "attack_step_compromised": self.attack_step_compromised.seed(node_seed),
                 "attack_step_attempts": self.attack_step_attempts.seed(node_seed),
                 "attack_step_action_mask": self.attack_step_action_mask.seed(node_seed),
+                "logic_gate_type": self.logic_gate_type.seed(node_seed),
             }
-            if self.logic_gate_type:
-                seeds["logic_gate_type"] = self.logic_gate_type.seed(node_seed)
             return seeds  # type: ignore
 
         else:
@@ -161,9 +155,7 @@ class MALObs(Space[MALObsInstance]):
         if isinstance(x, MALObsInstance):
             attack_step_tags_valid = self.attack_step_tags.contains(x.steps.tags[0])
             if (
-                self.use_logic_gates
-                and isinstance(x.logic_gates, LogicGate)
-                and self.logic_gate_type
+                isinstance(x.logic_gates, LogicGate)
                 and x.step2logic is not None
                 and x.logic2step is not None
             ):
@@ -172,11 +164,7 @@ class MALObs(Space[MALObsInstance]):
                     for i in range(len(x.logic_gates.type))
                 )
             else:
-                logic_gate_type_valid = (
-                    x.logic_gates is None
-                    and x.logic2step is None
-                    and x.step2logic is None
-                )
+                logic_gate_type_valid = False
 
             asset_type_valid = all(
                 x.assets.type[i] in self.asset_type for i in range(len(x.assets.type))
@@ -279,9 +267,7 @@ class MALObs(Space[MALObsInstance]):
                         (x.step2step[1] >= 0) & (x.step2step[1] < x.steps.type.shape[0])
                     ).all()
                     if (
-                        self.use_logic_gates
-                        and isinstance(x.logic_gates, LogicGate)
-                        and self.logic_gate_type
+                        isinstance(x.logic_gates, LogicGate)
                         and x.step2logic is not None
                         and x.logic2step is not None
                     ):
@@ -300,8 +286,8 @@ class MALObs(Space[MALObsInstance]):
                             & (x.step2logic[1] < x.logic_gates.type.shape[0])
                         ).all()
                     else:
-                        logic2step_valid = True
-                        step2logic_valid = True
+                        logic2step_valid = False
+                        step2logic_valid = False
 
                     edge_valid = (
                         step2asset_valid
@@ -326,10 +312,9 @@ class MALObs(Space[MALObsInstance]):
             f"attack_step_class={self.attack_step_class.shape}, "
             f"association_type={self.association_type.shape})"
         )
-        if self.use_logic_gates and self.logic_gate_type:
-            repr_str = (
-                repr_str[:-1] + f", logic_gate_type={self.logic_gate_type.shape})"
-            )
+        repr_str = (
+            repr_str[:-1] + f", logic_gate_type={self.logic_gate_type.shape})"
+        )
         return repr_str
 
     def __eq__(self, other: object) -> bool:
@@ -366,19 +351,22 @@ class MALObs(Space[MALObsInstance]):
                 "association_type": (
                     sample.associations.type.tolist() if sample.associations else None
                 ),
+                "logic_gate_id": (
+                    sample.logic_gates.id.tolist() if sample.logic_gates else None
+                ),
                 "logic_gate_type": (
                     sample.logic_gates.type.tolist() if sample.logic_gates else None
                 ),
                 "step2asset": sample.step2asset.tolist(),
                 "assoc2asset": (
-                    sample.assoc2asset.tolist() if sample.assoc2asset else None
+                    sample.assoc2asset.tolist() if sample.assoc2asset is not None else None
                 ),
                 "step2step": sample.step2step.tolist(),
                 "logic2step": (
-                    sample.logic2step.tolist() if sample.logic2step else None
+                    sample.logic2step.tolist() if sample.logic2step is not None else None
                 ),
                 "step2logic": (
-                    sample.step2logic.tolist() if sample.step2logic else None
+                    sample.step2logic.tolist() if sample.step2logic is not None else None
                 ),
             }
             ret_n.append(ret)
@@ -629,12 +617,12 @@ class MALDefenderObs(MALObs):
             )
             logic_gates = (
                 LogicGate(
-                    id=np.array(sample["logic_gate_id"], dtype=self.attack_step_id.dtype),
+                    id=np.array(sample.get("logic_gate_id", []), dtype=self.attack_step_id.dtype),
                     type=np.array(
                         sample["logic_gate_type"], dtype=self.logic_gate_type.dtype
                     ),
                 )
-                if sample.get("logic_gate_type") and self.logic_gate_type
+                if sample.get("logic_gate_type")
                 else None
             )
             ret = MALObsInstance(

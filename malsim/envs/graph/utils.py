@@ -14,7 +14,7 @@ from maltoolbox.attackgraph import AttackGraphNode
 from maltoolbox.model import ModelAsset
 
 
-def create_full_obs(sim: MalSimulator, serializer: LangSerializer, use_logic_gates: bool) -> MALObsInstance:
+def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInstance:
     def get_total_attempts(node: AttackGraphNode) -> int:
         return sum(state.num_attempts.get(node, 0) 
             for state in sim._get_attacker_agents()
@@ -101,23 +101,18 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer, use_logic_gat
         [node for node in sorted_attack_steps if node.type in ('and', 'or')],
         key=lambda x: x.id
     )
-    if use_logic_gates:
-        logic_gates = LogicGate(
-            type=np.array([(0 if node.type == 'and' else 1) for node in sorted_and_or_steps]),
-            id=np.array([node.id for node in sorted_and_or_steps]),
-        )
-        step2logic: set[tuple[int, int]] = set()
-        logic2step: set[tuple[int, int]] = set()
-        for logic_gate_id, node in enumerate(sorted_and_or_steps):
-            logic2step.add((logic_gate_id, node.id))
-            for child in node.children:
-                step2logic.add((child.id, logic_gate_id))
-        logic2step_links = np.array(list(zip(*logic2step)))
-        step2logic_links = np.array(list(zip(*step2logic)))
-    else:
-        logic_gates = None
-        step2logic_links = None
-        logic2step_links = None
+    logic_gates = LogicGate(
+        type=np.array([(0 if node.type == 'and' else 1) for node in sorted_and_or_steps]),
+        id=np.array([node.id for node in sorted_and_or_steps]),
+    )
+    step2logic: set[tuple[int, int]] = set()
+    logic2step: set[tuple[int, int]] = set()
+    for logic_gate_id, node in enumerate(sorted_and_or_steps):
+        logic2step.add((logic_gate_id, node.id))
+        for child in node.children:
+            step2logic.add((child.id, logic_gate_id))
+    logic2step_links = np.array(list(zip(*logic2step)))
+    step2logic_links = np.array(list(zip(*step2logic)))
         
 
     return MALObsInstance(
@@ -272,7 +267,7 @@ def full_obs2defender_obs(full_obs: MALObsInstance, state: MalSimDefenderState) 
     )
 
 def attacker_state2graph(
-    state: MalSimAttackerState, lang_serializer: LangSerializer, use_logic_gates: bool, see_defense_steps: bool = False
+    state: MalSimAttackerState, lang_serializer: LangSerializer, see_defense_steps: bool = False
 ) -> MALObsInstance:
     """Create a MALObsInstance of an attackers observation"""
 
@@ -367,28 +362,23 @@ def attacker_state2graph(
         association = None
         assoc2asset_links = None
 
-    if use_logic_gates:
-        visible_and_or_steps = [
-            node for node in visible_steps if node.type in ('and', 'or')
-        ]
-        logic_gates = LogicGate(
-            id=np.array([node.id for node in visible_and_or_steps]),
-            type=np.array([
-                (0 if node.type == 'and' else 1) for node in visible_and_or_steps
-            ])
-        )
-        step2logic = set()
-        logic2step = set()
-        for logic_gate_id, node in enumerate(visible_and_or_steps):
-            logic2step.add((logic_gate_id, visible_steps.index(node)))
-            for child in filter(lambda child: child in visible_steps, node.children):
-                step2logic.add((visible_steps.index(child), logic_gate_id))
-        logic2step_links = np.array(list(zip(*logic2step)))
-        step2logic_links = np.array(list(zip(*step2logic)))
-    else:
-        logic_gates = None
-        logic2step_links = None
-        step2logic_links = None
+    visible_and_or_steps = [
+        node for node in visible_steps if node.type in ('and', 'or')
+    ]
+    logic_gates = LogicGate(
+        id=np.array([node.id for node in visible_and_or_steps]),
+        type=np.array([
+            (0 if node.type == 'and' else 1) for node in visible_and_or_steps
+        ])
+    )
+    step2logic = set()
+    logic2step = set()
+    for logic_gate_id, node in enumerate(visible_and_or_steps):
+        logic2step.add((logic_gate_id, visible_steps.index(node)))
+        for child in filter(lambda child: child in visible_steps, node.children):
+            step2logic.add((visible_steps.index(child), logic_gate_id))
+    logic2step_links = np.array(list(zip(*logic2step)))
+    step2logic_links = np.array(list(zip(*step2logic)))
 
     return MALObsInstance(
         time=np.int64(state.sim.cur_iter),
@@ -425,7 +415,7 @@ def attacker_update_obs(
     return obs
 
 def defender_state2graph(
-    state: MalSimDefenderState, lang_serializer: LangSerializer, use_logic_gates: bool
+    state: MalSimDefenderState, lang_serializer: LangSerializer
 ) -> MALObsInstance:
     """Create a MALObsInstance of a defender's observation"""
     model = state.sim.attack_graph.model
@@ -507,28 +497,23 @@ def defender_state2graph(
         association = None
         assoc2asset_links = None
 
-    if use_logic_gates:
-        visible_and_or_steps = [
-            node for node in visible_steps if node.type in ('and', 'or')
-        ]
-        logic_gates = LogicGate(
-            id=np.array([node.id for node in visible_and_or_steps]),
-            type=np.array([
-                (0 if node.type == 'and' else 1) for node in visible_and_or_steps
-            ])
-        )
-        step2logic = set()
-        logic2step = set()
-        for logic_gate_id, node in enumerate(visible_and_or_steps):
-            logic2step.add((logic_gate_id, visible_steps.index(node)))
-            for child in filter(lambda child: child in visible_steps, node.children):
-                step2logic.add((visible_steps.index(child), logic_gate_id))
-        logic2step_links = np.array(list(zip(*logic2step)))
-        step2logic_links = np.array(list(zip(*step2logic)))
-    else:
-        logic_gates = None
-        logic2step_links = None
-        step2logic_links = None
+    visible_and_or_steps = [
+        node for node in visible_steps if node.type in ('and', 'or')
+    ]
+    logic_gates = LogicGate(
+        id=np.array([node.id for node in visible_and_or_steps]),
+        type=np.array([
+            (0 if node.type == 'and' else 1) for node in visible_and_or_steps
+        ])
+    )
+    step2logic = set()
+    logic2step = set()
+    for logic_gate_id, node in enumerate(visible_and_or_steps):
+        logic2step.add((logic_gate_id, visible_steps.index(node)))
+        for child in filter(lambda child: child in visible_steps, node.children):
+            step2logic.add((visible_steps.index(child), logic_gate_id))
+    logic2step_links = np.array(list(zip(*logic2step)))
+    step2logic_links = np.array(list(zip(*step2logic)))
 
     return MALObsInstance(
         time=np.int64(state.sim.cur_iter),

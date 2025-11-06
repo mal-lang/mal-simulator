@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 
 def register_graph_envs(
     scenario: Scenario | PathLike[str],
-    use_logic_gates: bool = False,
     sim_settings: MalSimulatorSettings = MalSimulatorSettings(
         ttc_mode=TTCMode.PER_STEP_SAMPLE,
         run_defense_step_bernoullis=False,
@@ -44,7 +43,6 @@ def register_graph_envs(
         entry_point="malsim.envs.graph.graph_env:GraphAttackerEnv",
         kwargs={
             "scenario": scenario,
-            "use_logic_gates": use_logic_gates,
             "sim_settings": sim_settings,
         },
     )
@@ -54,7 +52,6 @@ def register_graph_envs(
         entry_point="malsim.envs.graph.graph_env:GraphDefenderEnv",
         kwargs={
             "scenario": scenario,
-            "use_logic_gates": use_logic_gates,
             "sim_settings": sim_settings,
         },
     )
@@ -68,7 +65,6 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
         entry_point="malsim.envs.graph.graph_env:GraphAttackerEnv",
         nondeterministic=True,
         kwargs={
-            "use_logic_gates": False,
             "sim_settings": MalSimulatorSettings(
                 ttc_mode=TTCMode.PER_STEP_SAMPLE,
                 run_defense_step_bernoullis=False,
@@ -82,7 +78,6 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
     def __init__(
         self,
         scenario: PathLike[str] | Scenario,
-        use_logic_gates: bool,
         sim_settings: MalSimulatorSettings,
         **kwargs: dict[str, Any],
     ) -> None:
@@ -92,7 +87,6 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
             scenario = Scenario.load_from_file(str(scenario))
 
         self.scenario = scenario
-        self.use_logic_gates = use_logic_gates
         self.sim = MalSimulator.from_scenario(scenario, sim_settings)
         self.agent_name = get_agent_name(scenario, AgentType.ATTACKER)
         self.attack_graph = self.sim.attack_graph
@@ -100,10 +94,10 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
         assert self.model, "Attack graph must have a model"
         self.lang_serializer = LangSerializer(self.attack_graph.lang_graph)
         self.observation_space = MALObs(
-            self.lang_serializer, self.use_logic_gates, sim_settings.seed
+            self.lang_serializer, sim_settings.seed
         )
         self.action_space = MALObsAttackerActionSpace(self.sim)
-        self.full_obs = create_full_obs(self.sim, self.lang_serializer, self.use_logic_gates)
+        self.full_obs = create_full_obs(self.sim, self.lang_serializer)
 
     def reset(
         self, seed: int | None = None, options: dict[str, Any] | None = None
@@ -151,7 +145,6 @@ class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
         entry_point="malsim.envs.graph.graph_env:GraphDefenderEnv",
         nondeterministic=True,
         kwargs={
-            "use_logic_gates": False,
             "sim_settings": MalSimulatorSettings(
                 ttc_mode=TTCMode.PER_STEP_SAMPLE,
                 run_defense_step_bernoullis=False,
@@ -165,7 +158,6 @@ class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
     def __init__(
         self,
         scenario: PathLike[str] | Scenario,
-        use_logic_gates: bool,
         sim_settings: MalSimulatorSettings,
         **kwargs: dict[str, Any],
     ) -> None:
@@ -175,7 +167,6 @@ class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
             scenario = Scenario.load_from_file(str(scenario))
 
         self.scenario = scenario
-        self.use_logic_gates = use_logic_gates
         self.sim = MalSimulator.from_scenario(scenario, sim_settings)
         self.agent_name = get_agent_name(scenario, AgentType.DEFENDER)
         self.attack_graph = self.sim.attack_graph
@@ -183,10 +174,10 @@ class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
         assert self.model, "Attack graph must have a model"
         self.lang_serializer = LangSerializer(self.attack_graph.lang_graph)
         self.observation_space = MALObs(
-            self.lang_serializer, self.use_logic_gates, sim_settings.seed
+            self.lang_serializer, sim_settings.seed
         )
         self.action_space = MALObsDefenderActionSpace(self.sim)
-        self.full_obs = create_full_obs(self.sim, self.lang_serializer, self.use_logic_gates)
+        self.full_obs = create_full_obs(self.sim, self.lang_serializer)
 
     def reset(
         self, seed: int | None = None, options: dict[str, Any] | None = None

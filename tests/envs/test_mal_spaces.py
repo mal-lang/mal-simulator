@@ -19,11 +19,11 @@ def test_mal_obs() -> None:
     serializer = LangSerializer(
         scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
     )
-    obs_space = MALObs(serializer, use_logic_gates=True)
+    obs_space = MALObs(serializer)
     sim = MalSimulator.from_scenario(scenario)
 
     states = sim.reset()
-    obs = create_full_obs(sim, serializer, use_logic_gates=True)
+    obs = create_full_obs(sim, serializer)
     assert obs in obs_space
     for _ in range(10):
         actions = {}
@@ -33,7 +33,7 @@ def test_mal_obs() -> None:
             else:
                 actions[agent_name] = []
         states = sim.step(actions)
-        obs = create_full_obs(sim, serializer, use_logic_gates=True)
+        obs = create_full_obs(sim, serializer)
         assert obs in obs_space
 
 def test_attacker_obs() -> None:
@@ -47,8 +47,8 @@ def test_attacker_obs() -> None:
     )
     sim = MalSimulator.from_scenario(scenario)
     AG = scenario.attack_graph
-    full_obs = create_full_obs(sim, serializer, use_logic_gates=True)
-    attacker_obs_space = MALAttackerObs(serializer, use_logic_gates=True)
+    full_obs = create_full_obs(sim, serializer)
+    attacker_obs_space = MALAttackerObs(serializer)
     attacker_state = sim.reset()[attacker_name]
     assert isinstance(attacker_state, MalSimAttackerState)
     attacker_obs = full_obs2attacker_obs(full_obs, attacker_state, see_defense_steps=False)
@@ -92,8 +92,8 @@ def test_defender_obs() -> None:
         scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
-    full_obs = create_full_obs(sim, serializer, use_logic_gates=True)
-    defender_obs_space = MALDefenderObs(serializer, use_logic_gates=True)
+    full_obs = create_full_obs(sim, serializer)
+    defender_obs_space = MALDefenderObs(serializer)
     defender_state = sim.reset()[defender_name]
     assert isinstance(defender_state, MalSimDefenderState)
     defender_obs = full_obs2defender_obs(full_obs, defender_state)
@@ -115,12 +115,12 @@ def test_jsonable() -> None:
     serializer = LangSerializer(
         scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
     )
-    obs_space = MALObs(serializer, use_logic_gates=False)
+    obs_space = MALObs(serializer)
     sim = MalSimulator.from_scenario(scenario)
 
     state = sim.reset()[agent_name]
     assert isinstance(state, MalSimAttackerState)
-    obs = attacker_state2graph(state, serializer, use_logic_gates=False)
+    obs = attacker_state2graph(state, serializer)
     assert obs in obs_space
 
     jsonable = obs_space.to_jsonable([obs])
