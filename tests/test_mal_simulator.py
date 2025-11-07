@@ -1129,18 +1129,23 @@ def test_simulator_attacker_override_ttcs_state() -> None:
     assert isinstance(bad_attacker_state, MalSimAttackerState)
 
     assert {n.full_name for n in bad_attacker_state.ttc_overrides} == {
-        'SoftwareA:easyAccess', 'SoftwareD:easyAccess'
+        'ComputerC:easyConnect',
+        'ComputerA:easyConnect',
+        'ComputerD:easyConnect',
+        'ComputerB:easyConnect'
     }
     assert {
         n.full_name: v for n,v in bad_attacker_state.ttc_value_overrides.items()
     } == {
-        'SoftwareA:easyAccess': 19.22058780048454,
-        'SoftwareD:easyAccess': 10.47865077659922
+        'ComputerA:easyConnect': 23.705677586832987,
+        'ComputerB:easyConnect': 8.803253479623743,
+        'ComputerC:easyConnect': 5.459220383584631,
+        'ComputerD:easyConnect': 7.350404505262642
     }
     assert  {
         n.full_name for n in bad_attacker_state.impossible_step_overrides
     } == {
-        'SoftwareA:easyAccess', 'SoftwareD:easyAccess'
+        'ComputerB:easyConnect'
     }
 
     good_attacker_state = states['GoodAttacker']

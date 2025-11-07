@@ -14,6 +14,7 @@ from malsim.scenario import (
     _validate_scenario_node_property_config,
 )
 from malsim.agents import PassiveAgent, BreadthFirstAttacker
+from malsim.ttc_utils import named_ttc_dists
 
 from .conftest import get_node
 
@@ -554,8 +555,8 @@ def test_apply_scenario_ttc_overrides() -> None:
         n.full_name: v
         for n, v in agent_config['ttc_overrides'].items()
     } == {
-        'OS App:fullAccess': 'HardAndCertain',
-        'Program 1:fullAccess': 'HardAndCertain',
-        'Program 2:fullAccess': 'HardAndCertain',
-        'Identity:8:assume': 'EasyAndCertain'
+        'OS App:fullAccess': named_ttc_dists['HardAndCertain'],
+        'Program 1:fullAccess': named_ttc_dists['HardAndCertain'],
+        'Program 2:fullAccess': named_ttc_dists['HardAndCertain'],
+        'Identity:8:assume': named_ttc_dists['EasyAndCertain']
     }
