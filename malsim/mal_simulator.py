@@ -703,7 +703,7 @@ class MalSimulator:
         # Need to store potential ttc value overrides as well
         ttc_overrides = ttc_overrides if ttc_overrides else {}
         ttc_value_overrides = {}
-        impossible_step_overrides = {}
+        impossible_step_overrides: set[AttackGraphNode] = set()
 
         if ttc_overrides:
             # Store potential pre calculated ttc values
@@ -949,9 +949,9 @@ class MalSimulator:
         Arguments:
         name          - name of the agent, used as identifier
         entry_points  - starting points of the agent in the simulation
-        goals         - optional goal of the agent, agent is marked as done if it succeeds
-        ttc_overrides - optional way to override TTC distributions for attacker agent
-                        keys are nodes or full names and values are named TTC distributions
+        goals         - optional goal of the agent, agent is marked done if successful
+        ttc_overrides - optional way to override TTC distributions for attacker agent.
+                        Keys are nodes/full names and values are named TTC distributions
         """
         assert name not in self._agent_states, \
             f"Duplicate agent named {name} not allowed"

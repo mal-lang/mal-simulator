@@ -451,7 +451,7 @@ def get_entry_point_nodes(
 
     return entry_points
 
-def _validate_attacker_agent_info(agent_info: dict[str, Any]):
+def _validate_attacker_agent_info(agent_info: dict[str, Any]) -> None:
     """Assertion error if agent config for attacker contains illegal fields"""
     allowed_attacker_keys = {
         "entry_points",

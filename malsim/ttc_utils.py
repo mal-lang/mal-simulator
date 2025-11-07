@@ -232,7 +232,7 @@ class TTCDist:
         return TTCDist.from_dict(node.ttc)
 
     @classmethod
-    def from_name(cls, name: str):
+    def from_name(cls, name: str) -> TTCDist:
         return named_ttc_dists[name]
 
 

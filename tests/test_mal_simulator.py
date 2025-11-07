@@ -1131,11 +1131,15 @@ def test_simulator_attacker_override_ttcs_state() -> None:
     assert {n.full_name for n in bad_attacker_state.ttc_overrides} == {
         'SoftwareA:easyAccess', 'SoftwareD:easyAccess'
     }
-    assert {n.full_name: v for n,v in bad_attacker_state.ttc_value_overrides.items()} == {
+    assert {
+        n.full_name: v for n,v in bad_attacker_state.ttc_value_overrides.items()
+    } == {
         'SoftwareA:easyAccess': 19.22058780048454,
         'SoftwareD:easyAccess': 10.47865077659922
     }
-    assert  {n.full_name for n in bad_attacker_state.impossible_step_overrides} == {
+    assert  {
+        n.full_name for n in bad_attacker_state.impossible_step_overrides
+    } == {
         'SoftwareA:easyAccess', 'SoftwareD:easyAccess'
     }
 
