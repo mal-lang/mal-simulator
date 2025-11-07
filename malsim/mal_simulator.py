@@ -940,7 +940,9 @@ class MalSimulator:
         name: str,
         entry_points: set[AttackGraphNode] | set[str],
         goals: Optional[set[AttackGraphNode] | set[str]] = None,
-        ttc_overrides: Optional[dict[AttackGraphNode, str] | dict[str, str]] = None
+        ttc_overrides: Optional[
+            Mapping[AttackGraphNode, TTCDist] | Mapping[str, TTCDist]
+        ] = None
     ) -> None:
         """Register a mal sim attacker agent
 
@@ -954,13 +956,12 @@ class MalSimulator:
         assert name not in self._agent_states, \
             f"Duplicate agent named {name} not allowed"
 
-        ttc_dist_overrides = {
-            self._full_name_or_node_to_node(node): TTCDist.from_name(name)
-            for node, name in ttc_overrides.items()
-        } if ttc_overrides else {}
-
+        # Make sure ttc_overrides in correct format
+        ttc_overrides = (
+            self._full_name_dict_to_node_dict(ttc_overrides) if ttc_overrides else {}
+        )
         agent_state = self._create_attacker_state(
-            name, entry_points, goals=goals, ttc_overrides=ttc_dist_overrides
+            name, entry_points, goals=goals, ttc_overrides=ttc_overrides
         )
 
         self._agent_states[name] = agent_state
@@ -1035,25 +1036,38 @@ class MalSimulator:
 
         num_attempts = agent.num_attempts[node] + 1
 
+        if node in agent.ttc_overrides:
+            # If this agent has custom ttc distribution set for this node, use it
+            ttc_dist = agent.ttc_overrides[node]
+        else:
+            ttc_dist = TTCDist.from_node(node)
+
+
         if self.sim_settings.ttc_mode == TTCMode.DISABLED:
             # Always suceed if disabled TTCs
             return True
 
         elif self.sim_settings.ttc_mode == TTCMode.EFFORT_BASED_PER_STEP_SAMPLE:
             # Run trial to decide success if config says so (SANDOR mode)
-            return TTCDist.from_node(node).attempt_ttc_with_effort(
+            return ttc_dist.attempt_ttc_with_effort(
                 num_attempts, self.rng
             )
 
         elif self.sim_settings.ttc_mode == TTCMode.PER_STEP_SAMPLE:
             # Sample ttc value every time if config says so (ANDREI mode)
-            node_ttc_value = TTCDist.from_node(node).sample_value(self.rng)
+            node_ttc_value = ttc_dist.sample_value(self.rng)
             return node_ttc_value <= 1
 
         # Compare attempts to ttc expected value in EXPECTED_VALUE mode
         # or presampled ttcs in PRE_SAMPLE mode
         elif self.sim_settings.ttc_mode in (TTCMode.EXPECTED_VALUE, TTCMode.PRE_SAMPLE):
-            node_ttc_value = self._ttc_values.get(node, 0)
+
+            if node in agent.ttc_value_overrides:
+                # If agent has custom ttc value set for node, use it
+                node_ttc_value = agent.ttc_value_overrides[node]
+            else:
+                node_ttc_value = self._ttc_values.get(node, 0)
+
             return num_attempts + 1 >= node_ttc_value
 
         else:
@@ -1240,6 +1254,10 @@ class MalSimulator:
 
         if len(attacker_state.action_surface) == 0:
             # Attacker is terminated if it has no more actions to take
+            logger.info(
+                'Attacker "%s" action surface is empty, terminate',
+                attacker_state.name
+            )
             return True
         if attacker_state.goals:
             # Attacker is terminated if it has goals and all goals are met

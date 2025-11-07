@@ -1106,7 +1106,7 @@ def test_simulator_multiple_defenders() -> None:
     }
 
 
-def test_simulator_attacker_override_ttcs() -> None:
+def test_simulator_attacker_override_ttcs_state() -> None:
     """
     Have an attacker that overrides ttcs
     """
@@ -1123,19 +1123,65 @@ def test_simulator_attacker_override_ttcs() -> None:
         ),
         max_iter=100,
     )
-    state = sim.reset()['Attacker']
-    assert isinstance(state, MalSimAttackerState)
+    states = sim.reset()
 
-    assert {n.full_name for n in state.ttc_overrides} == {
+    bad_attacker_state = states['BadAttacker']
+    assert isinstance(bad_attacker_state, MalSimAttackerState)
+
+    assert {n.full_name for n in bad_attacker_state.ttc_overrides} == {
         'SoftwareA:easyAccess', 'SoftwareD:easyAccess'
     }
-    assert {n.full_name: v for n,v in state.ttc_value_overrides.items()} == {
+    assert {n.full_name: v for n,v in bad_attacker_state.ttc_value_overrides.items()} == {
         'SoftwareA:easyAccess': 19.22058780048454,
         'SoftwareD:easyAccess': 10.47865077659922
     }
-    assert  {n.full_name for n in state.impossible_step_overrides} == {
+    assert  {n.full_name for n in bad_attacker_state.impossible_step_overrides} == {
         'SoftwareA:easyAccess', 'SoftwareD:easyAccess'
     }
+
+    good_attacker_state = states['GoodAttacker']
+    assert isinstance(good_attacker_state, MalSimAttackerState)
+    assert not good_attacker_state.ttc_overrides
+    assert not good_attacker_state.ttc_value_overrides
+    assert not good_attacker_state.impossible_step_overrides
+
+
+def test_simulator_attacker_override_ttcs_step() -> None:
+    """
+    Have an attacker that overrides ttcs step
+    """
+
+    scenario = load_scenario(
+        'tests/testdata/scenarios/ttc_lang_scenario_override_ttcs.yml'
+    )
+    sim = MalSimulator.from_scenario(
+        scenario,
+        sim_settings=MalSimulatorSettings(
+            seed=100,
+            ttc_mode=TTCMode.PRE_SAMPLE,
+            attack_surface_skip_unnecessary=False
+        ), max_iter=1000
+    )
+
+    states = sim.reset()
+    attacker_name = 'GoodAttacker'
+    while not sim.agent_is_terminated(attacker_name):
+        # Good attacker should be fast
+        attacker_state = states[attacker_name]
+        agent_conf = next(a for a in scenario.agents if a['name'] == attacker_name)
+        next_action = agent_conf['agent'].get_next_action(attacker_state)
+        states = sim.step({attacker_name: [next_action]})
+    assert sim.cur_iter == 8
+
+    states = sim.reset()
+    attacker_name = 'BadAttacker'
+    while not sim.agent_is_terminated(attacker_name):
+        # Bad attacker should be slow
+        attacker_state = states[attacker_name]
+        agent_conf = next(a for a in scenario.agents if a['name'] == attacker_name)
+        next_action = agent_conf['agent'].get_next_action(attacker_state)
+        states = sim.step({attacker_name: [next_action]})
+    assert sim.cur_iter == 17
 
 
 def test_simulator_seed_setting() -> None:

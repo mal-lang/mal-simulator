@@ -24,7 +24,7 @@ from maltoolbox.model import Model
 from maltoolbox.language import LanguageGraph
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode, create_attack_graph
 
-from .ttc_utils import predef_ttcs
+from .ttc_utils import TTCDist
 
 from .agents import (
     BreadthFirstAttacker,
@@ -507,7 +507,7 @@ def load_simulator_agents(
                 attack_graph, agent_info.get('ttc_overrides')
             )
             ttc_overrides = {
-                node: predef_ttcs[name] for node, name in ttc_overrides.items()
+                node: TTCDist.from_name(name) for node, name in ttc_overrides.items()
             }
             agent_config = {
                 'name': agent_name,
