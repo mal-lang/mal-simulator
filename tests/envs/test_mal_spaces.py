@@ -1,12 +1,12 @@
 from malsim.envs.graph.serialization import LangSerializer
 from malsim.envs.graph.mal_spaces import (
     MALObs,
-    MALObsActionAsset,
+    ActionThenAsset,
     MALObsAttackStepSpace,
     MALObsDefenseStepSpace,
     MALAttackerObs,
     MALDefenderObs,
-    MALObsAssetAction,
+    AssetThenAction,
     MALObsInstance,
 )
 from malsim.envs.graph.utils import attacker_state2graph, create_full_obs, full_obs2attacker_obs, full_obs2defender_obs
@@ -156,7 +156,7 @@ def test_asset_action_attacker_selection() -> None:
     full_obs = create_full_obs(sim, serializer)
 
     attacker_obs_space = MALAttackerObs(serializer)
-    attacker_asset_action_space = MALObsAssetAction(model, serializer)
+    attacker_asset_action_space = AssetThenAction(model, serializer)
 
     attacker_state = sim.reset()[attacker_name]
     assert isinstance(attacker_state, MalSimAttackerState)
@@ -190,7 +190,7 @@ def test_asset_action_defender_selection() -> None:
     full_obs = create_full_obs(sim, serializer)
 
     defender_obs_space = MALDefenderObs(serializer)
-    defender_action_asset_space = MALObsAssetAction(model, serializer)
+    defender_action_asset_space = AssetThenAction(model, serializer)
 
     defender_state = sim.reset()[defender_name]
     assert isinstance(defender_state, MalSimDefenderState)
@@ -224,7 +224,7 @@ def test_action_asset_attacker_selection() -> None:
     full_obs = create_full_obs(sim, serializer)
 
     attacker_obs_space = MALAttackerObs(serializer)
-    attacker_action_asset_space = MALObsActionAsset(model, serializer)
+    attacker_action_asset_space = ActionThenAsset(model, serializer)
 
     attacker_state = sim.reset()[attacker_name]
     assert isinstance(attacker_state, MalSimAttackerState)
@@ -258,7 +258,7 @@ def test_action_asset_defender_selection() -> None:
     full_obs = create_full_obs(sim, serializer)
 
     defender_obs_space = MALDefenderObs(serializer)
-    defender_action_asset_space = MALObsActionAsset(model, serializer)
+    defender_action_asset_space = ActionThenAsset(model, serializer)
 
     defender_state = sim.reset()[defender_name]
     assert isinstance(defender_state, MalSimDefenderState)

@@ -588,8 +588,8 @@ class MALObsDefenseStepSpace(Discrete):
     def contains(self, x: Any) -> bool:
         return bool(super().contains(x)) and bool(self.actionability[int(x)])
 
-class MALObsAssetAction(spaces.Tuple):
-    """A space over the (asset, lang action for asset) for the attacker.
+class AssetThenAction(spaces.Tuple):
+    """A space over the (asset, lang action for asset).
     
     The space is dependent on a specific indexing of the assets in the MALObsInstance.
     """
@@ -631,8 +631,8 @@ class MALObsAssetAction(spaces.Tuple):
 
         return super().sample()
 
-class MALObsActionAsset(spaces.Tuple):
-    """A space over the (lang action, asset to perform action on) for the defender.
+class ActionThenAsset(spaces.Tuple):
+    """A space over the (lang action, asset to perform action on).
     
     The space is dependent on a specific indexing of the assets in the MALObsInstance.
     """
