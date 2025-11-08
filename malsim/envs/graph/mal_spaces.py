@@ -621,8 +621,8 @@ class AssetThenAction(spaces.Tuple):
 
     def sample(self, mask: tuple[Any | None, ...] | None = None, probability: tuple[Any | None, ...] | None = None) -> tuple[Any, ...]:
         if mask is not None:
-            if not isinstance(mask[0], np.ndarray) and not isinstance(mask[1], np.ndarray):
-                raise ValueError("mask must be a tuple of numpy arrays")
+            if not isinstance(mask, tuple) or not len(mask) == 2 or not isinstance(mask[0], np.ndarray) or not isinstance(mask[1], np.ndarray):
+                raise ValueError("mask must be a tuple of length 2 with numpy arrays or None")
 
             asset = self.asset.sample(mask=mask[0])
             action = self.action.sample(mask=mask[1][asset])
@@ -665,8 +665,8 @@ class ActionThenAsset(spaces.Tuple):
 
     def sample(self, mask: tuple[Any | None, ...] | None = None, probability: tuple[Any | None, ...] | None = None) -> tuple[Any, ...]:
         if mask is not None:
-            if not isinstance(mask[0], np.ndarray) and not isinstance(mask[1], np.ndarray):
-                raise ValueError("mask must be a tuple of numpy arrays")
+            if not isinstance(mask, tuple) or not len(mask) == 2 or not isinstance(mask[0], np.ndarray) or not isinstance(mask[1], np.ndarray):
+                raise ValueError("mask must be a tuple of length 2 with numpy arrays or None")
 
             action = self.action.sample(mask=mask[0])
             asset = self.asset.sample(mask=mask[1][action])

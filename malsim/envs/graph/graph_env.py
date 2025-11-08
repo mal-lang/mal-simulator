@@ -6,6 +6,8 @@ from .mal_spaces import (
     MALObsDefenseStepSpace,
     MALObs,
     MALObsInstance,
+    MALAttackerObs,
+    MALDefenderObs,
 )
 from .utils import create_full_obs, full_obs2attacker_obs, full_obs2defender_obs
 from os import PathLike
@@ -188,8 +190,8 @@ class GraphEnv(ParallelEnv[str, MALObsInstance, np.int64]):
         self.attack_graph = self.sim.attack_graph
         self.lang_serializer = LangSerializer(self.attack_graph.lang_graph)
         self.observation_spaces = {
-            "attacker": MALObs(self.lang_serializer),
-            "defender": MALObs(self.lang_serializer),
+            "attacker": MALAttackerObs(self.lang_serializer),
+            "defender": MALDefenderObs(self.lang_serializer),
         }
         self.action_spaces = {
             "attacker": MALObsAttackStepSpace(self.sim),
@@ -199,7 +201,7 @@ class GraphEnv(ParallelEnv[str, MALObsInstance, np.int64]):
         self.possible_agents = [name for name in self.sim.agent_states.keys()]
         self.agents = list(self.sim._alive_agents)
 
-    def reset(self, seed=None, options=None):
+    def reset(self, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[dict[str, MALObsInstance], dict[str, dict[str, Any]]]:
         states = self.sim.reset()
         self._obs = {
             agent_name: (
@@ -211,7 +213,7 @@ class GraphEnv(ParallelEnv[str, MALObsInstance, np.int64]):
         }
         return self._obs, {agent_name: {"state": state} for agent_name, state in states.items()}
 
-    def step(self, actions):
+    def step(self, actions) -> tuple[dict[str, MALObsInstance], dict[str, SupportsFloat], dict[str, bool], dict[str, bool], dict[str, dict[str, Any]]]:
 
         # Check if actions are valid
         for agent_name, action_idx in actions.items():
@@ -245,12 +247,14 @@ class GraphEnv(ParallelEnv[str, MALObsInstance, np.int64]):
         }
         return self._obs, rewards, terminations, truncations, {agent_name: {"state": state} for agent_name, state in states.items()}
 
-    def render(self):
+    def render(self) -> None:
         raise NotImplementedError("Render not implemented")
 
-    def observation_space(self, agent):
+    def close(self) -> None:
+        return
+
+    def observation_space(self, agent: str) -> MALObs:
         return self.observation_spaces["attacker" if isinstance(self.sim.agent_states[agent], MalSimAttackerState) else "defender"]
 
-    def action_space(self, agent):
-        
+    def action_space(self, agent: str) -> MALObsAttackStepSpace | MALObsDefenseStepSpace:
         return self.action_spaces["attacker" if isinstance(self.sim.agent_states[agent], MalSimAttackerState) else "defender"]
