@@ -189,11 +189,11 @@ class GraphEnv(ParallelEnv[str, MALObsInstance, np.int64]):
         self.sim = simulator
         self.attack_graph = self.sim.attack_graph
         self.lang_serializer = LangSerializer(self.attack_graph.lang_graph)
-        self.observation_spaces = {
+        self.observation_spaces: dict[str, MALObs] = {
             "attacker": MALAttackerObs(self.lang_serializer),
             "defender": MALDefenderObs(self.lang_serializer),
         }
-        self.action_spaces = {
+        self.action_spaces: dict[str, MALObsAttackStepSpace | MALObsDefenseStepSpace] = {
             "attacker": MALObsAttackStepSpace(self.sim),
             "defender": MALObsDefenseStepSpace(self.sim),
         }
@@ -213,7 +213,7 @@ class GraphEnv(ParallelEnv[str, MALObsInstance, np.int64]):
         }
         return self._obs, {agent_name: {"state": state} for agent_name, state in states.items()}
 
-    def step(self, actions) -> tuple[dict[str, MALObsInstance], dict[str, SupportsFloat], dict[str, bool], dict[str, bool], dict[str, dict[str, Any]]]:
+    def step(self, actions: dict[str, np.int64]) -> tuple[dict[str, MALObsInstance], dict[str, float], dict[str, bool], dict[str, bool], dict[str, dict[str, Any]]]:
 
         # Check if actions are valid
         for agent_name, action_idx in actions.items():

@@ -151,6 +151,7 @@ def test_asset_action_attacker_selection() -> None:
     )
     sim = MalSimulator.from_scenario(scenario)
     model = sim.attack_graph.model
+    assert model is not None, "Attack graph needs to have a model attached to it"
     full_obs = create_full_obs(sim, serializer)
 
     attacker_obs_space = MALAttackerObs(serializer)
@@ -185,6 +186,7 @@ def test_asset_action_defender_selection() -> None:
     )
     sim = MalSimulator.from_scenario(scenario)
     model = sim.attack_graph.model
+    assert model is not None, "Attack graph needs to have a model attached to it"
     full_obs = create_full_obs(sim, serializer)
 
     defender_obs_space = MALDefenderObs(serializer)
@@ -219,6 +221,7 @@ def test_action_asset_attacker_selection() -> None:
     )
     sim = MalSimulator.from_scenario(scenario)
     model = sim.attack_graph.model
+    assert model is not None, "Attack graph needs to have a model attached to it"
     full_obs = create_full_obs(sim, serializer)
 
     attacker_obs_space = MALAttackerObs(serializer)
@@ -253,6 +256,7 @@ def test_action_asset_defender_selection() -> None:
     )
     sim = MalSimulator.from_scenario(scenario)
     model = sim.attack_graph.model
+    assert model is not None, "Attack graph needs to have a model attached to it"
     full_obs = create_full_obs(sim, serializer)
 
     defender_obs_space = MALDefenderObs(serializer)
