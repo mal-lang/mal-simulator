@@ -71,7 +71,7 @@ def test_attacker_episode() -> None:
         attack_surface_skip_unnecessary=False,
         attacker_reward_mode=RewardMode.ONE_OFF,
     ))
-    ser = attacker_env.lang_serializer
+    ser = attacker_env.multi_env.lang_serializer
 
     done = False
     obs, info = attacker_env.reset()

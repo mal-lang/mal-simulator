@@ -89,53 +89,29 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
 
         self.scenario = scenario
         self.sim = MalSimulator.from_scenario(scenario, sim_settings)
+        self.multi_env = GraphEnv(self.sim, attacker_visible_defense_steps=False)
         self.agent_name = get_agent_name(scenario, AgentType.ATTACKER)
-        self.attack_graph = self.sim.attack_graph
-        self.model = self.attack_graph.model
-        assert self.model, "Attack graph must have a model"
-        self.lang_serializer = LangSerializer(self.attack_graph.lang_graph)
-        self.observation_space = MALObs(
-            self.lang_serializer, sim_settings.seed
-        )
-        self.action_space = MALObsAttackStepSpace(self.sim)
-        self.full_obs = create_full_obs(self.sim, self.lang_serializer)
+        self.observation_space = self.multi_env.observation_space(self.agent_name)
+        self.action_space = self.multi_env.action_space(self.agent_name)
 
     def reset(
         self, seed: int | None = None, options: dict[str, Any] | None = None
     ) -> tuple[MALObsInstance, dict[str, Any]]:
         super().reset(seed=seed, options=options)
-        state = self.sim.reset()[self.agent_name]
-        assert isinstance(state, MalSimAttackerState)
-        obs = full_obs2attacker_obs(self.full_obs, state, see_defense_steps=False)
-        self._obs = obs
-        info = {"state": state}
-        return obs, info
+        obs, info = self.multi_env.reset(seed=seed, options=options)
+        return obs[self.agent_name], info[self.agent_name]
 
     def step(
         self, action: np.int64
     ) -> tuple[MALObsInstance, SupportsFloat, bool, bool, dict[str, Any]]:
-        try:
-            action_node = self.attack_graph.nodes[int(self._obs.steps.id[action])]
-        except (KeyError, IndexError):
-            logger.error(f"Action {action} is not valid for observation {self._obs}")
-            action_node = None
-        del self._obs
-        state = self.sim.step({self.agent_name: [action_node] if action_node else []})[
-            self.agent_name
-        ]
-        assert isinstance(state, MalSimAttackerState)
-        obs = full_obs2attacker_obs(self.full_obs, state, see_defense_steps=False)
-        self._obs = obs
-        terminated = self.sim.agent_is_terminated(self.agent_name)
-        reward = self.sim.agent_reward(self.agent_name)
-        info = {"state": state}
-        return obs, reward, terminated, False, info
+        obs, reward, terminated, truncated, info = self.multi_env.step({self.agent_name: action})
+        return obs[self.agent_name], reward[self.agent_name], terminated[self.agent_name], truncated[self.agent_name], info[self.agent_name]
 
     def render(self) -> None:
-        raise NotImplementedError("Render not implemented")
+        return self.multi_env.render()
 
     def close(self) -> None:
-        return
+        return self.multi_env.close()
 
 
 class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
@@ -169,53 +145,29 @@ class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
 
         self.scenario = scenario
         self.sim = MalSimulator.from_scenario(scenario, sim_settings)
+        self.multi_env = GraphEnv(self.sim, attacker_visible_defense_steps=True)
         self.agent_name = get_agent_name(scenario, AgentType.DEFENDER)
-        self.attack_graph = self.sim.attack_graph
-        self.model = self.attack_graph.model
-        assert self.model, "Attack graph must have a model"
-        self.lang_serializer = LangSerializer(self.attack_graph.lang_graph)
-        self.observation_space = MALObs(
-            self.lang_serializer, sim_settings.seed
-        )
-        self.action_space = MALObsDefenseStepSpace(self.sim)
-        self.full_obs = create_full_obs(self.sim, self.lang_serializer)
+        self.observation_space = self.multi_env.observation_space(self.agent_name)
+        self.action_space = self.multi_env.action_space(self.agent_name)
 
     def reset(
         self, seed: int | None = None, options: dict[str, Any] | None = None
     ) -> tuple[MALObsInstance, dict[str, Any]]:
         super().reset(seed=seed, options=options)
-        state = self.sim.reset()[self.agent_name]
-        assert isinstance(state, MalSimDefenderState)
-        obs = full_obs2defender_obs(self.full_obs, state)
-        self._obs = obs
-        info = {"state": state}
-        return obs, info
+        obs, info = self.multi_env.reset(seed=seed, options=options)
+        return obs[self.agent_name], info[self.agent_name]
 
     def step(
         self, action: np.int64
     ) -> tuple[MALObsInstance, SupportsFloat, bool, bool, dict[str, Any]]:
-        try:
-            action_node = self.attack_graph.nodes[int(self._obs.steps.id[action])]
-        except (KeyError, IndexError):
-            logger.error(f"Action {action} is not valid for observation {self._obs}")
-            action_node = None
-        del self._obs
-        state = self.sim.step({self.agent_name: [action_node] if action_node else []})[
-            self.agent_name
-        ]
-        assert isinstance(state, MalSimDefenderState)
-        obs = full_obs2defender_obs(self.full_obs, state)
-        self._obs = obs
-        terminated = self.sim.agent_is_terminated(self.agent_name)
-        reward = self.sim.agent_reward(self.agent_name)
-        info = {"state": state}
-        return obs, reward, terminated, False, info
+        obs, reward, terminated, truncated, info = self.multi_env.step({self.agent_name: action})
+        return obs[self.agent_name], reward[self.agent_name], terminated[self.agent_name], truncated[self.agent_name], info[self.agent_name]
 
     def render(self) -> None:
-        raise NotImplementedError("Render not implemented")
+        return self.multi_env.render()
 
     def close(self) -> None:
-        return
+        return self.multi_env.close()
 
 
 def get_agent_name(scenario: Scenario, type: AgentType) -> str:
@@ -258,7 +210,7 @@ class GraphEnv(ParallelEnv[str, MALObsInstance, np.int64]):
             )
             for agent_name, state in states.items()
         }
-        return self._obs, states
+        return self._obs, {agent_name: {"state": state} for agent_name, state in states.items()}
 
     def step(self, actions):
 
@@ -292,7 +244,7 @@ class GraphEnv(ParallelEnv[str, MALObsInstance, np.int64]):
         truncations = {
             agent_name: self.sim.done() for agent_name in states.keys()
         }
-        return self._obs, rewards, terminations, truncations, states
+        return self._obs, rewards, terminations, truncations, {agent_name: {"state": state} for agent_name, state in states.items()}
 
     def render(self):
         raise NotImplementedError("Render not implemented")

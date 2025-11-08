@@ -207,7 +207,11 @@ def full_obs2attacker_obs(full_obs: MALObsInstance, state: MalSimAttackerState, 
 
     if full_obs.logic_gates is not None and full_obs.step2logic is not None and full_obs.logic2step is not None:
         # Logic gates have the same ID as the steps they are associated with
-        old2new_logic_idx = {int(np.where(full_obs.logic_gates.id == logic_id)[0]): new_idx for new_idx, logic_id in enumerate(visible_step_ids)}
+        old2new_logic_idx = {
+            int(np.where(full_obs.logic_gates.id == logic_id)[0]): new_idx 
+            for new_idx, logic_id in enumerate(visible_step_ids) 
+            if np.isin(logic_id, full_obs.logic_gates.id)
+        }
         old_logic_idx = np.array([old for old, _ in sorted(old2new_logic_idx.items(), key=lambda x: x[1])], dtype=np.int64)
         logic_gates = LogicGate(
             id=full_obs.logic_gates.id[old_logic_idx],
