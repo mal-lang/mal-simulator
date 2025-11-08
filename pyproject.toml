@@ -69,3 +69,6 @@ warn_no_return = true
 disallow_untyped_calls = true
 disallow_untyped_defs = true
 disallow_any_generics = true
+allow_subclassing_any = true
+
+
