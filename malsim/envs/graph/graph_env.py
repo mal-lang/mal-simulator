@@ -23,6 +23,7 @@ from gymnasium.envs.registration import EnvSpec
 import numpy as np
 from typing import SupportsFloat
 import logging
+from pettingzoo import ParallelEnv
 
 logger = logging.getLogger(__name__)
 
@@ -224,3 +225,81 @@ def get_agent_name(scenario: Scenario, type: AgentType) -> str:
     ), f"Expected exactly one agent of type {type}, got {len(agents)} agents"
     agent_name = agents[0]["name"]
     return str(agent_name)
+
+class GraphEnv(ParallelEnv[str, MALObsInstance, np.int64]):
+    metadata = {
+        "name": "GraphEnv-v0",
+    }
+
+    def __init__(self, simulator: MalSimulator, attacker_visible_defense_steps: bool = False):
+        self.see_def_steps = attacker_visible_defense_steps
+        self.sim = simulator
+        self.attack_graph = self.sim.attack_graph
+        self.lang_serializer = LangSerializer(self.attack_graph.lang_graph)
+        self.observation_spaces = {
+            "attacker": MALObs(self.lang_serializer),
+            "defender": MALObs(self.lang_serializer),
+        }
+        self.action_spaces = {
+            "attacker": MALObsAttackStepSpace(self.sim),
+            "defender": MALObsDefenseStepSpace(self.sim),
+        }
+        self._full_obs = create_full_obs(self.sim, self.lang_serializer)
+        self.possible_agents = [name for name in self.sim.agent_states.keys()]
+        self.agents = list(self.sim._alive_agents)
+
+    def reset(self, seed=None, options=None):
+        states = self.sim.reset()
+        self._obs = {
+            agent_name: (
+                full_obs2attacker_obs(self._full_obs, state, see_defense_steps=self.see_def_steps)
+                if isinstance(state, MalSimAttackerState) else
+                full_obs2defender_obs(self._full_obs, state)
+            )
+            for agent_name, state in states.items()
+        }
+        return self._obs, states
+
+    def step(self, actions):
+
+        # Check if actions are valid
+        for agent_name, action_idx in actions.items():
+            if self._obs[agent_name].steps.type.shape[0] < action_idx:
+                logger.error(f"Action {action_idx} is not valid for observation {self._obs[agent_name]}")
+
+        # Convert observation indicies to action nodes
+        action_nodes = {
+            agent_name: [self.attack_graph.nodes[self._obs[agent_name].steps.id[action_idx]]] 
+            if not (self._obs[agent_name].steps.type.shape[0] < action_idx) else []
+            for agent_name, action_idx in actions.items()
+        }
+        states = self.sim.step(action_nodes)
+        self.agents = list(self.sim._alive_agents)
+        self._obs = {
+            agent_name: (
+                full_obs2attacker_obs(self._full_obs, state, see_defense_steps=self.see_def_steps)
+                if isinstance(state, MalSimAttackerState) else
+                full_obs2defender_obs(self._full_obs, state)
+            )
+            for agent_name, state in states.items()
+        }
+        rewards = {
+            agent_name: self.sim.agent_reward(agent_name) for agent_name in states.keys()
+        }
+        terminations = {
+            agent_name: self.sim.agent_is_terminated(agent_name) for agent_name in states.keys()
+        }
+        truncations = {
+            agent_name: self.sim.done() for agent_name in states.keys()
+        }
+        return self._obs, rewards, terminations, truncations, states
+
+    def render(self):
+        raise NotImplementedError("Render not implemented")
+
+    def observation_space(self, agent):
+        return self.observation_spaces["attacker" if isinstance(self.sim.agent_states[agent], MalSimAttackerState) else "defender"]
+
+    def action_space(self, agent):
+        
+        return self.action_spaces["attacker" if isinstance(self.sim.agent_states[agent], MalSimAttackerState) else "defender"]

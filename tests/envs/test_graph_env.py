@@ -1,5 +1,6 @@
+from malsim import MalSimulator
 from malsim.envs.graph.graph_env import (
-    GraphAttackerEnv, GraphDefenderEnv, register_graph_envs
+    GraphAttackerEnv, GraphDefenderEnv, GraphEnv, register_graph_envs
 )
 from malsim.scenario import Scenario
 from typing import Any
@@ -7,6 +8,7 @@ from malsim.mal_simulator import MalSimulatorSettings, TTCMode, RewardMode, MalS
 from gymnasium.utils.env_checker import check_env
 import numpy as np
 import pytest
+from pettingzoo.test import parallel_api_test
 
 @pytest.mark.parametrize(
     "sim_settings",
@@ -151,3 +153,13 @@ def test_defender_episode() -> None:
         obs, reward, terminated, truncated, info = defender_env.step(defender_env.action_space.sample(obs.steps.action_mask))
         steps += 1
         done = terminated or truncated or (steps > 10_000)
+
+
+def test_pettingzoo_api_check() -> None:
+    scenario_file = (
+        "tests/testdata/scenarios/traininglang_scenario_with_model.yml"
+    )
+    scenario = Scenario.load_from_file(scenario_file)
+    sim = MalSimulator.from_scenario(scenario)
+    env = GraphEnv(sim)
+    parallel_api_test(env)
