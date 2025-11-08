@@ -589,7 +589,50 @@ class MALObsDefenseStepSpace(Discrete):
         return bool(super().contains(x)) and bool(self.actionability[int(x)])
 
 class MALObsAssetAction(spaces.Tuple):
-    """A space over the (asset, action for asset) for the attacker.
+    """A space over the (asset, lang action for asset) for the attacker.
+    
+    The space is dependent on a specific indexing of the assets in the MALObsInstance.
+    """
+    def __init__(
+        self, model: Model, lang_serializer: LangSerializer, seed: int | np.random.Generator | None = None
+    ):
+        if not lang_serializer.split_attack_step_types:
+            raise ValueError("lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction")
+
+        self.asset = Discrete(len(model.assets))
+        # NOTE: Serializer indicies should be contiguous
+        self.action = Discrete(max(lang_serializer.attack_step_type.values()) + 1) # +1 beacuse they are indicies
+
+        super().__init__((self.asset, self.action), seed=seed)
+
+    def _action_mask_for_asset(self, asset_idx: int, obs: MALObsInstance) -> np.ndarray:
+        asset_step_indicies = obs.step2asset[0, np.where(obs.step2asset[1] == asset_idx)[0]]
+        asset_step_types = obs.steps.type[asset_step_indicies]
+        action_mask = np.zeros(self.action.n, dtype=np.int8)
+        action_mask[asset_step_types] = True
+        return action_mask
+
+    def mask(self, obs: MALObsInstance) -> tuple[np.ndarray, np.ndarray]:
+        asset_mask = np.zeros(self.asset.n, dtype=np.int8)
+        asset_mask[:obs.assets.type.shape[0]] = True
+        action_mask = np.zeros((self.asset.n, self.action.n), dtype=np.int8)
+        for asset_idx in range(obs.assets.type.shape[0]):
+            action_mask[asset_idx] = self._action_mask_for_asset(asset_idx, obs)
+        return (asset_mask, action_mask)
+
+    def sample(self, mask: tuple[Any | None, ...] | None = None, probability: tuple[Any | None, ...] | None = None) -> tuple[Any, ...]:
+        if mask is not None:
+            if not isinstance(mask[0], np.ndarray) and not isinstance(mask[1], np.ndarray):
+                raise ValueError("mask must be a tuple of numpy arrays")
+
+            asset = self.asset.sample(mask=mask[0])
+            action = self.action.sample(mask=mask[1][asset])
+            return (asset, action)
+
+        return super().sample()
+
+class MALObsActionAsset(spaces.Tuple):
+    """A space over the (lang action, asset to perform action on) for the defender.
     
     The space is dependent on a specific indexing of the assets in the MALObsInstance.
     """
@@ -605,13 +648,29 @@ class MALObsAssetAction(spaces.Tuple):
 
         super().__init__((self.asset, self.action), seed=seed)
 
+    def _asset_mask_for_action(self, action_type: int, obs: MALObsInstance) -> np.ndarray:
+        asset_mask = np.zeros(self.asset.n, dtype=np.int8)
+        actionable_step_indicies = np.where((obs.steps.type == action_type) & obs.steps.action_mask)[0]
+        asset_indicies = obs.step2asset[1, np.where(np.isin(obs.step2asset[0], actionable_step_indicies))[0]]
+        asset_mask[asset_indicies] = True
+        return asset_mask
+
+    def mask(self, obs: MALObsInstance) -> tuple[np.ndarray, np.ndarray]:
+        action_mask = np.zeros(self.action.n, dtype=np.int8)
+        actionable_step_types = np.unique(obs.steps.type[obs.steps.action_mask])
+        action_mask[actionable_step_types] = True
+        asset_mask = np.zeros((self.action.n, self.asset.n), dtype=np.int8)
+        for action_type in actionable_step_types:
+            asset_mask[action_type] = self._asset_mask_for_action(action_type, obs)
+        return (action_mask, asset_mask)
+
     def sample(self, mask: tuple[Any | None, ...] | None = None, probability: tuple[Any | None, ...] | None = None) -> tuple[Any, ...]:
         if mask is not None:
             if not isinstance(mask[0], np.ndarray) and not isinstance(mask[1], np.ndarray):
                 raise ValueError("mask must be a tuple of numpy arrays")
 
-            asset = self.asset.sample(mask=mask[0])
-            action = self.action.sample(mask=mask[1][asset])
-            return (asset, action)
+            action = self.action.sample(mask=mask[0])
+            asset = self.asset.sample(mask=mask[1][action])
+            return (action, asset)
 
         return super().sample()
