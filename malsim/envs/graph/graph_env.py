@@ -16,7 +16,6 @@ from malsim.mal_simulator import (
     TTCMode,
     RewardMode,
     MalSimAttackerState,
-    MalSimDefenderState,
 )
 from .serialization import LangSerializer
 from gymnasium.envs.registration import EnvSpec
