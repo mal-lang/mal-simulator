@@ -7,12 +7,10 @@ from malsim.envs.graph.mal_spaces import (
     MALAttackerObs,
     MALDefenderObs,
     AssetThenAction,
-    MALObsInstance,
 )
 from malsim.envs.graph.utils import attacker_state2graph, create_full_obs, full_obs2attacker_obs, full_obs2defender_obs
 from malsim.scenario import Scenario, AgentType
 from malsim.mal_simulator import MalSimulator, MalSimAttackerState, MalSimDefenderState
-import numpy as np
 
 def test_mal_obs() -> None:
 

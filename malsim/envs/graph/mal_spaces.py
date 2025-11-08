@@ -1,7 +1,6 @@
 from gymnasium.spaces import Box, Space, Discrete, MultiDiscrete
 from gymnasium import spaces
 
-from maltoolbox.language import LanguageGraphAttackStep
 from maltoolbox.model import Model
 import numpy as np
 from typing import Any, NamedTuple, Sequence
