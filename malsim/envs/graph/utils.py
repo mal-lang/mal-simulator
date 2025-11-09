@@ -53,6 +53,9 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         compromised=np.array([
             sim.node_is_compromised(node) for node in sorted_steps
         ]),
+        observable=np.array([
+            sim.node_is_observable(node) for node in sorted_steps
+        ]),
         attempts=np.array([
             get_total_attempts(node) for node in sorted_steps
         ]),
@@ -155,6 +158,7 @@ def full_obs2attacker_obs(full_obs: MALObsInstance, state: MalSimAttackerState, 
         }, key=lambda step: step.id)
     visible_step_ids = np.array([step.id for step in visible_steps])
     compromised_steps = np.array([step in state.performed_nodes for step in visible_steps])
+    observable_steps = np.array([step.type in ("and", "or") for step in visible_steps])
     step_attempts = np.array([state.num_attempts.get(step, 0) for step in visible_steps])
     traversable_steps = np.array([state.sim.node_is_traversable(state.performed_nodes, step) for step in visible_steps])
     old2new_step_idx = {int(np.where(full_obs.steps.id == step_id)[0]): new_idx for new_idx, step_id in enumerate(visible_step_ids)}
@@ -167,6 +171,7 @@ def full_obs2attacker_obs(full_obs: MALObsInstance, state: MalSimAttackerState, 
         logic_class=full_obs.steps.logic_class[old_step_idx],
         tags=full_obs.steps.tags[old_step_idx],
         compromised=compromised_steps,
+        observable=observable_steps,
         attempts=step_attempts,
         action_mask=traversable_steps,
     )
@@ -262,6 +267,7 @@ def full_obs2defender_obs(full_obs: MALObsInstance, state: MalSimDefenderState) 
             logic_class=full_obs.steps.logic_class,
             tags=full_obs.steps.tags,
             compromised=observed,
+            observable=full_obs.steps.observable,
             attempts=None,
             action_mask=actionable,
         ),

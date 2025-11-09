@@ -30,6 +30,7 @@ class Step(NamedTuple):
         logic_class: One of {'and', 'or', 'defense', 'exist', 'notExist'}.
         tags: The first @-tag of the step.
         compromised: Whether the step is observed as compromised.
+        observable: Whether the step can be observed to be compromised.
         attempts: The number of times the step has been performed.
             Only relevant for the attacker.
         action_mask: Whether the step can be performed.
@@ -40,6 +41,7 @@ class Step(NamedTuple):
     logic_class: NDArray[np.int64]
     tags: NDArray[np.int64]
     compromised: NDArray[np.bool_]
+    observable: NDArray[np.bool_]
     attempts: NDArray[np.int64] | None
     action_mask: NDArray[np.bool_]
 
@@ -126,6 +128,7 @@ class MALObs(Space[MALObsInstance]):
 
         # Simulator Features
         self.time = Box(0, np.inf, shape=[], dtype=np.int64)
+        self.attack_step_observable = Box(0, 1, shape=[], dtype=np.int8)
         self.attack_step_compromised = Box(0, 1, shape=[], dtype=np.int8)
         self.attack_step_attempts = Box(0, np.inf, shape=[], dtype=np.int64)
         self.attack_step_action_mask = Box(0, 1, shape=[], dtype=np.int8)
@@ -156,6 +159,7 @@ class MALObs(Space[MALObsInstance]):
                 "attack_step_class": self.attack_step_class.seed(None),
                 "association_type": self.association_type.seed(None),
                 "time": self.time.seed(None),
+                "attack_step_observable": self.attack_step_observable.seed(None),
                 "attack_step_compromised": self.attack_step_compromised.seed(None),
                 "attack_step_attempts": self.attack_step_attempts.seed(None),
                 "attack_step_action_mask": self.attack_step_action_mask.seed(None),
@@ -177,6 +181,7 @@ class MALObs(Space[MALObsInstance]):
                 "attack_step_class": self.attack_step_class.seed(node_seed),
                 "association_type": self.association_type.seed(node_seed),
                 "time": self.time.seed(node_seed),
+                "attack_step_observable": self.attack_step_observable.seed(node_seed),
                 "attack_step_compromised": self.attack_step_compromised.seed(node_seed),
                 "attack_step_attempts": self.attack_step_attempts.seed(node_seed),
                 "attack_step_action_mask": self.attack_step_action_mask.seed(node_seed),
@@ -227,6 +232,10 @@ class MALObs(Space[MALObsInstance]):
                 x.steps.compromised[i] in self.attack_step_compromised
                 for i in range(len(x.steps.compromised))
             )
+            attack_step_observable_valid = all(
+                x.steps.observable[i] in self.attack_step_observable
+                for i in range(len(x.steps.observable))
+            )
             if x.steps.attempts is not None:
                 attack_step_attempts_valid = all(
                     x.steps.attempts[i] in self.attack_step_attempts
@@ -245,6 +254,7 @@ class MALObs(Space[MALObsInstance]):
             feature_valid = (
                 time_valid
                 and attack_step_compromised_valid
+                and attack_step_observable_valid
                 and attack_step_attempts_valid
                 and attack_step_action_mask_valid
                 and asset_type_valid
@@ -342,6 +352,7 @@ class MALObs(Space[MALObsInstance]):
         repr_str = (
             f"MALObs(time={self.time.shape}, "
             f"attack_step_compromised={self.attack_step_compromised.shape}, "
+            f"attack_step_observable={self.attack_step_observable.shape}, "
             f"attack_step_attempts={self.attack_step_attempts.shape}, "
             f"attack_step_action_mask={self.attack_step_action_mask.shape}, "
             f"asset_type={self.asset_type.shape}, "
@@ -361,6 +372,7 @@ class MALObs(Space[MALObsInstance]):
         return (
             self.time == other.time
             and self.attack_step_compromised == other.attack_step_compromised
+            and self.attack_step_observable == other.attack_step_observable
             and self.attack_step_attempts == other.attack_step_attempts
             and self.attack_step_action_mask == other.attack_step_action_mask
             and self.asset_type == other.asset_type
@@ -376,15 +388,16 @@ class MALObs(Space[MALObsInstance]):
         for sample in sample_n:
             ret = {
                 "time": sample.time,
-                "attack_step_compromised": sample.steps.compromised.tolist(),
-                "attack_step_attempts": sample.steps.attempts.tolist() if sample.steps.attempts is not None else None,
-                "attack_step_action_mask": sample.steps.action_mask.tolist() if sample.steps.action_mask is not None else None,
+                "step_compromised": sample.steps.compromised.tolist(),
+                "step_attempts": sample.steps.attempts.tolist() if sample.steps.attempts is not None else None,
+                "step_action_mask": sample.steps.action_mask.tolist() if sample.steps.action_mask is not None else None,
                 "asset_type": sample.assets.type.tolist(),
                 "asset_id": sample.assets.id.tolist(),
-                "attack_step_type": sample.steps.type.tolist(),
-                "attack_step_tags": sample.steps.tags.tolist(),
-                "attack_step_id": sample.steps.id.tolist(),
-                "attack_step_class": sample.steps.logic_class.tolist(),
+                "step_type": sample.steps.type.tolist(),
+                "step_tags": sample.steps.tags.tolist(),
+                "step_id": sample.steps.id.tolist(),
+                "step_class": sample.steps.logic_class.tolist(),
+                "step_observable": sample.steps.observable.tolist(),
                 "association_type": (
                     sample.associations.type.tolist() if sample.associations else None
                 ),
@@ -413,27 +426,31 @@ class MALObs(Space[MALObsInstance]):
         """Convert a JSONable data type to a batch of samples from this space."""
         ret_n: list[MALObsInstance] = []
         for sample in sample_n:
-            attack_step = Step(
+            step = Step(
                 type=np.array(
-                    sample["attack_step_type"], dtype=self.attack_step_type.dtype
+                    sample["step_type"], dtype=self.attack_step_type.dtype
                 ),
-                id=np.array(sample["attack_step_id"], dtype=self.attack_step_id.dtype),
+                id=np.array(sample["step_id"], dtype=self.attack_step_id.dtype),
                 logic_class=np.array(
-                    sample["attack_step_class"], dtype=self.attack_step_class.dtype
+                    sample["step_class"], dtype=self.attack_step_class.dtype
                 ),
                 tags=np.array(
-                    sample["attack_step_tags"], dtype=self.attack_step_tags.dtype
+                    sample["step_tags"], dtype=self.attack_step_tags.dtype
                 ),
                 compromised=np.array(
-                    sample["attack_step_compromised"],
+                    sample["step_compromised"],
                     dtype=self.attack_step_compromised.dtype,
                 ),
+                observable=np.array(
+                    sample["step_observable"],
+                    dtype=self.attack_step_observable.dtype,
+                ),
                 attempts=(
-                    np.array(sample["attack_step_attempts"], dtype=self.attack_step_attempts.dtype)
-                    if sample["attack_step_attempts"] is not None else None
+                    np.array(sample["step_attempts"], dtype=self.attack_step_attempts.dtype)
+                    if sample["step_attempts"] is not None else None
                 ),
                 action_mask=(
-                    np.array(sample["attack_step_action_mask"], dtype=self.attack_step_action_mask.dtype)
+                    np.array(sample["step_action_mask"], dtype=self.attack_step_action_mask.dtype)
                 ),
             )
             assets = Asset(
@@ -461,7 +478,7 @@ class MALObs(Space[MALObsInstance]):
             )
             ret = MALObsInstance(
                 time=np.int64(sample["time"]),
-                steps=attack_step,
+                steps=step,
                 assets=assets,
                 associations=associations,
                 logic_gates=logic_gates,

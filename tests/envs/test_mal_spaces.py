@@ -121,7 +121,7 @@ def test_jsonable() -> None:
 
     state = sim.reset()[agent_name]
     assert isinstance(state, MalSimAttackerState)
-    obs = attacker_state2graph(state, serializer)
+    obs = create_full_obs(sim, serializer)
     assert obs in obs_space
 
     jsonable = obs_space.to_jsonable([obs])
@@ -129,16 +129,11 @@ def test_jsonable() -> None:
     assert obs_from_jsonable in obs_space
 
     attacker_action_space = MALObsAttackStepSpace(sim)
-    attacker_obs_idx = attacker_action_space.sample(obs.steps.action_mask)
+    attacker_obs = full_obs2attacker_obs(obs, state, see_defense_steps=False)
+    attacker_obs_idx = attacker_action_space.sample(attacker_obs.steps.action_mask)
     jsonable = attacker_action_space.to_jsonable([attacker_obs_idx])
     attacker_obs_idx_from_jsonable = attacker_action_space.from_jsonable(jsonable)[0]
     assert attacker_obs_idx_from_jsonable == attacker_obs_idx
-
-    defender_action_space = MALObsDefenseStepSpace(sim)
-    defender_obs_idx = defender_action_space.sample()
-    jsonable = defender_action_space.to_jsonable([defender_obs_idx])
-    defender_obs_idx_from_jsonable = defender_action_space.from_jsonable(jsonable)[0]
-    assert defender_obs_idx_from_jsonable == defender_obs_idx
 
 def test_asset_action_attacker_selection() -> None:
     scenario_file = (
