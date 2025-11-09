@@ -59,7 +59,7 @@ def register_graph_envs(
     )
 
 
-class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
+class MalSimAttackerGraph(gym.Env[MALObsInstance, np.int64]):
     metadata = {"render_modes": []}
 
     spec: EnvSpec = EnvSpec(
@@ -90,7 +90,7 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
 
         self.scenario = scenario
         self.sim = MalSimulator.from_scenario(scenario, sim_settings)
-        self.multi_env = GraphEnv(self.sim, attacker_visible_defense_steps=False)
+        self.multi_env = MalSimGraph(self.sim, attacker_visible_defense_steps=False)
         self.agent_name = get_agent_name(scenario, AgentType.ATTACKER)
         self.observation_space = self.multi_env.observation_space(self.agent_name)
         self.action_space = self.multi_env.action_space(self.agent_name)
@@ -115,7 +115,7 @@ class GraphAttackerEnv(gym.Env[MALObsInstance, np.int64]):
         return self.multi_env.close()
 
 
-class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
+class MalSimDefenderGraph(gym.Env[MALObsInstance, np.int64]):
     metadata = {"render_modes": []}
 
     spec: EnvSpec = EnvSpec(
@@ -146,7 +146,7 @@ class GraphDefenderEnv(gym.Env[MALObsInstance, np.int64]):
 
         self.scenario = scenario
         self.sim = MalSimulator.from_scenario(scenario, sim_settings)
-        self.multi_env = GraphEnv(self.sim, attacker_visible_defense_steps=True)
+        self.multi_env = MalSimGraph(self.sim, attacker_visible_defense_steps=True)
         self.agent_name = get_agent_name(scenario, AgentType.DEFENDER)
         self.observation_space = self.multi_env.observation_space(self.agent_name)
         self.action_space = self.multi_env.action_space(self.agent_name)
@@ -179,7 +179,7 @@ def get_agent_name(scenario: Scenario, type: AgentType) -> str:
     agent_name = agents[0]["name"]
     return str(agent_name)
 
-class GraphEnv(ParallelEnv[str, MALObsInstance, np.int64]):
+class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
     metadata = {
         "name": "GraphEnv-v0",
     }

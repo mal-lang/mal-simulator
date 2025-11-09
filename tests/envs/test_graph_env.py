@@ -1,6 +1,6 @@
 from malsim import MalSimulator
 from malsim.envs.graph.graph_env import (
-    GraphAttackerEnv, GraphDefenderEnv, GraphEnv, register_graph_envs
+    MalSimAttackerGraph, MalSimDefenderGraph, MalSimGraph, register_graph_envs
 )
 from malsim.scenario import Scenario
 from typing import Any
@@ -49,10 +49,10 @@ def test_check_graph_env(sim_settings: MalSimulatorSettings) -> None:
     )
     scenario = Scenario.load_from_file(scenario_file)
     register_graph_envs(scenario, sim_settings=sim_settings)
-    env: Any = GraphAttackerEnv(scenario, sim_settings=sim_settings)
+    env: Any = MalSimAttackerGraph(scenario, sim_settings=sim_settings)
     check_env(env, skip_render_check=True, skip_close_check=True)
 
-    env = GraphDefenderEnv(
+    env = MalSimDefenderGraph(
         scenario,
         sim_settings=sim_settings
     )
@@ -64,7 +64,7 @@ def test_attacker_episode() -> None:
         "tests/testdata/scenarios/traininglang_scenario_with_model.yml"
     )
     scenario = Scenario.load_from_file(scenario_file)
-    attacker_env = GraphAttackerEnv(scenario, sim_settings=MalSimulatorSettings(
+    attacker_env = MalSimAttackerGraph(scenario, sim_settings=MalSimulatorSettings(
         ttc_mode=TTCMode.PER_STEP_SAMPLE,
         run_defense_step_bernoullis=False,
         run_attack_step_bernoullis=False,
@@ -130,7 +130,7 @@ def test_defender_episode() -> None:
         "tests/testdata/scenarios/traininglang_scenario_with_model.yml"
     )
     scenario = Scenario.load_from_file(scenario_file)
-    defender_env = GraphDefenderEnv(scenario, sim_settings=MalSimulatorSettings(
+    defender_env = MalSimDefenderGraph(scenario, sim_settings=MalSimulatorSettings(
         ttc_mode=TTCMode.PER_STEP_SAMPLE,
         run_defense_step_bernoullis=False,
         run_attack_step_bernoullis=False,
@@ -161,5 +161,5 @@ def test_pettingzoo_api_check() -> None:
     )
     scenario = Scenario.load_from_file(scenario_file)
     sim = MalSimulator.from_scenario(scenario)
-    env = GraphEnv(sim)
+    env = MalSimGraph(sim)
     parallel_api_test(env)
