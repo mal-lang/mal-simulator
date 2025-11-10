@@ -104,6 +104,14 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         assoc2asset.add((i, sorted_assets.index(asset1)))
         assoc2asset.add((i, sorted_assets.index(asset2)))
 
+    asset2asset: set[tuple[int, int]] = set()
+    for (assoc, asset1, asset2) in sorted_associations:
+        asset1_idx = sorted_assets.index(asset1)
+        asset2_idx = sorted_assets.index(asset2)
+        # NOTE: Unidirectional links between assets
+        # Just duplicate the transpose if you want bidirectional links
+        asset2asset.add((asset1_idx, asset2_idx))
+
     sorted_and_or_steps = sorted(
         [node for node in sorted_steps if node.type in ('and', 'or')],
         key=lambda x: x.id
@@ -128,6 +136,11 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         step2logic_links = np.empty((2, 0), dtype=np.int64)
         
 
+    if asset2asset:
+        asset2asset_links = np.array(list(zip(*asset2asset)), dtype=np.int64)
+    else:
+        asset2asset_links = np.empty((2, 0), dtype=np.int64)
+
     return MALObsInstance(
         time=np.int64(sim.cur_iter),
         assets=assets,
@@ -139,6 +152,7 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         assoc2asset=np.array(list(zip(*assoc2asset))),
         logic2step=logic2step_links,
         step2logic=step2logic_links,
+        asset2asset=asset2asset_links,
     )
 
 def full_obs2attacker_obs(full_obs: MALObsInstance, state: MalSimAttackerState, see_defense_steps: bool = False) -> MALObsInstance:
@@ -260,6 +274,19 @@ def full_obs2attacker_obs(full_obs: MALObsInstance, state: MalSimAttackerState, 
         new_logic2step = np.empty((2, 0), dtype=np.int64)
         new_step2logic = np.empty((2, 0), dtype=np.int64)
 
+    # Filter asset2asset links to only include visible assets
+    if full_obs.asset2asset.shape[1] > 0:
+        visible_old_asset2asset = full_obs.asset2asset[:, np.isin(full_obs.asset2asset[0], old_asset_idx) & np.isin(full_obs.asset2asset[1], old_asset_idx)]
+        if visible_old_asset2asset.shape[1] > 0:
+            new_asset2asset = np.stack((
+                np.array([old2new_asset_idx[old_asset_idx] for old_asset_idx in visible_old_asset2asset[0]]),
+                np.array([old2new_asset_idx[old_asset_idx] for old_asset_idx in visible_old_asset2asset[1]]),
+            ), axis=0)
+        else:
+            new_asset2asset = np.empty((2, 0), dtype=np.int64)
+    else:
+        new_asset2asset = np.empty((2, 0), dtype=np.int64)
+
     return MALObsInstance(
         time=full_obs.time,
         assets=assets,
@@ -271,6 +298,7 @@ def full_obs2attacker_obs(full_obs: MALObsInstance, state: MalSimAttackerState, 
         assoc2asset=new_assoc2asset,
         logic2step=new_logic2step,
         step2logic=new_step2logic,
+        asset2asset=new_asset2asset,
     )
 
 def full_obs2defender_obs(full_obs: MALObsInstance, state: MalSimDefenderState) -> MALObsInstance:
@@ -299,4 +327,5 @@ def full_obs2defender_obs(full_obs: MALObsInstance, state: MalSimDefenderState) 
         assoc2asset=full_obs.assoc2asset,
         logic2step=full_obs.logic2step,
         step2logic=full_obs.step2logic,
+        asset2asset=full_obs.asset2asset,
     )

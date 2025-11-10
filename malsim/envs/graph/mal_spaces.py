@@ -25,7 +25,7 @@ class Step(NamedTuple):
     """A node in the attack graph.
 
     Attributes:
-        type: The type of the step (AssetType, AttackStepName).
+        type: The type of the step (AssetType, AttackStepName) or (AttackStepName,).
         id: The ID of the step in the attack graph.
         logic_class: One of {'and', 'or', 'defense', 'exist', 'notExist'}.
         tags: The first @-tag of the step.
@@ -74,7 +74,7 @@ class MALObsInstance(NamedTuple):
     """A MAL observation instance.
 
     Assets, attack/defense steps, associations and logic gates are different objects that exist in the simulation.
-    step2asset, assoc2asset, step2step, logic2step and step2logic are the links between these objects.
+    step2asset, assoc2asset, step2step, logic2step, step2logic and asset2asset are the links between these objects.
     """
 
     time: np.int64
@@ -89,6 +89,7 @@ class MALObsInstance(NamedTuple):
     step2step: NDArray[np.int64]
     logic2step: NDArray[np.int64]
     step2logic: NDArray[np.int64]
+    asset2asset: NDArray[np.int64]
 
 
 class MALObs(Space[MALObsInstance]):
@@ -269,6 +270,7 @@ class MALObs(Space[MALObsInstance]):
                 and isinstance(x.step2step, np.ndarray)
                 and isinstance(x.logic2step, np.ndarray)
                 and isinstance(x.step2logic, np.ndarray)
+                and isinstance(x.asset2asset, np.ndarray)
             ):
                 if (
                     np.issubdtype(x.step2asset.dtype, np.integer)
@@ -279,6 +281,7 @@ class MALObs(Space[MALObsInstance]):
                     and np.issubdtype(x.step2step.dtype, np.integer)
                     and np.issubdtype(x.logic2step.dtype, np.integer)
                     and np.issubdtype(x.step2logic.dtype, np.integer)
+                    and np.issubdtype(x.asset2asset.dtype, np.integer)
                 ):
                     step2asset_valid = (
                         (x.step2asset[0] >= 0)
@@ -323,12 +326,24 @@ class MALObs(Space[MALObsInstance]):
                         logic2step_valid = True
                         step2logic_valid = True
 
+                    if x.asset2asset.shape[1] > 0:
+                        asset2asset_valid = (
+                            (x.asset2asset[0] >= 0)
+                            & (x.asset2asset[0] < x.assets.type.shape[0])
+                        ).all() and (
+                            (x.asset2asset[1] >= 0)
+                            & (x.asset2asset[1] < x.assets.type.shape[0])
+                        ).all()
+                    else:
+                        asset2asset_valid = True
+
                     edge_valid = (
                         step2asset_valid
                         and assoc2asset_valid
                         and step2step_valid
                         and logic2step_valid
                         and step2logic_valid
+                        and asset2asset_valid
                     )
 
                     return feature_valid and edge_valid
@@ -397,6 +412,7 @@ class MALObs(Space[MALObsInstance]):
                 "step2step": sample.step2step.tolist(),
                 "logic2step": sample.logic2step.tolist(),
                 "step2logic": sample.step2logic.tolist(),
+                "asset2asset": sample.asset2asset.tolist(),
             }
             ret_n.append(ret)
         return ret_n
@@ -478,6 +494,11 @@ class MALObs(Space[MALObsInstance]):
                 step2logic=(
                     np.array(sample["step2logic"], dtype=np.int64)
                     if sample.get("step2logic")
+                    else np.empty((2, 0), dtype=np.int64)
+                ),
+                asset2asset=(
+                    np.array(sample["asset2asset"], dtype=np.int64)
+                    if sample.get("asset2asset")
                     else np.empty((2, 0), dtype=np.int64)
                 ),
             )
