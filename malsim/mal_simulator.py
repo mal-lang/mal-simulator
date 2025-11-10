@@ -239,7 +239,7 @@ class MalSimulator:
         self.recording: dict[int, dict[str, list[AttackGraphNode]]] = {}
 
         # All internal agent states (dead or alive)
-        self._agent_states: dict[str, MalSimAgentState] = {}
+        self._agent_states: dict[str, MalSimAttackerState | MalSimDefenderState] = {}
         self._agent_rewards: dict[str, float] = {}
 
         # Store properties of each AttackGraphNode
@@ -500,7 +500,7 @@ class MalSimulator:
         else:
             raise TypeError(f'Unknown agent state for {agent_name}')
 
-    def reset(self) -> dict[str, MalSimAgentState]:
+    def reset(self) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
         """Reset attack graph, iteration and reinitialize agents"""
 
         logger.info('Resetting MAL Simulator.')
@@ -912,7 +912,7 @@ class MalSimulator:
         )
 
     @property
-    def agent_states(self) -> dict[str, MalSimAgentState]:
+    def agent_states(self) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
         """Return read only agent state for all dead and alive agents"""
         return self._agent_states
 
@@ -1197,7 +1197,7 @@ class MalSimulator:
 
     def step(
         self, actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]]
-    ) -> dict[str, MalSimAgentState]:
+    ) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
         """Take a step in the simulation
 
         Args:
