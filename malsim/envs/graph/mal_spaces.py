@@ -103,6 +103,7 @@ class MALObs(Space[MALObsInstance]):
             max(set(lang_serializer.attack_step_tag.values())) + 1
         )
 
+        # TODO: Move this into the lang serializer
         self.logic_gate_type = Discrete(2)  # 0 for AND, 1 for OR
 
         # Language Features
