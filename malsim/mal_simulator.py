@@ -258,6 +258,7 @@ class MalSimulator:
         self._false_negative_rates = self._full_name_dict_to_node_dict(
             false_negative_rates or {}
         )
+        self._compromised_nodes: set[AttackGraphNode] = set()
         self._enabled_defenses: set[AttackGraphNode] = set()
         self._impossible_attack_steps: set[AttackGraphNode] = set()
 
@@ -419,10 +420,7 @@ class MalSimulator:
     def node_is_compromised(self, node: AttackGraphNode | str) -> bool:
         """Return True if node is compromised by any attacker agent"""
         node = self._full_name_or_node_to_node(node)
-        for attacker_agent in self._get_attacker_agents():
-            if node in attacker_agent.performed_nodes:
-                return True
-        return False
+        return node in self._compromised_nodes
 
     def node_is_traversable(
         self, performed_nodes: Set[AttackGraphNode], node: AttackGraphNode
@@ -506,6 +504,7 @@ class MalSimulator:
         logger.info('Resetting MAL Simulator.')
 
         # Reset nodes
+        self._compromised_nodes = set()
         self._enabled_defenses = set()
         self._agent_rewards = {}
         self._ttc_values = self._attack_step_ttcs()
@@ -651,12 +650,13 @@ class MalSimulator:
             if goals
             else None
         )
+
         compromised_nodes = (
             tuple(entry_points)
             if self.sim_settings.compromise_entrypoints_at_start else tuple()
         )
-        attack_surface = self._get_attack_surface(set(compromised_nodes))
 
+        attack_surface = self._get_attack_surface(set(compromised_nodes))
         if not self.sim_settings.compromise_entrypoints_at_start:
             # If entrypoints not compromised at start,
             # we need to put them in action surface
@@ -882,6 +882,7 @@ class MalSimulator:
         )
 
         agent_state = self._create_attacker_state(name, entry_points, goals=goals)
+        self._compromised_nodes |= set(agent_state.performed_nodes)
         self._agent_states[name] = agent_state
         self._alive_agents.add(name)
         self._agent_rewards[name] = self._attacker_step_reward(
@@ -1238,8 +1239,11 @@ class MalSimulator:
             agent_compromised, agent_attempted = self._attacker_step(
                 attacker_state, agent_actions
             )
+
+            # Record agent compromised nodes in various places
             step_compromised_nodes += agent_compromised
-            self.recording[self.cur_iter][attacker_state.name] = list(agent_compromised)
+            self._compromised_nodes |= set(agent_compromised)
+            self.recording[self.cur_iter][attacker_state.name] = agent_compromised
 
             # Update attacker state
             updated_attacker_state = self._update_attacker_state(
