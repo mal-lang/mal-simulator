@@ -1,5 +1,6 @@
 from typing import Any
-from maltoolbox.language import LanguageGraph
+from maltoolbox.attackgraph import AttackGraphNode
+from maltoolbox.language import LanguageGraph, LanguageGraphAttackStep
 
 class LangSerializer:
     """Serializer for LanguageGraph"""
@@ -8,18 +9,18 @@ class LangSerializer:
         self,
         lang: LanguageGraph,
         split_assoc_types: bool = False,
-        split_attack_step_types: bool = False
+        split_step_types: bool = False
     ):
         """
         Arguments:
         ----------
         - lang: LanguageGraph to serialize
         - split_assoc_types: If True, split association types for each asset type pair
-        - split_attack_step_types: If True, split attack step types for each asset type
+        - split_step_types: If True, split attack step types for each asset type
         """
         self._lang = lang
         self.split_assoc_types = split_assoc_types
-        self.split_attack_step_types = split_attack_step_types
+        self.split_step_types = split_step_types
 
         # Maps asset_type_name to index
         # TODO: Remove abstract classes?
@@ -52,45 +53,81 @@ class LangSerializer:
         # TODO: Decide if we want to serialize
         # LanguageGraphAssociationField attributes minimum and maximum
 
-        all_attack_steps = sorted([
-            attack_step for asset in self._lang.assets.values()
-            for attack_step in asset.attack_steps.values()
+        all_steps = sorted([
+            step for asset in self._lang.assets.values()
+            for step in asset.attack_steps.values()
         ], key=lambda x: x.name)
+        all_steps_attacker_sorting = list(filter(lambda x: x.type in ("and", "or"), all_steps)) + list(filter(lambda x: x.type in ("defense", "exist", "notExist"), all_steps))
+        all_steps_defender_sorting = list(filter(lambda x: x.type in ("defense", "exist", "notExist"), all_steps)) + list(filter(lambda x: x.type in ("and", "or"), all_steps))
 
-        # NOTE: This looks odd, but the attack step name is the type of the action
-        self.attack_step_type: dict[tuple[str, ...], int] = {}
-        if split_attack_step_types:
-            # Map from (asset_name, attack_step_name) to idx
-            for idx, attack_step in enumerate(all_attack_steps):
-                attack_step_key = (attack_step.asset.name, attack_step.name)
-                if attack_step_key in self.attack_step_type:
-                    raise ValueError(f"Can not have more than one key {attack_step_key}")
-                self.attack_step_type[attack_step_key] = idx
+        # NOTE: This looks odd, but the step name is the type of the action
+        self.step_type: dict[tuple[str, ...], int] = {}
+        # Different indexing for attacker and defender
+        # This is needed by some action spaces
+        self.attacker_step_type: dict[tuple[str, ...], int] = {}
+        self.defender_step_type: dict[tuple[str, ...], int] = {}
+        if split_step_types:
+            # Map from (asset_name, step_name) to idx
+            for idx, step in enumerate(all_steps):
+                step_key = (step.asset.name, step.name)
+                if step_key in self.step_type:
+                    raise ValueError(f"Can not have more than one key {step_key}")
+                self.step_type[step_key] = idx
+            for idx, step in enumerate(all_steps_attacker_sorting):
+                step_key = (step.asset.name, step.name)
+                if step_key in self.attacker_step_type:
+                    raise ValueError(f"Can not have more than one key {step_key}")
+                self.attacker_step_type[step_key] = idx
+            for idx, step in enumerate(all_steps_defender_sorting):
+                step_key = (step.asset.name, step.name)
+                if step_key in self.defender_step_type:
+                    raise ValueError(f"Can not have more than one key {step_key}")
         else:
-            # Map from (attack_step_name) to idx
-            all_attack_step_names: set[str] = set(
-                attack_step.name for attack_step in all_attack_steps
+            # Map from (step_name) to idx
+            all_step_names: set[str] = set(
+                step.name for step in all_steps
             )
-            self.attack_step_type = {
-                (attack_step_name,): i
-                for i, attack_step_name in enumerate(all_attack_step_names)
+            self.step_type = {
+                (step_name,): i
+                for i, step_name in enumerate(all_step_names)
+            }
+            
+            def add_and_check(step: LanguageGraphAttackStep, seen: set[str]) -> bool:
+                if step.name in seen:
+                    return False
+                seen.add(step.name)
+                return True
+            
+            attacker_seen_step_names = set()
+            self.attacker_step_type = {
+                (step.name,): i
+                for i, step in enumerate(all_steps_attacker_sorting) 
+                if add_and_check(step, attacker_seen_step_names)
             }
 
-        # NOTE: The actual logic-class of the attack step
-        all_attack_step_classes = set(
-            attack_step.type for attack_step in all_attack_steps
+            defender_seen_step_names = set()
+            self.defender_step_type = {
+                (step.name,): i
+                for i, step in enumerate(all_steps_defender_sorting) 
+                if add_and_check(step, defender_seen_step_names)
+            }
+
+        # NOTE: The actual logic-class of the step
+        all_step_classes = set(
+            step.type for step in all_steps
         )
-        # Map from attack step class name to idx
-        self.attack_step_class = {
-            class_name: i for i, class_name in enumerate(all_attack_step_classes)
+        # Map from step class name to idx
+        self.step_class = {
+            class_name: i for i, class_name in enumerate(all_step_classes)
         }
 
         # NOTE: Add None tag for steps without tags
-        all_attack_step_tags: list[Any] = [None] + list(
+        all_step_tags: list[Any] = [None] + list(
             sorted(
-                set(tag for attack_step in all_attack_steps for tag in attack_step.tags)
+                set(tag for step in all_steps for tag in step.tags)
             )
         )
-        self.attack_step_tag: dict[str | None, int] = {
-            tag: i for i, tag in enumerate(all_attack_step_tags)
+        self.step_tag: dict[str | None, int] = {
+            tag: i for i, tag in enumerate(all_step_tags)
         }
+

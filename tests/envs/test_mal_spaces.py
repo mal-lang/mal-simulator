@@ -18,7 +18,7 @@ def test_mal_obs() -> None:
     )
     scenario = Scenario.load_from_file(scenario_file)
     serializer = LangSerializer(
-        scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
+        scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
     obs_space = MALObs(serializer)
     sim = MalSimulator.from_scenario(scenario)
@@ -44,7 +44,7 @@ def test_attacker_obs() -> None:
     scenario = Scenario.load_from_file(scenario_file)
     attacker_name = next(agent['name'] for agent in scenario.agents if agent['type'] == AgentType.ATTACKER)
     serializer = LangSerializer(
-        scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
+        scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
     AG = scenario.attack_graph
@@ -65,12 +65,12 @@ def test_attacker_obs() -> None:
 
         for idx in range(len(attacker_obs.steps.id)):
             node = AG.nodes[attacker_obs.steps.id[idx]]
-            if serializer.split_attack_step_types and node.model_asset:
-                assert attacker_obs.steps.type[idx] == serializer.attack_step_type[(node.model_asset.type, node.name)]
+            if serializer.split_step_types and node.model_asset:
+                assert attacker_obs.steps.type[idx] == serializer.step_type[(node.model_asset.type, node.name)]
             else:
-                assert attacker_obs.steps.type[idx] == serializer.attack_step_type[(node.name,)]
-            assert attacker_obs.steps.logic_class[idx] == serializer.attack_step_class[node.type]
-            assert attacker_obs.steps.tags[idx] == serializer.attack_step_tag[node.tags[0] if len(node.tags) > 0 else None]
+                assert attacker_obs.steps.type[idx] == serializer.step_type[(node.name,)]
+            assert attacker_obs.steps.logic_class[idx] == serializer.step_class[node.type]
+            assert attacker_obs.steps.tags[idx] == serializer.step_tag[node.tags[0] if len(node.tags) > 0 else None]
             assert attacker_obs.steps.compromised[idx] == sim.node_is_compromised(node)
             assert attacker_obs.steps.attempts is not None and attacker_obs.steps.attempts[idx] == attacker_state.num_attempts.get(node, 0)
             assert attacker_obs.steps.action_mask[idx] == sim.node_is_traversable(attacker_state.performed_nodes, node)
@@ -89,7 +89,7 @@ def test_defender_obs() -> None:
     scenario = Scenario.load_from_file(scenario_file)
     defender_name = next(agent['name'] for agent in scenario.agents if agent['type'] == AgentType.DEFENDER)
     serializer = LangSerializer(
-        scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
+        scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
     full_obs = create_full_obs(sim, serializer)
@@ -113,7 +113,7 @@ def test_jsonable() -> None:
     attacker = next(agent for agent in scenario.agents if agent['type'] == AgentType.ATTACKER)
     agent_name = attacker['name']
     serializer = LangSerializer(
-        scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
+        scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
     obs_space = MALObs(serializer)
     sim = MalSimulator.from_scenario(scenario)
@@ -141,7 +141,7 @@ def test_asset_action_attacker_selection() -> None:
     scenario = Scenario.load_from_file(scenario_file)
     attacker_name = next(agent['name'] for agent in scenario.agents if agent['type'] == AgentType.ATTACKER)
     serializer = LangSerializer(
-        scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
+        scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
     model = sim.attack_graph.model
@@ -161,7 +161,7 @@ def test_asset_action_attacker_selection() -> None:
         asset_mask, action_mask = attacker_asset_action_space.mask(attacker_obs)
         asset_idx, action = attacker_asset_action_space.sample(mask=(asset_mask, action_mask))
         asset = model.assets[attacker_obs.assets.id[asset_idx]]
-        action_name = next(key for key, val in serializer.attack_step_type.items() if val == int(action))[-1]
+        action_name = next(key for key, val in serializer.step_type.items() if val == int(action))[-1]
         asset_action = f"{asset.name}:{action_name}"
         attacker_state = sim.step({attacker_name: [asset_action]})[attacker_name]
         assert isinstance(attacker_state, MalSimAttackerState)
@@ -176,7 +176,7 @@ def test_asset_action_defender_selection() -> None:
     scenario = Scenario.load_from_file(scenario_file)
     defender_name = next(agent['name'] for agent in scenario.agents if agent['type'] == AgentType.DEFENDER)
     serializer = LangSerializer(
-        scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
+        scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
     model = sim.attack_graph.model
@@ -196,7 +196,7 @@ def test_asset_action_defender_selection() -> None:
         asset_mask, action_mask = defender_action_asset_space.mask(defender_obs)
         asset_idx, action = defender_action_asset_space.sample(mask=(asset_mask, action_mask))
         asset = model.assets[defender_obs.assets.id[asset_idx]]
-        action_name = next(key for key, val in serializer.attack_step_type.items() if val == int(action))[-1]
+        action_name = next(key for key, val in serializer.step_type.items() if val == int(action))[-1]
         asset_action = f"{asset.name}:{action_name}"
         defender_state = sim.step({defender_name: [asset_action]})[defender_name]
         assert isinstance(defender_state, MalSimDefenderState)
@@ -211,7 +211,7 @@ def test_action_asset_attacker_selection() -> None:
     scenario = Scenario.load_from_file(scenario_file)
     attacker_name = next(agent['name'] for agent in scenario.agents if agent['type'] == AgentType.ATTACKER)
     serializer = LangSerializer(
-        scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
+        scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
     model = sim.attack_graph.model
@@ -231,7 +231,7 @@ def test_action_asset_attacker_selection() -> None:
         action_mask, asset_mask = attacker_action_asset_space.mask(attacker_obs)
         action, asset_idx = attacker_action_asset_space.sample(mask=(action_mask, asset_mask))
         asset = model.assets[attacker_obs.assets.id[asset_idx]]
-        action_name = next(key for key, val in serializer.attack_step_type.items() if val == int(action))[-1]
+        action_name = next(key for key, val in serializer.step_type.items() if val == int(action))[-1]
         asset_action = f"{asset.name}:{action_name}"
         attacker_state = sim.step({attacker_name: [asset_action]})[attacker_name]
         assert isinstance(attacker_state, MalSimAttackerState)
@@ -246,7 +246,7 @@ def test_action_asset_defender_selection() -> None:
     scenario = Scenario.load_from_file(scenario_file)
     defender_name = next(agent['name'] for agent in scenario.agents if agent['type'] == AgentType.DEFENDER)
     serializer = LangSerializer(
-        scenario.lang_graph, split_assoc_types=False, split_attack_step_types=True
+        scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
     model = sim.attack_graph.model
@@ -266,7 +266,7 @@ def test_action_asset_defender_selection() -> None:
         action_mask, asset_mask = defender_action_asset_space.mask(defender_obs)
         action, asset_idx = defender_action_asset_space.sample(mask=(action_mask, asset_mask))
         asset = model.assets[defender_obs.assets.id[asset_idx]]
-        action_name = next(key for key, val in serializer.attack_step_type.items() if val == int(action))[-1]
+        action_name = next(key for key, val in serializer.step_type.items() if val == int(action))[-1]
         asset_action = f"{asset.name}:{action_name}"
         defender_state = sim.step({defender_name: [asset_action]})[defender_name]
         assert isinstance(defender_state, MalSimDefenderState)

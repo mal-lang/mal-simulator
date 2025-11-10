@@ -32,22 +32,22 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         node for node in sim.attack_graph.nodes.values() if node.type != "defense"
     ], key=lambda node: node.id)
     step_type_keys: list[tuple[str, ...]]
-    if serializer.split_attack_step_types:
+    if serializer.split_step_types:
         step_type_keys = [(node.model_asset.type, node.name) for node in sorted_steps if node.model_asset]
     else:
         step_type_keys = [(node.name,) for node in sorted_steps]
     steps = Step(
         type=np.array([
-            serializer.attack_step_type[step_type_key]
+            serializer.step_type[step_type_key]
             for step_type_key in step_type_keys
         ]),
         id=np.array([node.id for node in sorted_steps]),
         logic_class=np.array([
-            serializer.attack_step_class[node.type]
+            serializer.step_class[node.type]
             for node in sorted_steps
         ]),
         tags=np.array([
-            serializer.attack_step_tag[node.tags[0] if len(node.tags) > 0 else None]
+            serializer.step_tag[node.tags[0] if len(node.tags) > 0 else None]
             for node in sorted_steps
         ]),
         compromised=np.array([

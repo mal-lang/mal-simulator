@@ -101,7 +101,7 @@ class MALObs(Space[MALObsInstance]):
     ):
         # MAL Features
         self.attack_step_tags = Discrete(
-            max(set(lang_serializer.attack_step_tag.values())) + 1
+            max(set(lang_serializer.step_tag.values())) + 1
         )
 
         # TODO: Move this into the lang serializer
@@ -110,19 +110,19 @@ class MALObs(Space[MALObsInstance]):
         # Language Features
         self.asset_type = Discrete(max(set(lang_serializer.asset_type.values())) + 1)
         if isinstance(
-            lang_serializer.attack_step_type[
-                next(iter(lang_serializer.attack_step_type))
+            lang_serializer.step_type[
+                next(iter(lang_serializer.step_type))
             ],
             dict,
         ):
-            attack_step_type_ids = lang_serializer.attack_step_type.values()
+            attack_step_type_ids = lang_serializer.step_type.values()
             self.attack_step_type = Discrete(len(attack_step_type_ids) + 1)
         else:
             self.attack_step_type = Discrete(
-                max(set(lang_serializer.attack_step_type.values())) + 1
+                max(set(lang_serializer.step_type.values())) + 1
             )
         self.attack_step_class = Discrete(
-            max(set(lang_serializer.attack_step_class.values())) + 1
+            max(set(lang_serializer.step_class.values())) + 1
         )
         self.association_type = Discrete(
             max(set(lang_serializer.association_type.values())) + 1
@@ -614,12 +614,12 @@ class AssetThenAction(spaces.Tuple):
     def __init__(
         self, model: Model, lang_serializer: LangSerializer, seed: int | np.random.Generator | None = None
     ):
-        if not lang_serializer.split_attack_step_types:
+        if not lang_serializer.split_step_types:
             raise ValueError("lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction")
 
         self.asset = Discrete(len(model.assets))
         # NOTE: Serializer indicies should be contiguous
-        self.action = Discrete(max(lang_serializer.attack_step_type.values()) + 1) # +1 beacuse they are indicies
+        self.action = Discrete(max(lang_serializer.step_type.values()) + 1) # +1 beacuse they are indicies
 
         super().__init__((self.asset, self.action), seed=seed)
 
@@ -657,12 +657,12 @@ class ActionThenAsset(spaces.Tuple):
     def __init__(
         self, model: Model, lang_serializer: LangSerializer, seed: int | np.random.Generator | None = None
     ):
-        if not lang_serializer.split_attack_step_types:
+        if not lang_serializer.split_step_types:
             raise ValueError("lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction")
 
         self.asset = Discrete(len(model.assets))
         # NOTE: Serializer indicies should be contiguous
-        self.action = Discrete(max(lang_serializer.attack_step_type.values()))
+        self.action = Discrete(max(lang_serializer.step_type.values()))
 
         super().__init__((self.asset, self.action), seed=seed)
 

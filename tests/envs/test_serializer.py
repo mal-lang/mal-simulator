@@ -7,7 +7,7 @@ def test_serializer() -> None:
         "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar"
     )
     lang = LanguageGraph.load_from_file(scenario_file)
-    serializer = LangSerializer(lang, split_assoc_types=False, split_attack_step_types=False)
+    serializer = LangSerializer(lang, split_assoc_types=False, split_step_types=False)
 
     asset_keys = set(lang.assets.keys())
     serializer_keys = set(serializer.asset_type.keys())
@@ -29,24 +29,24 @@ def test_serializer() -> None:
         key=lambda x: x.name)
     attack_step_names = set((a.name,) for a in all_attack_steps)
 
-    assert set(serializer.attack_step_type.keys()) == attack_step_names, "attack_step_type key mismatch"
-    attack_step_values = list(serializer.attack_step_type.values())
+    assert set(serializer.step_type.keys()) == attack_step_names, "attack_step_type key mismatch"
+    attack_step_values = list(serializer.step_type.values())
     assert len(attack_step_values) == len(set(attack_step_values)), "attack_step_type integer values are not unique"
     assert all(isinstance(v, int) for v in attack_step_values), "Not all attack step types map to integers"
 
     attack_step_types = set(a.type for a in all_attack_steps)
-    assert set(serializer.attack_step_class.keys()) == attack_step_types, "attack_step_class key mismatch"
-    attack_step_class_values = list(serializer.attack_step_class.values())
+    assert set(serializer.step_class.keys()) == attack_step_types, "attack_step_class key mismatch"
+    attack_step_class_values = list(serializer.step_class.values())
     assert len(attack_step_class_values) == len(set(attack_step_class_values)), "attack_step_class integer values are not unique"
     assert all(isinstance(v, int) for v in attack_step_class_values), "Not all attack step classes map to integers"
 
     attack_step_tags = set(tag for attack_step in all_attack_steps for tag in attack_step.tags).union({None})
-    assert set(serializer.attack_step_tag.keys()) == attack_step_tags, "attack_step_tag key mismatch"
-    tag_values = list(serializer.attack_step_tag.values())
+    assert set(serializer.step_tag.keys()) == attack_step_tags, "attack_step_tag key mismatch"
+    tag_values = list(serializer.step_tag.values())
     assert len(tag_values) == len(set(tag_values)), "attack_step_tag integer values are not unique"
     assert all(isinstance(v, int) for v in tag_values), "Not all attack step tags map to integers"
 
-    serializer = LangSerializer(lang, split_assoc_types=True, split_attack_step_types=True)
+    serializer = LangSerializer(lang, split_assoc_types=True, split_step_types=True)
 
     # Test for split_assoc_types=True, split_attack_step_types=True
     # This should build nested dicts for association_type and attack_step_type
@@ -70,10 +70,10 @@ def test_serializer() -> None:
     for attack_step in all_attack_steps:
         asset_name = attack_step.asset.name
         attack_name = attack_step.name
-        assert (asset_name, attack_name) in serializer.attack_step_type, (
+        assert (asset_name, attack_name) in serializer.step_type, (
             f"attack_step_type missing asset {asset_name}"
         )
-        asset_idx = serializer.attack_step_type[(asset_name, attack_name)]
+        asset_idx = serializer.step_type[(asset_name, attack_name)]
         assert isinstance(asset_idx, int), (
             f"attack_step_type[{asset_name}][{attack_name}] should be int"
         )

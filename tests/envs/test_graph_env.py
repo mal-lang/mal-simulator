@@ -86,12 +86,12 @@ def test_attacker_episode() -> None:
             assert node.id in obs.steps.id
             node_idx = np.where(obs.steps.id == node.id)[0][0]
             assert node.id == obs.steps.id[node_idx]
-            if ser.split_attack_step_types and node.model_asset:
-                assert ser.attack_step_type[(node.model_asset.type, node.name)] == obs.steps.type[node_idx]
+            if ser.split_step_types and node.model_asset:
+                assert ser.step_type[(node.model_asset.type, node.name)] == obs.steps.type[node_idx]
             else:
-                assert ser.attack_step_type[(node.name,)] == obs.steps.type[node_idx]
-            assert ser.attack_step_class[node.type] == obs.steps.logic_class[node_idx]
-            assert ser.attack_step_tag[node.tags[0] if len(node.tags) > 0 else None] == obs.steps.tags[node_idx]
+                assert ser.step_type[(node.name,)] == obs.steps.type[node_idx]
+            assert ser.step_class[node.type] == obs.steps.logic_class[node_idx]
+            assert ser.step_tag[node.tags[0] if len(node.tags) > 0 else None] == obs.steps.tags[node_idx]
             assert state.sim.node_is_compromised(node) == obs.steps.compromised[node_idx]
             assert obs.steps.attempts is not None and state.num_attempts.get(node, 0) == obs.steps.attempts[node_idx]
             assert state.sim.node_is_traversable(state.performed_nodes, node) == obs.steps.action_mask[node_idx]
@@ -112,12 +112,12 @@ def test_attacker_episode() -> None:
             assert node.id in obs.steps.id
             node_idx = np.where(obs.steps.id == node.id)[0][0]
             assert node.id == obs.steps.id[node_idx]
-            if ser.split_attack_step_types and node.model_asset:
-                assert ser.attack_step_type[(node.model_asset.type, node.name)] == obs.steps.type[node_idx]
+            if ser.split_step_types and node.model_asset:
+                assert ser.step_type[(node.model_asset.type, node.name)] == obs.steps.type[node_idx]
             else:
-                assert ser.attack_step_type[(node.name,)] == obs.steps.type[node_idx]
-            assert ser.attack_step_class[node.type] == obs.steps.logic_class[node_idx]
-            assert ser.attack_step_tag[node.tags[0] if len(node.tags) > 0 else None] == obs.steps.tags[node_idx]
+                assert ser.step_type[(node.name,)] == obs.steps.type[node_idx]
+            assert ser.step_class[node.type] == obs.steps.logic_class[node_idx]
+            assert ser.step_tag[node.tags[0] if len(node.tags) > 0 else None] == obs.steps.tags[node_idx]
             assert state.sim.node_is_compromised(node) == obs.steps.compromised[node_idx]
             assert obs.steps.attempts is not None and state.num_attempts.get(node, 0) == obs.steps.attempts[node_idx]
             assert state.sim.node_is_traversable(state.performed_nodes, node) == obs.steps.action_mask[node_idx]
