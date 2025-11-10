@@ -98,19 +98,28 @@ class LangSerializer:
                 seen.add(step.name)
                 return True
             
-            attacker_seen_step_names = set()
+            attacker_seen_step_names: set[str] = set()
             self.attacker_step_type = {
                 (step.name,): i
                 for i, step in enumerate(all_steps_attacker_sorting) 
                 if add_and_check(step, attacker_seen_step_names)
             }
 
-            defender_seen_step_names = set()
+            defender_seen_step_names: set[str] = set()
             self.defender_step_type = {
                 (step.name,): i
                 for i, step in enumerate(all_steps_defender_sorting) 
                 if add_and_check(step, defender_seen_step_names)
             }
+
+        self.step_type2attacker_step_type = {
+            idx: self.attacker_step_type[step_key]
+            for step_key, idx in self.step_type.items()
+        }
+        self.step_type2defender_step_type = {
+            idx: self.defender_step_type[step_key]
+            for step_key, idx in self.step_type.items()
+        }
 
         # NOTE: The actual logic-class of the step
         all_step_classes = set(
