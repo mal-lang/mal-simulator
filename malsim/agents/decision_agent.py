@@ -8,13 +8,11 @@ if TYPE_CHECKING:
     from ..mal_simulator import MalSimAgentState
     from maltoolbox.attackgraph import AttackGraphNode
 
-class DecisionAgent(ABC):
 
+class DecisionAgent(ABC):
     @abstractmethod
     def get_next_action(
-        self,
-        agent_state: MalSimAgentState,
-        **kwargs: Any
+        self, agent_state: MalSimAgentState, **kwargs: Any
     ) -> Optional[AttackGraphNode]:
         """
         Select next action the agent will work with.

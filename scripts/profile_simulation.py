@@ -23,19 +23,16 @@ def main():
     parser.add_argument(
         'scenario_file',
         type=str,
-        help="Can be found in https://github.com/mal-lang/malsim-scenarios/"
+        help='Can be found in https://github.com/mal-lang/malsim-scenarios/',
     )
     parser.add_argument(
         '--profile_output',
         type=str,
         default='simulation_profile.prof',
-        help="File to save profiling results"
+        help='File to save profiling results',
     )
     parser.add_argument(
-        '--max_iter',
-        type=int,
-        default=100,
-        help="MAX iterations in simulator"
+        '--max_iter', type=int, default=100, help='MAX iterations in simulator'
     )
 
     args = parser.parse_args()
@@ -55,7 +52,7 @@ def main():
         stats = pstats.Stats(profiler, stream=f)
         stats.strip_dirs().sort_stats('cumulative').print_stats()
 
-    print(f"Profiling results saved to {args.profile_output}")
+    print(f'Profiling results saved to {args.profile_output}')
 
 
 if __name__ == '__main__':

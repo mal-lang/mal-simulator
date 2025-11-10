@@ -35,28 +35,24 @@ class AttackerEnv(gym.Env[Any, Any]):
         self.sim = MalSimVectorizedObsEnv(MalSimulator(scenario.attack_graph))
 
         attacker_agents = [
-            agent for agent in scenario.agents
-            if agent['type'] == AgentType.ATTACKER
+            agent for agent in scenario.agents if agent['type'] == AgentType.ATTACKER
         ]
 
         assert len(attacker_agents) == 1, (
-            "More than one attacker in scenario,"
-            "can not decide which one to use in AttackerEnv"
+            'More than one attacker in scenario,'
+            'can not decide which one to use in AttackerEnv'
         )
 
         attacker_agent = attacker_agents[0]
         self.attacker_agent_name = attacker_agent['name']
 
         self.sim.register_attacker(
-            self.attacker_agent_name,
-            attacker_agent['entry_points']
+            self.attacker_agent_name, attacker_agent['entry_points']
         )
         self.sim.reset()
 
-        self.observation_space = \
-            self.sim.observation_space(self.attacker_agent_name)
-        self.action_space = \
-            self.sim.action_space(self.attacker_agent_name)
+        self.observation_space = self.sim.observation_space(self.attacker_agent_name)
+        self.action_space = self.sim.action_space(self.attacker_agent_name)
         super().__init__()
 
     def reset(
@@ -85,7 +81,7 @@ class AttackerEnv(gym.Env[Any, Any]):
             rew[self.attacker_agent_name],
             term[self.attacker_agent_name],
             trunc[self.attacker_agent_name],
-            infos[self.attacker_agent_name]
+            infos[self.attacker_agent_name],
         )
 
     def render(self) -> None:
@@ -99,6 +95,7 @@ class AttackerEnv(gym.Env[Any, Any]):
     def num_step_names(self) -> int:
         return len(self.sim._index_to_step_name)
 
+
 class DefenderEnv(gym.Env[Any, Any]):
     metadata = {'render_modes': []}
 
@@ -110,7 +107,9 @@ class DefenderEnv(gym.Env[Any, Any]):
 
         self.scenario_agents = scenario.agents
         self.sim = MalSimVectorizedObsEnv(
-            MalSimulator(scenario.attack_graph, ),
+            MalSimulator(
+                scenario.attack_graph,
+            ),
         )
 
         # Register attacker agents from scenario
@@ -118,14 +117,12 @@ class DefenderEnv(gym.Env[Any, Any]):
         self.attacker_decision_agents: dict[str, DecisionAgent] = {}
 
         # Register defender agent
-        self.defender_agent_name = "DefenderEnvAgent"
+        self.defender_agent_name = 'DefenderEnvAgent'
         self.sim.register_defender(self.defender_agent_name)
         self.sim.reset()
 
-        self.observation_space = \
-            self.sim.observation_space(self.defender_agent_name)
-        self.action_space = \
-            self.sim.action_space(self.defender_agent_name)
+        self.observation_space = self.sim.observation_space(self.defender_agent_name)
+        self.action_space = self.sim.action_space(self.defender_agent_name)
 
     def _register_attacker_agents(self, agents: list[dict[str, Any]]) -> None:
         """Register attackers in simulator"""
@@ -136,8 +133,8 @@ class DefenderEnv(gym.Env[Any, Any]):
                 )
 
     def _create_attacker_decision_agents(
-            self, agents: list[dict[str, Any]], seed: Optional[int] = None
-        ) -> dict[str, DecisionAgent]:
+        self, agents: list[dict[str, Any]], seed: Optional[int] = None
+    ) -> dict[str, DecisionAgent]:
         """Create decision agents for each attacker"""
 
         attacker_agents = {}
@@ -145,33 +142,24 @@ class DefenderEnv(gym.Env[Any, Any]):
             if agent_config['type'] == AgentType.ATTACKER:
                 agent_name = agent_config['name']
                 if agent_config['agent_class']:
-                    attacker_agents[agent_name] = (
-                        agent_config['agent_class'](
-                            {'seed': seed, 'randomize': self.randomize}
-                        )
+                    attacker_agents[agent_name] = agent_config['agent_class'](
+                        {'seed': seed, 'randomize': self.randomize}
                     )
         return attacker_agents
 
     def reset(
-        self, *,
-        seed: int | None = None,
-        options: dict[str, Any] | None = None
+        self, *, seed: int | None = None, options: dict[str, Any] | None = None
     ) -> tuple[Any, dict[str, Any]]:
-
         super().reset(seed=seed, options=options)
         self.attacker_decision_agents = self._create_attacker_decision_agents(
             self.scenario_agents, seed=seed
         )
         obs, infos = self.sim.reset(seed=seed, options=options)
-        return (
-            obs[self.defender_agent_name],
-            infos[self.defender_agent_name]
-        )
+        return (obs[self.defender_agent_name], infos[self.defender_agent_name])
 
     def step(
         self, action: tuple[int, int]
     ) -> tuple[Any, SupportsFloat, bool, bool, dict[str, Any]]:
-
         actions = {}
         actions[self.defender_agent_name] = action
 
@@ -185,8 +173,7 @@ class DefenderEnv(gym.Env[Any, Any]):
                 actions[agent_name] = (1, node_index)
 
         # Perform step
-        obs, rewards, terminated, truncated, infos = \
-            self.sim.step(actions)
+        obs, rewards, terminated, truncated, infos = self.sim.step(actions)
 
         return (
             obs[self.defender_agent_name],
@@ -312,10 +299,8 @@ class LabeledGraphWrapper(Wrapper):
 
 
 def to_graph(
-        obs: dict[str, Any],
-        info: dict[str, Any],
-        num_steps: int
-    ) -> dict[str, Any]:
+    obs: dict[str, Any], info: dict[str, Any], num_steps: int
+) -> dict[str, Any]:
     nodes = np.concatenate(
         [
             vec_to_one_hot(obs['observed_state'] + 1, 3),

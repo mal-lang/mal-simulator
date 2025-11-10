@@ -8,11 +8,12 @@ if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
     from ..mal_simulator import MalSimAgentState
 
+
 class RandomAgent(DecisionAgent):
     """An agent that selects random actions"""
 
     def __init__(self, agent_config: dict[str, Any], **_: Any):
-        seed = agent_config.get("seed")
+        seed = agent_config.get('seed')
         self.rng = random.Random(seed)
 
     def get_next_action(
