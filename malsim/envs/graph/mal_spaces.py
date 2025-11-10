@@ -649,6 +649,42 @@ class AssetThenAction(spaces.Tuple):
 
         return super().sample()
 
+class AssetThenAttackerAction(AssetThenAction):
+    """A space over the (asset, attacker lang action for asset).
+    
+    The space is dependent on a specific indexing of the assets in the MALObsInstance.
+    """
+    def __init__(
+        self, model: Model, lang_serializer: LangSerializer, seed: int | np.random.Generator | None = None
+    ):
+        if not lang_serializer.split_step_types:
+            raise ValueError("lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction")
+
+        self.asset = Discrete(len(model.assets))
+        # NOTE: Serializer indicies should be contiguous
+        attack_steps = [step for asset in model.lang_graph.assets.values() for step in asset.attack_steps.values() if step.type in ("and", "or")]
+        self.action = Discrete(max(lang_serializer.attacker_step_type[(step.asset.name, step.name)] for step in attack_steps) + 1) # +1 beacuse they are indicies
+
+        spaces.Tuple.__init__(self, (self.asset, self.action), seed=seed)
+
+class AssetThenDefenderAction(AssetThenAction):
+    """A space over the (asset, defender lang action for asset).
+    
+    The space is dependent on a specific indexing of the assets in the MALObsInstance.
+    """
+    def __init__(
+        self, model: Model, lang_serializer: LangSerializer, seed: int | np.random.Generator | None = None
+    ):
+        if not lang_serializer.split_step_types:
+            raise ValueError("lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction")
+
+        self.asset = Discrete(len(model.assets))
+        # NOTE: Serializer indicies should be contiguous
+        defense_steps = [step for asset in model.lang_graph.assets.values() for step in asset.attack_steps.values() if step.type == "defense"]
+        self.action = Discrete(max(lang_serializer.attacker_step_type[(step.asset.name, step.name)] for step in defense_steps) + 1) # +1 beacuse they are indicies
+
+        spaces.Tuple.__init__(self, (self.asset, self.action), seed=seed)
+
 class ActionThenAsset(spaces.Tuple):
     """A space over the (lang action, asset to perform action on).
     
@@ -664,7 +700,7 @@ class ActionThenAsset(spaces.Tuple):
         # NOTE: Serializer indicies should be contiguous
         self.action = Discrete(max(lang_serializer.step_type.values()))
 
-        super().__init__((self.asset, self.action), seed=seed)
+        super().__init__((self.action, self.asset), seed=seed)
 
     def _asset_mask_for_action(self, action_type: int, obs: MALObsInstance) -> np.ndarray:
         asset_mask = np.zeros(self.asset.n, dtype=np.int8)
@@ -692,3 +728,39 @@ class ActionThenAsset(spaces.Tuple):
             return (action, asset)
 
         return super().sample()
+
+class AttackerActionThenAsset(ActionThenAsset):
+    """A space over the (attacker lang action, asset to perform action on).
+    
+    The space is dependent on a specific indexing of the assets in the MALObsInstance.
+    """
+    def __init__(
+        self, model: Model, lang_serializer: LangSerializer, seed: int | np.random.Generator | None = None
+    ):
+        if not lang_serializer.split_step_types:
+            raise ValueError("lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction")
+
+        self.asset = Discrete(len(model.assets))
+        # NOTE: Serializer indicies should be contiguous
+        attack_steps = [step for asset in model.lang_graph.assets.values() for step in asset.attack_steps.values() if step.type in ("and", "or")]
+        self.action = Discrete(max(lang_serializer.attacker_step_type[(step.asset.name, step.name)] for step in attack_steps) + 1) # +1 beacuse they are indicies
+
+        spaces.Tuple.__init__(self, (self.action, self.asset), seed=seed)
+
+class DefenderActionThenAsset(ActionThenAsset):
+    """A space over the (defender lang action, asset to perform action on).
+    
+    The space is dependent on a specific indexing of the assets in the MALObsInstance.
+    """
+    def __init__(
+        self, model: Model, lang_serializer: LangSerializer, seed: int | np.random.Generator | None = None
+    ):
+        if not lang_serializer.split_step_types:
+            raise ValueError("lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction")
+
+        self.asset = Discrete(len(model.assets))
+        # NOTE: Serializer indicies should be contiguous
+        defense_steps = [step for asset in model.lang_graph.assets.values() for step in asset.attack_steps.values() if step.type in ("and", "or")]
+        self.action = Discrete(max(lang_serializer.attacker_step_type[(step.asset.name, step.name)] for step in defense_steps) + 1) # +1 beacuse they are indicies
+
+        spaces.Tuple.__init__(self, (self.action, self.asset), seed=seed)

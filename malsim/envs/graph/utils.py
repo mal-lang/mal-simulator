@@ -155,7 +155,7 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         asset2asset=asset2asset_links,
     )
 
-def full_obs2attacker_obs(full_obs: MALObsInstance, state: MalSimAttackerState, see_defense_steps: bool = False) -> MALObsInstance:
+def full_obs2attacker_obs(full_obs: MALObsInstance, state: MalSimAttackerState, serializer: LangSerializer, see_defense_steps: bool = False) -> MALObsInstance:
     visible_asset_ids = np.array(list(sorted(
         {node.model_asset.id for node in state.performed_nodes if node.model_asset} 
         | {node.model_asset.id for node in state.action_surface if node.model_asset}
@@ -185,8 +185,10 @@ def full_obs2attacker_obs(full_obs: MALObsInstance, state: MalSimAttackerState, 
     old_step_idx = np.array([old for old, _ in sorted(old2new_step_idx.items(), key=lambda x: x[1])], dtype=np.int64)
     # old_step_idx = np.where(np.tile(visible_step_ids, (len(full_obs.steps.id), 1)) == full_obs.steps.id[:, np.newaxis])[0]
     # new_step_idx = np.arange(len(old_step_idx))
+    step_type = full_obs.steps.type[old_step_idx]
+    step_type_attacker_indexing = serializer.step_type2attacker_step_type[step_type]
     steps = Step(
-        type=full_obs.steps.type[old_step_idx],
+        type=step_type_attacker_indexing,
         id=full_obs.steps.id[old_step_idx],
         logic_class=full_obs.steps.logic_class[old_step_idx],
         tags=full_obs.steps.tags[old_step_idx],
@@ -301,7 +303,7 @@ def full_obs2attacker_obs(full_obs: MALObsInstance, state: MalSimAttackerState, 
         asset2asset=new_asset2asset,
     )
 
-def full_obs2defender_obs(full_obs: MALObsInstance, state: MalSimDefenderState) -> MALObsInstance:
+def full_obs2defender_obs(full_obs: MALObsInstance, state: MalSimDefenderState, serializer: LangSerializer) -> MALObsInstance:
     action_step_ids = np.array([node.id for node in state.action_surface])
     actionable = np.isin(full_obs.steps.id, action_step_ids)
     observed_step_ids = np.array([node.id for node in state.observed_nodes])
@@ -311,7 +313,7 @@ def full_obs2defender_obs(full_obs: MALObsInstance, state: MalSimDefenderState) 
         time=full_obs.time,
         assets=full_obs.assets,
         steps=Step(
-            type=full_obs.steps.type,
+            type=serializer.step_type2defender_step_type[full_obs.steps.type],
             id=full_obs.steps.id,
             logic_class=full_obs.steps.logic_class,
             tags=full_obs.steps.tags,

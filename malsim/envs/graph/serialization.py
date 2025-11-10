@@ -1,7 +1,7 @@
 from typing import Any
 from maltoolbox.attackgraph import AttackGraphNode
 from maltoolbox.language import LanguageGraph, LanguageGraphAttackStep
-
+import numpy as np
 class LangSerializer:
     """Serializer for LanguageGraph"""
 
@@ -58,7 +58,7 @@ class LangSerializer:
             for step in asset.attack_steps.values()
         ], key=lambda x: x.name)
         all_steps_attacker_sorting = list(filter(lambda x: x.type in ("and", "or"), all_steps)) + list(filter(lambda x: x.type in ("defense", "exist", "notExist"), all_steps))
-        all_steps_defender_sorting = list(filter(lambda x: x.type in ("defense", "exist", "notExist"), all_steps)) + list(filter(lambda x: x.type in ("and", "or"), all_steps))
+        all_steps_defender_sorting = list(filter(lambda x: x.type == "defense", all_steps)) + list(filter(lambda x: x.type in ("and", "or", "exist", "notExist"), all_steps))
 
         # NOTE: This looks odd, but the step name is the type of the action
         self.step_type: dict[tuple[str, ...], int] = {}
@@ -82,6 +82,7 @@ class LangSerializer:
                 step_key = (step.asset.name, step.name)
                 if step_key in self.defender_step_type:
                     raise ValueError(f"Can not have more than one key {step_key}")
+                self.defender_step_type[step_key] = idx
         else:
             # Map from (step_name) to idx
             all_step_names: set[str] = set(
@@ -112,14 +113,13 @@ class LangSerializer:
                 if add_and_check(step, defender_seen_step_names)
             }
 
-        self.step_type2attacker_step_type = {
-            idx: self.attacker_step_type[step_key]
-            for step_key, idx in self.step_type.items()
-        }
-        self.step_type2defender_step_type = {
-            idx: self.defender_step_type[step_key]
-            for step_key, idx in self.step_type.items()
-        }
+        self.step_type2attacker_step_type = np.zeros((len(self.step_type),), dtype=np.int64)
+        for step_key, idx in self.step_type.items():
+            self.step_type2attacker_step_type[idx] = self.attacker_step_type[step_key]
+
+        self.step_type2defender_step_type = np.zeros((len(self.step_type),), dtype=np.int64)
+        for step_key, idx in self.step_type.items():
+            self.step_type2defender_step_type[idx] = self.defender_step_type[step_key]
 
         # NOTE: The actual logic-class of the step
         all_step_classes = set(
