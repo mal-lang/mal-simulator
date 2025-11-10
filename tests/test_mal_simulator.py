@@ -325,17 +325,23 @@ def test_is_traversable(corelang_lang_graph: LanguageGraph, model: Model) -> Non
 
         if node in children_of_reached_nodes:
             if node.type == 'and':
-                if not sim.node_is_traversable(set(attacker_state.performed_nodes), node):
+                if not sim.node_is_traversable(
+                    set(attacker_state.performed_nodes), node
+                ):
                     assert not all(
                         p in attacker_state.performed_nodes
                         for p in node.parents
                         if p.type in ('or', 'and')
                     ) or not sim.node_is_viable(node)
             if node.type == 'or':
-                if not sim.node_is_traversable(set(attacker_state.performed_nodes), node):
+                if not sim.node_is_traversable(
+                    set(attacker_state.performed_nodes), node
+                ):
                     assert not sim.node_is_viable(node)
         else:
-            assert not sim.node_is_traversable(set(attacker_state.performed_nodes), node)
+            assert not sim.node_is_traversable(
+                set(attacker_state.performed_nodes), node
+            )
 
 
 def test_not_initial_compromise_entrypoints(
@@ -345,9 +351,7 @@ def test_not_initial_compromise_entrypoints(
     entry_point = get_node(attack_graph, 'OS App:fullAccess')
     sim = MalSimulator(
         attack_graph,
-        sim_settings=MalSimulatorSettings(
-            compromise_entrypoints_at_start=False
-        )
+        sim_settings=MalSimulatorSettings(compromise_entrypoints_at_start=False),
     )
     attacker_name = 'Test Attacker'
     sim.register_attacker(attacker_name, {entry_point})
@@ -369,9 +373,7 @@ def test_not_initial_compromise_entrypoints_unviable_step(
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(
         attack_graph,
-        sim_settings=MalSimulatorSettings(
-            compromise_entrypoints_at_start=False
-        )
+        sim_settings=MalSimulatorSettings(compromise_entrypoints_at_start=False),
     )
     attacker_name = 'Test Attacker'
     defender_name = 'Test Defender'
@@ -380,10 +382,9 @@ def test_not_initial_compromise_entrypoints_unviable_step(
     attacker_state = sim.reset()[attacker_name]
 
     # Step should not succeed if defender defended the entrypoint
-    attacker_state = sim.step({
-        attacker_name: ['OS App:fullAccess'],
-        defender_name: ['OS App:notPresent']
-    })[attacker_name]
+    attacker_state = sim.step(
+        {attacker_name: ['OS App:fullAccess'], defender_name: ['OS App:notPresent']}
+    )[attacker_name]
     assert attacker_state.performed_nodes == tuple()
     assert attacker_state.action_surface == frozenset()
 
