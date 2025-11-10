@@ -325,17 +325,17 @@ def test_is_traversable(corelang_lang_graph: LanguageGraph, model: Model) -> Non
 
         if node in children_of_reached_nodes:
             if node.type == 'and':
-                if not sim.node_is_traversable(attacker_state.performed_nodes, node):
+                if not sim.node_is_traversable(set(attacker_state.performed_nodes), node):
                     assert not all(
                         p in attacker_state.performed_nodes
                         for p in node.parents
                         if p.type in ('or', 'and')
                     ) or not sim.node_is_viable(node)
             if node.type == 'or':
-                if not sim.node_is_traversable(attacker_state.performed_nodes, node):
+                if not sim.node_is_traversable(set(attacker_state.performed_nodes), node):
                     assert not sim.node_is_viable(node)
         else:
-            assert not sim.node_is_traversable(attacker_state.performed_nodes, node)
+            assert not sim.node_is_traversable(set(attacker_state.performed_nodes), node)
 
 
 def test_not_initial_compromise_entrypoints(
@@ -354,12 +354,12 @@ def test_not_initial_compromise_entrypoints(
     attacker_state = sim.reset()[attacker_name]
 
     # No performed nodes, action surface is only the entrypoint
-    assert attacker_state.performed_nodes == set()
+    assert attacker_state.performed_nodes == tuple()
     assert attacker_state.action_surface == {entry_point}
 
     # Step through entrypoint adds it to performed nodes and extends the action surface
     attacker_state = sim.step({attacker_name: [entry_point]})[attacker_name]
-    assert attacker_state.performed_nodes == {entry_point}
+    assert attacker_state.performed_nodes == (entry_point,)
     assert attacker_state.action_surface == {n for n in entry_point.children}
 
 
@@ -384,8 +384,8 @@ def test_not_initial_compromise_entrypoints_unviable_step(
         attacker_name: ['OS App:fullAccess'],
         defender_name: ['OS App:notPresent']
     })[attacker_name]
-    assert attacker_state.performed_nodes == set()
-    assert attacker_state.action_surface == set()
+    assert attacker_state.performed_nodes == tuple()
+    assert attacker_state.action_surface == frozenset()
 
 
 def test_is_compromised(corelang_lang_graph: LanguageGraph, model: Model) -> None:
@@ -663,8 +663,8 @@ def test_agent_state_views_simple(
     assert asv.step_performed_nodes == {entry_point}
     assert dsv.step_performed_nodes == pre_enabled_defenses
 
-    assert asv.performed_nodes == {entry_point}
-    assert dsv.performed_nodes == pre_enabled_defenses
+    assert asv.performed_nodes == (entry_point,)
+    assert dsv.performed_nodes == tuple(pre_enabled_defenses)
 
     assert len(asv.action_surface) == 6
     assert set(n.full_name for n in dsv.action_surface) == {
@@ -719,8 +719,8 @@ def test_agent_state_views_simple(
     assert asv.step_performed_nodes == {os_app_attempt_deny}
     assert dsv.step_performed_nodes == {program2_not_present}
 
-    assert asv.performed_nodes == {os_app_attempt_deny, entry_point}
-    assert dsv.performed_nodes == pre_enabled_defenses | {program2_not_present}
+    assert asv.performed_nodes == (entry_point, os_app_attempt_deny)
+    assert dsv.performed_nodes == tuple(pre_enabled_defenses) + (program2_not_present,)
 
     assert asv.step_action_surface_additions == {os_app_success_deny}
     assert dsv.step_action_surface_additions == set()
@@ -948,7 +948,7 @@ def test_simulator_no_fpr_fnr() -> None:
     assert isinstance(attacker_state, MalSimAttackerState)
 
     # No false positives or negatives
-    assert defender_state.compromised_nodes == attacker_state.performed_nodes
+    assert defender_state.compromised_nodes == frozenset(attacker_state.performed_nodes)
 
 
 def test_simulator_ttcs() -> None:

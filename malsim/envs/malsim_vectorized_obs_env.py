@@ -502,7 +502,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):  # type: ignore
             # Reset observation and action mask for agents
             self._agent_observations[agent.name] = self._create_blank_observation()
             self._agent_infos[agent.name] = self.create_action_mask(agent)
-            pre_enabled_nodes |= agent.performed_nodes
+            pre_enabled_nodes |= set(agent.performed_nodes)
 
         self._update_observations(pre_enabled_nodes, set())
 

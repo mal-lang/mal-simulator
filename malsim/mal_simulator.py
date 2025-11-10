@@ -52,7 +52,7 @@ class MalSimAgentState:
     action_surface: frozenset[AttackGraphNode]
 
     # Contains all nodes that this agent has performed successfully
-    performed_nodes: frozenset[AttackGraphNode]
+    performed_nodes: tuple[AttackGraphNode, ...]
 
     # Contains the nodes performed successfully in the last step
     step_performed_nodes: frozenset[AttackGraphNode]
@@ -652,10 +652,10 @@ class MalSimulator:
             else None
         )
         compromised_nodes = (
-            entry_points
-            if self.sim_settings.compromise_entrypoints_at_start else frozenset()
+            tuple(entry_points)
+            if self.sim_settings.compromise_entrypoints_at_start else tuple()
         )
-        attack_surface = self._get_attack_surface(compromised_nodes)
+        attack_surface = self._get_attack_surface(set(compromised_nodes))
 
         if not self.sim_settings.compromise_entrypoints_at_start:
             # If entrypoints not compromised at start,
@@ -671,7 +671,7 @@ class MalSimulator:
             action_surface=frozenset(attack_surface),
             step_action_surface_additions=frozenset(attack_surface),
             step_action_surface_removals=frozenset(),
-            step_performed_nodes=compromised_nodes,
+            step_performed_nodes=frozenset(compromised_nodes),
             step_unviable_nodes=frozenset(),
             step_attempted_nodes=frozenset(),
             num_attempts=MappingProxyType(
@@ -695,7 +695,7 @@ class MalSimulator:
         # Find what nodes attacker can reach this step
         action_surface_additions = (
             self._get_attack_surface(
-                attacker_state.performed_nodes | step_agent_compromised_nodes,
+                set(attacker_state.performed_nodes) | step_agent_compromised_nodes,
                 from_nodes=step_agent_compromised_nodes,
             )
             - attacker_state.action_surface
@@ -718,7 +718,7 @@ class MalSimulator:
             attacker_state.name,
             sim=self,
             performed_nodes=(
-                attacker_state.performed_nodes | step_agent_compromised_nodes
+                attacker_state.performed_nodes + tuple(step_agent_compromised_nodes)
             ),
             action_surface=new_action_surface,
             step_action_surface_additions=action_surface_additions,
@@ -762,7 +762,7 @@ class MalSimulator:
 
         compromised_steps: set[AttackGraphNode] = set()
         for attacker_state in self._get_attacker_agents():
-            compromised_steps |= attacker_state.performed_nodes
+            compromised_steps |= set(attacker_state.performed_nodes)
 
         defense_surface = self._get_defense_surface()
         step_observed_nodes = self._defender_observed_nodes(compromised_steps)
@@ -770,7 +770,7 @@ class MalSimulator:
         defender_state = MalSimDefenderState(
             name,
             sim=self,
-            performed_nodes=frozenset(self._enabled_defenses),
+            performed_nodes=tuple(self._enabled_defenses),
             compromised_nodes=frozenset(compromised_steps),
             step_compromised_nodes=frozenset(compromised_steps),
             observed_nodes=frozenset(step_observed_nodes),
@@ -822,7 +822,9 @@ class MalSimulator:
         updated_defender_state = MalSimDefenderState(
             defender_state.name,
             sim=self,
-            performed_nodes=(defender_state.performed_nodes | step_enabled_defenses),
+            performed_nodes=(
+                defender_state.performed_nodes + tuple(step_enabled_defenses)
+            ),
             compromised_nodes=frozenset(
                 defender_state.compromised_nodes | step_compromised_nodes
             ),
@@ -998,7 +1000,7 @@ class MalSimulator:
                 'comes from the agents action surface.'
             )
 
-            traversable = self.node_is_traversable(agent.performed_nodes, node)
+            traversable = self.node_is_traversable(set(agent.performed_nodes), node)
             if node in agent.entry_points:
                 # Entrypoints are traversable as long as they are viable
                 traversable = self.node_is_viable(node)
@@ -1161,7 +1163,7 @@ class MalSimulator:
         if attacker_state.goals:
             # Attacker is terminated if it has goals and all goals are met
             return (
-                attacker_state.goals & attacker_state.performed_nodes
+                attacker_state.goals & set(attacker_state.performed_nodes)
                 == attacker_state.goals
             )
         # Otherwise not terminated
