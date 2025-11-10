@@ -93,25 +93,21 @@ class LangSerializer:
                 for i, step_name in enumerate(all_step_names)
             }
             
-            def add_and_check(step: LanguageGraphAttackStep, seen: set[str]) -> bool:
-                if step.name in seen:
-                    return False
-                seen.add(step.name)
-                return True
-            
             attacker_seen_step_names: set[str] = set()
-            self.attacker_step_type = {
-                (step.name,): i
-                for i, step in enumerate(all_steps_attacker_sorting) 
-                if add_and_check(step, attacker_seen_step_names)
-            }
+            idx = 0
+            for step in all_steps_attacker_sorting:
+                if step.name not in attacker_seen_step_names:
+                    attacker_seen_step_names.add(step.name)
+                    self.attacker_step_type[(step.name,)] = idx
+                    idx += 1
 
             defender_seen_step_names: set[str] = set()
-            self.defender_step_type = {
-                (step.name,): i
-                for i, step in enumerate(all_steps_defender_sorting) 
-                if add_and_check(step, defender_seen_step_names)
-            }
+            idx = 0
+            for step in all_steps_defender_sorting:
+                if step.name not in defender_seen_step_names:
+                    defender_seen_step_names.add(step.name)
+                    self.defender_step_type[(step.name,)] = idx
+                    idx += 1
 
         self.step_type2attacker_step_type = np.zeros((len(self.step_type),), dtype=np.int64)
         for step_key, idx in self.step_type.items():
