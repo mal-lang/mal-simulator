@@ -109,8 +109,8 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         key=lambda x: x.id
     )
     logic_gates = LogicGate(
-        type=np.array([(0 if node.type == 'and' else 1) for node in sorted_and_or_steps]),
-        id=np.array([node.id for node in sorted_and_or_steps]),
+        type=np.array([(0 if node.type == 'and' else 1) for node in sorted_and_or_steps], dtype=np.int64),
+        id=np.array([node.id for node in sorted_and_or_steps], dtype=np.int64),
     )
     step2logic: set[tuple[int, int]] = set()
     logic2step: set[tuple[int, int]] = set()
@@ -118,8 +118,14 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         logic2step.add((logic_gate_id, node.id))
         for child in node.children:
             step2logic.add((child.id, logic_gate_id))
-    logic2step_links = np.array(list(zip(*logic2step)))
-    step2logic_links = np.array(list(zip(*step2logic)))
+    if logic2step:
+        logic2step_links = np.array(list(zip(*logic2step)), dtype=np.int64)
+    else:
+        logic2step_links = np.empty((2, 0), dtype=np.int64)
+    if step2logic:
+        step2logic_links = np.array(list(zip(*step2logic)), dtype=np.int64)
+    else:
+        step2logic_links = np.empty((2, 0), dtype=np.int64)
         
 
     return MALObsInstance(
@@ -210,34 +216,49 @@ def full_obs2attacker_obs(full_obs: MALObsInstance, state: MalSimAttackerState, 
         new_assoc2asset = None
 
 
-    if full_obs.logic_gates is not None and full_obs.step2logic is not None and full_obs.logic2step is not None:
-        # Logic gates have the same ID as the steps they are associated with
-        old2new_logic_idx = {
-            int(np.where(full_obs.logic_gates.id == logic_id)[0]): new_idx 
-            for new_idx, logic_id in enumerate(visible_step_ids) 
-            if np.isin(logic_id, full_obs.logic_gates.id)
-        }
+    # Logic gates have the same ID as the steps they are associated with
+    old2new_logic_idx = {
+        int(np.where(full_obs.logic_gates.id == logic_id)[0]): new_idx 
+        for new_idx, logic_id in enumerate(visible_step_ids) 
+        if np.isin(logic_id, full_obs.logic_gates.id)
+    }
+    if old2new_logic_idx:
         old_logic_idx = np.array([old for old, _ in sorted(old2new_logic_idx.items(), key=lambda x: x[1])], dtype=np.int64)
         logic_gates = LogicGate(
             id=full_obs.logic_gates.id[old_logic_idx],
             type=full_obs.logic_gates.type[old_logic_idx]
         )
 
-        visible_old_step2logic = full_obs.step2logic[:, np.isin(full_obs.step2logic[0], old_step_idx) & np.isin(full_obs.step2logic[1], old_logic_idx)]
-        new_step2logic = np.stack((
-            np.array([old2new_step_idx[old_step_idx] for old_step_idx in visible_old_step2logic[0]]),
-            np.array([old2new_logic_idx[old_logic_idx] for old_logic_idx in visible_old_step2logic[1]]),
-        ), axis=0)
+        if full_obs.step2logic.shape[1] > 0:
+            visible_old_step2logic = full_obs.step2logic[:, np.isin(full_obs.step2logic[0], old_step_idx) & np.isin(full_obs.step2logic[1], old_logic_idx)]
+            if visible_old_step2logic.shape[1] > 0:
+                new_step2logic = np.stack((
+                    np.array([old2new_step_idx[old_step_idx] for old_step_idx in visible_old_step2logic[0]]),
+                    np.array([old2new_logic_idx[old_logic_idx] for old_logic_idx in visible_old_step2logic[1]]),
+                ), axis=0)
+            else:
+                new_step2logic = np.empty((2, 0), dtype=np.int64)
+        else:
+            new_step2logic = np.empty((2, 0), dtype=np.int64)
 
-        visible_old_logic2step = full_obs.logic2step[:, np.isin(full_obs.logic2step[0], old_logic_idx) & np.isin(full_obs.logic2step[1], old_step_idx)]
-        new_logic2step = np.stack((
-            np.array([old2new_logic_idx[old_logic_idx] for old_logic_idx in visible_old_logic2step[0]]),
-            np.array([old2new_step_idx[old_step_idx] for old_step_idx in visible_old_logic2step[1]]),
-        ), axis=0)
+        if full_obs.logic2step.shape[1] > 0:
+            visible_old_logic2step = full_obs.logic2step[:, np.isin(full_obs.logic2step[0], old_logic_idx) & np.isin(full_obs.logic2step[1], old_step_idx)]
+            if visible_old_logic2step.shape[1] > 0:
+                new_logic2step = np.stack((
+                    np.array([old2new_logic_idx[old_logic_idx] for old_logic_idx in visible_old_logic2step[0]]),
+                    np.array([old2new_step_idx[old_step_idx] for old_step_idx in visible_old_logic2step[1]]),
+                ), axis=0)
+            else:
+                new_logic2step = np.empty((2, 0), dtype=np.int64)
+        else:
+            new_logic2step = np.empty((2, 0), dtype=np.int64)
     else:
-        logic_gates = None
-        new_logic2step = None
-        new_step2logic = None
+        logic_gates = LogicGate(
+            id=np.array([], dtype=np.int64),
+            type=np.array([], dtype=np.int64)
+        )
+        new_logic2step = np.empty((2, 0), dtype=np.int64)
+        new_step2logic = np.empty((2, 0), dtype=np.int64)
 
     return MALObsInstance(
         time=full_obs.time,
@@ -279,18 +300,3 @@ def full_obs2defender_obs(full_obs: MALObsInstance, state: MalSimDefenderState) 
         logic2step=full_obs.logic2step,
         step2logic=full_obs.step2logic,
     )
-
-
-    """Update the observation of the serialized obs defender"""
-    actionable_node_ids = np.array([node.id for node in state.step_action_surface_additions])
-    non_actionable_node_ids = np.array([node.id for node in state.step_action_surface_removals])
-    if actionable_node_ids.size > 0:
-        obs.steps.action_mask[np.where(np.tile(actionable_node_ids, (len(obs.steps.id), 1)) == obs.steps.id[:, np.newaxis])[0]] = True
-    if non_actionable_node_ids.size > 0:
-        obs.steps.action_mask[np.where(np.tile(non_actionable_node_ids, (len(obs.steps.id), 1)) == obs.steps.id[:, np.newaxis])[0]] = False
-
-    observed_node_ids = np.array([node.id for node in state.observed_nodes])
-    if observed_node_ids.size > 0:
-        obs.steps.compromised[np.where(np.tile(observed_node_ids, (len(obs.steps.id), 1)) == obs.steps.id[:, np.newaxis])[0]] = True
-        obs.steps.compromised[np.where(np.tile(observed_node_ids, (len(obs.steps.id), 1)) != obs.steps.id[:, np.newaxis])[0]] = False
-    return obs

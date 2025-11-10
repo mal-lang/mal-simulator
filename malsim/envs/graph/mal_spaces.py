@@ -82,13 +82,13 @@ class MALObsInstance(NamedTuple):
     assets: Asset
     steps: Step
     associations: Association | None
-    logic_gates: LogicGate | None
+    logic_gates: LogicGate
 
     step2asset: NDArray[np.int64]
     assoc2asset: NDArray[np.int64] | None
     step2step: NDArray[np.int64]
-    logic2step: NDArray[np.int64] | None
-    step2logic: NDArray[np.int64] | None
+    logic2step: NDArray[np.int64]
+    step2logic: NDArray[np.int64]
 
 
 class MALObs(Space[MALObsInstance]):
@@ -197,17 +197,13 @@ class MALObs(Space[MALObsInstance]):
         """Return boolean specifying if x is a valid member of this space."""
         if isinstance(x, MALObsInstance):
             attack_step_tags_valid = self.attack_step_tags.contains(x.steps.tags[0])
-            if (
-                isinstance(x.logic_gates, LogicGate)
-                and x.step2logic is not None
-                and x.logic2step is not None
-            ):
+            if isinstance(x.logic_gates, LogicGate) and len(x.logic_gates.type) > 0:
                 logic_gate_type_valid = all(
                     x.logic_gates.type[i] in self.logic_gate_type
                     for i in range(len(x.logic_gates.type))
                 )
             else:
-                logic_gate_type_valid = False
+                logic_gate_type_valid = True
 
             asset_type_valid = all(
                 x.assets.type[i] in self.asset_type for i in range(len(x.assets.type))
@@ -271,8 +267,8 @@ class MALObs(Space[MALObsInstance]):
                 isinstance(x.step2asset, np.ndarray)
                 and isinstance(x.assoc2asset, np.ndarray | None)
                 and isinstance(x.step2step, np.ndarray)
-                and isinstance(x.logic2step, np.ndarray | None)
-                and isinstance(x.step2logic, np.ndarray | None)
+                and isinstance(x.logic2step, np.ndarray)
+                and isinstance(x.step2logic, np.ndarray)
             ):
                 if (
                     np.issubdtype(x.step2asset.dtype, np.integer)
@@ -281,14 +277,8 @@ class MALObs(Space[MALObsInstance]):
                         or np.issubdtype(x.assoc2asset.dtype, np.integer)
                     )
                     and np.issubdtype(x.step2step.dtype, np.integer)
-                    and (
-                        x.logic2step is None
-                        or np.issubdtype(x.logic2step.dtype, np.integer)
-                    )
-                    and (
-                        x.step2logic is None
-                        or np.issubdtype(x.step2logic.dtype, np.integer)
-                    )
+                    and np.issubdtype(x.logic2step.dtype, np.integer)
+                    and np.issubdtype(x.step2logic.dtype, np.integer)
                 ):
                     step2asset_valid = (
                         (x.step2asset[0] >= 0)
@@ -314,11 +304,7 @@ class MALObs(Space[MALObsInstance]):
                     ).all() and (
                         (x.step2step[1] >= 0) & (x.step2step[1] < x.steps.type.shape[0])
                     ).all()
-                    if (
-                        isinstance(x.logic_gates, LogicGate)
-                        and x.step2logic is not None
-                        and x.logic2step is not None
-                    ):
+                    if isinstance(x.logic_gates, LogicGate) and x.logic2step.shape[1] > 0 and x.step2logic.shape[1] > 0:
                         logic2step_valid = (
                             (x.logic2step[0] >= 0)
                             & (x.logic2step[0] < x.logic_gates.type.shape[0])
@@ -334,8 +320,8 @@ class MALObs(Space[MALObsInstance]):
                             & (x.step2logic[1] < x.logic_gates.type.shape[0])
                         ).all()
                     else:
-                        logic2step_valid = False
-                        step2logic_valid = False
+                        logic2step_valid = True
+                        step2logic_valid = True
 
                     edge_valid = (
                         step2asset_valid
@@ -402,23 +388,15 @@ class MALObs(Space[MALObsInstance]):
                 "association_type": (
                     sample.associations.type.tolist() if sample.associations else None
                 ),
-                "logic_gate_id": (
-                    sample.logic_gates.id.tolist() if sample.logic_gates else None
-                ),
-                "logic_gate_type": (
-                    sample.logic_gates.type.tolist() if sample.logic_gates else None
-                ),
+                "logic_gate_id": sample.logic_gates.id.tolist(),
+                "logic_gate_type": sample.logic_gates.type.tolist(),
                 "step2asset": sample.step2asset.tolist(),
                 "assoc2asset": (
                     sample.assoc2asset.tolist() if sample.assoc2asset is not None else None
                 ),
                 "step2step": sample.step2step.tolist(),
-                "logic2step": (
-                    sample.logic2step.tolist() if sample.logic2step is not None else None
-                ),
-                "step2logic": (
-                    sample.step2logic.tolist() if sample.step2logic is not None else None
-                ),
+                "logic2step": sample.logic2step.tolist(),
+                "step2logic": sample.step2logic.tolist(),
             }
             ret_n.append(ret)
         return ret_n
@@ -467,16 +445,18 @@ class MALObs(Space[MALObsInstance]):
                 if sample["association_type"]
                 else None
             )
-            logic_gates = (
-                LogicGate(
+            if sample.get("logic_gate_type") and self.logic_gate_type:
+                logic_gates = LogicGate(
                     id=np.array(sample["logic_gate_id"], dtype=self.attack_step_id.dtype),
                     type=np.array(
                         sample["logic_gate_type"], dtype=self.logic_gate_type.dtype
                     ),
                 )
-                if sample["logic_gate_type"] and self.logic_gate_type
-                else None
-            )
+            else:
+                logic_gates = LogicGate(
+                    id=np.array([], dtype=self.attack_step_id.dtype),
+                    type=np.array([], dtype=self.logic_gate_type.dtype),
+                )
             ret = MALObsInstance(
                 time=np.int64(sample["time"]),
                 steps=step,
@@ -492,13 +472,13 @@ class MALObs(Space[MALObsInstance]):
                 step2step=np.array(sample["step2step"], dtype=np.int64),
                 logic2step=(
                     np.array(sample["logic2step"], dtype=np.int64)
-                    if sample["logic2step"]
-                    else None
+                    if sample.get("logic2step")
+                    else np.empty((2, 0), dtype=np.int64)
                 ),
                 step2logic=(
                     np.array(sample["step2logic"], dtype=np.int64)
-                    if sample["step2logic"]
-                    else None
+                    if sample.get("step2logic")
+                    else np.empty((2, 0), dtype=np.int64)
                 ),
             )
             ret_n.append(ret)
