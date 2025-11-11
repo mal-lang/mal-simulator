@@ -9,6 +9,7 @@ from gymnasium.utils.env_checker import check_env
 import numpy as np
 import pytest
 from pettingzoo.test import parallel_api_test
+from malsim.envs.graph.wrapper import ActionThenAssetWrapper, AssetThenActionWrapper
 
 @pytest.mark.parametrize(
     "sim_settings",
@@ -57,7 +58,6 @@ def test_check_graph_env(sim_settings: MalSimulatorSettings) -> None:
         sim_settings=sim_settings
     )
     check_env(env, skip_render_check=True, skip_close_check=True)
-
 
 def test_attacker_episode() -> None:
     scenario_file = (
@@ -154,7 +154,6 @@ def test_defender_episode() -> None:
         steps += 1
         done = terminated or truncated or (steps > 10_000)
 
-
 def test_pettingzoo_api_check() -> None:
     scenario_file = (
         "tests/testdata/scenarios/traininglang_scenario_with_model.yml"
@@ -163,3 +162,86 @@ def test_pettingzoo_api_check() -> None:
     sim = MalSimulator.from_scenario(scenario)
     env = MalSimGraph(sim)
     parallel_api_test(env)
+
+def test_asset_then_action_wrapper() -> None:
+    scenario_file = (
+        "tests/testdata/scenarios/traininglang_scenario_with_model.yml"
+    )
+    scenario = Scenario.load_from_file(scenario_file)
+    env = MalSimAttackerGraph(scenario, MalSimulatorSettings(
+                ttc_mode=TTCMode.PER_STEP_SAMPLE,
+                run_defense_step_bernoullis=False,
+                run_attack_step_bernoullis=False,
+                attack_surface_skip_unnecessary=False,
+                attacker_reward_mode=RewardMode.ONE_OFF,
+            ))
+    wrapped_env = AssetThenActionWrapper(env, scenario.attack_graph.model, env.multi_env.lang_serializer)
+
+    i = 0
+    done = False
+    obs, info = wrapped_env.reset()
+    while not done and i < 100:
+        asset_mask, action_mask = wrapped_env.action_space.mask(obs)
+        action = wrapped_env.action_space.sample((asset_mask, action_mask))
+        obs, reward, terminated, truncated, info = wrapped_env.step(action)
+        i += 1
+        done = terminated or truncated
+
+    env = MalSimDefenderGraph(scenario, MalSimulatorSettings(
+                ttc_mode=TTCMode.PER_STEP_SAMPLE,
+                run_defense_step_bernoullis=False,
+                run_attack_step_bernoullis=False,
+                attack_surface_skip_unnecessary=False,
+                attacker_reward_mode=RewardMode.ONE_OFF,
+            ))
+    wrapped_env = AssetThenActionWrapper(env, scenario.attack_graph.model, env.multi_env.lang_serializer)
+    i = 0
+    done = False
+    obs, info = wrapped_env.reset()
+    while not done and i < 100:
+        action_mask, asset_mask = wrapped_env.action_space.mask(obs)
+        action = wrapped_env.action_space.sample((action_mask, asset_mask))
+        obs, reward, terminated, truncated, info = wrapped_env.step(action)
+        i += 1
+        done = terminated or truncated
+
+def test_action_then_asset_wrapper() -> None:
+    scenario_file = (
+        "tests/testdata/scenarios/traininglang_scenario_with_model.yml"
+    )
+    scenario = Scenario.load_from_file(scenario_file)
+    env = MalSimAttackerGraph(scenario, MalSimulatorSettings(
+                ttc_mode=TTCMode.PER_STEP_SAMPLE,
+                run_defense_step_bernoullis=False,
+                run_attack_step_bernoullis=False,
+                attack_surface_skip_unnecessary=False,
+                attacker_reward_mode=RewardMode.ONE_OFF,
+            ))
+    wrapped_env = ActionThenAssetWrapper(env, scenario.attack_graph.model, env.multi_env.lang_serializer)
+    i = 0
+    done = False
+    obs, info = wrapped_env.reset()
+    while not done and i < 100:
+        action_mask, asset_mask = wrapped_env.action_space.mask(obs)
+        action = wrapped_env.action_space.sample((action_mask, asset_mask))
+        obs, reward, terminated, truncated, info = wrapped_env.step(action)
+        i += 1
+        done = terminated or truncated
+
+    env = MalSimDefenderGraph(scenario, MalSimulatorSettings(
+                ttc_mode=TTCMode.PER_STEP_SAMPLE,
+                run_defense_step_bernoullis=False,
+                run_attack_step_bernoullis=False,
+                attack_surface_skip_unnecessary=False,
+                attacker_reward_mode=RewardMode.ONE_OFF,
+            ))
+    wrapped_env = ActionThenAssetWrapper(env, scenario.attack_graph.model, env.multi_env.lang_serializer)
+    i = 0
+    done = False
+    obs, info = wrapped_env.reset()
+    while not done and i < 100:
+        action_mask, asset_mask = wrapped_env.action_space.mask(obs)
+        action = wrapped_env.action_space.sample((action_mask, asset_mask))
+        obs, reward, terminated, truncated, info = wrapped_env.step(action)
+        i += 1
+        done = terminated or truncated
