@@ -175,13 +175,14 @@ def test_asset_then_action_wrapper() -> None:
                 attack_surface_skip_unnecessary=False,
                 attacker_reward_mode=RewardMode.ONE_OFF,
             ))
+    assert scenario.attack_graph.model is not None, "Attack graph needs to have a model attached to it"
     wrapped_env = AssetThenActionWrapper(env, scenario.attack_graph.model, env.multi_env.lang_serializer)
 
     i = 0
     done = False
     obs, info = wrapped_env.reset()
     while not done and i < 100:
-        asset_mask, action_mask = wrapped_env.action_space.mask(obs)
+        asset_mask, action_mask = wrapped_env.mask(obs)
         action = wrapped_env.action_space.sample((asset_mask, action_mask))
         obs, reward, terminated, truncated, info = wrapped_env.step(action)
         i += 1
@@ -194,6 +195,7 @@ def test_asset_then_action_wrapper() -> None:
                 attack_surface_skip_unnecessary=False,
                 attacker_reward_mode=RewardMode.ONE_OFF,
             ))
+    assert scenario.attack_graph.model is not None, "Attack graph needs to have a model attached to it"
     wrapped_env = AssetThenActionWrapper(env, scenario.attack_graph.model, env.multi_env.lang_serializer)
     i = 0
     done = False

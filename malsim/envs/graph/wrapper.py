@@ -34,14 +34,18 @@ class AssetThenActionWrapper(Wrapper[MALObsInstance, tuple[np.int64, np.int64], 
         self.model = model
         self.serializer = lang_serializer
         if isinstance(env.action_space, MALObsAttackStepSpace):
-            self.action_space = AssetThenAttackerAction(model, lang_serializer)
+            action_space = AssetThenAttackerAction(model, lang_serializer)
+            self.action_space = action_space
         elif isinstance(env.action_space, MALObsDefenseStepSpace):
-            self.action_space = AssetThenDefenderAction(model, lang_serializer)
+            action_space = AssetThenDefenderAction(model, lang_serializer)
+            self.action_space = action_space
         else:
             raise ValueError(f"Unsupported action space: {env.action_space}")
 
-    def reset(self) -> tuple[MALObsInstance, dict[str, Any]]:
-        obs, info = self.env.reset()
+        self.mask = action_space.mask
+
+    def reset(self, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[MALObsInstance, dict[str, Any]]:
+        obs, info = self.env.reset(seed=seed, options=options)
         self._obs = obs
         return obs, info
 
@@ -73,14 +77,18 @@ class ActionThenAssetWrapper(Wrapper[MALObsInstance, tuple[np.int64, np.int64], 
         self.model = model
         self.serializer = lang_serializer
         if isinstance(env.action_space, MALObsAttackStepSpace):
-            self.action_space = AttackerActionThenAsset(model, lang_serializer)
+            action_space = AttackerActionThenAsset(model, lang_serializer)
+            self.action_space = action_space
         elif isinstance(env.action_space, MALObsDefenseStepSpace):
-            self.action_space = DefenderActionThenAsset(model, lang_serializer)
+            action_space = DefenderActionThenAsset(model, lang_serializer)
+            self.action_space = action_space
         else:
             raise ValueError(f"Unsupported action space: {env.action_space}")
 
-    def reset(self) -> tuple[MALObsInstance, dict[str, Any]]:
-        obs, info = self.env.reset()
+        self.mask = action_space.mask
+        
+    def reset(self, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[MALObsInstance, dict[str, Any]]:
+        obs, info = self.env.reset(seed=seed, options=options)
         self._obs = obs
         return obs, info
 
