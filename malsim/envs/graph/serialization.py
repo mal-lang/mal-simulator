@@ -1,7 +1,8 @@
-from typing import Any
+from typing import Any, cast
 from maltoolbox.attackgraph import AttackGraphNode
 from maltoolbox.language import LanguageGraph, LanguageGraphAttackStep
 import numpy as np
+from numpy.typing import NDArray
 class LangSerializer:
     """Serializer for LanguageGraph"""
 
@@ -63,7 +64,7 @@ class LangSerializer:
         # NOTE: This looks odd, but the step name is the type of the action
         self.step_type: dict[tuple[str, ...], int] = {}
         # Different indexing for attacker and defender
-        # This is needed by some action spaces
+        # This is needed by the action spaces ActionThenAsset and AssetThenAction
         self.attacker_step_type: dict[tuple[str, ...], int] = {}
         self.defender_step_type: dict[tuple[str, ...], int] = {}
         if split_step_types:
@@ -109,13 +110,13 @@ class LangSerializer:
                     self.defender_step_type[(step.name,)] = idx
                     idx += 1
 
-        self.step_type2attacker_step_type = np.zeros((len(self.step_type),), dtype=np.int64)
-        for step_key, idx in self.step_type.items():
-            self.step_type2attacker_step_type[idx] = self.attacker_step_type[step_key]
+        self.step_type2attacker_step_type: NDArray[np.int64] = np.zeros((len(self.step_type),), dtype=np.int64)
+        for attacker_step_key, idx in self.step_type.items():
+            self.step_type2attacker_step_type[idx] = self.attacker_step_type[attacker_step_key]
 
-        self.step_type2defender_step_type = np.zeros((len(self.step_type),), dtype=np.int64)
-        for step_key, idx in self.step_type.items():
-            self.step_type2defender_step_type[idx] = self.defender_step_type[step_key]
+        self.step_type2defender_step_type: NDArray[np.int64] = np.zeros((len(self.step_type),), dtype=np.int64)
+        for defender_step_key, idx in self.step_type.items():
+            self.step_type2defender_step_type[idx] = self.defender_step_type[defender_step_key]
 
         # NOTE: The actual logic-class of the step
         all_step_classes = set(
