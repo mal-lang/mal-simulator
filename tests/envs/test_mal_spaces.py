@@ -137,7 +137,7 @@ def test_jsonable() -> None:
     attacker_obs_idx_from_jsonable = attacker_action_space.from_jsonable(jsonable)[0]
     assert attacker_obs_idx_from_jsonable == attacker_obs_idx
 
-def test_asset_action_attacker_selection() -> None:
+def test_asset_then_attacker_action() -> None:
     scenario_file = (
         "tests/testdata/scenarios/simple_scenario.yml"
     )
@@ -172,7 +172,7 @@ def test_asset_action_attacker_selection() -> None:
         assert attacker_obs in attacker_obs_space
         i += 1
 
-def test_asset_action_defender_selection() -> None:
+def test_asset_then_defender_action() -> None:
     scenario_file = (
         "tests/testdata/scenarios/simple_scenario.yml"
     )
@@ -207,7 +207,7 @@ def test_asset_action_defender_selection() -> None:
         assert defender_obs in defender_obs_space
         i += 1
 
-def test_action_asset_attacker_selection() -> None:
+def test_attacker_action_then_asset() -> None:
     scenario_file = (
         "tests/testdata/scenarios/simple_scenario.yml"
     )
@@ -242,7 +242,7 @@ def test_action_asset_attacker_selection() -> None:
         assert attacker_obs in attacker_obs_space
         i += 1
 
-def test_action_asset_defender_selection() -> None:
+def test_defender_action_then_asset() -> None:
     scenario_file = (
         "tests/testdata/scenarios/simple_scenario.yml"
     )
