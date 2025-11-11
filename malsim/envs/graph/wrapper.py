@@ -33,6 +33,7 @@ class AssetThenActionWrapper(Wrapper[MALObsInstance, tuple[np.int64, np.int64], 
         Wrapper.__init__(self, env)
         self.model = model
         self.serializer = lang_serializer
+        action_space: AssetThenAttackerAction | AssetThenDefenderAction
         if isinstance(env.action_space, MALObsAttackStepSpace):
             action_space = AssetThenAttackerAction(model, lang_serializer)
             self.action_space = action_space
@@ -69,24 +70,25 @@ class ActionThenAssetWrapper(Wrapper[MALObsInstance, tuple[np.int64, np.int64], 
         """
 
         Args:
-            env: Environment to be wrapped.
+            env: Environment to be wrapped. Needs to use MALObsAttackStepSpace or MALObsDefenseStepSpace as action space.
             model: Model to use
             lang_serializer: Language serializer to use
         """
         Wrapper.__init__(self, env)
         self.model = model
         self.serializer = lang_serializer
+        action_space: AttackerActionThenAsset | DefenderActionThenAsset
         if isinstance(env.action_space, MALObsAttackStepSpace):
             action_space = AttackerActionThenAsset(model, lang_serializer)
-            self.action_space = action_space
+            self._action_space = action_space
         elif isinstance(env.action_space, MALObsDefenseStepSpace):
             action_space = DefenderActionThenAsset(model, lang_serializer)
-            self.action_space = action_space
+            self._action_space = action_space
         else:
             raise ValueError(f"Unsupported action space: {env.action_space}")
 
         self.mask = action_space.mask
-        
+
     def reset(self, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[MALObsInstance, dict[str, Any]]:
         obs, info = self.env.reset(seed=seed, options=options)
         self._obs = obs

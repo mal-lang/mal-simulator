@@ -2,6 +2,7 @@ from malsim import MalSimulator
 from malsim.envs.graph.graph_env import (
     MalSimAttackerGraph, MalSimDefenderGraph, MalSimGraph, register_graph_envs
 )
+from malsim.envs.graph.mal_spaces import AssetThenAttackerAction, AssetThenDefenderAction, AttackerActionThenAsset, DefenderActionThenAsset
 from malsim.scenario import Scenario
 from typing import Any
 from malsim.mal_simulator import MalSimulatorSettings, TTCMode, RewardMode, MalSimAttackerState
@@ -168,7 +169,7 @@ def test_asset_then_action_wrapper() -> None:
         "tests/testdata/scenarios/traininglang_scenario_with_model.yml"
     )
     scenario = Scenario.load_from_file(scenario_file)
-    env = MalSimAttackerGraph(scenario, MalSimulatorSettings(
+    attacker_env = MalSimAttackerGraph(scenario, MalSimulatorSettings(
                 ttc_mode=TTCMode.PER_STEP_SAMPLE,
                 run_defense_step_bernoullis=False,
                 run_attack_step_bernoullis=False,
@@ -176,19 +177,20 @@ def test_asset_then_action_wrapper() -> None:
                 attacker_reward_mode=RewardMode.ONE_OFF,
             ))
     assert scenario.attack_graph.model is not None, "Attack graph needs to have a model attached to it"
-    wrapped_env = AssetThenActionWrapper(env, scenario.attack_graph.model, env.multi_env.lang_serializer)
+    wrapped_env = AssetThenActionWrapper(attacker_env, scenario.attack_graph.model, attacker_env.multi_env.lang_serializer)
+    assert isinstance(wrapped_env.action_space, AssetThenAttackerAction)
 
     i = 0
     done = False
     obs, info = wrapped_env.reset()
     while not done and i < 100:
         asset_mask, action_mask = wrapped_env.mask(obs)
-        action = wrapped_env.action_space.sample((asset_mask, action_mask))
+        action = wrapped_env.action_space.sample(mask=(asset_mask, action_mask))
         obs, reward, terminated, truncated, info = wrapped_env.step(action)
         i += 1
         done = terminated or truncated
 
-    env = MalSimDefenderGraph(scenario, MalSimulatorSettings(
+    defender_env = MalSimDefenderGraph(scenario, MalSimulatorSettings(
                 ttc_mode=TTCMode.PER_STEP_SAMPLE,
                 run_defense_step_bernoullis=False,
                 run_attack_step_bernoullis=False,
@@ -196,13 +198,14 @@ def test_asset_then_action_wrapper() -> None:
                 attacker_reward_mode=RewardMode.ONE_OFF,
             ))
     assert scenario.attack_graph.model is not None, "Attack graph needs to have a model attached to it"
-    wrapped_env = AssetThenActionWrapper(env, scenario.attack_graph.model, env.multi_env.lang_serializer)
+    wrapped_env = AssetThenActionWrapper(defender_env, scenario.attack_graph.model, defender_env.multi_env.lang_serializer)
+    assert isinstance(wrapped_env.action_space, AssetThenDefenderAction)
     i = 0
     done = False
     obs, info = wrapped_env.reset()
     while not done and i < 100:
         action_mask, asset_mask = wrapped_env.action_space.mask(obs)
-        action = wrapped_env.action_space.sample((action_mask, asset_mask))
+        action = wrapped_env.action_space.sample(mask=(action_mask, asset_mask))
         obs, reward, terminated, truncated, info = wrapped_env.step(action)
         i += 1
         done = terminated or truncated
@@ -212,38 +215,41 @@ def test_action_then_asset_wrapper() -> None:
         "tests/testdata/scenarios/traininglang_scenario_with_model.yml"
     )
     scenario = Scenario.load_from_file(scenario_file)
-    env = MalSimAttackerGraph(scenario, MalSimulatorSettings(
+    attacker_env = MalSimAttackerGraph(scenario, MalSimulatorSettings(
                 ttc_mode=TTCMode.PER_STEP_SAMPLE,
                 run_defense_step_bernoullis=False,
                 run_attack_step_bernoullis=False,
                 attack_surface_skip_unnecessary=False,
                 attacker_reward_mode=RewardMode.ONE_OFF,
             ))
-    wrapped_env = ActionThenAssetWrapper(env, scenario.attack_graph.model, env.multi_env.lang_serializer)
+    assert scenario.attack_graph.model is not None, "Attack graph needs to have a model attached to it"
+    wrapped_env = ActionThenAssetWrapper(attacker_env, scenario.attack_graph.model, attacker_env.multi_env.lang_serializer)
+    assert isinstance(wrapped_env.action_space, AttackerActionThenAsset)
     i = 0
     done = False
     obs, info = wrapped_env.reset()
     while not done and i < 100:
-        action_mask, asset_mask = wrapped_env.action_space.mask(obs)
-        action = wrapped_env.action_space.sample((action_mask, asset_mask))
+        action_mask, asset_mask = wrapped_env.mask(obs)
+        action = wrapped_env.action_space.sample(mask=(action_mask, asset_mask))
         obs, reward, terminated, truncated, info = wrapped_env.step(action)
         i += 1
         done = terminated or truncated
 
-    env = MalSimDefenderGraph(scenario, MalSimulatorSettings(
+    defender_env = MalSimDefenderGraph(scenario, MalSimulatorSettings(
                 ttc_mode=TTCMode.PER_STEP_SAMPLE,
                 run_defense_step_bernoullis=False,
                 run_attack_step_bernoullis=False,
                 attack_surface_skip_unnecessary=False,
                 attacker_reward_mode=RewardMode.ONE_OFF,
             ))
-    wrapped_env = ActionThenAssetWrapper(env, scenario.attack_graph.model, env.multi_env.lang_serializer)
+    wrapped_env = ActionThenAssetWrapper(defender_env, scenario.attack_graph.model, defender_env.multi_env.lang_serializer)
+    assert isinstance(wrapped_env.action_space, DefenderActionThenAsset)
     i = 0
     done = False
     obs, info = wrapped_env.reset()
     while not done and i < 100:
-        action_mask, asset_mask = wrapped_env.action_space.mask(obs)
-        action = wrapped_env.action_space.sample((action_mask, asset_mask))
+        action_mask, asset_mask = wrapped_env.mask(obs)
+        action = wrapped_env.action_space.sample(mask=(action_mask, asset_mask))
         obs, reward, terminated, truncated, info = wrapped_env.step(action)
         i += 1
         done = terminated or truncated
