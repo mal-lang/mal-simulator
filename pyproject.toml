@@ -71,4 +71,11 @@ disallow_untyped_defs = true
 disallow_any_generics = true
 allow_subclassing_any = true
 
+[tool.ruff]
+line-length = 88
 
+[tool.ruff.lint]
+select = ["E"]
+
+[tool.ruff.format]
+quote-style = "single"
