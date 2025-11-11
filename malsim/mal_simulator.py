@@ -653,7 +653,8 @@ class MalSimulator:
         )
         compromised_nodes = (
             entry_points
-            if self.sim_settings.compromise_entrypoints_at_start else frozenset()
+            if self.sim_settings.compromise_entrypoints_at_start
+            else frozenset()
         )
         attack_surface = self._get_attack_surface(compromised_nodes)
 
@@ -1008,12 +1009,16 @@ class MalSimulator:
                     successful_compromises.append(node)
                     logger.info(
                         'Attacker agent "%s" compromised "%s" (reward: %d).',
-                        agent.name, node.full_name, self.node_reward(node),
+                        agent.name,
+                        node.full_name,
+                        self.node_reward(node),
                     )
                 else:
                     logger.info(
                         'Attacker agent "%s" attempted "%s" (attempt %d).',
-                        agent.name, node.full_name, agent.num_attempts[node],
+                        agent.name,
+                        node.full_name,
+                        agent.num_attempts[node],
                     )
                     attempted_compromises.append(node)
 
@@ -1095,19 +1100,15 @@ class MalSimulator:
         elif self.sim_settings.ttc_mode == TTCMode.DISABLED:
             # If TTC Mode is disabled but reward mode uses TTCs, penalize with TTCs
             for node in attacker_state.step_performed_nodes:
-                if self.sim_settings.attacker_reward_mode == RewardMode.EXPECTED_TTC:
+                if reward_mode == RewardMode.EXPECTED_TTC:
                     step_reward -= (
                         TTCDist.from_node(node).expected_value if node.ttc else 0
                     )
-                elif self.sim_settings.attacker_reward_mode == RewardMode.SAMPLE_TTC:
+                elif reward_mode == RewardMode.SAMPLE_TTC:
                     step_reward -= (
                         TTCDist.from_node(node).sample_value(self.rng)
                         if node.ttc
                         else 0
-                    )
-                else:
-                    logger.warning(
-                        f'Invalid RewardMode when TTC mode is DISABLED: {reward_mode}'
                     )
 
         # Cumulative reward mode for attacker makes no sense
