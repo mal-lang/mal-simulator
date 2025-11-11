@@ -93,7 +93,6 @@ class MALObsInstance(NamedTuple):
 
 
 class MALObs(Space[MALObsInstance]):
-
     def __init__(
         self,
         lang_serializer: LangSerializer,
@@ -110,9 +109,7 @@ class MALObs(Space[MALObsInstance]):
         # Language Features
         self.asset_type = Discrete(max(set(lang_serializer.asset_type.values())) + 1)
         if isinstance(
-            lang_serializer.step_type[
-                next(iter(lang_serializer.step_type))
-            ],
+            lang_serializer.step_type[next(iter(lang_serializer.step_type))],
             dict,
         ):
             attack_step_type_ids = lang_serializer.step_type.values()
@@ -148,24 +145,24 @@ class MALObs(Space[MALObsInstance]):
         self, base_space: None | Box | Discrete, num: int
     ) -> Box | MultiDiscrete | None:
         raise NotImplementedError(
-            "Sample space generation is not implemented for MALObs"
+            'Sample space generation is not implemented for MALObs'
         )
 
     def seed(self, seed: int | None = None) -> int | list[int] | dict[str, int]:
         if seed is None:
             seeds = {
-                "self": super().seed(None),
-                "attack_step_tags": self.attack_step_tags.seed(None),
-                "asset_type": self.asset_type.seed(None),
-                "attack_step_type": self.attack_step_type.seed(None),
-                "attack_step_class": self.attack_step_class.seed(None),
-                "association_type": self.association_type.seed(None),
-                "time": self.time.seed(None),
-                "attack_step_observable": self.attack_step_observable.seed(None),
-                "attack_step_compromised": self.attack_step_compromised.seed(None),
-                "attack_step_attempts": self.attack_step_attempts.seed(None),
-                "attack_step_action_mask": self.attack_step_action_mask.seed(None),
-                "logic_gate_type": self.logic_gate_type.seed(None),
+                'self': super().seed(None),
+                'attack_step_tags': self.attack_step_tags.seed(None),
+                'asset_type': self.asset_type.seed(None),
+                'attack_step_type': self.attack_step_type.seed(None),
+                'attack_step_class': self.attack_step_class.seed(None),
+                'association_type': self.association_type.seed(None),
+                'time': self.time.seed(None),
+                'attack_step_observable': self.attack_step_observable.seed(None),
+                'attack_step_compromised': self.attack_step_compromised.seed(None),
+                'attack_step_attempts': self.attack_step_attempts.seed(None),
+                'attack_step_action_mask': self.attack_step_action_mask.seed(None),
+                'logic_gate_type': self.logic_gate_type.seed(None),
             }
             return seeds  # type: ignore
 
@@ -176,23 +173,23 @@ class MALObs(Space[MALObsInstance]):
             # REFERENCE: https://gymnasium.farama.org/_modules/gymnasium/spaces/graph/#Graph
             super().seed(seed)
             seeds = {
-                "self": super_seed,
-                "attack_step_tags": self.attack_step_tags.seed(node_seed),
-                "asset_type": self.asset_type.seed(node_seed),
-                "attack_step_type": self.attack_step_type.seed(node_seed),
-                "attack_step_class": self.attack_step_class.seed(node_seed),
-                "association_type": self.association_type.seed(node_seed),
-                "time": self.time.seed(node_seed),
-                "attack_step_observable": self.attack_step_observable.seed(node_seed),
-                "attack_step_compromised": self.attack_step_compromised.seed(node_seed),
-                "attack_step_attempts": self.attack_step_attempts.seed(node_seed),
-                "attack_step_action_mask": self.attack_step_action_mask.seed(node_seed),
-                "logic_gate_type": self.logic_gate_type.seed(node_seed),
+                'self': super_seed,
+                'attack_step_tags': self.attack_step_tags.seed(node_seed),
+                'asset_type': self.asset_type.seed(node_seed),
+                'attack_step_type': self.attack_step_type.seed(node_seed),
+                'attack_step_class': self.attack_step_class.seed(node_seed),
+                'association_type': self.association_type.seed(node_seed),
+                'time': self.time.seed(node_seed),
+                'attack_step_observable': self.attack_step_observable.seed(node_seed),
+                'attack_step_compromised': self.attack_step_compromised.seed(node_seed),
+                'attack_step_attempts': self.attack_step_attempts.seed(node_seed),
+                'attack_step_action_mask': self.attack_step_action_mask.seed(node_seed),
+                'logic_gate_type': self.logic_gate_type.seed(node_seed),
             }
             return seeds  # type: ignore
 
         else:
-            raise TypeError(f"Expects `None` or int, actual type: {type(seed)}")
+            raise TypeError(f'Expects `None` or int, actual type: {type(seed)}')
 
     def contains(self, x: MALObsInstance) -> bool:
         """Return boolean specifying if x is a valid member of this space."""
@@ -307,7 +304,11 @@ class MALObs(Space[MALObsInstance]):
                     ).all() and (
                         (x.step2step[1] >= 0) & (x.step2step[1] < x.steps.type.shape[0])
                     ).all()
-                    if isinstance(x.logic_gates, LogicGate) and x.logic2step.shape[1] > 0 and x.step2logic.shape[1] > 0:
+                    if (
+                        isinstance(x.logic_gates, LogicGate)
+                        and x.logic2step.shape[1] > 0
+                        and x.step2logic.shape[1] > 0
+                    ):
                         logic2step_valid = (
                             (x.logic2step[0] >= 0)
                             & (x.logic2step[0] < x.logic_gates.type.shape[0])
@@ -352,19 +353,17 @@ class MALObs(Space[MALObsInstance]):
 
     def __repr__(self) -> str:
         repr_str = (
-            f"MALObs(time={self.time.shape}, "
-            f"attack_step_compromised={self.attack_step_compromised.shape}, "
-            f"attack_step_observable={self.attack_step_observable.shape}, "
-            f"attack_step_attempts={self.attack_step_attempts.shape}, "
-            f"attack_step_action_mask={self.attack_step_action_mask.shape}, "
-            f"asset_type={self.asset_type.shape}, "
-            f"attack_step_type={self.attack_step_type.shape}, "
-            f"attack_step_class={self.attack_step_class.shape}, "
-            f"association_type={self.association_type.shape})"
+            f'MALObs(time={self.time.shape}, '
+            f'attack_step_compromised={self.attack_step_compromised.shape}, '
+            f'attack_step_observable={self.attack_step_observable.shape}, '
+            f'attack_step_attempts={self.attack_step_attempts.shape}, '
+            f'attack_step_action_mask={self.attack_step_action_mask.shape}, '
+            f'asset_type={self.asset_type.shape}, '
+            f'attack_step_type={self.attack_step_type.shape}, '
+            f'attack_step_class={self.attack_step_class.shape}, '
+            f'association_type={self.association_type.shape})'
         )
-        repr_str = (
-            repr_str[:-1] + f", logic_gate_type={self.logic_gate_type.shape})"
-        )
+        repr_str = repr_str[:-1] + f', logic_gate_type={self.logic_gate_type.shape})'
         return repr_str
 
     def __eq__(self, other: object) -> bool:
@@ -389,30 +388,36 @@ class MALObs(Space[MALObsInstance]):
         ret_n = []
         for sample in sample_n:
             ret = {
-                "time": sample.time,
-                "step_compromised": sample.steps.compromised.tolist(),
-                "step_attempts": sample.steps.attempts.tolist() if sample.steps.attempts is not None else None,
-                "step_action_mask": sample.steps.action_mask.tolist() if sample.steps.action_mask is not None else None,
-                "asset_type": sample.assets.type.tolist(),
-                "asset_id": sample.assets.id.tolist(),
-                "step_type": sample.steps.type.tolist(),
-                "step_tags": sample.steps.tags.tolist(),
-                "step_id": sample.steps.id.tolist(),
-                "step_class": sample.steps.logic_class.tolist(),
-                "step_observable": sample.steps.observable.tolist(),
-                "association_type": (
+                'time': sample.time,
+                'step_compromised': sample.steps.compromised.tolist(),
+                'step_attempts': sample.steps.attempts.tolist()
+                if sample.steps.attempts is not None
+                else None,
+                'step_action_mask': sample.steps.action_mask.tolist()
+                if sample.steps.action_mask is not None
+                else None,
+                'asset_type': sample.assets.type.tolist(),
+                'asset_id': sample.assets.id.tolist(),
+                'step_type': sample.steps.type.tolist(),
+                'step_tags': sample.steps.tags.tolist(),
+                'step_id': sample.steps.id.tolist(),
+                'step_class': sample.steps.logic_class.tolist(),
+                'step_observable': sample.steps.observable.tolist(),
+                'association_type': (
                     sample.associations.type.tolist() if sample.associations else None
                 ),
-                "logic_gate_id": sample.logic_gates.id.tolist(),
-                "logic_gate_type": sample.logic_gates.type.tolist(),
-                "step2asset": sample.step2asset.tolist(),
-                "assoc2asset": (
-                    sample.assoc2asset.tolist() if sample.assoc2asset is not None else None
+                'logic_gate_id': sample.logic_gates.id.tolist(),
+                'logic_gate_type': sample.logic_gates.type.tolist(),
+                'step2asset': sample.step2asset.tolist(),
+                'assoc2asset': (
+                    sample.assoc2asset.tolist()
+                    if sample.assoc2asset is not None
+                    else None
                 ),
-                "step2step": sample.step2step.tolist(),
-                "logic2step": sample.logic2step.tolist(),
-                "step2logic": sample.step2logic.tolist(),
-                "asset2asset": sample.asset2asset.tolist(),
+                'step2step': sample.step2step.tolist(),
+                'logic2step': sample.logic2step.tolist(),
+                'step2logic': sample.step2logic.tolist(),
+                'asset2asset': sample.asset2asset.tolist(),
             }
             ret_n.append(ret)
         return ret_n
@@ -422,50 +427,54 @@ class MALObs(Space[MALObsInstance]):
         ret_n: list[MALObsInstance] = []
         for sample in sample_n:
             step = Step(
-                type=np.array(
-                    sample["step_type"], dtype=self.attack_step_type.dtype
-                ),
-                id=np.array(sample["step_id"], dtype=self.attack_step_id.dtype),
+                type=np.array(sample['step_type'], dtype=self.attack_step_type.dtype),
+                id=np.array(sample['step_id'], dtype=self.attack_step_id.dtype),
                 logic_class=np.array(
-                    sample["step_class"], dtype=self.attack_step_class.dtype
+                    sample['step_class'], dtype=self.attack_step_class.dtype
                 ),
-                tags=np.array(
-                    sample["step_tags"], dtype=self.attack_step_tags.dtype
-                ),
+                tags=np.array(sample['step_tags'], dtype=self.attack_step_tags.dtype),
                 compromised=np.array(
-                    sample["step_compromised"],
+                    sample['step_compromised'],
                     dtype=self.attack_step_compromised.dtype,
                 ),
                 observable=np.array(
-                    sample["step_observable"],
+                    sample['step_observable'],
                     dtype=self.attack_step_observable.dtype,
                 ),
                 attempts=(
-                    np.array(sample["step_attempts"], dtype=self.attack_step_attempts.dtype)
-                    if sample["step_attempts"] is not None else None
+                    np.array(
+                        sample['step_attempts'], dtype=self.attack_step_attempts.dtype
+                    )
+                    if sample['step_attempts'] is not None
+                    else None
                 ),
                 action_mask=(
-                    np.array(sample["step_action_mask"], dtype=self.attack_step_action_mask.dtype)
+                    np.array(
+                        sample['step_action_mask'],
+                        dtype=self.attack_step_action_mask.dtype,
+                    )
                 ),
             )
             assets = Asset(
-                type=np.array(sample["asset_type"], dtype=self.asset_type.dtype),
-                id=np.array(sample["asset_id"], dtype=self.asset_id.dtype),
+                type=np.array(sample['asset_type'], dtype=self.asset_type.dtype),
+                id=np.array(sample['asset_id'], dtype=self.asset_id.dtype),
             )
             associations = (
                 Association(
                     type=np.array(
-                        sample["association_type"], dtype=self.association_type.dtype
+                        sample['association_type'], dtype=self.association_type.dtype
                     ),
                 )
-                if sample["association_type"]
+                if sample['association_type']
                 else None
             )
-            if sample.get("logic_gate_type") and self.logic_gate_type:
+            if sample.get('logic_gate_type') and self.logic_gate_type:
                 logic_gates = LogicGate(
-                    id=np.array(sample["logic_gate_id"], dtype=self.attack_step_id.dtype),
+                    id=np.array(
+                        sample['logic_gate_id'], dtype=self.attack_step_id.dtype
+                    ),
                     type=np.array(
-                        sample["logic_gate_type"], dtype=self.logic_gate_type.dtype
+                        sample['logic_gate_type'], dtype=self.logic_gate_type.dtype
                     ),
                 )
             else:
@@ -474,31 +483,31 @@ class MALObs(Space[MALObsInstance]):
                     type=np.array([], dtype=self.logic_gate_type.dtype),
                 )
             ret = MALObsInstance(
-                time=np.int64(sample["time"]),
+                time=np.int64(sample['time']),
                 steps=step,
                 assets=assets,
                 associations=associations,
                 logic_gates=logic_gates,
-                step2asset=np.array(sample["step2asset"], dtype=np.int64),
+                step2asset=np.array(sample['step2asset'], dtype=np.int64),
                 assoc2asset=(
-                    np.array(sample["assoc2asset"], dtype=np.int64)
-                    if sample["assoc2asset"]
+                    np.array(sample['assoc2asset'], dtype=np.int64)
+                    if sample['assoc2asset']
                     else None
                 ),
-                step2step=np.array(sample["step2step"], dtype=np.int64),
+                step2step=np.array(sample['step2step'], dtype=np.int64),
                 logic2step=(
-                    np.array(sample["logic2step"], dtype=np.int64)
-                    if sample.get("logic2step")
+                    np.array(sample['logic2step'], dtype=np.int64)
+                    if sample.get('logic2step')
                     else np.empty((2, 0), dtype=np.int64)
                 ),
                 step2logic=(
-                    np.array(sample["step2logic"], dtype=np.int64)
-                    if sample.get("step2logic")
+                    np.array(sample['step2logic'], dtype=np.int64)
+                    if sample.get('step2logic')
                     else np.empty((2, 0), dtype=np.int64)
                 ),
                 asset2asset=(
-                    np.array(sample["asset2asset"], dtype=np.int64)
-                    if sample.get("asset2asset")
+                    np.array(sample['asset2asset'], dtype=np.int64)
+                    if sample.get('asset2asset')
                     else np.empty((2, 0), dtype=np.int64)
                 ),
             )
@@ -509,44 +518,51 @@ class MALObs(Space[MALObsInstance]):
         self, mask: Any | None = ..., probability: Any | None = ...
     ) -> MALObsInstance:
         """Sample a random MAL observation."""
-        raise NotImplementedError("Sampling is not implemented for MALObs")
+        raise NotImplementedError('Sampling is not implemented for MALObs')
+
 
 class MALAttackerObs(MALObs):
-
     def contains(self, x: MALObsInstance) -> bool:
         if not super().contains(x):
             return False
         # Attacker observations must include attempts
         return x.steps.attempts is not None
 
-class MALDefenderObs(MALObs):
 
+class MALDefenderObs(MALObs):
     def contains(self, x: MALObsInstance) -> bool:
         # Defender observations must NOT include attempts
         if x.steps.attempts is not None:
             return False
         return super().contains(x)
 
+
 class MALObsAttackStepSpace(Discrete):
     """A space over the actionable attack steps for the attacker.
-    
+
     The space is dependent on a specific indexing of the attack steps in the MALObsInstance.
     """
+
     def __init__(
         self, sim: MalSimulator, seed: int | np.random.Generator | None = None
     ):
         # NOTE: The corresponding MALObsInstance should have the same sorting
         # of the actionable steps as the action space
-        actionable_attack_steps = list(sorted({
-            node for node in sim.attack_graph.nodes.values()
-            if node.type in ("and", "or")
-        }, key=lambda step: step.id))
+        actionable_attack_steps = list(
+            sorted(
+                {
+                    node
+                    for node in sim.attack_graph.nodes.values()
+                    if node.type in ('and', 'or')
+                },
+                key=lambda step: step.id,
+            )
+        )
         super().__init__(n=len(actionable_attack_steps), seed=seed)
 
-        self.actionability = np.array([
-            sim.node_is_actionable(step)
-            for step in actionable_attack_steps
-        ])
+        self.actionability = np.array(
+            [sim.node_is_actionable(step) for step in actionable_attack_steps]
+        )
 
     def sample(
         self,
@@ -556,30 +572,39 @@ class MALObsAttackStepSpace(Discrete):
         if mask is not None and isinstance(mask, np.ndarray):
             mask = mask.astype(np.int8)
         if mask is not None and isinstance(mask, np.ndarray) and mask.shape[0] < self.n:
-            mask = np.concatenate([mask, np.zeros(self.n - mask.shape[0], dtype=np.int8)])
+            mask = np.concatenate(
+                [mask, np.zeros(self.n - mask.shape[0], dtype=np.int8)]
+            )
         # TODO: Decide if actionability should be used for attacker as well
         return super().sample(mask=mask, probability=probability)
 
+
 class MALObsDefenseStepSpace(Discrete):
     """A space over the actionable defense steps for the defender.
-    
+
     The space is dependent on a specific indexing of the defense steps in the MALObsInstance.
     """
+
     def __init__(
         self, sim: MalSimulator, seed: int | np.random.Generator | None = None
     ):
         # NOTE: The corresponding MALObsInstance should have the same sorting
         # of the actionable steps as the action space
-        actionable_defense_steps = list(sorted({
-            node for node in sim.attack_graph.nodes.values()
-            if node.type == "defense"
-        }, key=lambda step: step.id))
+        actionable_defense_steps = list(
+            sorted(
+                {
+                    node
+                    for node in sim.attack_graph.nodes.values()
+                    if node.type == 'defense'
+                },
+                key=lambda step: step.id,
+            )
+        )
         super().__init__(n=len(actionable_defense_steps), seed=seed)
 
-        self.actionability = np.array([
-            sim.node_is_actionable(step)
-            for step in actionable_defense_steps
-        ])
+        self.actionability = np.array(
+            [sim.node_is_actionable(step) for step in actionable_defense_steps]
+        )
 
     def sample(
         self,
@@ -589,42 +614,57 @@ class MALObsDefenseStepSpace(Discrete):
         base_mask = self.actionability.astype(np.int8)
         if mask is not None:
             if isinstance(mask, np.ndarray) and mask.shape[0] < self.n:
-                mask = np.concatenate([mask, np.zeros(self.n - mask.shape[0], dtype=np.int8)])
+                mask = np.concatenate(
+                    [mask, np.zeros(self.n - mask.shape[0], dtype=np.int8)]
+                )
             elif isinstance(mask, np.ndarray) and mask.shape[0] > self.n:
-                mask = mask[:self.n]
+                mask = mask[: self.n]
             base_mask = base_mask & mask
         return super().sample(mask=base_mask, probability=probability)
 
     def __repr__(self) -> str:
-        return f"MALObsDefenderActionSpace(n={self.n})"
+        return f'MALObsDefenderActionSpace(n={self.n})'
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, MALObsDefenseStepSpace):
             return False
-        return self.n == other.n and bool(np.all(self.actionability == other.actionability))
+        return self.n == other.n and bool(
+            np.all(self.actionability == other.actionability)
+        )
 
     def contains(self, x: Any) -> bool:
         return bool(super().contains(x)) and bool(self.actionability[int(x)])
 
+
 class AssetThenAction(spaces.Tuple):
     """A space over the (asset, lang action for asset).
-    
+
     The space is dependent on a specific indexing of the assets in the MALObsInstance.
     """
+
     def __init__(
-        self, model: Model, lang_serializer: LangSerializer, seed: int | np.random.Generator | None = None
+        self,
+        model: Model,
+        lang_serializer: LangSerializer,
+        seed: int | np.random.Generator | None = None,
     ):
         if not lang_serializer.split_step_types:
-            raise ValueError("lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction")
+            raise ValueError(
+                'lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction'
+            )
 
         self.asset = Discrete(len(model.assets))
         # NOTE: Serializer indicies should be contiguous
-        self.action = Discrete(max(lang_serializer.step_type.values()) + 1) # +1 beacuse they are indicies
+        self.action = Discrete(
+            max(lang_serializer.step_type.values()) + 1
+        )  # +1 beacuse they are indicies
 
         super().__init__((self.asset, self.action), seed=seed)
 
     def _action_mask_for_asset(self, asset_idx: int, obs: MALObsInstance) -> np.ndarray:
-        asset_step_indicies = obs.step2asset[0, np.where(obs.step2asset[1] == asset_idx)[0]]
+        asset_step_indicies = obs.step2asset[
+            0, np.where(obs.step2asset[1] == asset_idx)[0]
+        ]
         asset_step_types = obs.steps.type[asset_step_indicies]
         action_mask = np.zeros(self.action.n, dtype=np.int8)
         action_mask[asset_step_types] = True
@@ -632,16 +672,27 @@ class AssetThenAction(spaces.Tuple):
 
     def mask(self, obs: MALObsInstance) -> tuple[np.ndarray, np.ndarray]:
         asset_mask = np.zeros(self.asset.n, dtype=np.int8)
-        asset_mask[:obs.assets.type.shape[0]] = True
+        asset_mask[: obs.assets.type.shape[0]] = True
         action_mask = np.zeros((self.asset.n, self.action.n), dtype=np.int8)
         for asset_idx in range(obs.assets.type.shape[0]):
             action_mask[asset_idx] = self._action_mask_for_asset(asset_idx, obs)
         return (asset_mask, action_mask)
 
-    def sample(self, mask: tuple[Any | None, ...] | None = None, probability: tuple[Any | None, ...] | None = None) -> tuple[Any, ...]:
+    def sample(
+        self,
+        mask: tuple[Any | None, ...] | None = None,
+        probability: tuple[Any | None, ...] | None = None,
+    ) -> tuple[Any, ...]:
         if mask is not None:
-            if not isinstance(mask, tuple) or not len(mask) == 2 or not isinstance(mask[0], np.ndarray) or not isinstance(mask[1], np.ndarray):
-                raise ValueError("mask must be a tuple of length 2 with numpy arrays or None")
+            if (
+                not isinstance(mask, tuple)
+                or not len(mask) == 2
+                or not isinstance(mask[0], np.ndarray)
+                or not isinstance(mask[1], np.ndarray)
+            ):
+                raise ValueError(
+                    'mask must be a tuple of length 2 with numpy arrays or None'
+                )
 
             asset = self.asset.sample(mask=mask[0])
             action = self.action.sample(mask=mask[1][asset])
@@ -649,52 +700,95 @@ class AssetThenAction(spaces.Tuple):
 
         return super().sample()
 
+
 class AssetThenAttackerAction(AssetThenAction):
     """A space over the (asset, attacker lang action for asset).
-    
+
     The space is dependent on a specific indexing of the assets in the MALObsInstance.
     """
+
     def __init__(
-        self, model: Model, lang_serializer: LangSerializer, seed: int | np.random.Generator | None = None
+        self,
+        model: Model,
+        lang_serializer: LangSerializer,
+        seed: int | np.random.Generator | None = None,
     ):
         if not lang_serializer.split_step_types:
-            raise ValueError("lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction")
+            raise ValueError(
+                'lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction'
+            )
 
         self.asset = Discrete(len(model.assets))
         # NOTE: Serializer indicies should be contiguous
-        attack_steps = [step for asset in model.lang_graph.assets.values() for step in asset.attack_steps.values() if step.type in ("and", "or")]
-        self.action = Discrete(max(lang_serializer.attacker_step_type[(step.asset.name, step.name)] for step in attack_steps) + 1) # +1 beacuse they are indicies
+        attack_steps = [
+            step
+            for asset in model.lang_graph.assets.values()
+            for step in asset.attack_steps.values()
+            if step.type in ('and', 'or')
+        ]
+        self.action = Discrete(
+            max(
+                lang_serializer.attacker_step_type[(step.asset.name, step.name)]
+                for step in attack_steps
+            )
+            + 1
+        )  # +1 beacuse they are indicies
 
         spaces.Tuple.__init__(self, (self.asset, self.action), seed=seed)
+
 
 class AssetThenDefenderAction(AssetThenAction):
     """A space over the (asset, defender lang action for asset).
-    
+
     The space is dependent on a specific indexing of the assets in the MALObsInstance.
     """
+
     def __init__(
-        self, model: Model, lang_serializer: LangSerializer, seed: int | np.random.Generator | None = None
+        self,
+        model: Model,
+        lang_serializer: LangSerializer,
+        seed: int | np.random.Generator | None = None,
     ):
         if not lang_serializer.split_step_types:
-            raise ValueError("lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction")
+            raise ValueError(
+                'lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction'
+            )
 
         self.asset = Discrete(len(model.assets))
         # NOTE: Serializer indicies should be contiguous
-        defense_steps = [step for asset in model.lang_graph.assets.values() for step in asset.attack_steps.values() if step.type == "defense"]
-        self.action = Discrete(max(lang_serializer.attacker_step_type[(step.asset.name, step.name)] for step in defense_steps) + 1) # +1 beacuse they are indicies
+        defense_steps = [
+            step
+            for asset in model.lang_graph.assets.values()
+            for step in asset.attack_steps.values()
+            if step.type == 'defense'
+        ]
+        self.action = Discrete(
+            max(
+                lang_serializer.attacker_step_type[(step.asset.name, step.name)]
+                for step in defense_steps
+            )
+            + 1
+        )  # +1 beacuse they are indicies
 
         spaces.Tuple.__init__(self, (self.asset, self.action), seed=seed)
 
+
 class ActionThenAsset(spaces.Tuple):
     """A space over the (lang action, asset to perform action on).
-    
+
     The space is dependent on a specific indexing of the assets in the MALObsInstance.
     """
+
     def __init__(
-        self, model: Model, lang_serializer: LangSerializer, seed: int | np.random.Generator | None = None
+        self,
+        model: Model,
+        lang_serializer: LangSerializer,
+        seed: int | np.random.Generator | None = None,
     ):
         if not lang_serializer.split_step_types:
-            raise ValueError("lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction")
+            raise ValueError(
+                'lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction'
+            )
 
         self.asset = Discrete(len(model.assets))
         # NOTE: Serializer indicies should be contiguous
@@ -702,10 +796,16 @@ class ActionThenAsset(spaces.Tuple):
 
         super().__init__((self.action, self.asset), seed=seed)
 
-    def _asset_mask_for_action(self, action_type: int, obs: MALObsInstance) -> np.ndarray:
+    def _asset_mask_for_action(
+        self, action_type: int, obs: MALObsInstance
+    ) -> np.ndarray:
         asset_mask = np.zeros(self.asset.n, dtype=np.int8)
-        actionable_step_indicies = np.where((obs.steps.type == action_type) & obs.steps.action_mask)[0]
-        asset_indicies = obs.step2asset[1, np.where(np.isin(obs.step2asset[0], actionable_step_indicies))[0]]
+        actionable_step_indicies = np.where(
+            (obs.steps.type == action_type) & obs.steps.action_mask
+        )[0]
+        asset_indicies = obs.step2asset[
+            1, np.where(np.isin(obs.step2asset[0], actionable_step_indicies))[0]
+        ]
         asset_mask[asset_indicies] = True
         return asset_mask
 
@@ -718,10 +818,21 @@ class ActionThenAsset(spaces.Tuple):
             asset_mask[action_type] = self._asset_mask_for_action(action_type, obs)
         return (action_mask, asset_mask)
 
-    def sample(self, mask: tuple[Any | None, ...] | None = None, probability: tuple[Any | None, ...] | None = None) -> tuple[Any, ...]:
+    def sample(
+        self,
+        mask: tuple[Any | None, ...] | None = None,
+        probability: tuple[Any | None, ...] | None = None,
+    ) -> tuple[Any, ...]:
         if mask is not None:
-            if not isinstance(mask, tuple) or not len(mask) == 2 or not isinstance(mask[0], np.ndarray) or not isinstance(mask[1], np.ndarray):
-                raise ValueError("mask must be a tuple of length 2 with numpy arrays or None")
+            if (
+                not isinstance(mask, tuple)
+                or not len(mask) == 2
+                or not isinstance(mask[0], np.ndarray)
+                or not isinstance(mask[1], np.ndarray)
+            ):
+                raise ValueError(
+                    'mask must be a tuple of length 2 with numpy arrays or None'
+                )
 
             action = self.action.sample(mask=mask[0])
             asset = self.asset.sample(mask=mask[1][action])
@@ -729,38 +840,74 @@ class ActionThenAsset(spaces.Tuple):
 
         return super().sample()
 
+
 class AttackerActionThenAsset(ActionThenAsset):
     """A space over the (attacker lang action, asset to perform action on).
-    
+
     The space is dependent on a specific indexing of the assets in the MALObsInstance.
     """
+
     def __init__(
-        self, model: Model, lang_serializer: LangSerializer, seed: int | np.random.Generator | None = None
+        self,
+        model: Model,
+        lang_serializer: LangSerializer,
+        seed: int | np.random.Generator | None = None,
     ):
         if not lang_serializer.split_step_types:
-            raise ValueError("lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction")
+            raise ValueError(
+                'lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction'
+            )
 
         self.asset = Discrete(len(model.assets))
         # NOTE: Serializer indicies should be contiguous
-        attack_steps = [step for asset in model.lang_graph.assets.values() for step in asset.attack_steps.values() if step.type in ("and", "or")]
-        self.action = Discrete(max(lang_serializer.attacker_step_type[(step.asset.name, step.name)] for step in attack_steps) + 1) # +1 beacuse they are indicies
+        attack_steps = [
+            step
+            for asset in model.lang_graph.assets.values()
+            for step in asset.attack_steps.values()
+            if step.type in ('and', 'or')
+        ]
+        self.action = Discrete(
+            max(
+                lang_serializer.attacker_step_type[(step.asset.name, step.name)]
+                for step in attack_steps
+            )
+            + 1
+        )  # +1 beacuse they are indicies
 
         spaces.Tuple.__init__(self, (self.action, self.asset), seed=seed)
 
+
 class DefenderActionThenAsset(ActionThenAsset):
     """A space over the (defender lang action, asset to perform action on).
-    
+
     The space is dependent on a specific indexing of the assets in the MALObsInstance.
     """
+
     def __init__(
-        self, model: Model, lang_serializer: LangSerializer, seed: int | np.random.Generator | None = None
+        self,
+        model: Model,
+        lang_serializer: LangSerializer,
+        seed: int | np.random.Generator | None = None,
     ):
         if not lang_serializer.split_step_types:
-            raise ValueError("lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction")
+            raise ValueError(
+                'lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction'
+            )
 
         self.asset = Discrete(len(model.assets))
         # NOTE: Serializer indicies should be contiguous
-        defense_steps = [step for asset in model.lang_graph.assets.values() for step in asset.attack_steps.values() if step.type in ("and", "or")]
-        self.action = Discrete(max(lang_serializer.attacker_step_type[(step.asset.name, step.name)] for step in defense_steps) + 1) # +1 beacuse they are indicies
+        defense_steps = [
+            step
+            for asset in model.lang_graph.assets.values()
+            for step in asset.attack_steps.values()
+            if step.type in ('and', 'or')
+        ]
+        self.action = Discrete(
+            max(
+                lang_serializer.attacker_step_type[(step.asset.name, step.name)]
+                for step in defense_steps
+            )
+            + 1
+        )  # +1 beacuse they are indicies
 
         spaces.Tuple.__init__(self, (self.action, self.asset), seed=seed)
