@@ -1100,19 +1100,15 @@ class MalSimulator:
         elif self.sim_settings.ttc_mode == TTCMode.DISABLED:
             # If TTC Mode is disabled but reward mode uses TTCs, penalize with TTCs
             for node in attacker_state.step_performed_nodes:
-                if self.sim_settings.attacker_reward_mode == RewardMode.EXPECTED_TTC:
+                if reward_mode == RewardMode.EXPECTED_TTC:
                     step_reward -= (
                         TTCDist.from_node(node).expected_value if node.ttc else 0
                     )
-                elif self.sim_settings.attacker_reward_mode == RewardMode.SAMPLE_TTC:
+                elif reward_mode == RewardMode.SAMPLE_TTC:
                     step_reward -= (
                         TTCDist.from_node(node).sample_value(self.rng)
                         if node.ttc
                         else 0
-                    )
-                else:
-                    logger.warning(
-                        f'Invalid RewardMode when TTC mode is DISABLED: {reward_mode}'
                     )
 
         # Cumulative reward mode for attacker makes no sense
