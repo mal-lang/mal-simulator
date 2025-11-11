@@ -345,9 +345,7 @@ def test_not_initial_compromise_entrypoints(
     entry_point = get_node(attack_graph, 'OS App:fullAccess')
     sim = MalSimulator(
         attack_graph,
-        sim_settings=MalSimulatorSettings(
-            compromise_entrypoints_at_start=False
-        )
+        sim_settings=MalSimulatorSettings(compromise_entrypoints_at_start=False),
     )
     attacker_name = 'Test Attacker'
     sim.register_attacker(attacker_name, {entry_point})
@@ -369,9 +367,7 @@ def test_not_initial_compromise_entrypoints_unviable_step(
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(
         attack_graph,
-        sim_settings=MalSimulatorSettings(
-            compromise_entrypoints_at_start=False
-        )
+        sim_settings=MalSimulatorSettings(compromise_entrypoints_at_start=False),
     )
     attacker_name = 'Test Attacker'
     defender_name = 'Test Defender'
@@ -380,10 +376,9 @@ def test_not_initial_compromise_entrypoints_unviable_step(
     attacker_state = sim.reset()[attacker_name]
 
     # Step should not succeed if defender defended the entrypoint
-    attacker_state = sim.step({
-        attacker_name: ['OS App:fullAccess'],
-        defender_name: ['OS App:notPresent']
-    })[attacker_name]
+    attacker_state = sim.step(
+        {attacker_name: ['OS App:fullAccess'], defender_name: ['OS App:notPresent']}
+    )[attacker_name]
     assert attacker_state.performed_nodes == set()
     assert attacker_state.action_surface == set()
 

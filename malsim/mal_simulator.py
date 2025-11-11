@@ -653,7 +653,8 @@ class MalSimulator:
         )
         compromised_nodes = (
             entry_points
-            if self.sim_settings.compromise_entrypoints_at_start else frozenset()
+            if self.sim_settings.compromise_entrypoints_at_start
+            else frozenset()
         )
         attack_surface = self._get_attack_surface(compromised_nodes)
 
@@ -1008,12 +1009,16 @@ class MalSimulator:
                     successful_compromises.append(node)
                     logger.info(
                         'Attacker agent "%s" compromised "%s" (reward: %d).',
-                        agent.name, node.full_name, self.node_reward(node),
+                        agent.name,
+                        node.full_name,
+                        self.node_reward(node),
                     )
                 else:
                     logger.info(
                         'Attacker agent "%s" attempted "%s" (attempt %d).',
-                        agent.name, node.full_name, agent.num_attempts[node],
+                        agent.name,
+                        node.full_name,
+                        agent.num_attempts[node],
                     )
                     attempted_compromises.append(node)
 

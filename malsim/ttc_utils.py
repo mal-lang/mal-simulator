@@ -213,7 +213,7 @@ class TTCDist:
             return {
                 'lhs': ttc_dict,
                 'rhs': self.combine_with.to_dict(),
-                'type': self.combine_op.value
+                'type': self.combine_op.value,
             }
         else:
             return ttc_dict
