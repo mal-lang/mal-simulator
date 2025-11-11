@@ -33,7 +33,7 @@ classifiers = [
 [project.optional-dependencies]
 ml = [
   "pettingzoo>=1.24.2",
-  "gymnasium~=1.0",
+  "gymnasium>=1.0,<1.2.2",
 ]
 dev = [
   "pytest",
