@@ -628,9 +628,7 @@ class MalSimulator:
                     and not self.node_is_necessary(child)
                 ):
                     continue
-                if (
-                    not self.node_is_actionable(child)
-                ):
+                if not self.node_is_actionable(child):
                     continue
                 if child not in attack_surface and self.node_is_traversable(
                     performed_nodes, child

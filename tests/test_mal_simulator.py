@@ -128,19 +128,19 @@ def test_register_agent_action_surface(
 
 def test_simulator_actionable_action_surface(model: Model) -> None:
     scenario = Scenario(
-        lang_file = 'tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar',
+        lang_file='tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar',
         model=model,
-        is_actionable={'by_asset_type': {
-            'Application': ['attemptRead', 'successfulRead', 'read', 'notPresent']}
+        is_actionable={
+            'by_asset_type': {
+                'Application': ['attemptRead', 'successfulRead', 'read', 'notPresent']
+            }
         },
         agents={
             'Attacker1': {
                 'type': 'attacker',
                 'entry_points': ['OS App:fullAccess'],
             },
-            'Defender': {
-                'type': 'defender'
-            }
+            'Defender': {'type': 'defender'},
         },
     )
     sim = MalSimulator.from_scenario(scenario)
@@ -152,7 +152,8 @@ def test_simulator_actionable_action_surface(model: Model) -> None:
 
     # Only Application:notPresent defenses in defenders action surface
     assert states['Defender'].action_surface == {
-        sim.get_node('OS App:notPresent'), sim.get_node('Program 2:notPresent')
+        sim.get_node('OS App:notPresent'),
+        sim.get_node('Program 2:notPresent'),
     }
 
 
