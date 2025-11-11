@@ -221,7 +221,8 @@ class TTCDist:
 
     @classmethod
     def from_node(
-        cls, node: AttackGraphNode,
+        cls,
+        node: AttackGraphNode,
     ) -> TTCDist:
         """Create a TTCDist based on an AttackGraphNode"""
 

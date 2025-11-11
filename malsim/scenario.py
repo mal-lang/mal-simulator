@@ -451,22 +451,20 @@ def get_entry_point_nodes(
 
     return entry_points
 
+
 def _validate_attacker_agent_info(agent_info: dict[str, Any]) -> None:
     """Assertion error if agent config for attacker contains illegal fields"""
     allowed_attacker_keys = {
-        "entry_points",
-        "goals",
-        "ttc_overrides",
-        "name", "type",
-        "agent_class",
-        "config"
+        'entry_points',
+        'goals',
+        'ttc_overrides',
+        'name',
+        'type',
+        'agent_class',
+        'config',
     }
-    illegal_fields = (
-        set(agent_info.keys()) - allowed_attacker_keys
-    )
-    assert not illegal_fields, (
-        f"Illegal fields for attacker agent: {illegal_fields}"
-    )
+    illegal_fields = set(agent_info.keys()) - allowed_attacker_keys
+    assert not illegal_fields, f'Illegal fields for attacker agent: {illegal_fields}'
 
 
 def load_simulator_agents(
@@ -524,7 +522,7 @@ def load_simulator_agents(
                     agent_info.get('goals', []),  # Optional
                 ),
                 'ttc_overrides': ttc_overrides,
-                'type': AgentType.ATTACKER
+                'type': AgentType.ATTACKER,
             }
         elif agent_type == AgentType.DEFENDER:
             agent_config = {

@@ -485,7 +485,6 @@ def test_apply_scenario_illegal_field() -> None:
     scenario_dict: dict[str, Any] = {
         'lang_file': lang_file,
         'model_file': model_file,
-
         # Add entry points to AttackGraph with attacker names
         # and attack step full_names
         'agents': {
@@ -493,26 +492,18 @@ def test_apply_scenario_illegal_field() -> None:
                 'type': AgentType.ATTACKER,
                 'entry_points': [],
                 'BANANANANANANANAN': {
-                    'by_asset_type': {
-                        'Application': {
-                            'fullAccess': 'HardAndCertain'
-                        }
-                    },
-                    'by_asset_name': {
-                        'Identity:8': {
-                            'assume': 'EasyAndCertain'
-                        }
-                    }
-                }
+                    'by_asset_type': {'Application': {'fullAccess': 'HardAndCertain'}},
+                    'by_asset_name': {'Identity:8': {'assume': 'EasyAndCertain'}},
+                },
             }
-        }
+        },
     }
 
     with pytest.raises(AssertionError) as e:
         Scenario.from_dict(scenario_dict)
     assert str(e) == (
         '<ExceptionInfo AssertionError("Illegal fields for attacker agent: '
-        '{\'BANANANANANANANAN\'}") tblen=5>'
+        "{'BANANANANANANANAN'}\") tblen=5>"
     )
 
 
@@ -525,7 +516,6 @@ def test_apply_scenario_ttc_overrides() -> None:
     scenario_dict: dict[str, Any] = {
         'lang_file': lang_file,
         'model_file': model_file,
-
         # Add entry points to AttackGraph with attacker names
         # and attack step full_names
         'agents': {
@@ -533,30 +523,19 @@ def test_apply_scenario_ttc_overrides() -> None:
                 'type': AgentType.ATTACKER,
                 'entry_points': [],
                 'ttc_overrides': {
-                    'by_asset_type': {
-                        'Application': {
-                            'fullAccess': 'HardAndCertain'
-                        }
-                    },
-                    'by_asset_name': {
-                        'Identity:8': {
-                            'assume': 'EasyAndCertain'
-                        }
-                    }
-                }
+                    'by_asset_type': {'Application': {'fullAccess': 'HardAndCertain'}},
+                    'by_asset_name': {'Identity:8': {'assume': 'EasyAndCertain'}},
+                },
             }
-        }
+        },
     }
 
     # Validate that ttc overrides was correctly parsed
     scenario = Scenario.from_dict(scenario_dict)
     agent_config = scenario.agents[0]
-    assert {
-        n.full_name: v
-        for n, v in agent_config['ttc_overrides'].items()
-    } == {
+    assert {n.full_name: v for n, v in agent_config['ttc_overrides'].items()} == {
         'OS App:fullAccess': named_ttc_dists['HardAndCertain'],
         'Program 1:fullAccess': named_ttc_dists['HardAndCertain'],
         'Program 2:fullAccess': named_ttc_dists['HardAndCertain'],
-        'Identity:8:assume': named_ttc_dists['EasyAndCertain']
+        'Identity:8:assume': named_ttc_dists['EasyAndCertain'],
     }

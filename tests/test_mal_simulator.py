@@ -1117,10 +1117,7 @@ def test_simulator_attacker_override_ttcs_state() -> None:
 
     sim = MalSimulator.from_scenario(
         scenario,
-        sim_settings=MalSimulatorSettings(
-            seed=100,
-            ttc_mode=TTCMode.PRE_SAMPLE
-        ),
+        sim_settings=MalSimulatorSettings(seed=100, ttc_mode=TTCMode.PRE_SAMPLE),
         max_iter=100,
     )
     states = sim.reset()
@@ -1132,19 +1129,17 @@ def test_simulator_attacker_override_ttcs_state() -> None:
         'ComputerC:easyConnect',
         'ComputerA:easyConnect',
         'ComputerD:easyConnect',
-        'ComputerB:easyConnect'
+        'ComputerB:easyConnect',
     }
     assert {
-        n.full_name: v for n,v in bad_attacker_state.ttc_value_overrides.items()
+        n.full_name: v for n, v in bad_attacker_state.ttc_value_overrides.items()
     } == {
         'ComputerA:easyConnect': 23.705677586832987,
         'ComputerB:easyConnect': 8.803253479623743,
         'ComputerC:easyConnect': 5.459220383584631,
-        'ComputerD:easyConnect': 7.350404505262642
+        'ComputerD:easyConnect': 7.350404505262642,
     }
-    assert  {
-        n.full_name for n in bad_attacker_state.impossible_step_overrides
-    } == {
+    assert {n.full_name for n in bad_attacker_state.impossible_step_overrides} == {
         'ComputerB:easyConnect'
     }
 
@@ -1166,10 +1161,9 @@ def test_simulator_attacker_override_ttcs_step() -> None:
     sim = MalSimulator.from_scenario(
         scenario,
         sim_settings=MalSimulatorSettings(
-            seed=100,
-            ttc_mode=TTCMode.PRE_SAMPLE,
-            attack_surface_skip_unnecessary=False
-        ), max_iter=1000
+            seed=100, ttc_mode=TTCMode.PRE_SAMPLE, attack_surface_skip_unnecessary=False
+        ),
+        max_iter=1000,
     )
 
     states = sim.reset()

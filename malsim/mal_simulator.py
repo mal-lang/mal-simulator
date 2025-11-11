@@ -5,7 +5,7 @@ import logging
 from enum import Enum
 from typing import Any, Optional, TYPE_CHECKING
 from collections.abc import Set, Mapping
-from types import MappingProxyType # For immutable dict
+from types import MappingProxyType  # For immutable dict
 
 from numpy.random import default_rng
 
@@ -314,7 +314,7 @@ class MalSimulator:
                     agent_config['name'],
                     agent_config['entry_points'],
                     agent_config.get('goals'),
-                    agent_config.get('ttc_overrides')
+                    agent_config.get('ttc_overrides'),
                 )
             elif agent_config['type'] == AgentType.DEFENDER:
                 sim.register_defender(agent_config['name'])
@@ -550,7 +550,7 @@ class MalSimulator:
     def _attack_step_ttc_values(
         self,
         nodes: list[AttackGraphNode],
-        ttc_dicts: Mapping[AttackGraphNode, TTCDist] = {}
+        ttc_dicts: Mapping[AttackGraphNode, TTCDist] = {},
     ) -> dict[AttackGraphNode, float]:
         """
         Calculate and return attack steps TTCs if settings use
@@ -569,7 +569,7 @@ class MalSimulator:
                 ttc_values[node] = ttc_dist.expected_value
             elif self.sim_settings.ttc_mode == TTCMode.PRE_SAMPLE:
                 ttc_values[node] = ttc_dist.sample_value(self.rng)
-        
+
         return ttc_values
 
     def _get_pre_enabled_defenses(self) -> set[AttackGraphNode]:
@@ -585,10 +585,10 @@ class MalSimulator:
         return pre_enabled_defenses
 
     def _get_impossible_attack_steps(
-            self,
-            nodes: list[AttackGraphNode],
-            ttc_dicts: Mapping[AttackGraphNode, TTCDist] = {}
-        ) -> set[AttackGraphNode]:
+        self,
+        nodes: list[AttackGraphNode],
+        ttc_dicts: Mapping[AttackGraphNode, TTCDist] = {},
+    ) -> set[AttackGraphNode]:
         """
         Calculate and return which attack steps in `nodes` gets
         infintity TTC in sample which means they are impossible.
@@ -707,16 +707,12 @@ class MalSimulator:
 
         if ttc_overrides:
             # Store potential pre calculated ttc values
-            ttc_value_overrides = (
-                self._attack_step_ttc_values(
-                    list(ttc_overrides.keys()), ttc_overrides
-                )
+            ttc_value_overrides = self._attack_step_ttc_values(
+                list(ttc_overrides.keys()), ttc_overrides
             )
             # Store potential impossible attack step overrides as well
-            impossible_step_overrides = (
-                self._get_impossible_attack_steps(
-                    list(ttc_overrides.keys()), ttc_overrides
-                )
+            impossible_step_overrides = self._get_impossible_attack_steps(
+                list(ttc_overrides.keys()), ttc_overrides
             )
 
         attacker_state = MalSimAttackerState(
@@ -731,9 +727,9 @@ class MalSimulator:
             step_performed_nodes=compromised_nodes,
             step_unviable_nodes=frozenset(),
             step_attempted_nodes=frozenset(),
-            num_attempts = MappingProxyType({
-                n: 0 for n in self.attack_graph.attack_steps
-            }),
+            num_attempts=MappingProxyType(
+                {n: 0 for n in self.attack_graph.attack_steps}
+            ),
             ttc_overrides=MappingProxyType(ttc_overrides),
             ttc_value_overrides=MappingProxyType(ttc_value_overrides),
             impossible_step_overrides=frozenset(impossible_step_overrides),
@@ -792,7 +788,7 @@ class MalSimulator:
             num_attempts=MappingProxyType(num_attempts),
             ttc_overrides=attacker_state.ttc_overrides,
             ttc_value_overrides=attacker_state.ttc_value_overrides,
-            impossible_step_overrides=attacker_state.impossible_step_overrides
+            impossible_step_overrides=attacker_state.impossible_step_overrides,
         )
 
         return updated_attacker_state
@@ -917,7 +913,7 @@ class MalSimulator:
                 attacker_state.name,
                 attacker_state.entry_points,
                 attacker_state.goals,
-                attacker_state.ttc_overrides
+                attacker_state.ttc_overrides,
             )
             self._agent_states[attacker_state.name] = new_attacker_state
 
@@ -942,7 +938,7 @@ class MalSimulator:
         goals: Optional[set[AttackGraphNode] | set[str]] = None,
         ttc_overrides: Optional[
             Mapping[AttackGraphNode, TTCDist] | Mapping[str, TTCDist]
-        ] = None
+        ] = None,
     ) -> None:
         """Register a mal sim attacker agent
 
@@ -953,8 +949,9 @@ class MalSimulator:
         ttc_overrides - optional way to override TTC distributions for attacker agent.
                         Keys are nodes/full names and values are named TTC distributions
         """
-        assert name not in self._agent_states, \
-            f"Duplicate agent named {name} not allowed"
+        assert name not in self._agent_states, (
+            f'Duplicate agent named {name} not allowed'
+        )
 
         # Make sure ttc_overrides in correct format
         ttc_overrides = (
@@ -1042,16 +1039,13 @@ class MalSimulator:
         else:
             ttc_dist = TTCDist.from_node(node)
 
-
         if self.sim_settings.ttc_mode == TTCMode.DISABLED:
             # Always suceed if disabled TTCs
             return True
 
         elif self.sim_settings.ttc_mode == TTCMode.EFFORT_BASED_PER_STEP_SAMPLE:
             # Run trial to decide success if config says so (SANDOR mode)
-            return ttc_dist.attempt_ttc_with_effort(
-                num_attempts, self.rng
-            )
+            return ttc_dist.attempt_ttc_with_effort(num_attempts, self.rng)
 
         elif self.sim_settings.ttc_mode == TTCMode.PER_STEP_SAMPLE:
             # Sample ttc value every time if config says so (ANDREI mode)
@@ -1061,7 +1055,6 @@ class MalSimulator:
         # Compare attempts to ttc expected value in EXPECTED_VALUE mode
         # or presampled ttcs in PRE_SAMPLE mode
         elif self.sim_settings.ttc_mode in (TTCMode.EXPECTED_VALUE, TTCMode.PRE_SAMPLE):
-
             if node in agent.ttc_value_overrides:
                 # If agent has custom ttc value set for node, use it
                 node_ttc_value = agent.ttc_value_overrides[node]
@@ -1255,8 +1248,7 @@ class MalSimulator:
         if len(attacker_state.action_surface) == 0:
             # Attacker is terminated if it has no more actions to take
             logger.info(
-                'Attacker "%s" action surface is empty, terminate',
-                attacker_state.name
+                'Attacker "%s" action surface is empty, terminate', attacker_state.name
             )
             return True
         if attacker_state.goals:
