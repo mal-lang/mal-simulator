@@ -1209,6 +1209,7 @@ class MalSimulator:
         - A dictionary containing the agent state views keyed by agent names
         """
 
+        self.cur_iter += 1
         logger.info('Stepping through iteration %d/%d', self.cur_iter, self.max_iter)
 
         self._pre_step_check(actions)
@@ -1287,7 +1288,6 @@ class MalSimulator:
                 step_compromised_nodes + step_enabled_defenses, self.cur_iter
             )
 
-        self.cur_iter += 1
         return self.agent_states
 
     def render(self) -> None:
