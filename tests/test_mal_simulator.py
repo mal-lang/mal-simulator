@@ -292,8 +292,8 @@ def test_attacker_step_rewards_cumulative(
 
     # Recording of the simulation
     assert sim.recording == {
-        0: {attacker_name: [attempt_read]},
-        1: {attacker_name: [access_network_and_conn]},
+        1: {attacker_name: [attempt_read]},
+        2: {attacker_name: [access_network_and_conn]},
     }
 
 
@@ -781,9 +781,9 @@ def test_agent_state_views_simple(
 
     # Recording of the simulation
     assert sim.recording == {
-        0: {'defender': [program2_not_present], 'attacker': [os_app_attempt_deny]},
-        1: {'defender': [], 'attacker': [os_app_spec_access]},
-        2: {'defender': [os_app_not_present], 'attacker': []},
+        1: {'defender': [program2_not_present], 'attacker': [os_app_attempt_deny]},
+        2: {'defender': [], 'attacker': [os_app_spec_access]},
+        3: {'defender': [os_app_not_present], 'attacker': []},
     }
 
 
@@ -1033,7 +1033,7 @@ def test_simulator_multiple_attackers() -> None:
     # Verify that it is possible to select more than one action
     # for more than one agent
     assert sim.recording == {
-        0: {
+        1: {
             'Defender1': [],
             'Attacker1': [sim.get_node('User:3:compromise')],
             'Attacker2': [
@@ -1041,9 +1041,9 @@ def test_simulator_multiple_attackers() -> None:
                 sim.get_node('Host:1:connect'),
             ],
         },
-        1: {'Defender1': [], 'Attacker1': [sim.get_node('Host:0:authenticate')]},
-        2: {'Defender1': [], 'Attacker1': [sim.get_node('Host:0:access')]},
-        3: {
+        2: {'Defender1': [], 'Attacker1': [sim.get_node('Host:0:authenticate')]},
+        3: {'Defender1': [], 'Attacker1': [sim.get_node('Host:0:access')]},
+        4: {
             'Defender1': [],
             'Attacker1': [
                 sim.get_node('Data:2:read'),
@@ -1051,7 +1051,7 @@ def test_simulator_multiple_attackers() -> None:
                 sim.get_node('Network:3:access'),
             ],
         },
-        4: {'Defender1': [], 'Attacker1': [sim.get_node('Host:1:connect')]},
+        5: {'Defender1': [], 'Attacker1': [sim.get_node('Host:1:connect')]},
     }
 
 
@@ -1088,7 +1088,7 @@ def test_simulator_multiple_defenders() -> None:
         )
 
     assert sim.recording == {
-        0: {
+        1: {
             'Defender1': [
                 sim.get_node('Host:0:notPresent'),
                 sim.get_node('Host:1:notPresent'),
