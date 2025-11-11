@@ -50,10 +50,8 @@ class MalSimAgentState:
     action_surface: frozenset[AttackGraphNode]
     # Contains all nodes that this agent has performed successfully
     performed_nodes: frozenset[AttackGraphNode]
-    # Contains all nodes performed by this agent per iteration
+    # Contains all nodes performed successfully by this agent each iteration
     performed_nodes_per_iter: MappingProxyType[int, frozenset[AttackGraphNode]]
-    # Contains the nodes performed successfully in the last step
-    step_performed_nodes: frozenset[AttackGraphNode]
     # Contains possible nodes that became available in the last step
     step_action_surface_additions: frozenset[AttackGraphNode]
     # Contains nodes that became unavailable in the last step
@@ -70,8 +68,8 @@ class MalSimAttackerState(MalSimAgentState):
     entry_points: frozenset[AttackGraphNode]
     # Number of attempts to compromise a step (used for ttc caculations)
     num_attempts: MappingProxyType[AttackGraphNode, int]
-    # Steps attempted but not succeeded (because of TTC value)
-    step_attempted_nodes: frozenset[AttackGraphNode]
+    # Steps attempted but not succeeded (because of TTC value) each iteration
+    attempted_nodes_per_iter: MappingProxyType[int, frozenset[AttackGraphNode]]
     # Goals affect simulation termination but is optional
     goals: Optional[frozenset[AttackGraphNode]] = None
 
@@ -86,9 +84,7 @@ class MalSimDefenderState(MalSimAgentState):
     step_compromised_nodes: frozenset[AttackGraphNode]
     # Contains all observed step by any attacker
     # in regards to false positives/negatives and observability
-    observed_nodes: frozenset[AttackGraphNode]
-    # Contains observed steps made by any attacker in last step
-    step_observed_nodes: frozenset[AttackGraphNode]
+    observed_nodes_per_iter: MappingProxyType[int, frozenset[AttackGraphNode]]
 
 
 class TTCMode(Enum):
@@ -654,9 +650,8 @@ class MalSimulator:
             action_surface=frozenset(attack_surface),
             step_action_surface_additions=frozenset(attack_surface),
             step_action_surface_removals=frozenset(),
-            step_performed_nodes=frozenset(compromised_nodes),
             step_unviable_nodes=frozenset(),
-            step_attempted_nodes=frozenset(),
+            attempted_nodes_per_iter=frozenset(),
             num_attempts=MappingProxyType(
                 {n: 0 for n in self.attack_graph.attack_steps}
             ),
@@ -715,9 +710,8 @@ class MalSimulator:
             action_surface=new_action_surface,
             step_action_surface_additions=action_surface_additions,
             step_action_surface_removals=action_surface_removals,
-            step_performed_nodes=frozenset(step_agent_compromised_nodes),
             step_unviable_nodes=frozenset(step_nodes_made_unviable),
-            step_attempted_nodes=frozenset(step_agent_attempted_nodes),
+            attempted_nodes_per_iter=frozenset(step_agent_attempted_nodes),
             entry_points=attacker_state.entry_points,
             goals=attacker_state.goals,
             num_attempts=MappingProxyType(num_attempts),
@@ -768,12 +762,10 @@ class MalSimulator:
             ),
             compromised_nodes=frozenset(compromised_steps),
             step_compromised_nodes=frozenset(compromised_steps),
-            observed_nodes=frozenset(step_observed_nodes),
-            step_observed_nodes=frozenset(step_observed_nodes),
+            observed_nodes_per_iter=frozenset(step_observed_nodes),
             action_surface=frozenset(defense_surface),
             step_action_surface_additions=frozenset(defense_surface),
             step_action_surface_removals=frozenset(),
-            step_performed_nodes=frozenset(self._enabled_defenses),
             step_unviable_nodes=frozenset(),
         )
 
@@ -832,14 +824,12 @@ class MalSimulator:
                 defender_state.compromised_nodes | step_compromised_nodes
             ),
             step_compromised_nodes=frozenset(step_compromised_nodes),
-            observed_nodes=frozenset(
+            observed_nodes_per_iter=frozenset(
                 defender_state.observed_nodes | step_observed_nodes
             ),
-            step_observed_nodes=frozenset(step_observed_nodes),
             step_action_surface_additions=frozenset(),
             step_action_surface_removals=frozenset(step_enabled_defenses),
             action_surface=frozenset(self._get_defense_surface()),
-            step_performed_nodes=frozenset(step_enabled_defenses),
             step_unviable_nodes=frozenset(step_nodes_made_unviable),
         )
 
@@ -1093,17 +1083,17 @@ class MalSimulator:
         - reward_mode: which way to calculate reward
         """
 
+        step_performed_nodes = attacker_state.performed_nodes_per_iter[self.cur_iter]
+
         # Attacker is rewarded for compromised nodes
-        step_reward = sum(
-            self.node_reward(n) for n in attacker_state.step_performed_nodes
-        )
+        step_reward = sum(self.node_reward(n) for n in step_performed_nodes)
 
         if self.sim_settings.ttc_mode != TTCMode.DISABLED:
             # If TTC Mode is not disabled, attacker is penalized for each attempt
-            step_reward -= len(attacker_state.step_attempted_nodes)
+            step_reward -= len(step_performed_nodes)
         elif self.sim_settings.ttc_mode == TTCMode.DISABLED:
             # If TTC Mode is disabled but reward mode uses TTCs, penalize with TTCs
-            for node in attacker_state.step_performed_nodes:
+            for node in step_performed_nodes:
                 if reward_mode == RewardMode.EXPECTED_TTC:
                     step_reward -= (
                         TTCDist.from_node(node).expected_value if node.ttc else 0
@@ -1137,7 +1127,7 @@ class MalSimulator:
         - defender_state: the defender state before defenses were enabled
         - reward_mode: which way to calculate reward
         """
-        step_enabled_defenses = defender_state.step_performed_nodes
+        step_enabled_defenses = defender_state.performed_nodes_per_iter[self.cur_iter]
         step_compromised_nodes = defender_state.step_compromised_nodes
 
         # Defender is penalized for compromised steps and enabled defenses
