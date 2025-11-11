@@ -157,7 +157,6 @@ def test_ttc_dist_from_to_dict(corelang_lang_graph: LanguageGraph) -> None:
     assert TTCDist.from_dict(ttc_dict.to_dict()) == ttc_dict
 
 
-
 def test_ttcs_effort_based(model: Model) -> None:
     """Test effort based TTC calculation for nodes"""
 
