@@ -1,5 +1,0 @@
-[lint]
-select = ["E"]
-
-[format]
-quote-style = "single"
