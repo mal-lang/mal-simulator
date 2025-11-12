@@ -599,6 +599,8 @@ class MALObsAttackStepSpace(Discrete):
             [sim.node_is_actionable(step) for step in actionable_attack_steps]
         )
 
+        self._mask: np.ndarray
+
     def sample(
         self,
         mask: Any | None = None,
@@ -639,6 +641,8 @@ class MALObsDefenseStepSpace(Discrete):
         self.actionability = np.array(
             [sim.node_is_actionable(step) for step in actionable_defense_steps]
         )
+
+        self._mask: np.ndarray
 
     def sample(
         self,
