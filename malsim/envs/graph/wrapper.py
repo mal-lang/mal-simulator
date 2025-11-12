@@ -28,7 +28,8 @@ from malsim.envs.graph.serialization import LangSerializer
 class AssetThenActionWrapper(
     Wrapper[MALObsInstance, tuple[np.int64, np.int64], MALObsInstance, np.int64]
 ):
-    """Wrapper that transforms the action space to be over (asset, lang action) instead of step index."""
+    """Wrapper that transforms the action space to be over (asset, lang action) instead 
+    of step index."""
 
     def __init__(
         self,
@@ -83,7 +84,8 @@ class AssetThenActionWrapper(
 class ActionThenAssetWrapper(
     Wrapper[MALObsInstance, tuple[np.int64, np.int64], MALObsInstance, np.int64]
 ):
-    """Wrapper that transforms the action space to be over (lang action, asset) instead of step index."""
+    """Wrapper that transforms the action space to be over (lang action, asset) instead 
+    of step index."""
 
     def __init__(
         self,
@@ -94,7 +96,8 @@ class ActionThenAssetWrapper(
         """
 
         Args:
-            env: Environment to be wrapped. Needs to use MALObsAttackStepSpace or MALObsDefenseStepSpace as action space.
+            env: Environment to be wrapped. Needs to use MALObsAttackStepSpace or 
+                    MALObsDefenseStepSpace as action space.
             model: Model to use
             lang_serializer: Language serializer to use
         """

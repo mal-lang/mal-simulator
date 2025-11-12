@@ -18,8 +18,11 @@ class LangSerializer:
         Arguments:
         ----------
         - lang: LanguageGraph to serialize
-        - split_assoc_types: If True, split association types for each asset type pair
-        - split_step_types: If True, split attack step types for each asset type
+        - split_assoc_types: If True, association types are typed based on 
+            association name, left asset type, and right asset type. If False, 
+            association types are typed based on association name.
+        - split_step_types: If True, steps are typed based on asset type and step name.
+            If False, steps are typed based on step name only.
         """
         self._lang = lang
         self.split_assoc_types = split_assoc_types

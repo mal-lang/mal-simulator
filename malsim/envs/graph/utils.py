@@ -15,6 +15,8 @@ from maltoolbox.model import ModelAsset
 
 
 def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInstance:
+    """Create a full MALObsInstance. 
+    This observation can be updated for individual agents."""
     def get_total_attempts(node: AttackGraphNode) -> int:
         return sum(
             state.num_attempts.get(node, 0) for state in sim._get_attacker_agents()
@@ -173,6 +175,26 @@ def full_obs2attacker_obs(
     serializer: LangSerializer,
     see_defense_steps: bool = False,
 ) -> MALObsInstance:
+    """Create an attacker observation from a full observation.
+
+    This observation makes all assets with compromised nodes visible to the attacker.
+    All steps that are on a visible asset are also visible to the attacker.
+    NOTE: This comes from an assumption that the attacker "knows" the 
+    language of generalization used to create the full observation.
+
+    Sorts the steps so that all `and`/`or` steps have lower indices than 
+    `defense`/`exist`/`notExist` steps. Re-indexes the step types so that step types of
+    `and`/`or` have lower indices than other step types.
+    
+    Args:
+        full_obs: The full observation.
+        state: The state of the attacker.
+        serializer: The language serializer.
+        see_defense_steps: Whether to include defense steps in the observation.
+
+    Returns:
+        The attacker observation.
+    """
     visible_asset_ids = np.array(
         list(
             sorted(
@@ -245,8 +267,6 @@ def full_obs2attacker_obs(
         [old for old, _ in sorted(old2new_step_idx.items(), key=lambda x: x[1])],
         dtype=np.int64,
     )
-    # old_step_idx = np.where(np.tile(visible_step_ids, (len(full_obs.steps.id), 1)) == full_obs.steps.id[:, np.newaxis])[0]
-    # new_step_idx = np.arange(len(old_step_idx))
     step_type = full_obs.steps.type[old_step_idx]
     step_type_attacker_indexing = serializer.step_type2attacker_step_type[step_type]
     steps = Step(
@@ -480,6 +500,24 @@ def full_obs2attacker_obs(
 def full_obs2defender_obs(
     full_obs: MALObsInstance, state: MalSimDefenderState, serializer: LangSerializer
 ) -> MALObsInstance:
+    """Create a defender observation from a full observation.
+
+    This observation makes all assets and steps visible. The defender can only see if 
+    an attack step has been compromised if the state says that it has been observed.
+
+    Assumes that steps are sorted so that all `defense` steps have lower indices than 
+    `and`/`or`/`defense`/`exist`/`notExist` steps in the full observation. Re-indexes 
+    the step types so that step types of `defense` have lower indices than other step
+     types.
+
+    Args:
+        full_obs: The full observation.
+        state: The state of the defender.
+        serializer: The language serializer.
+
+    Returns:
+        The defender observation.
+    """
     action_step_ids = np.array([node.id for node in state.action_surface])
     actionable = np.isin(full_obs.steps.id, action_step_ids)
     observed_step_ids = np.array([node.id for node in state.observed_nodes])
