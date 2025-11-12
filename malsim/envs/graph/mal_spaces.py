@@ -604,6 +604,8 @@ class MALObsAttackStepSpace(Discrete):
         mask: Any | None = None,
         probability: Any | None = None,
     ) -> np.int64:
+        if mask is None and hasattr(self, '_mask'):
+            mask = self._mask
         if mask is not None and isinstance(mask, np.ndarray):
             mask = mask.astype(np.int8)
         if mask is not None and isinstance(mask, np.ndarray) and mask.shape[0] < self.n:

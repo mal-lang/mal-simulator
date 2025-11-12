@@ -240,6 +240,8 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
             )
             for agent_name, state in states.items()
         }
+        for agent_name, obs in self._obs.items():
+            self.action_space(agent_name)._mask = obs.steps.action_mask
         return self._obs, {
             agent_name: {'state': state} for agent_name, state in states.items()
         }
@@ -285,6 +287,8 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
             )
             for agent_name, state in states.items()
         }
+        for agent_name, obs in self._obs.items():
+            self.action_space(agent_name)._mask = obs.steps.action_mask
         rewards = {
             agent_name: self.sim.agent_reward(agent_name)
             for agent_name in states.keys()
