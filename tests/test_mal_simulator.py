@@ -15,6 +15,8 @@ from malsim.mal_simulator import (
 from malsim.ttc_utils import TTCDist
 
 from malsim import load_scenario, run_simulation
+from malsim.scenario import Scenario
+
 from dataclasses import asdict
 import numpy as np
 import pytest
@@ -122,6 +124,37 @@ def test_register_agent_action_surface(
     action_surface = defender_state.action_surface
     for node in action_surface:
         assert node not in sim._enabled_defenses
+
+
+def test_simulator_actionable_action_surface(model: Model) -> None:
+    scenario = Scenario(
+        lang_file='tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar',
+        model=model,
+        is_actionable={
+            'by_asset_type': {
+                'Application': ['attemptRead', 'successfulRead', 'read', 'notPresent']
+            }
+        },
+        agents={
+            'Attacker1': {
+                'type': 'attacker',
+                'entry_points': ['OS App:fullAccess'],
+            },
+            'Defender': {'type': 'defender'},
+        },
+    )
+    sim = MalSimulator.from_scenario(scenario)
+
+    # Only three nodes ever in action surface
+    states = sim.step({'Attacker1': ['OS App:attemptRead']})
+    states = sim.step({'Attacker1': ['OS App:successfulRead']})
+    assert states['Attacker1'].action_surface == {sim.get_node('OS App:read')}
+
+    # Only Application:notPresent defenses in defenders action surface
+    assert states['Defender'].action_surface == {
+        sim.get_node('OS App:notPresent'),
+        sim.get_node('Program 2:notPresent'),
+    }
 
 
 def test_simulator_initialize_agents(
