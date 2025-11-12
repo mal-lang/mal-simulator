@@ -90,9 +90,7 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
     asset_action_mask = np.zeros(len(sorted_assets), dtype=np.bool_)
     # For each asset, check if any connected step has action_mask == True
     for asset_idx in range(len(sorted_assets)):
-        connected_step_indices = step2asset_links[
-            0, step2asset_links[1] == asset_idx
-        ]
+        connected_step_indices = step2asset_links[0, step2asset_links[1] == asset_idx]
         if len(connected_step_indices) > 0:
             asset_action_mask[asset_idx] = steps.action_mask[
                 connected_step_indices
@@ -336,20 +334,18 @@ def full_obs2attacker_obs(
         ),
         axis=0,
     )
-    
+
     # Compute action_mask for filtered assets: True if any connected
     # visible step has action_mask == True
     asset_action_mask = np.zeros(len(old_asset_idx), dtype=np.bool_)
     if new_step2asset.shape[1] > 0:
         for asset_idx in range(len(old_asset_idx)):
-            connected_step_indices = new_step2asset[
-                0, new_step2asset[1] == asset_idx
-            ]
+            connected_step_indices = new_step2asset[0, new_step2asset[1] == asset_idx]
             if len(connected_step_indices) > 0:
                 asset_action_mask[asset_idx] = steps.action_mask[
                     connected_step_indices
                 ].any()
-    
+
     assets = Asset(
         type=full_obs.assets.type[old_asset_idx],
         id=full_obs.assets.id[old_asset_idx],

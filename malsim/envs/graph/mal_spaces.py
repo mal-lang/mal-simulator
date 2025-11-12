@@ -15,9 +15,9 @@ class Asset(NamedTuple):
     Attributes:
         type: The type of the asset (AssetType).
         id: The ID of the asset in the model.
-        action_mask: Whether there is any step connected to the asset which can be 
+        action_mask: Whether there is any step connected to the asset which can be
             performed (i.e. step.action_mask == True).
-            
+
     """
 
     type: NDArray[np.int64]
