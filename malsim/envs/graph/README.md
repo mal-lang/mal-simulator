@@ -144,8 +144,12 @@ wrapped_env = AssetThenActionWrapper(
 
 # Reset and step
 obs, info = wrapped_env.reset()
-action = (asset_idx, action_type)  # Select asset and action type
-obs, reward, terminated, truncated, info = wrapped_env.step(action)
+done = False
+while not done:
+    asset_mask, action_mask = wrapped_env.mask(obs)
+    action = wrapped_env.action_space.sample(mask=(asset_mask, action_mask))
+    obs, reward, terminated, truncated, info = wrapped_env.step(action)
+    done = terminated or truncated
 ```
 
 ## Key Design Decisions
