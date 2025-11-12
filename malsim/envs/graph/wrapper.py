@@ -64,6 +64,9 @@ class AssetThenActionWrapper(
     ) -> tuple[MALObsInstance, dict[str, Any]]:
         obs, info = self.env.reset(seed=seed, options=options)
         self._obs = obs
+        asset_mask, action_mask = self.mask(obs)
+        info['asset_mask'] = asset_mask
+        info['action_mask'] = action_mask
         return obs, info
 
     def step(
@@ -77,7 +80,9 @@ class AssetThenActionWrapper(
 
         obs, reward, terminated, truncated, info = self.env.step(step_idx[0])
         self._obs = obs
-
+        asset_mask, action_mask = self.mask(obs)
+        info['asset_mask'] = asset_mask
+        info['action_mask'] = action_mask
         return obs, reward, terminated, truncated, info
 
 
@@ -121,6 +126,9 @@ class ActionThenAssetWrapper(
     ) -> tuple[MALObsInstance, dict[str, Any]]:
         obs, info = self.env.reset(seed=seed, options=options)
         self._obs = obs
+        action_mask, asset_mask = self.mask(obs)
+        info['action_mask'] = action_mask
+        info['asset_mask'] = asset_mask
         return obs, info
 
     def step(
@@ -136,5 +144,7 @@ class ActionThenAssetWrapper(
 
         obs, reward, terminated, truncated, info = self.env.step(step_idx[0])
         self._obs = obs
-
+        action_mask, asset_mask = self.mask(obs)
+        info['action_mask'] = action_mask
+        info['asset_mask'] = asset_mask
         return obs, reward, terminated, truncated, info
