@@ -15,8 +15,9 @@ from maltoolbox.model import ModelAsset
 
 
 def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInstance:
-    """Create a full MALObsInstance. 
+    """Create a full MALObsInstance.
     This observation can be updated for individual agents."""
+
     def get_total_attempts(node: AttackGraphNode) -> int:
         return sum(
             state.num_attempts.get(node, 0) for state in sim._get_attacker_agents()
@@ -179,13 +180,13 @@ def full_obs2attacker_obs(
 
     This observation makes all assets with compromised nodes visible to the attacker.
     All steps that are on a visible asset are also visible to the attacker.
-    NOTE: This comes from an assumption that the attacker "knows" the 
+    NOTE: This comes from an assumption that the attacker "knows" the
     language of generalization used to create the full observation.
 
-    Sorts the steps so that all `and`/`or` steps have lower indices than 
+    Sorts the steps so that all `and`/`or` steps have lower indices than
     `defense`/`exist`/`notExist` steps. Re-indexes the step types so that step types of
     `and`/`or` have lower indices than other step types.
-    
+
     Args:
         full_obs: The full observation.
         state: The state of the attacker.
@@ -502,11 +503,11 @@ def full_obs2defender_obs(
 ) -> MALObsInstance:
     """Create a defender observation from a full observation.
 
-    This observation makes all assets and steps visible. The defender can only see if 
+    This observation makes all assets and steps visible. The defender can only see if
     an attack step has been compromised if the state says that it has been observed.
 
-    Assumes that steps are sorted so that all `defense` steps have lower indices than 
-    `and`/`or`/`defense`/`exist`/`notExist` steps in the full observation. Re-indexes 
+    Assumes that steps are sorted so that all `defense` steps have lower indices than
+    `and`/`or`/`defense`/`exist`/`notExist` steps in the full observation. Re-indexes
     the step types so that step types of `defense` have lower indices than other step
      types.
 
