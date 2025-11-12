@@ -15,10 +15,14 @@ class Asset(NamedTuple):
     Attributes:
         type: The type of the asset (AssetType).
         id: The ID of the asset in the model.
+        action_mask: Whether there is any step connected to the asset which can be 
+            performed (i.e. step.action_mask == True).
+            
     """
 
     type: NDArray[np.int64]
     id: NDArray[np.int64]
+    action_mask: NDArray[np.bool_]
 
 
 class Step(NamedTuple):
@@ -141,6 +145,7 @@ class MALObs(Space[MALObsInstance]):
             self.attack_step_type = Discrete(
                 max(set(lang_serializer.step_type.values())) + 1
             )
+        self.asset_action_mask = Box(0, 1, shape=[], dtype=np.int8)
         self.attack_step_class = Discrete(
             max(set(lang_serializer.step_class.values())) + 1
         )
@@ -229,6 +234,10 @@ class MALObs(Space[MALObsInstance]):
             asset_type_valid = all(
                 x.assets.type[i] in self.asset_type for i in range(len(x.assets.type))
             )
+            asset_action_mask_valid = all(
+                x.assets.action_mask[i] in self.asset_action_mask
+                for i in range(len(x.assets.action_mask))
+            )
             attack_step_type_valid = all(
                 x.steps.type[i] in self.attack_step_type
                 for i in range(len(x.steps.type))
@@ -276,6 +285,7 @@ class MALObs(Space[MALObsInstance]):
                 and attack_step_attempts_valid
                 and attack_step_action_mask_valid
                 and asset_type_valid
+                and asset_action_mask_valid
                 and attack_step_type_valid
                 and attack_step_class_valid
                 and association_type_valid
@@ -421,6 +431,7 @@ class MALObs(Space[MALObsInstance]):
                 else None,
                 'asset_type': sample.assets.type.tolist(),
                 'asset_id': sample.assets.id.tolist(),
+                'asset_action_mask': sample.assets.action_mask.tolist(),
                 'step_type': sample.steps.type.tolist(),
                 'step_tags': sample.steps.tags.tolist(),
                 'step_id': sample.steps.id.tolist(),
@@ -481,6 +492,10 @@ class MALObs(Space[MALObsInstance]):
             assets = Asset(
                 type=np.array(sample['asset_type'], dtype=self.asset_type.dtype),
                 id=np.array(sample['asset_id'], dtype=self.asset_id.dtype),
+                action_mask=np.array(
+                    sample['asset_action_mask'],
+                    dtype=self.asset_action_mask.dtype,
+                ),
             )
             associations = (
                 Association(

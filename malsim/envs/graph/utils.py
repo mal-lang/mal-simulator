@@ -79,15 +79,29 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         sim.attack_graph.model.assets[asset_id]
         for asset_id in sorted(sim.attack_graph.model.assets.keys())
     ]
-    assets = Asset(
-        type=np.array([serializer.asset_type[asset.type] for asset in sorted_assets]),
-        id=np.array([asset.id for asset in sorted_assets]),
-    )
     step2asset = {
         (sorted_steps.index(node), sorted_assets.index(node.model_asset))
         for node in sorted_steps
         if node.model_asset in sorted_assets
     }
+    step2asset_links = np.array(list(zip(*step2asset)), dtype=np.int64)
+    # Compute action_mask for each asset: True if any connected step
+    # has action_mask == True
+    asset_action_mask = np.zeros(len(sorted_assets), dtype=np.bool_)
+    # For each asset, check if any connected step has action_mask == True
+    for asset_idx in range(len(sorted_assets)):
+        connected_step_indices = step2asset_links[
+            0, step2asset_links[1] == asset_idx
+        ]
+        if len(connected_step_indices) > 0:
+            asset_action_mask[asset_idx] = steps.action_mask[
+                connected_step_indices
+            ].any()
+    assets = Asset(
+        type=np.array([serializer.asset_type[asset.type] for asset in sorted_assets]),
+        id=np.array([asset.id for asset in sorted_assets]),
+        action_mask=asset_action_mask,
+    )
 
     associations: list[tuple[LanguageGraphAssociation, ModelAsset, ModelAsset]] = []
     for asset in sorted_assets:
@@ -220,10 +234,6 @@ def full_obs2attacker_obs(
         [old for old, _ in sorted(old2new_asset_idx.items(), key=lambda x: x[1])],
         dtype=np.int64,
     )
-    assets = Asset(
-        type=full_obs.assets.type[old_asset_idx],
-        id=full_obs.assets.id[old_asset_idx],
-    )
 
     visible_steps = sorted(
         {
@@ -325,6 +335,25 @@ def full_obs2attacker_obs(
             ),
         ),
         axis=0,
+    )
+    
+    # Compute action_mask for filtered assets: True if any connected
+    # visible step has action_mask == True
+    asset_action_mask = np.zeros(len(old_asset_idx), dtype=np.bool_)
+    if new_step2asset.shape[1] > 0:
+        for asset_idx in range(len(old_asset_idx)):
+            connected_step_indices = new_step2asset[
+                0, new_step2asset[1] == asset_idx
+            ]
+            if len(connected_step_indices) > 0:
+                asset_action_mask[asset_idx] = steps.action_mask[
+                    connected_step_indices
+                ].any()
+    
+    assets = Asset(
+        type=full_obs.assets.type[old_asset_idx],
+        id=full_obs.assets.id[old_asset_idx],
+        action_mask=asset_action_mask,
     )
 
     if (
