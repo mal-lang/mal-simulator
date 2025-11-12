@@ -252,7 +252,7 @@ def test_asset_then_action_wrapper() -> None:
     done = False
     obs, info = wrapped_env.reset()
     while not done and i < 100:
-        asset_mask, action_mask = wrapped_env.mask(obs)
+        asset_mask, action_mask = info['asset_mask'], info['action_mask']
         action = wrapped_env.action_space.sample(mask=(asset_mask, action_mask))
         obs, reward, terminated, truncated, info = wrapped_env.step(action)
         i += 1
@@ -281,8 +281,8 @@ def test_asset_then_action_wrapper() -> None:
     done = False
     obs, info = wrapped_env.reset()
     while not done and i < 100:
-        action_mask, asset_mask = wrapped_env.action_space.mask(obs)
-        action = wrapped_env.action_space.sample(mask=(action_mask, asset_mask))
+        action_mask, asset_mask = info['action_mask'], info['asset_mask']
+        action = wrapped_env.action_space.sample(mask=(asset_mask, action_mask))
         obs, reward, terminated, truncated, info = wrapped_env.step(action)
         i += 1
         done = terminated or truncated
@@ -314,7 +314,7 @@ def test_action_then_asset_wrapper() -> None:
     done = False
     obs, info = wrapped_env.reset()
     while not done and i < 100:
-        action_mask, asset_mask = wrapped_env.mask(obs)
+        action_mask, asset_mask = info['action_mask'], info['asset_mask']
         action = wrapped_env.action_space.sample(mask=(action_mask, asset_mask))
         obs, reward, terminated, truncated, info = wrapped_env.step(action)
         i += 1
@@ -340,7 +340,7 @@ def test_action_then_asset_wrapper() -> None:
     done = False
     obs, info = wrapped_env.reset()
     while not done and i < 100:
-        action_mask, asset_mask = wrapped_env.mask(obs)
+        action_mask, asset_mask = info['action_mask'], info['asset_mask']
         action = wrapped_env.action_space.sample(mask=(action_mask, asset_mask))
         obs, reward, terminated, truncated, info = wrapped_env.step(action)
         i += 1
