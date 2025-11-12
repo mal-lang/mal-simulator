@@ -24,6 +24,8 @@ from maltoolbox.model import Model
 from maltoolbox.language import LanguageGraph
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode, create_attack_graph
 
+from .ttc_utils import TTCDist
+
 from .agents import (
     BreadthFirstAttacker,
     DepthFirstAttacker,
@@ -450,6 +452,21 @@ def get_entry_point_nodes(
     return entry_points
 
 
+def _validate_attacker_agent_info(agent_info: dict[str, Any]) -> None:
+    """Assertion error if agent config for attacker contains illegal fields"""
+    allowed_attacker_keys = {
+        'entry_points',
+        'goals',
+        'ttc_overrides',
+        'name',
+        'type',
+        'agent_class',
+        'config',
+    }
+    illegal_fields = set(agent_info.keys()) - allowed_attacker_keys
+    assert not illegal_fields, f'Illegal fields for attacker agent: {illegal_fields}'
+
+
 def load_simulator_agents(
     attack_graph: AttackGraph, scenario_agents: dict[str, Any]
 ) -> list[dict[str, Any]]:
@@ -483,6 +500,13 @@ def load_simulator_agents(
             )
 
         if agent_type == AgentType.ATTACKER:
+            _validate_attacker_agent_info(agent_info)
+            ttc_overrides = apply_scenario_node_property(
+                attack_graph, agent_info.get('ttc_overrides')
+            )
+            ttc_overrides = {
+                node: TTCDist.from_name(name) for node, name in ttc_overrides.items()
+            }
             agent_config = {
                 'name': agent_name,
                 'agent_class': agent_class,
@@ -497,6 +521,7 @@ def load_simulator_agents(
                     attack_graph,
                     agent_info.get('goals', []),  # Optional
                 ),
+                'ttc_overrides': ttc_overrides,
                 'type': AgentType.ATTACKER,
             }
         elif agent_type == AgentType.DEFENDER:
