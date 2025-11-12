@@ -73,8 +73,31 @@ class LogicGate(NamedTuple):
 class MALObsInstance(NamedTuple):
     """A MAL observation instance.
 
-    Assets, attack/defense steps, associations and logic gates are different objects that exist in the simulation.
-    step2asset, assoc2asset, step2step, logic2step, step2logic and asset2asset are the links between these objects.
+    Assets, attack/defense steps, associations and logic gates are different objects
+    that exist in the simulation.
+    step2asset, assoc2asset, step2step, logic2step, step2logic and asset2asset
+    are the edges between these objects in COO format.
+
+    Attributes:
+        time: The current time step.
+        assets: The assets in the model.
+        steps: The attack/defense steps in the attack graph.
+        associations: The associations between assets in the model.
+        logic_gates: An object representing '&' and '|' of attack steps
+                        in the attack graph.
+        step2asset: The edges between steps and assets in COO format.
+                    One direction is given, but edges are undirected.
+        assoc2asset: The edges between associations and assets in COO format.
+                    One direction is given, but edges are undirected.
+        step2step: The edges between steps in COO format.
+                    Edges are directed.
+        logic2step: The edges between logic gates and steps in COO format.
+                    Edges are directed.
+        step2logic: The edges between steps and logic gates in COO format.
+                    Edges are directed.
+        asset2asset: The edges between assets in COO format.
+                        Edges are undirected.
+
     """
 
     time: np.int64
@@ -538,10 +561,7 @@ class MALDefenderObs(MALObs):
 
 
 class MALObsAttackStepSpace(Discrete):
-    """A space over the actionable attack steps for the attacker.
-
-    The space is dependent on a specific indexing of the attack steps in the MALObsInstance.
-    """
+    """A space over the actionable attack steps for the attacker"""
 
     def __init__(
         self, sim: MalSimulator, seed: int | np.random.Generator | None = None
@@ -580,10 +600,7 @@ class MALObsAttackStepSpace(Discrete):
 
 
 class MALObsDefenseStepSpace(Discrete):
-    """A space over the actionable defense steps for the defender.
-
-    The space is dependent on a specific indexing of the defense steps in the MALObsInstance.
-    """
+    """A space over the actionable defense steps for the defender"""
 
     def __init__(
         self, sim: MalSimulator, seed: int | np.random.Generator | None = None
@@ -650,7 +667,8 @@ class AssetThenAction(spaces.Tuple):
     ):
         if not lang_serializer.split_step_types:
             raise ValueError(
-                'lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction'
+                'lang_serializer must be split_attack_step_types=True '
+                'to use AssetThenAction'
             )
 
         self.asset = Discrete(len(model.assets))
@@ -715,7 +733,8 @@ class AssetThenAttackerAction(AssetThenAction):
     ):
         if not lang_serializer.split_step_types:
             raise ValueError(
-                'lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction'
+                'lang_serializer must be split_attack_step_types=True '
+                'to use MALObsAttackerAssetAction'
             )
 
         self.asset = Discrete(len(model.assets))
@@ -751,7 +770,8 @@ class AssetThenDefenderAction(AssetThenAction):
     ):
         if not lang_serializer.split_step_types:
             raise ValueError(
-                'lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction'
+                'lang_serializer must be split_attack_step_types=True '
+                'to use MALObsAttackerAssetAction'
             )
 
         self.asset = Discrete(len(model.assets))
@@ -787,7 +807,8 @@ class ActionThenAsset(spaces.Tuple):
     ):
         if not lang_serializer.split_step_types:
             raise ValueError(
-                'lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction'
+                'lang_serializer must be split_attack_step_types=True '
+                'to use MALObsAttackerAssetAction'
             )
 
         self.asset = Discrete(len(model.assets))
@@ -855,7 +876,8 @@ class AttackerActionThenAsset(ActionThenAsset):
     ):
         if not lang_serializer.split_step_types:
             raise ValueError(
-                'lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction'
+                'lang_serializer must be split_attack_step_types=True '
+                'to use MALObsAttackerAssetAction'
             )
 
         self.asset = Discrete(len(model.assets))
@@ -891,7 +913,8 @@ class DefenderActionThenAsset(ActionThenAsset):
     ):
         if not lang_serializer.split_step_types:
             raise ValueError(
-                'lang_serializer must be split_attack_step_types=True to use MALObsAttackerAssetAction'
+                'lang_serializer must be split_attack_step_types=True '
+                'to use MALObsAttackerAssetAction'
             )
 
         self.asset = Discrete(len(model.assets))

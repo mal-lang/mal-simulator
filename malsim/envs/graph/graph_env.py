@@ -257,7 +257,8 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
         for agent_name, action_idx in actions.items():
             if self._obs[agent_name].steps.type.shape[0] < action_idx:
                 logger.error(
-                    f'Action {action_idx} is not valid for observation {self._obs[agent_name]}'
+                    f'Action {action_idx} is not valid'
+                    f' for observation {self._obs[agent_name]}'
                 )
 
         # Convert observation indicies to action nodes
