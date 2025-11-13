@@ -225,6 +225,59 @@ class Scenario:
         _validate_scenario_dict(scenario_dict)
         return cls.from_dict(scenario_dict)
 
+    def __getstate__(self) -> dict[str, Any]:
+        lang_state = self.lang_graph._to_dict()  # type: ignore[no-untyped-call]
+        model_state = self.model.to_dict()
+        ag_state = self.attack_graph._to_dict()
+        scenario_state = self.to_dict()
+        return {
+            'lang_state': lang_state,
+            'model_state': model_state,
+            'ag_state': ag_state,
+            'scenario_state': scenario_state,
+        }
+
+    def __setstate__(self, state: dict[str, dict[str, Any]]) -> None:
+        self._lang_file = state['scenario_state']['lang_file']
+        self.lang_graph = LanguageGraph._from_dict(state['lang_state'])
+
+        self._model_file = state['scenario_state'].get('model_file')
+        self.model = Model._from_dict(state['model_state'], self.lang_graph)
+        self.attack_graph = AttackGraph._from_dict(
+            state['ag_state'], self.lang_graph, self.model
+        )
+
+        self._agents_dict = state['scenario_state']['agents']
+        self.agents = load_simulator_agents(self.attack_graph, self._agents_dict)
+
+        self._rewards_dict = state['scenario_state'].get('rewards')
+        self.rewards = apply_scenario_node_property(
+            self.attack_graph, self._rewards_dict or {}
+        )
+        self.false_positive_rates = apply_scenario_node_property(
+            self.attack_graph, state['scenario_state'].get('false_positive_rates') or {}
+        )
+        self._fpr_dict = state['scenario_state'].get('false_positive_rates')
+
+        self.false_negative_rates = apply_scenario_node_property(
+            self.attack_graph, state['scenario_state'].get('false_negative_rates') or {}
+        )
+        self._fnr_dict = state['scenario_state'].get('false_negative_rates')
+
+        self.is_observable = apply_scenario_node_property(
+            self.attack_graph,
+            state['scenario_state'].get('observable_steps') or {},
+            default_value=False,
+        )
+        self._is_observable_dict = state['scenario_state'].get('observable_steps')
+
+        self.is_actionable = apply_scenario_node_property(
+            self.attack_graph,
+            state['scenario_state'].get('actionable_steps') or {},
+            default_value=False,
+        )
+        self._is_actionable_dict = state['scenario_state'].get('actionable_steps')
+
 
 def _validate_scenario_dict(scenario_dict: dict[str, Any]) -> None:
     """Verify scenario file keys"""
