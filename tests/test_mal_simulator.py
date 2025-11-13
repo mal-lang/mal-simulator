@@ -15,6 +15,8 @@ from malsim.mal_simulator import (
 from malsim.ttc_utils import TTCDist
 
 from malsim import load_scenario, run_simulation
+from malsim.scenario import Scenario
+
 from dataclasses import asdict
 import numpy as np
 import pytest
@@ -122,6 +124,37 @@ def test_register_agent_action_surface(
     action_surface = defender_state.action_surface
     for node in action_surface:
         assert node not in sim._enabled_defenses
+
+
+def test_simulator_actionable_action_surface(model: Model) -> None:
+    scenario = Scenario(
+        lang_file='tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar',
+        model=model,
+        is_actionable={
+            'by_asset_type': {
+                'Application': ['attemptRead', 'successfulRead', 'read', 'notPresent']
+            }
+        },
+        agents={
+            'Attacker1': {
+                'type': 'attacker',
+                'entry_points': ['OS App:fullAccess'],
+            },
+            'Defender': {'type': 'defender'},
+        },
+    )
+    sim = MalSimulator.from_scenario(scenario)
+
+    # Only three nodes ever in action surface
+    states = sim.step({'Attacker1': ['OS App:attemptRead']})
+    states = sim.step({'Attacker1': ['OS App:successfulRead']})
+    assert states['Attacker1'].action_surface == {sim.get_node('OS App:read')}
+
+    # Only Application:notPresent defenses in defenders action surface
+    assert states['Defender'].action_surface == {
+        sim.get_node('OS App:notPresent'),
+        sim.get_node('Program 2:notPresent'),
+    }
 
 
 def test_simulator_initialize_agents(
@@ -292,8 +325,8 @@ def test_attacker_step_rewards_cumulative(
 
     # Recording of the simulation
     assert sim.recording == {
-        0: {attacker_name: [attempt_read]},
-        1: {attacker_name: [access_network_and_conn]},
+        1: {attacker_name: [attempt_read]},
+        2: {attacker_name: [access_network_and_conn]},
     }
 
 
@@ -781,9 +814,9 @@ def test_agent_state_views_simple(
 
     # Recording of the simulation
     assert sim.recording == {
-        0: {'defender': [program2_not_present], 'attacker': [os_app_attempt_deny]},
-        1: {'defender': [], 'attacker': [os_app_spec_access]},
-        2: {'defender': [os_app_not_present], 'attacker': []},
+        1: {'defender': [program2_not_present], 'attacker': [os_app_attempt_deny]},
+        2: {'defender': [], 'attacker': [os_app_spec_access]},
+        3: {'defender': [os_app_not_present], 'attacker': []},
     }
 
 
@@ -1033,7 +1066,7 @@ def test_simulator_multiple_attackers() -> None:
     # Verify that it is possible to select more than one action
     # for more than one agent
     assert sim.recording == {
-        0: {
+        1: {
             'Defender1': [],
             'Attacker1': [sim.get_node('User:3:compromise')],
             'Attacker2': [
@@ -1041,9 +1074,9 @@ def test_simulator_multiple_attackers() -> None:
                 sim.get_node('Host:1:connect'),
             ],
         },
-        1: {'Defender1': [], 'Attacker1': [sim.get_node('Host:0:authenticate')]},
-        2: {'Defender1': [], 'Attacker1': [sim.get_node('Host:0:access')]},
-        3: {
+        2: {'Defender1': [], 'Attacker1': [sim.get_node('Host:0:authenticate')]},
+        3: {'Defender1': [], 'Attacker1': [sim.get_node('Host:0:access')]},
+        4: {
             'Defender1': [],
             'Attacker1': [
                 sim.get_node('Data:2:read'),
@@ -1051,7 +1084,7 @@ def test_simulator_multiple_attackers() -> None:
                 sim.get_node('Network:3:access'),
             ],
         },
-        4: {'Defender1': [], 'Attacker1': [sim.get_node('Host:1:connect')]},
+        5: {'Defender1': [], 'Attacker1': [sim.get_node('Host:1:connect')]},
     }
 
 
@@ -1088,7 +1121,7 @@ def test_simulator_multiple_defenders() -> None:
         )
 
     assert sim.recording == {
-        0: {
+        1: {
             'Defender1': [
                 sim.get_node('Host:0:notPresent'),
                 sim.get_node('Host:1:notPresent'),

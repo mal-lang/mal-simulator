@@ -583,7 +583,8 @@ class MalSimulator:
         return {
             node
             for node in self.attack_graph.defense_steps
-            if self.node_is_viable(node)
+            if self.node_is_actionable(node)
+            and self.node_is_viable(node)
             and 'suppress' not in node.tags
             and not self.node_is_enabled_defense(node)
         }
@@ -626,6 +627,8 @@ class MalSimulator:
                     self.sim_settings.attack_surface_skip_unnecessary
                     and not self.node_is_necessary(child)
                 ):
+                    continue
+                if not self.node_is_actionable(child):
                     continue
                 if child not in attack_surface and self.node_is_traversable(
                     performed_nodes, child
@@ -1209,6 +1212,7 @@ class MalSimulator:
         - A dictionary containing the agent state views keyed by agent names
         """
 
+        self.cur_iter += 1
         logger.info('Stepping through iteration %d/%d', self.cur_iter, self.max_iter)
 
         self._pre_step_check(actions)
@@ -1287,7 +1291,6 @@ class MalSimulator:
                 step_compromised_nodes + step_enabled_defenses, self.cur_iter
             )
 
-        self.cur_iter += 1
         return self.agent_states
 
     def render(self) -> None:
