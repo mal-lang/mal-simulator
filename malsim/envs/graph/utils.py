@@ -509,7 +509,7 @@ def full_obs2attacker_obs(
         new_asset2asset = np.empty((2, 0), dtype=np.int64)
 
     return MALObsInstance(
-        time=full_obs.time,
+        time=np.int64(state.sim.cur_iter),
         assets=assets,
         steps=steps,
         associations=assocs,
@@ -550,7 +550,7 @@ def full_obs2defender_obs(
     observed = np.isin(full_obs.steps.id, observed_step_ids)
 
     return MALObsInstance(
-        time=full_obs.time,
+        time=np.int64(state.sim.cur_iter),
         assets=full_obs.assets,
         steps=Step(
             type=serializer.step_type2defender_step_type[full_obs.steps.type],
