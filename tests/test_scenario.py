@@ -474,6 +474,7 @@ def test_apply_scenario_rewards_old_format() -> None:
         # Make sure we get error when loading with wrong rewards format
         _validate_scenario_node_property_config(attack_graph, scenario['rewards'])
 
+
 def test_scenario_pickle() -> None:
     """Make sure we can pickle a scenario"""
 
@@ -481,11 +482,11 @@ def test_scenario_pickle() -> None:
     scenario = load_scenario(
         path_relative_to_tests('./testdata/scenarios/simple_scenario.yml')
     )
-    
-    with open("/tmp/scenario.pkl", "wb") as f:
+
+    with open('/tmp/scenario.pkl', 'wb') as f:
         pickle.dump(scenario, f)
 
-    with open("/tmp/scenario.pkl", "rb") as f:
+    with open('/tmp/scenario.pkl', 'rb') as f:
         loaded_scenario = pickle.load(f)
 
     assert loaded_scenario.to_dict() == scenario.to_dict()

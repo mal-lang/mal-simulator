@@ -240,7 +240,7 @@ class Scenario:
             is_observable=state.get('observable_steps'),
             is_actionable=state.get('actionable_steps'),
         )
-        
+
 
 def _validate_scenario_dict(scenario_dict: dict[str, Any]) -> None:
     """Verify scenario file keys"""
