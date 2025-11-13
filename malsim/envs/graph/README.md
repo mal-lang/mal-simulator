@@ -152,6 +152,19 @@ while not done:
     done = terminated or truncated
 ```
 
+## Utils
+
+Observation construction is handled by three key functions in `utils.py`:
+
+- **`create_full_obs`**  
+  Produces the full observation of the environment, including all assets, steps, associations, and graph connectivity, as the base for the other two functions.
+
+- **`full_obs2attacker_obs`**  
+  Constructs an attacker observation from a full observation, making only assets with compromised steps visible. All steps of the visible assets are visible to the attacker. Optionally includes defense steps of the visible assets.
+
+- **`full_obs2defender_obs`**  
+  Constructs a defender observation from a full observation, making all assets and steps visible. The defender can only know wether a step is compromised if it's observable.
+
 ## Key Design Decisions
 
 1. **COO Format**: Edges use Coordinate format for efficient sparse graph representation
