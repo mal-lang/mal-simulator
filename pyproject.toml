@@ -39,6 +39,8 @@ dev = [
   "pytest",
   "mypy",
   "ruff",
+  "types-requests",
+  "types-PyYAML",
 ]
 
 [project.urls]

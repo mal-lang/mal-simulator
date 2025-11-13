@@ -226,7 +226,7 @@ class Scenario:
         return cls.from_dict(scenario_dict)
 
     def __getstate__(self) -> dict[str, Any]:
-        lang_state = self.lang_graph._to_dict()
+        lang_state = self.lang_graph._to_dict()  # type: ignore[no-untyped-call]
         model_state = self.model.to_dict()
         ag_state = self.attack_graph._to_dict()
         scenario_state = self.to_dict()
