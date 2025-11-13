@@ -238,19 +238,22 @@ class Scenario:
         }
 
     def __setstate__(self, state: dict[str, dict[str, Any]]) -> None:
-
         self._lang_file = state['scenario_state']['lang_file']
         self.lang_graph = LanguageGraph._from_dict(state['lang_state'])
 
         self._model_file = state['scenario_state'].get('model_file')
         self.model = Model._from_dict(state['model_state'], self.lang_graph)
-        self.attack_graph = AttackGraph._from_dict(state['ag_state'], self.lang_graph, self.model)
+        self.attack_graph = AttackGraph._from_dict(
+            state['ag_state'], self.lang_graph, self.model
+        )
 
         self._agents_dict = state['scenario_state']['agents']
         self.agents = load_simulator_agents(self.attack_graph, self._agents_dict)
 
         self._rewards_dict = state['scenario_state'].get('rewards')
-        self.rewards = apply_scenario_node_property(self.attack_graph, self._rewards_dict or {})
+        self.rewards = apply_scenario_node_property(
+            self.attack_graph, self._rewards_dict or {}
+        )
         self.false_positive_rates = apply_scenario_node_property(
             self.attack_graph, state['scenario_state'].get('false_positive_rates') or {}
         )
@@ -262,12 +265,16 @@ class Scenario:
         self._fnr_dict = state['scenario_state'].get('false_negative_rates')
 
         self.is_observable = apply_scenario_node_property(
-            self.attack_graph, state['scenario_state'].get('observable_steps') or {}, default_value=False
+            self.attack_graph,
+            state['scenario_state'].get('observable_steps') or {},
+            default_value=False,
         )
         self._is_observable_dict = state['scenario_state'].get('observable_steps')
 
         self.is_actionable = apply_scenario_node_property(
-            self.attack_graph, state['scenario_state'].get('actionable_steps') or {}, default_value=False
+            self.attack_graph,
+            state['scenario_state'].get('actionable_steps') or {},
+            default_value=False,
         )
         self._is_actionable_dict = state['scenario_state'].get('actionable_steps')
 
