@@ -225,6 +225,22 @@ class Scenario:
         _validate_scenario_dict(scenario_dict)
         return cls.from_dict(scenario_dict)
 
+    def __getstate__(self) -> dict[str, Any]:
+        return self.to_dict()
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        self.__init__(
+            lang_file=state['lang_file'],
+            agents=state['agents'],
+            model_dict=state.get('model'),
+            model_file=state.get('model_file'),
+            rewards=state.get('rewards'),
+            false_positive_rates=state.get('false_positive_rates'),
+            false_negative_rates=state.get('false_negative_rates'),
+            is_observable=state.get('observable_steps'),
+            is_actionable=state.get('actionable_steps'),
+        )
+        
 
 def _validate_scenario_dict(scenario_dict: dict[str, Any]) -> None:
     """Verify scenario file keys"""
