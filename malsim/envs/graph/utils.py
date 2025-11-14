@@ -220,16 +220,8 @@ def full_obs2attacker_obs(
     # are performed or on the action surface.
     visible_asset_ids = np.array(
         sorted(
-            {
-                node.model_asset.id
-                for node in state.performed_nodes
-                if node.model_asset
-            }
-            | {
-                node.model_asset.id
-                for node in state.action_surface
-                if node.model_asset
-            }
+            {node.model_asset.id for node in state.performed_nodes if node.model_asset}
+            | {node.model_asset.id for node in state.action_surface if node.model_asset}
         )
     )
     visible_asset_ids_set = set(visible_asset_ids)
@@ -410,11 +402,7 @@ def full_obs2attacker_obs(
     # Logic gates have the same ID as the steps they are associated with
     # Map old logic indices to new logic indices
     visible_logic_ids = np.array(
-        [
-            logic_id
-            for logic_id in visible_step_ids
-            if logic_id in logic_id_to_idx
-        ]
+        [logic_id for logic_id in visible_step_ids if logic_id in logic_id_to_idx]
     )
     if len(visible_logic_ids) > 0:
         new2old_logic_idx = np.array(
