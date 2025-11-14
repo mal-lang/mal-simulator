@@ -83,6 +83,23 @@ class MalSimAttackerState(MalSimAgentState):
     # Goals affect simulation termination but is optional
     goals: Optional[frozenset[AttackGraphNode]] = None
 
+    # Picklable
+    def __getstate__(self) -> dict[str, Any]:
+        # convert MappingProxyType to dict for pickling
+        state = self.__dict__.copy()
+        state['num_attempts'] = dict(state['num_attempts'])
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        # restore MappingProxyType
+        object.__setattr__(
+            self, 'num_attempts', MappingProxyType(state['num_attempts'])
+        )
+        # set other frozen attributes
+        for key, value in state.items():
+            if key != 'num_attempts':
+                object.__setattr__(self, key, value)
+
 
 @dataclass(frozen=True)
 class MalSimDefenderState(MalSimAgentState):
