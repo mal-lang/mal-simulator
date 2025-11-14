@@ -422,8 +422,9 @@ def full_obs2attacker_obs(
         for new_idx, logic_id in enumerate(visible_step_ids)
         if np.any(logic_id == full_obs.logic_gates.id)
     }
-    new2old_logic_idx = np.empty(len(visible_step_ids), dtype=np.int64)
-    for new_idx, logic_id in enumerate(visible_step_ids):
+    visible_logic_ids = np.array([logic_id for logic_id in visible_step_ids if logic_id in full_obs.logic_gates.id])
+    new2old_logic_idx = np.empty(len(visible_logic_ids), dtype=np.int64)
+    for new_idx, logic_id in enumerate(visible_logic_ids):
         new2old_logic_idx[new_idx] = np.where(full_obs.logic_gates.id == logic_id)[0][0]
     # old_logic_idx = np.array(
     #     [old for old, _ in sorted(old2new_logic_idx.items(), key=lambda x: x[1])],
@@ -436,10 +437,14 @@ def full_obs2attacker_obs(
         type=full_obs.logic_gates.type[new2old_logic_idx],
     )
 
+    # Get all step2logic links (with old step and logic indices) 
+    # for visible steps and logic gates
+    visible_old_logic_mask = np.zeros(full_obs.logic_gates.id.shape[0], dtype=bool)
+    visible_old_logic_mask[new2old_logic_idx] = True
     visible_old_step2logic = full_obs.step2logic[
         :,
-        np.isin(full_obs.step2logic[0], new2old_step_idx)
-        & np.isin(full_obs.step2logic[1], new2old_logic_idx),
+        visible_old_steps_mask[full_obs.step2logic[0]] 
+        & visible_old_logic_mask[full_obs.step2logic[1]],
     ]
     new_step2logic = np.stack(
         (
@@ -459,10 +464,12 @@ def full_obs2attacker_obs(
         axis=0,
     )
 
+    # Get all logic2step links (with old logic and step indices) 
+    # for visible steps and logic gates
     visible_old_logic2step = full_obs.logic2step[
         :,
-        np.isin(full_obs.logic2step[0], new2old_logic_idx)
-        & np.isin(full_obs.logic2step[1], new2old_step_idx),
+        visible_old_logic_mask[full_obs.logic2step[0]] 
+        & visible_old_steps_mask[full_obs.logic2step[1]],
     ]
     new_logic2step = np.stack(
         (
