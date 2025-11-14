@@ -376,7 +376,7 @@ def full_obs2attacker_obs(
     ):
         # Get all associations connected to visible assets
         visible_assets_old_assoc2asset = full_obs.assoc2asset[
-            :, np.isin(full_obs.assoc2asset[1], new2old_asset_idx)
+            :, visible_old_asset_mask[full_obs.assoc2asset[1]]
         ]
         # Filter out associations that are connected to only one visible asset
         unique_assocs, assoc_link_counts = np.unique(
