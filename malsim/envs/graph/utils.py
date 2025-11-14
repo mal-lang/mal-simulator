@@ -496,34 +496,31 @@ def full_obs2attacker_obs(
     )
 
     # Filter asset2asset links to only include visible assets
-    if full_obs.asset2asset.shape[1] > 0:
-        visible_old_asset2asset = full_obs.asset2asset[
-            :,
-            np.isin(full_obs.asset2asset[0], new2old_asset_idx)
-            & np.isin(full_obs.asset2asset[1], new2old_asset_idx),
-        ]
-        if visible_old_asset2asset.shape[1] > 0:
-            new_asset2asset = np.stack(
-                (
-                    np.array(
-                        [
-                            old2new_asset_idx[old_asset_idx]
-                            for old_asset_idx in visible_old_asset2asset[0]
-                        ]
-                    ),
-                    np.array(
-                        [
-                            old2new_asset_idx[old_asset_idx]
-                            for old_asset_idx in visible_old_asset2asset[1]
-                        ]
-                    ),
-                ),
-                axis=0,
-            )
-        else:
-            new_asset2asset = np.empty((2, 0), dtype=np.int64)
-    else:
-        new_asset2asset = np.empty((2, 0), dtype=np.int64)
+
+    visible_old_asset2asset = full_obs.asset2asset[
+        :,
+        visible_old_asset_mask[full_obs.asset2asset[0]]
+        & visible_old_asset_mask[full_obs.asset2asset[1]],
+    ]
+    new_asset2asset = np.stack(
+        (
+            np.array(
+                [
+                    old2new_asset_idx[old_asset_idx]
+                    for old_asset_idx in visible_old_asset2asset[0]
+                ],
+                dtype=np.int64,
+            ),
+            np.array(
+                [
+                    old2new_asset_idx[old_asset_idx]
+                    for old_asset_idx in visible_old_asset2asset[1]
+                ],
+                dtype=np.int64,
+            ),
+        ),
+        axis=0,
+    )
 
     return MALObsInstance(
         time=np.int64(state.sim.cur_iter),
