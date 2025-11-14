@@ -269,20 +269,19 @@ def full_obs2attacker_obs(
         ]
     )
     old2new_step_idx = {
-        int(np.where(full_obs.steps.id == step_id)[0]): new_idx
+        np.where(full_obs.steps.id == step_id)[0][0]: new_idx
         for new_idx, step_id in enumerate(visible_step_ids)
     }
-    old_step_idx = np.array(
-        [old for old, _ in sorted(old2new_step_idx.items(), key=lambda x: x[1])],
-        dtype=np.int64,
-    )
-    step_type = full_obs.steps.type[old_step_idx]
+    new2old_step_idx = np.empty(len(visible_step_ids), dtype=np.int64)
+    for new_idx, step_id in enumerate(visible_step_ids):
+        new2old_step_idx[new_idx] = np.where(full_obs.steps.id == step_id)[0][0]
+    step_type = full_obs.steps.type[new2old_step_idx]
     step_type_attacker_indexing = serializer.step_type2attacker_step_type[step_type]
     steps = Step(
         type=step_type_attacker_indexing,
-        id=full_obs.steps.id[old_step_idx],
-        logic_class=full_obs.steps.logic_class[old_step_idx],
-        tags=full_obs.steps.tags[old_step_idx],
+        id=full_obs.steps.id[new2old_step_idx],
+        logic_class=full_obs.steps.logic_class[new2old_step_idx],
+        tags=full_obs.steps.tags[new2old_step_idx],
         compromised=compromised_steps,
         observable=observable_steps,
         attempts=step_attempts,
@@ -291,8 +290,8 @@ def full_obs2attacker_obs(
 
     visible_old_step2step = full_obs.step2step[
         :,
-        np.isin(full_obs.step2step[0], old_step_idx)
-        & np.isin(full_obs.step2step[1], old_step_idx),
+        np.isin(full_obs.step2step[0], new2old_step_idx)
+        & np.isin(full_obs.step2step[1], new2old_step_idx),
     ]
     new_step2step = np.stack(
         (
@@ -314,8 +313,8 @@ def full_obs2attacker_obs(
 
     visible_old_step2asset = full_obs.step2asset[
         :,
-        np.isin(full_obs.step2asset[0], old_step_idx)
-        & np.isin(full_obs.step2asset[1], old_asset_idx),
+        np.isin(full_obs.step2asset[0], new2old_step_idx)
+        & np.isin(full_obs.step2asset[1], new2old_step_idx),
     ]
     new_step2asset = np.stack(
         (
@@ -417,7 +416,7 @@ def full_obs2attacker_obs(
         if full_obs.step2logic.shape[1] > 0:
             visible_old_step2logic = full_obs.step2logic[
                 :,
-                np.isin(full_obs.step2logic[0], old_step_idx)
+                np.isin(full_obs.step2logic[0], new2old_step_idx)
                 & np.isin(full_obs.step2logic[1], old_logic_idx),
             ]
             if visible_old_step2logic.shape[1] > 0:
@@ -447,7 +446,7 @@ def full_obs2attacker_obs(
             visible_old_logic2step = full_obs.logic2step[
                 :,
                 np.isin(full_obs.logic2step[0], old_logic_idx)
-                & np.isin(full_obs.logic2step[1], old_step_idx),
+                & np.isin(full_obs.logic2step[1], new2old_step_idx),
             ]
             if visible_old_logic2step.shape[1] > 0:
                 new_logic2step = np.stack(
