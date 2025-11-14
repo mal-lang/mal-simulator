@@ -208,82 +208,89 @@ def full_obs2attacker_obs(
     Returns:
         The attacker observation.
     """
+    # Create lookup dictionaries for efficient index mapping
+    asset_id_to_idx = {asset_id: idx for idx, asset_id in enumerate(full_obs.assets.id)}
+    step_id_to_idx = {step_id: idx for idx, step_id in enumerate(full_obs.steps.id)}
+    logic_id_to_idx = {
+        logic_id: idx for idx, logic_id in enumerate(full_obs.logic_gates.id)
+    }
+    performed_nodes_set = set(state.performed_nodes)
+
     # Get all visible asset IDs for model asset of nodes that
     # are performed or on the action surface.
     visible_asset_ids = np.array(
-        list(
-            sorted(
-                {
-                    node.model_asset.id
-                    for node in state.performed_nodes
-                    if node.model_asset
-                }
-                | {
-                    node.model_asset.id
-                    for node in state.action_surface
-                    if node.model_asset
-                }
-            )
+        sorted(
+            {
+                node.model_asset.id
+                for node in state.performed_nodes
+                if node.model_asset
+            }
+            | {
+                node.model_asset.id
+                for node in state.action_surface
+                if node.model_asset
+            }
         )
     )
-    # Map old asset IDs to new asset IDs
+    visible_asset_ids_set = set(visible_asset_ids)
+
+    # Map old asset IDs to new asset IDs using lookup
+    num_visible_assets = len(visible_asset_ids)
+    new2old_asset_idx = np.array(
+        [asset_id_to_idx[asset_id] for asset_id in visible_asset_ids], dtype=np.int64
+    )
     old2new_asset_idx = {
-        int(np.where(full_obs.assets.id == asset_id)[0]): new_idx
-        for new_idx, asset_id in enumerate(visible_asset_ids)
+        old_idx: new_idx for new_idx, old_idx in enumerate(new2old_asset_idx)
     }
-    new2old_asset_idx = np.empty(len(visible_asset_ids), dtype=np.int64)
-    for new_idx, asset_id in enumerate(visible_asset_ids):
-        new2old_asset_idx[new_idx] = np.where(full_obs.assets.id == asset_id)[0][0]
-    # old_asset_idx = np.array(
-    #     [old for old, _ in sorted(old2new_asset_idx.items(), key=lambda x: x[1])],
-    #     dtype=np.int64,
-    # )
 
     # Get all visible steps for model assets that are visible to the attacker.
-    visible_steps = sorted(
-        {
-            node
-            for node in state.sim.attack_graph.nodes.values()
-            if node.model_asset
-            and node.model_asset.id in visible_asset_ids
+    visible_steps = []
+    for node in state.sim.attack_graph.nodes.values():
+        if (
+            node.model_asset
+            and node.model_asset.id in visible_asset_ids_set
             and node.type in ('and', 'or')
-        },
-        key=lambda step: step.id,
-    )
+        ):
+            visible_steps.append(node)
+    visible_steps.sort(key=lambda step: step.id)
+
     if see_defense_steps:
-        visible_steps += sorted(
-            {
-                node
-                for node in state.sim.attack_graph.nodes.values()
-                if node.model_asset
-                and node.model_asset.id in visible_asset_ids
+        defense_steps = []
+        for node in state.sim.attack_graph.nodes.values():
+            if (
+                node.model_asset
+                and node.model_asset.id in visible_asset_ids_set
                 and node.type in ('defense', 'exist', 'notExist')
-            },
-            key=lambda step: step.id,
+            ):
+                defense_steps.append(node)
+        defense_steps.sort(key=lambda step: step.id)
+        visible_steps.extend(defense_steps)
+
+    # Get step attributes in a single pass where possible
+    num_visible_steps = len(visible_steps)
+    visible_step_ids = np.empty(num_visible_steps, dtype=np.int64)
+    compromised_steps = np.empty(num_visible_steps, dtype=np.bool_)
+    observable_steps = np.empty(num_visible_steps, dtype=np.bool_)
+    step_attempts = np.empty(num_visible_steps, dtype=np.int64)
+    traversable_steps = np.empty(num_visible_steps, dtype=np.bool_)
+
+    for i, step in enumerate(visible_steps):
+        visible_step_ids[i] = step.id
+        compromised_steps[i] = step in performed_nodes_set
+        observable_steps[i] = step.type in ('and', 'or')
+        step_attempts[i] = state.num_attempts.get(step, 0)
+        traversable_steps[i] = state.sim.node_is_traversable(
+            state.performed_nodes, step
         )
-    # Get step attributes
-    visible_step_ids = np.array([step.id for step in visible_steps])
-    compromised_steps = np.array(
-        [step in state.performed_nodes for step in visible_steps]
+
+    # Map old step indices to new step indices using lookup
+    new2old_step_idx = np.array(
+        [step_id_to_idx[step_id] for step_id in visible_step_ids], dtype=np.int64
     )
-    observable_steps = np.array([step.type in ('and', 'or') for step in visible_steps])
-    step_attempts = np.array(
-        [state.num_attempts.get(step, 0) for step in visible_steps]
-    )
-    traversable_steps = np.array(
-        [
-            state.sim.node_is_traversable(state.performed_nodes, step)
-            for step in visible_steps
-        ]
-    )
-    # Map old step indices to new step indices
     old2new_step_idx = {
-        np.where(full_obs.steps.id == step_id)[0][0]: new_idx
-        for new_idx, step_id in enumerate(visible_step_ids)
+        old_idx: new_idx for new_idx, old_idx in enumerate(new2old_step_idx)
     }
-    new2old_step_idx = np.empty(len(visible_step_ids), dtype=np.int64)
-    for new_idx, step_id in enumerate(visible_step_ids):
-        new2old_step_idx[new_idx] = np.where(full_obs.steps.id == step_id)[0][0]
+
     # Re-index step type according to attacker serialization.
     step_type = full_obs.steps.type[new2old_step_idx]
     step_type_attacker_indexing = serializer.step_type2attacker_step_type[step_type]
@@ -301,62 +308,54 @@ def full_obs2attacker_obs(
     # Get all step2step links (with old step indices) for visible steps
     visible_old_steps_mask = np.zeros(full_obs.steps.id.shape[0], dtype=bool)
     visible_old_steps_mask[new2old_step_idx] = True
-    visible_old_step2step = full_obs.step2step[
-        :,
+    step2step_mask = (
         visible_old_steps_mask[full_obs.step2step[0]]
-        & visible_old_steps_mask[full_obs.step2step[1]],
-    ]
-    # Map old step2step links to new step2step links
-    new_step2step = np.stack(
-        (
-            np.array(
-                [
-                    old2new_step_idx[old_step_idx]
-                    for old_step_idx in visible_old_step2step[0]
-                ]
-            ),
-            np.array(
-                [
-                    old2new_step_idx[old_step_idx]
-                    for old_step_idx in visible_old_step2step[1]
-                ]
-            ),
-        ),
-        axis=0,
+        & visible_old_steps_mask[full_obs.step2step[1]]
+    )
+    visible_old_step2step = full_obs.step2step[:, step2step_mask]
+    # Map old step2step links to new step2step links using vectorized lookup
+    new_step2step = np.array(
+        [
+            [
+                old2new_step_idx[old_step_idx]
+                for old_step_idx in visible_old_step2step[0]
+            ],
+            [
+                old2new_step_idx[old_step_idx]
+                for old_step_idx in visible_old_step2step[1]
+            ],
+        ],
+        dtype=np.int64,
     )
 
     # Get all step2asset links (with old step indices) for visible steps
     visible_old_asset_mask = np.zeros(full_obs.assets.id.shape[0], dtype=bool)
     visible_old_asset_mask[new2old_asset_idx] = True
-    visible_old_step2asset = full_obs.step2asset[
-        :,
+    step2asset_mask = (
         visible_old_steps_mask[full_obs.step2asset[0]]
-        & visible_old_asset_mask[full_obs.step2asset[1]],
-    ]
-    # Map old step2asset links to new step2asset links
-    new_step2asset = np.stack(
-        (
-            np.array(
-                [
-                    old2new_step_idx[old_step_idx]
-                    for old_step_idx in visible_old_step2asset[0]
-                ]
-            ),
-            np.array(
-                [
-                    old2new_asset_idx[old_asset_idx]
-                    for old_asset_idx in visible_old_step2asset[1]
-                ]
-            ),
-        ),
-        axis=0,
+        & visible_old_asset_mask[full_obs.step2asset[1]]
+    )
+    visible_old_step2asset = full_obs.step2asset[:, step2asset_mask]
+    # Map old step2asset links to new step2asset links using vectorized lookup
+    new_step2asset = np.array(
+        [
+            [
+                old2new_step_idx[old_step_idx]
+                for old_step_idx in visible_old_step2asset[0]
+            ],
+            [
+                old2new_asset_idx[old_asset_idx]
+                for old_asset_idx in visible_old_step2asset[1]
+            ],
+        ],
+        dtype=np.int64,
     )
 
     # Compute action_mask for filtered assets: True if any connected
-    # visible step has action_mask == True
-    asset_action_mask = np.zeros(len(new2old_asset_idx), dtype=np.bool_)
+    # visible step has action_mask == True (vectorized)
+    asset_action_mask = np.zeros(num_visible_assets, dtype=np.bool_)
     if new_step2asset.shape[1] > 0:
-        for asset_idx in range(len(new2old_asset_idx)):
+        for asset_idx in range(num_visible_assets):
             connected_step_indices = new_step2asset[0, new_step2asset[1] == asset_idx]
             if len(connected_step_indices) > 0:
                 asset_action_mask[asset_idx] = steps.action_mask[
@@ -370,7 +369,7 @@ def full_obs2attacker_obs(
     )
 
     if (
-        len(visible_asset_ids) > 1
+        num_visible_assets > 1
         and full_obs.associations is not None
         and full_obs.assoc2asset is not None
     ):
@@ -384,32 +383,25 @@ def full_obs2attacker_obs(
         )
         old_assoc_idx = unique_assocs[assoc_link_counts > 1]
         old2new_assoc_idx = {
-            old_assoc_idx: new_idx
-            for new_idx, old_assoc_idx in enumerate(old_assoc_idx)
+            old_idx: new_idx for new_idx, old_idx in enumerate(old_assoc_idx)
         }
-        assocs = Association(
-            type=full_obs.associations.type[old_assoc_idx],
-        )
+        assocs = Association(type=full_obs.associations.type[old_assoc_idx])
 
         visible_old_assoc2asset = visible_assets_old_assoc2asset[
             :, np.isin(visible_assets_old_assoc2asset[0], old_assoc_idx)
         ]
-        new_assoc2asset = np.stack(
-            (
-                np.array(
-                    [
-                        old2new_assoc_idx[old_assoc_idx]
-                        for old_assoc_idx in visible_old_assoc2asset[0]
-                    ]
-                ),
-                np.array(
-                    [
-                        old2new_asset_idx[old_asset_idx]
-                        for old_asset_idx in visible_old_assoc2asset[1]
-                    ]
-                ),
-            ),
-            axis=0,
+        new_assoc2asset = np.array(
+            [
+                [
+                    old2new_assoc_idx[old_assoc_idx]
+                    for old_assoc_idx in visible_old_assoc2asset[0]
+                ],
+                [
+                    old2new_asset_idx[old_asset_idx]
+                    for old_asset_idx in visible_old_assoc2asset[1]
+                ],
+            ],
+            dtype=np.int64,
         )
     else:
         assocs = None
@@ -417,109 +409,96 @@ def full_obs2attacker_obs(
 
     # Logic gates have the same ID as the steps they are associated with
     # Map old logic indices to new logic indices
-    old2new_logic_idx = {
-        np.where(full_obs.logic_gates.id == logic_id)[0][0]: new_idx
-        for new_idx, logic_id in enumerate(visible_step_ids)
-        if np.any(logic_id == full_obs.logic_gates.id)
-    }
     visible_logic_ids = np.array(
         [
             logic_id
             for logic_id in visible_step_ids
-            if logic_id in full_obs.logic_gates.id
+            if logic_id in logic_id_to_idx
         ]
     )
-    new2old_logic_idx = np.empty(len(visible_logic_ids), dtype=np.int64)
-    for new_idx, logic_id in enumerate(visible_logic_ids):
-        new2old_logic_idx[new_idx] = np.where(full_obs.logic_gates.id == logic_id)[0][0]
-    # old_logic_idx = np.array(
-    #     [old for old, _ in sorted(old2new_logic_idx.items(), key=lambda x: x[1])],
-    #     dtype=np.int64,
-    # )
-    # TODO: Check if full_obs.logic_gates.type needs to be re-indexed
-    # with attacker serialization.
-    logic_gates = LogicGate(
-        id=full_obs.logic_gates.id[new2old_logic_idx],
-        type=full_obs.logic_gates.type[new2old_logic_idx],
-    )
+    if len(visible_logic_ids) > 0:
+        new2old_logic_idx = np.array(
+            [logic_id_to_idx[logic_id] for logic_id in visible_logic_ids],
+            dtype=np.int64,
+        )
+        old2new_logic_idx = {
+            old_idx: new_idx for new_idx, old_idx in enumerate(new2old_logic_idx)
+        }
+        # TODO: Check if full_obs.logic_gates.type needs to be re-indexed
+        # with attacker serialization.
+        logic_gates = LogicGate(
+            id=full_obs.logic_gates.id[new2old_logic_idx],
+            type=full_obs.logic_gates.type[new2old_logic_idx],
+        )
 
-    # Get all step2logic links (with old step and logic indices)
-    # for visible steps and logic gates
-    visible_old_logic_mask = np.zeros(full_obs.logic_gates.id.shape[0], dtype=bool)
-    visible_old_logic_mask[new2old_logic_idx] = True
-    visible_old_step2logic = full_obs.step2logic[
-        :,
-        visible_old_steps_mask[full_obs.step2logic[0]]
-        & visible_old_logic_mask[full_obs.step2logic[1]],
-    ]
-    new_step2logic = np.stack(
-        (
-            np.array(
+        # Get all step2logic links (with old step and logic indices)
+        # for visible steps and logic gates
+        visible_old_logic_mask = np.zeros(full_obs.logic_gates.id.shape[0], dtype=bool)
+        visible_old_logic_mask[new2old_logic_idx] = True
+        step2logic_mask = (
+            visible_old_steps_mask[full_obs.step2logic[0]]
+            & visible_old_logic_mask[full_obs.step2logic[1]]
+        )
+        visible_old_step2logic = full_obs.step2logic[:, step2logic_mask]
+        new_step2logic = np.array(
+            [
                 [
                     old2new_step_idx[old_step_idx]
                     for old_step_idx in visible_old_step2logic[0]
-                ]
-            ),
-            np.array(
+                ],
                 [
                     old2new_logic_idx[old_logic_idx]
                     for old_logic_idx in visible_old_step2logic[1]
-                ]
-            ),
-        ),
-        axis=0,
-    )
+                ],
+            ],
+            dtype=np.int64,
+        )
 
-    # Get all logic2step links (with old logic and step indices)
-    # for visible steps and logic gates
-    visible_old_logic2step = full_obs.logic2step[
-        :,
-        visible_old_logic_mask[full_obs.logic2step[0]]
-        & visible_old_steps_mask[full_obs.logic2step[1]],
-    ]
-    new_logic2step = np.stack(
-        (
-            np.array(
+        # Get all logic2step links (with old logic and step indices)
+        # for visible steps and logic gates
+        logic2step_mask = (
+            visible_old_logic_mask[full_obs.logic2step[0]]
+            & visible_old_steps_mask[full_obs.logic2step[1]]
+        )
+        visible_old_logic2step = full_obs.logic2step[:, logic2step_mask]
+        new_logic2step = np.array(
+            [
                 [
                     old2new_logic_idx[old_logic_idx]
                     for old_logic_idx in visible_old_logic2step[0]
-                ]
-            ),
-            np.array(
+                ],
                 [
                     old2new_step_idx[old_step_idx]
                     for old_step_idx in visible_old_logic2step[1]
-                ]
-            ),
-        ),
-        axis=0,
-    )
+                ],
+            ],
+            dtype=np.int64,
+        )
+    else:
+        logic_gates = LogicGate(
+            id=np.empty(0, dtype=np.int64), type=np.empty(0, dtype=np.int64)
+        )
+        new_step2logic = np.empty((2, 0), dtype=np.int64)
+        new_logic2step = np.empty((2, 0), dtype=np.int64)
 
     # Filter asset2asset links to only include visible assets
-
-    visible_old_asset2asset = full_obs.asset2asset[
-        :,
+    asset2asset_mask = (
         visible_old_asset_mask[full_obs.asset2asset[0]]
-        & visible_old_asset_mask[full_obs.asset2asset[1]],
-    ]
-    new_asset2asset = np.stack(
-        (
-            np.array(
-                [
-                    old2new_asset_idx[old_asset_idx]
-                    for old_asset_idx in visible_old_asset2asset[0]
-                ],
-                dtype=np.int64,
-            ),
-            np.array(
-                [
-                    old2new_asset_idx[old_asset_idx]
-                    for old_asset_idx in visible_old_asset2asset[1]
-                ],
-                dtype=np.int64,
-            ),
-        ),
-        axis=0,
+        & visible_old_asset_mask[full_obs.asset2asset[1]]
+    )
+    visible_old_asset2asset = full_obs.asset2asset[:, asset2asset_mask]
+    new_asset2asset = np.array(
+        [
+            [
+                old2new_asset_idx[old_asset_idx]
+                for old_asset_idx in visible_old_asset2asset[0]
+            ],
+            [
+                old2new_asset_idx[old_asset_idx]
+                for old_asset_idx in visible_old_asset2asset[1]
+            ],
+        ],
+        dtype=np.int64,
     )
 
     return MALObsInstance(
