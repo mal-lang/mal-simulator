@@ -334,17 +334,19 @@ def full_obs2attacker_obs(
         unique_assocs, assoc_link_counts = np.unique(
             visible_assets_old_assoc2asset[0], return_counts=True
         )
-        old_assoc_idx = unique_assocs[assoc_link_counts > 1]
-        assocs = Association(type=full_obs.associations.type[old_assoc_idx])
-
-        visible_old_assoc2asset = visible_assets_old_assoc2asset[
-            :, np.isin(visible_assets_old_assoc2asset[0], old_assoc_idx)
-        ]
+        new2old_assoc_idx = unique_assocs[assoc_link_counts > 1]
+        assocs = Association(type=full_obs.associations.type[new2old_assoc_idx])
 
         n_assocs_full = full_obs.associations.type.shape[0]
+        visible_old_assoc_mask = np.zeros(n_assocs_full, dtype=bool)
+        visible_old_assoc_mask[new2old_assoc_idx] = True
+        visible_old_assoc2asset = visible_assets_old_assoc2asset[
+            :, visible_old_assoc_mask[visible_assets_old_assoc2asset[0]]
+        ]
+
         assoc_index_remap = np.full(n_assocs_full, -1, dtype=np.int64)
-        assoc_index_remap[old_assoc_idx] = np.arange(
-            old_assoc_idx.shape[0], dtype=np.int64
+        assoc_index_remap[new2old_assoc_idx] = np.arange(
+            new2old_assoc_idx.shape[0], dtype=np.int64
         )
 
         new_assoc2asset = np.vstack(
