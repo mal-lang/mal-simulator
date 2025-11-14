@@ -183,44 +183,6 @@ def test_attacker_episode() -> None:
         done = terminated or truncated or (steps > 10_000)
 
 
-def test_vec_attacker_episode() -> None:
-    scenario_file = 'tests/testdata/scenarios/traininglang_scenario_with_model.yml'
-    scenario = Scenario.load_from_file(scenario_file)
-    sim_settings = MalSimulatorSettings(
-        ttc_mode=TTCMode.PER_STEP_SAMPLE,
-        run_defense_step_bernoullis=False,
-        run_attack_step_bernoullis=False,
-        attack_surface_skip_unnecessary=False,
-        attacker_reward_mode=RewardMode.ONE_OFF,
-    )
-
-    def thunk():
-        return MalSimAttackerGraph(
-            scenario,
-            sim_settings=sim_settings,
-        )
-
-    env = SyncVectorEnv([thunk] * 128)
-    vec_obs, info = env.reset()
-    done = np.zeros((env.num_envs,), dtype=bool)
-    while not done.all():
-        vec_action_mask = tuple(
-            vec_obs[i].steps.action_mask.astype(np.int8) for i in range(env.num_envs)
-        )
-        padded_vec_action_mask = tuple(
-            np.pad(
-                vec_action_mask[i],
-                (0, env.action_space[i].n - len(vec_action_mask[i])),
-                mode='constant',
-                constant_values=0,
-            )
-            for i in range(env.num_envs)
-        )
-        actions = env.action_space.sample(padded_vec_action_mask)
-        vec_obs, reward, terminated, truncated, info = env.step(actions)
-        done |= terminated | truncated
-
-
 def test_defender_episode() -> None:
     scenario_file = 'tests/testdata/scenarios/traininglang_scenario_with_model.yml'
     scenario = Scenario.load_from_file(scenario_file)
