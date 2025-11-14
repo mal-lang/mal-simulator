@@ -418,23 +418,28 @@ def full_obs2attacker_obs(
     # Logic gates have the same ID as the steps they are associated with
     # Map old logic indices to new logic indices
     old2new_logic_idx = {
-        int(np.where(full_obs.logic_gates.id == logic_id)[0]): new_idx
+        np.where(full_obs.logic_gates.id == logic_id)[0][0]: new_idx
         for new_idx, logic_id in enumerate(visible_step_ids)
-        if np.isin(logic_id, full_obs.logic_gates.id)
+        if np.any(logic_id == full_obs.logic_gates.id)
     }
-    old_logic_idx = np.array(
-        [old for old, _ in sorted(old2new_logic_idx.items(), key=lambda x: x[1])],
-        dtype=np.int64,
-    )
+    new2old_logic_idx = np.empty(len(visible_step_ids), dtype=np.int64)
+    for new_idx, logic_id in enumerate(visible_step_ids):
+        new2old_logic_idx[new_idx] = np.where(full_obs.logic_gates.id == logic_id)[0][0]
+    # old_logic_idx = np.array(
+    #     [old for old, _ in sorted(old2new_logic_idx.items(), key=lambda x: x[1])],
+    #     dtype=np.int64,
+    # )
+    # TODO: Check if full_obs.logic_gates.type needs to be re-indexed 
+    # with attacker serialization.
     logic_gates = LogicGate(
-        id=full_obs.logic_gates.id[old_logic_idx],
-        type=full_obs.logic_gates.type[old_logic_idx],
+        id=full_obs.logic_gates.id[new2old_logic_idx],
+        type=full_obs.logic_gates.type[new2old_logic_idx],
     )
 
     visible_old_step2logic = full_obs.step2logic[
         :,
         np.isin(full_obs.step2logic[0], new2old_step_idx)
-        & np.isin(full_obs.step2logic[1], old_logic_idx),
+        & np.isin(full_obs.step2logic[1], new2old_logic_idx),
     ]
     new_step2logic = np.stack(
         (
@@ -456,7 +461,7 @@ def full_obs2attacker_obs(
 
     visible_old_logic2step = full_obs.logic2step[
         :,
-        np.isin(full_obs.logic2step[0], old_logic_idx)
+        np.isin(full_obs.logic2step[0], new2old_logic_idx)
         & np.isin(full_obs.logic2step[1], new2old_step_idx),
     ]
     new_logic2step = np.stack(
