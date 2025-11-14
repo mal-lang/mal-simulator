@@ -190,23 +190,23 @@ def full_obs2attacker_obs(
 ) -> MALObsInstance:
     """Create an attacker observation from a full observation.
 
-        This observation makes all assets with compromised nodes visible to the attacker.
-        All steps that are on a visible asset are also visible to the attacker.
-        NOTE: This comes from an assumption that the attacker "knows" the
-        language of generalization used to create the full observation.
+    This observation makes all assets with compromised nodes visible to the attacker.
+    All steps that are on a visible asset are also visible to the attacker.
+    NOTE: This comes from an assumption that the attacker "knows" the
+    language of generalization used to create the full observation.
 
-        Sorts the steps so that all `and`/`or` steps have lower indices than
-        `defense`/`exist`/`notExist` steps. Re-indexes the step types so that step types of
-        `and`/`or` have lower indices than other step types.
+    Sorts the steps so that all `and`/`or` steps have lower indices than
+    `defense`/`exist`/`notExist` steps. Re-indexes the step types so that step types of
+    `and`/`or` have lower indices than other step types.
 
-        Args:
-            full_obs: The full observation.
-            state: The state of the attacker.
-            serializer: The language serializer.
-            see_defense_steps: Whether to include defense steps in the observation.
+    Args:
+        full_obs: The full observation.
+        state: The state of the attacker.
+        serializer: The language serializer.
+        see_defense_steps: Whether to include defense steps in the observation.
 
-        Returns:
-            The attacker observation.
+    Returns:
+        The attacker observation.
     """
     asset_id_to_idx = {asset_id: idx for idx, asset_id in enumerate(full_obs.assets.id)}
     step_id_to_idx = {step_id: idx for idx, step_id in enumerate(full_obs.steps.id)}
@@ -239,9 +239,9 @@ def full_obs2attacker_obs(
     for node in state.sim.attack_graph.nodes.values():
         if not node.model_asset or node.model_asset.id not in visible_asset_ids_set:
             continue
-        if node.type in ("and", "or"):
+        if node.type in ('and', 'or'):
             and_or_steps.append(node)
-        elif see_defense_steps and node.type in ("defense", "exist", "notExist"):
+        elif see_defense_steps and node.type in ('defense', 'exist', 'notExist'):
             defense_steps.append(node)
 
     and_or_steps.sort(key=lambda step: step.id)
@@ -258,7 +258,7 @@ def full_obs2attacker_obs(
     for i, step in enumerate(visible_steps):
         visible_step_ids[i] = step.id
         compromised_steps[i] = step in performed_nodes_set
-        observable_steps[i] = step.type in ("and", "or")
+        observable_steps[i] = step.type in ('and', 'or')
         step_attempts[i] = state.num_attempts.get(step, 0)
         traversable_steps[i] = state.sim.node_is_traversable(
             state.performed_nodes, step
@@ -432,6 +432,7 @@ def full_obs2attacker_obs(
         step2logic=new_step2logic,
         asset2asset=new_asset2asset,
     )
+
 
 def full_obs2defender_obs(
     full_obs: MALObsInstance, state: MalSimDefenderState, serializer: LangSerializer
