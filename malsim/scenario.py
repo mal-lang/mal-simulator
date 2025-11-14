@@ -149,33 +149,47 @@ class Scenario:
         # Attack graph is created from given lang and model
         self.attack_graph = create_attack_graph(self.lang_graph, self.model)
 
-        # Agents are generated from agents dict (in scenario file)
+        # Store all dicts
         self._agents_dict = agents
-        self.agents = load_simulator_agents(self.attack_graph, agents)
-
         self._rewards_dict = rewards
-        self.rewards = get_scenario_node_property_dict(
-            self.attack_graph, rewards or {}
-        )
-        self.false_positive_rates = get_scenario_node_property_dict(
-            self.attack_graph, false_positive_rates or {}
-        )
         self._fpr_dict = false_positive_rates
-
-        self.false_negative_rates = get_scenario_node_property_dict(
-            self.attack_graph, false_negative_rates or {}
-        )
         self._fnr_dict = false_negative_rates
-
-        self.is_observable = get_scenario_node_property_dict(
-            self.attack_graph, is_observable or {}, default_value=False
-        )
         self._is_observable_dict = is_observable
-
-        self.is_actionable = get_scenario_node_property_dict(
-            self.attack_graph, is_actionable or {}, default_value=False
-        )
         self._is_actionable_dict = is_actionable
+
+    @property
+    def agents(self):
+        return load_simulator_agents(self.attack_graph, self._agents_dict)
+
+    @property
+    def rewards(self):
+        return get_scenario_node_property_dict(
+            self.attack_graph, self._rewards_dict or {}
+        )
+
+    @property
+    def false_positive_rates(self):
+        return get_scenario_node_property_dict(
+            self.attack_graph, self._fpr_dict or {}
+        )
+
+    @property
+    def false_negative_rates(self):
+        return get_scenario_node_property_dict(
+            self.attack_graph, self._fnr_dict or {}
+        )
+
+    @property
+    def is_observable(self):
+        return get_scenario_node_property_dict(
+            self.attack_graph, self._is_observable_dict or {}, default_value=False
+        )
+
+    @property
+    def is_actionable(self):
+        return get_scenario_node_property_dict(
+            self.attack_graph, self._is_actionable_dict or {}, default_value=False
+        )
 
     def to_dict(self) -> dict[str, Any]:
         assert self._lang_file, (
@@ -252,34 +266,10 @@ class Scenario:
         )
 
         self._agents_dict = state['scenario_state']['agents']
-        self.agents = load_simulator_agents(self.attack_graph, self._agents_dict)
-
         self._rewards_dict = state['scenario_state'].get('rewards')
-        self.rewards = apply_scenario_node_property(
-            self.attack_graph, self._rewards_dict or {}
-        )
-        self.false_positive_rates = apply_scenario_node_property(
-            self.attack_graph, state['scenario_state'].get('false_positive_rates') or {}
-        )
         self._fpr_dict = state['scenario_state'].get('false_positive_rates')
-
-        self.false_negative_rates = apply_scenario_node_property(
-            self.attack_graph, state['scenario_state'].get('false_negative_rates') or {}
-        )
         self._fnr_dict = state['scenario_state'].get('false_negative_rates')
-
-        self.is_observable = apply_scenario_node_property(
-            self.attack_graph,
-            state['scenario_state'].get('observable_steps') or {},
-            default_value=False,
-        )
         self._is_observable_dict = state['scenario_state'].get('observable_steps')
-
-        self.is_actionable = apply_scenario_node_property(
-            self.attack_graph,
-            state['scenario_state'].get('actionable_steps') or {},
-            default_value=False,
-        )
         self._is_actionable_dict = state['scenario_state'].get('actionable_steps')
 
 

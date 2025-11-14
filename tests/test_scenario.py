@@ -208,7 +208,7 @@ def test_load_scenario_agent_class_error() -> None:
             path_relative_to_tests(
                 './testdata/scenarios/wrong_agent_classes_scenario.yml'
             )
-        )
+        ).agents
 
 
 def test_load_scenario_observability_given() -> None:
@@ -490,7 +490,7 @@ def test_scenario_pickle() -> None:
     """Make sure we can pickle a scenario"""
 
     # Load the scenario
-    scenario = load_scenario(
+    scenario = Scenario.load_from_file(
         path_relative_to_tests('./testdata/scenarios/simple_scenario.yml')
     )
 
