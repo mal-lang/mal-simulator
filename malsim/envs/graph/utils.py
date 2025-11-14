@@ -208,6 +208,8 @@ def full_obs2attacker_obs(
     Returns:
         The attacker observation.
     """
+    # Get all visible asset IDs for model asset of nodes that 
+    # are performed or on the action surface.
     visible_asset_ids = np.array(
         list(
             sorted(
@@ -224,6 +226,7 @@ def full_obs2attacker_obs(
             )
         )
     )
+    # Map old asset IDs to new asset IDs
     old2new_asset_idx = {
         int(np.where(full_obs.assets.id == asset_id)[0]): new_idx
         for new_idx, asset_id in enumerate(visible_asset_ids)
@@ -314,7 +317,7 @@ def full_obs2attacker_obs(
     visible_old_step2asset = full_obs.step2asset[
         :,
         np.isin(full_obs.step2asset[0], new2old_step_idx)
-        & np.isin(full_obs.step2asset[1], new2old_step_idx),
+        & np.isin(full_obs.step2asset[1], old_asset_idx),
     ]
     new_step2asset = np.stack(
         (
