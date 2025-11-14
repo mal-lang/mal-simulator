@@ -208,7 +208,7 @@ def full_obs2attacker_obs(
     Returns:
         The attacker observation.
     """
-    # Get all visible asset IDs for model asset of nodes that 
+    # Get all visible asset IDs for model asset of nodes that
     # are performed or on the action surface.
     visible_asset_ids = np.array(
         list(
@@ -261,7 +261,7 @@ def full_obs2attacker_obs(
             },
             key=lambda step: step.id,
         )
-    # Get step attributes 
+    # Get step attributes
     visible_step_ids = np.array([step.id for step in visible_steps])
     compromised_steps = np.array(
         [step in state.performed_nodes for step in visible_steps]
@@ -303,7 +303,7 @@ def full_obs2attacker_obs(
     visible_old_steps_mask[new2old_step_idx] = True
     visible_old_step2step = full_obs.step2step[
         :,
-        visible_old_steps_mask[full_obs.step2step[0]] 
+        visible_old_steps_mask[full_obs.step2step[0]]
         & visible_old_steps_mask[full_obs.step2step[1]],
     ]
     # Map old step2step links to new step2step links
@@ -330,7 +330,7 @@ def full_obs2attacker_obs(
     visible_old_asset_mask[new2old_asset_idx] = True
     visible_old_step2asset = full_obs.step2asset[
         :,
-        visible_old_steps_mask[full_obs.step2asset[0]] 
+        visible_old_steps_mask[full_obs.step2asset[0]]
         & visible_old_asset_mask[full_obs.step2asset[1]],
     ]
     # Map old step2asset links to new step2asset links
@@ -422,7 +422,13 @@ def full_obs2attacker_obs(
         for new_idx, logic_id in enumerate(visible_step_ids)
         if np.any(logic_id == full_obs.logic_gates.id)
     }
-    visible_logic_ids = np.array([logic_id for logic_id in visible_step_ids if logic_id in full_obs.logic_gates.id])
+    visible_logic_ids = np.array(
+        [
+            logic_id
+            for logic_id in visible_step_ids
+            if logic_id in full_obs.logic_gates.id
+        ]
+    )
     new2old_logic_idx = np.empty(len(visible_logic_ids), dtype=np.int64)
     for new_idx, logic_id in enumerate(visible_logic_ids):
         new2old_logic_idx[new_idx] = np.where(full_obs.logic_gates.id == logic_id)[0][0]
@@ -430,20 +436,20 @@ def full_obs2attacker_obs(
     #     [old for old, _ in sorted(old2new_logic_idx.items(), key=lambda x: x[1])],
     #     dtype=np.int64,
     # )
-    # TODO: Check if full_obs.logic_gates.type needs to be re-indexed 
+    # TODO: Check if full_obs.logic_gates.type needs to be re-indexed
     # with attacker serialization.
     logic_gates = LogicGate(
         id=full_obs.logic_gates.id[new2old_logic_idx],
         type=full_obs.logic_gates.type[new2old_logic_idx],
     )
 
-    # Get all step2logic links (with old step and logic indices) 
+    # Get all step2logic links (with old step and logic indices)
     # for visible steps and logic gates
     visible_old_logic_mask = np.zeros(full_obs.logic_gates.id.shape[0], dtype=bool)
     visible_old_logic_mask[new2old_logic_idx] = True
     visible_old_step2logic = full_obs.step2logic[
         :,
-        visible_old_steps_mask[full_obs.step2logic[0]] 
+        visible_old_steps_mask[full_obs.step2logic[0]]
         & visible_old_logic_mask[full_obs.step2logic[1]],
     ]
     new_step2logic = np.stack(
@@ -464,11 +470,11 @@ def full_obs2attacker_obs(
         axis=0,
     )
 
-    # Get all logic2step links (with old logic and step indices) 
+    # Get all logic2step links (with old logic and step indices)
     # for visible steps and logic gates
     visible_old_logic2step = full_obs.logic2step[
         :,
-        visible_old_logic_mask[full_obs.logic2step[0]] 
+        visible_old_logic_mask[full_obs.logic2step[0]]
         & visible_old_steps_mask[full_obs.logic2step[1]],
     ]
     new_logic2step = np.stack(
@@ -488,7 +494,6 @@ def full_obs2attacker_obs(
         ),
         axis=0,
     )
-
 
     # Filter asset2asset links to only include visible assets
     if full_obs.asset2asset.shape[1] > 0:
