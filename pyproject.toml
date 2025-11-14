@@ -41,6 +41,8 @@ dev = [
   "ruff",
   "types-requests",
   "types-PyYAML",
+  "pytest-profiling",
+  "snakeviz",
 ]
 
 [project.urls]
