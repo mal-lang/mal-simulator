@@ -12,10 +12,10 @@ from gymnasium import spaces
 from gymnasium.core import RenderFrame
 import numpy as np
 
-from ..scenario import load_scenario
-from ..mal_simulator import MalSimulator, AgentType
-from ..envs import MalSimVectorizedObsEnv
-from ..agents import DecisionAgent
+from ...scenario import load_scenario
+from ...mal_simulator import MalSimulator, AgentType
+from .malsim_vectorized_obs_env import MalSimVectorizedObsEnv
+from ...agents import DecisionAgent
 
 
 class AttackerEnv(gym.Env[Any, Any]):

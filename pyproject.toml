@@ -33,7 +33,7 @@ classifiers = [
 [project.optional-dependencies]
 ml = [
   "pettingzoo>=1.24.2",
-  "gymnasium~=1.0",
+  "gymnasium>=1.0,<1.2.2",
 ]
 dev = [
   "pytest",
@@ -41,6 +41,8 @@ dev = [
   "ruff",
   "types-requests",
   "types-PyYAML",
+  "pytest-profiling",
+  "snakeviz",
 ]
 
 [project.urls]
@@ -69,6 +71,7 @@ warn_no_return = true
 disallow_untyped_calls = true
 disallow_untyped_defs = true
 disallow_any_generics = true
+allow_subclassing_any = true
 
 [tool.ruff]
 line-length = 88
