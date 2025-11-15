@@ -1,3 +1,4 @@
+from gymnasium.vector import SyncVectorEnv
 from malsim import MalSimulator
 from malsim.envs.graph.graph_env import (
     MalSimAttackerGraph,
