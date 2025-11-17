@@ -1192,3 +1192,65 @@ def test_settings_serialization() -> None:
     )
     deserialized_settings = MalSimulatorSettings(**asdict(settings))
     assert deserialized_settings == settings
+
+
+def test_simulator_picklable() -> None:
+    import pickle
+
+    scenario = load_scenario(
+        'tests/testdata/scenarios/traininglang_observability_scenario.yml'
+    )
+    sim = MalSimulator.from_scenario(scenario)
+
+    pickle_path = '/tmp/sim.pkl'
+    with open(pickle_path, 'wb') as f:
+        pickle.dump(sim, f)
+
+    with open(pickle_path, 'rb') as f:
+        restored: MalSimulator = pickle.load(f)
+
+    assert type(restored) is type(sim)
+    assert restored.sim_settings == sim.sim_settings
+    assert restored.max_iter == sim.max_iter
+
+    # Compare attack graph dicts
+    assert restored.attack_graph._to_dict() == sim.attack_graph._to_dict()
+
+    # Compare node-based dictionaries by full_name
+    assert {n.full_name: v for n, v in restored._node_rewards.items()} == {
+        n.full_name: v for n, v in sim._node_rewards.items()
+    }
+
+    assert {n.full_name: v for n, v in restored._observability_per_node.items()} == {
+        n.full_name: v for n, v in sim._observability_per_node.items()
+    }
+
+    assert {n.full_name: v for n, v in restored._actionability_per_node.items()} == {
+        n.full_name: v for n, v in sim._actionability_per_node.items()
+    }
+
+    assert {n.full_name: v for n, v in restored._false_positive_rates.items()} == {
+        n.full_name: v for n, v in sim._false_positive_rates.items()
+    }
+
+    assert {n.full_name: v for n, v in restored._false_negative_rates.items()} == {
+        n.full_name: v for n, v in sim._false_negative_rates.items()
+    }
+
+    # Compare sets of nodes by full_name
+    assert {n.full_name for n in restored._enabled_defenses} == {
+        n.full_name for n in sim._enabled_defenses
+    }
+
+    assert {n.full_name for n in restored._impossible_attack_steps} == {
+        n.full_name for n in sim._impossible_attack_steps
+    }
+
+    # Compare derived dictionaries by node full_name
+    assert {n.full_name: v for n, v in restored._viability_per_node.items()} == {
+        n.full_name: v for n, v in sim._viability_per_node.items()
+    }
+
+    assert {n.full_name: v for n, v in restored._necessity_per_node.items()} == {
+        n.full_name: v for n, v in sim._necessity_per_node.items()
+    }

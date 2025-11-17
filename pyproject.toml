@@ -12,7 +12,7 @@ description = "A MAL compliant simulator."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "mal-toolbox>=1.1.2,<2.0.0",
+  "mal-toolbox>=1.1.3,<2.0.0",
   "PyYAML>=6.0.1",
   "numpy>=1.21.4",
   "scipy",
