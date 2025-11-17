@@ -346,5 +346,3 @@ def test_action_then_asset_wrapper() -> None:
         obs, reward, terminated, truncated, info = wrapped_env.step(action)
         i += 1
         done = terminated or truncated
-
-
