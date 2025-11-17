@@ -1,4 +1,9 @@
+from typing import Any, Tuple
+
 from gymnasium.vector import AsyncVectorEnv, SyncVectorEnv
+from gymnasium import spaces
+from gymnasium.utils.env_checker import check_env
+
 from malsim import MalSimulator
 from malsim.envs.graph.graph_env import (
     AttackerGraphEnv,
@@ -20,8 +25,9 @@ from malsim.mal_simulator import (
     RewardMode,
     MalSimAttackerState,
 )
-from gymnasium.utils.env_checker import check_env
 import numpy as np
+import numpy as np
+from numpy.typing import NDArray
 import pytest
 from pettingzoo.test import parallel_api_test
 from malsim.envs.graph.wrapper import ActionThenAssetWrapper, AssetThenActionWrapper
@@ -346,3 +352,56 @@ def test_action_then_asset_wrapper() -> None:
         obs, reward, terminated, truncated, info = wrapped_env.step(action)
         i += 1
         done = terminated or truncated
+
+
+def test_async_vector_env() -> None:
+    scenario_file: str = 'tests/testdata/scenarios/traininglang_scenario_with_model.yml'
+    scenario: Scenario = Scenario.load_from_file(scenario_file)
+
+    def thunk() -> AttackerGraphEnv:
+        return AttackerGraphEnv(
+            scenario,
+            MalSimulatorSettings(
+                ttc_mode=TTCMode.PER_STEP_SAMPLE,
+                run_defense_step_bernoullis=False,
+                run_attack_step_bernoullis=False,
+                attack_surface_skip_unnecessary=False,
+                attacker_reward_mode=RewardMode.ONE_OFF,
+            ),
+        )
+
+    env: AsyncVectorEnv = AsyncVectorEnv([thunk] * 32, shared_memory=False, daemon=True)
+
+    done: NDArray[np.bool_] = np.zeros((env.num_envs,), dtype=bool)
+
+    vec_obs: Tuple[Any, ...]
+    info: dict[str, Any]
+    vec_obs, info = env.reset()
+
+    assert isinstance(env.single_action_space, spaces.Discrete)
+    n_actions: int = int(env.single_action_space.n)
+
+    while not bool(done.all()):
+        vec_action_mask: Tuple[NDArray[np.int8], ...] = tuple(
+            obs.steps.action_mask.astype(np.int8) for obs in vec_obs
+        )
+
+        padded_vec_action_mask: Tuple[NDArray[np.int8], ...] = tuple(
+            np.pad(
+                vec_action_mask[i],
+                ((0, int(n_actions - vec_action_mask[i].shape[0])),),
+                mode='constant',
+                constant_values=0,
+            )
+            for i in range(env.num_envs)
+        )
+
+        actions: NDArray[np.int64] = env.action_space.sample(padded_vec_action_mask)
+
+        reward: NDArray[np.floating[Any]]
+        terminated: NDArray[np.bool_]
+        truncated: NDArray[np.bool_]
+
+        vec_obs, reward, terminated, truncated, info = env.step(actions)
+
+        done |= terminated | truncated
