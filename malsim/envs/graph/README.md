@@ -46,11 +46,11 @@ The interface supports multiple action space representations:
 
 - **`MALObsAttackStepSpace`**: Discrete space over actionable attack steps (AND/OR nodes)
   - Actions are indices into the sorted list of actionable attack steps
-  - Assumes all `and`/`or` steps have lower indicies than `defense`/`exist`/`notExist`
+  - Assumes all `and`/`or` steps have lower indicies than `defense`/`exist`/`notExist` in the observation (`MalObsInstance`)
 
 - **`MALObsDefenseStepSpace`**: Discrete space over actionable defense steps
   - Actions are indices into the sorted list of defense steps
-  - Assumes all `defense` steps have lower indicies than `and`/`or`/`defense`/`exist`/`notExist`
+  - Assumes all `defense` steps have lower indicies than `and`/`or`/`defense`/`exist`/`notExist` in the observation (`MalObsInstance`)
 
 #### Asset-Action Tuple Spaces
 
