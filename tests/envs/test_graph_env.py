@@ -1,8 +1,8 @@
 from gymnasium.vector import AsyncVectorEnv, SyncVectorEnv
 from malsim import MalSimulator
 from malsim.envs.graph.graph_env import (
-    MalSimAttackerGraph,
-    MalSimDefenderGraph,
+    AttackerGraphEnv,
+    DefenderGraphEnv,
     MalSimGraph,
     register_graph_envs,
 )
@@ -64,17 +64,17 @@ def test_check_graph_env(sim_settings: MalSimulatorSettings) -> None:
     scenario_file = 'tests/testdata/scenarios/simple_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file)
     register_graph_envs(scenario, sim_settings=sim_settings)
-    env: Any = MalSimAttackerGraph(scenario, sim_settings=sim_settings)
+    env: Any = AttackerGraphEnv(scenario, sim_settings=sim_settings)
     check_env(env, skip_render_check=True, skip_close_check=True)
 
-    env = MalSimDefenderGraph(scenario, sim_settings=sim_settings)
+    env = DefenderGraphEnv(scenario, sim_settings=sim_settings)
     check_env(env, skip_render_check=True, skip_close_check=True)
 
 
 def test_attacker_episode() -> None:
     scenario_file = 'tests/testdata/scenarios/traininglang_scenario_with_model.yml'
     scenario = Scenario.load_from_file(scenario_file)
-    attacker_env = MalSimAttackerGraph(
+    attacker_env = AttackerGraphEnv(
         scenario,
         sim_settings=MalSimulatorSettings(
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
@@ -186,7 +186,7 @@ def test_attacker_episode() -> None:
 def test_defender_episode() -> None:
     scenario_file = 'tests/testdata/scenarios/traininglang_scenario_with_model.yml'
     scenario = Scenario.load_from_file(scenario_file)
-    defender_env = MalSimDefenderGraph(
+    defender_env = DefenderGraphEnv(
         scenario,
         sim_settings=MalSimulatorSettings(
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
@@ -229,7 +229,7 @@ def test_pettingzoo_api_check() -> None:
 def test_asset_then_action_wrapper() -> None:
     scenario_file = 'tests/testdata/scenarios/traininglang_scenario_with_model.yml'
     scenario = Scenario.load_from_file(scenario_file)
-    attacker_env = MalSimAttackerGraph(
+    attacker_env = AttackerGraphEnv(
         scenario,
         MalSimulatorSettings(
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
@@ -259,7 +259,7 @@ def test_asset_then_action_wrapper() -> None:
         i += 1
         done = terminated or truncated
 
-    defender_env = MalSimDefenderGraph(
+    defender_env = DefenderGraphEnv(
         scenario,
         MalSimulatorSettings(
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
@@ -292,7 +292,7 @@ def test_asset_then_action_wrapper() -> None:
 def test_action_then_asset_wrapper() -> None:
     scenario_file = 'tests/testdata/scenarios/traininglang_scenario_with_model.yml'
     scenario = Scenario.load_from_file(scenario_file)
-    attacker_env = MalSimAttackerGraph(
+    attacker_env = AttackerGraphEnv(
         scenario,
         MalSimulatorSettings(
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
@@ -321,7 +321,7 @@ def test_action_then_asset_wrapper() -> None:
         i += 1
         done = terminated or truncated
 
-    defender_env = MalSimDefenderGraph(
+    defender_env = DefenderGraphEnv(
         scenario,
         MalSimulatorSettings(
             ttc_mode=TTCMode.PER_STEP_SAMPLE,

@@ -94,11 +94,11 @@ The serializer provides conversion arrays:
 
 #### Single-Agent Environments
 
-- **`MalSimAttackerGraph`**: Single-agent attacker environment
+- **`AttackerGraphEnv`**: Single-agent attacker environment
   - Wraps `MalSimGraph` to provide a single-agent interface
   - Action space: `MALObsAttackStepSpace`
 
-- **`MalSimDefenderGraph`**: Single-agent defender environment
+- **`DefenderGraphEnv`**: Single-agent defender environment
   - Wraps `MalSimGraph` to provide a single-agent interface
   - Action space: `MALObsDefenseStepSpace`
 
@@ -127,13 +127,13 @@ Transforms the action space from step indices to `(action_type, asset)` tuples:
 ## Usage Example
 
 ```python
-from malsim.envs.graph.graph_env import MalSimAttackerGraph
+from malsim.envs.graph.graph_env import AttackerGraphEnv
 from malsim.envs.graph.wrapper import AssetThenActionWrapper
 from malsim.scenario import Scenario
 
 # Create environment
 scenario = Scenario.load_from_file("scenario.yml")
-env = MalSimAttackerGraph(scenario, sim_settings)
+env = AttackerGraphEnv(scenario, sim_settings)
 
 # Wrap to use asset-action tuple space
 wrapped_env = AssetThenActionWrapper(

@@ -41,7 +41,7 @@ def register_graph_envs(
 ) -> None:
     gym.register(
         id='GraphAttackerEnv-v0',
-        entry_point='malsim.envs.graph.graph_env:GraphAttackerEnv',
+        entry_point='malsim.envs.graph.graph_env:AttackerGraphEnv',
         kwargs={
             'scenario': scenario,
             'sim_settings': sim_settings,
@@ -50,7 +50,7 @@ def register_graph_envs(
 
     gym.register(
         id='GraphDefenderEnv-v0',
-        entry_point='malsim.envs.graph.graph_env:GraphDefenderEnv',
+        entry_point='malsim.envs.graph.graph_env:DefenderGraphEnv',
         kwargs={
             'scenario': scenario,
             'sim_settings': sim_settings,
@@ -58,12 +58,12 @@ def register_graph_envs(
     )
 
 
-class MalSimAttackerGraph(gym.Env[MALObsInstance, np.int64]):
+class AttackerGraphEnv(gym.Env[MALObsInstance, np.int64]):
     metadata = {'render_modes': []}
 
     spec: EnvSpec = EnvSpec(
         id='GraphAttackerEnv-v0',
-        entry_point='malsim.envs.graph.graph_env:GraphAttackerEnv',
+        entry_point='malsim.envs.graph.graph_env:AttackerGraphEnv',
         nondeterministic=True,
         kwargs={
             'sim_settings': MalSimulatorSettings(
@@ -122,12 +122,12 @@ class MalSimAttackerGraph(gym.Env[MALObsInstance, np.int64]):
         return self.multi_env.close()
 
 
-class MalSimDefenderGraph(gym.Env[MALObsInstance, np.int64]):
+class DefenderGraphEnv(gym.Env[MALObsInstance, np.int64]):
     metadata = {'render_modes': []}
 
     spec: EnvSpec = EnvSpec(
         id='GraphDefenderEnv-v0',
-        entry_point='malsim.envs.graph.graph_env:GraphDefenderEnv',
+        entry_point='malsim.envs.graph.graph_env:DefenderGraphEnv',
         nondeterministic=True,
         kwargs={
             'sim_settings': MalSimulatorSettings(

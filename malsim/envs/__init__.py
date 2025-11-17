@@ -1,8 +1,8 @@
 from .legacy.malsim_vectorized_obs_env import MalSimVectorizedObsEnv
 from .legacy.gym_envs import AttackerEnv, DefenderEnv, register_envs  # type: ignore
 from .graph.graph_env import (
-    MalSimAttackerGraph,
-    MalSimDefenderGraph,
+    AttackerGraphEnv,
+    DefenderGraphEnv,
     register_graph_envs,
 )
 
@@ -12,7 +12,7 @@ __all__ = [
     'AttackerEnv',
     'DefenderEnv',
     'register_envs',
-    'MalSimAttackerGraph',
-    'MalSimDefenderGraph',
+    'AttackerGraphEnv',
+    'DefenderGraphEnv',
     'register_graph_envs',
 ]
