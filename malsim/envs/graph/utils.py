@@ -2,10 +2,10 @@ from maltoolbox.language import LanguageGraphAssociation
 import numpy as np
 
 from .mal_spaces import (
-    Asset,
-    Step,
-    Association,
-    LogicGate,
+    Assets,
+    Steps,
+    Associations,
+    LogicGates,
     MALObsInstance,
 )
 from .serialization import LangSerializer
@@ -48,7 +48,7 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         ]
     else:
         step_type_keys = [(node.name,) for node in sorted_steps]
-    steps = Step(
+    steps = Steps(
         type=np.array(
             [serializer.step_type[step_type_key] for step_type_key in step_type_keys]
         ),
@@ -95,7 +95,7 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
             asset_action_mask[asset_idx] = steps.action_mask[
                 connected_step_indices
             ].any()
-    assets = Asset(
+    assets = Assets(
         type=np.array([serializer.asset_type[asset.type] for asset in sorted_assets]),
         id=np.array([asset.id for asset in sorted_assets]),
         action_mask=asset_action_mask,
@@ -115,7 +115,7 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
     sorted_associations = sorted(
         associations, key=lambda x: (x[0].name, x[1].id, x[2].id)
     )
-    association = Association(
+    association = Associations(
         type=np.array(
             [
                 serializer.association_type[assoc.name,]
@@ -140,7 +140,7 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         [node for node in sorted_steps if node.type in ('and', 'or')],
         key=lambda x: x.id,
     )
-    logic_gates = LogicGate(
+    logic_gates = LogicGates(
         type=np.array(
             [(0 if node.type == 'and' else 1) for node in sorted_and_or_steps],
             dtype=np.int64,
@@ -273,7 +273,7 @@ def full_obs2attacker_obs(
 
     step_type = full_obs.steps.type[new2old_step_idx]
     step_type_attacker_indexing = serializer.step_type2attacker_step_type[step_type]
-    steps = Step(
+    steps = Steps(
         type=step_type_attacker_indexing,
         id=full_obs.steps.id[new2old_step_idx],
         logic_class=full_obs.steps.logic_class[new2old_step_idx],
@@ -317,7 +317,7 @@ def full_obs2attacker_obs(
             steps.action_mask[new_step2asset[0]],
         )
 
-    assets = Asset(
+    assets = Assets(
         type=full_obs.assets.type[new2old_asset_idx],
         id=full_obs.assets.id[new2old_asset_idx],
         action_mask=asset_action_mask,
@@ -335,7 +335,7 @@ def full_obs2attacker_obs(
             visible_assets_old_assoc2asset[0], return_counts=True
         )
         new2old_assoc_idx = unique_assocs[assoc_link_counts > 1]
-        assocs = Association(type=full_obs.associations.type[new2old_assoc_idx])
+        assocs = Associations(type=full_obs.associations.type[new2old_assoc_idx])
 
         n_assocs_full = full_obs.associations.type.shape[0]
         visible_old_assoc_mask = np.zeros(n_assocs_full, dtype=bool)
@@ -368,7 +368,7 @@ def full_obs2attacker_obs(
             [logic_id_to_idx[logic_id] for logic_id in visible_logic_ids],
             dtype=np.int64,
         )
-        logic_gates = LogicGate(
+        logic_gates = LogicGates(
             id=full_obs.logic_gates.id[new2old_logic_idx],
             type=full_obs.logic_gates.type[new2old_logic_idx],
         )
@@ -406,7 +406,7 @@ def full_obs2attacker_obs(
             )
         ).astype(np.int64)
     else:
-        logic_gates = LogicGate(
+        logic_gates = LogicGates(
             id=np.empty(0, dtype=np.int64), type=np.empty(0, dtype=np.int64)
         )
         new_step2logic = np.empty((2, 0), dtype=np.int64)
@@ -463,7 +463,7 @@ def full_obs2defender_obs(
     return MALObsInstance(
         time=np.int64(state.sim.cur_iter),
         assets=full_obs.assets,
-        steps=Step(
+        steps=Steps(
             type=serializer.step_type2defender_step_type[full_obs.steps.type],
             id=full_obs.steps.id,
             logic_class=full_obs.steps.logic_class,

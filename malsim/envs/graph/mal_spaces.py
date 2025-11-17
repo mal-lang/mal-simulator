@@ -9,12 +9,12 @@ from .serialization import LangSerializer
 from malsim.mal_simulator import MalSimulator
 
 
-class Asset(NamedTuple):
-    """An asset in the attack graph.
+class Assets(NamedTuple):
+    """Assets in the attack graph.
 
     Attributes:
-        type: The type of the asset (AssetType).
-        id: The ID of the asset in the model.
+        type: The type of the assets (AssetType).
+        id: The IDs of the assets in the model.
         action_mask: Whether there is any step connected to the asset which can be
             performed (i.e. step.action_mask == True).
 
@@ -25,19 +25,19 @@ class Asset(NamedTuple):
     action_mask: NDArray[np.bool_]
 
 
-class Step(NamedTuple):
-    """A node in the attack graph.
+class Steps(NamedTuple):
+    """Steps in the attack graph.
 
     Attributes:
-        type: The type of the step (AssetType, AttackStepName) or (AttackStepName,).
-        id: The ID of the step in the attack graph.
+        type: The type of the steps (AssetType, AttackStepName) or (AttackStepName,).
+        id: The IDs of the steps in the attack graph.
         logic_class: One of {'and', 'or', 'defense', 'exist', 'notExist'}.
-        tags: The first @-tag of the step.
-        compromised: Whether the step is observed as compromised.
-        observable: Whether the step can be observed to be compromised.
-        attempts: The number of times the step has been performed.
+        tags: The first @-tags of the steps.
+        compromised: Whether the steps are observed as compromised.
+        observable: Whether the steps can be observed to be compromised.
+        attempts: The number of times the steps have been performed.
             Only relevant for the attacker.
-        action_mask: Whether the step can be performed.
+        action_mask: Whether the steps can be performed.
     """
 
     type: NDArray[np.int64]
@@ -50,24 +50,24 @@ class Step(NamedTuple):
     action_mask: NDArray[np.bool_]
 
 
-class Association(NamedTuple):
-    """An association between two assets.
+class Associations(NamedTuple):
+    """Associations between assets.
 
     Attributes:
-        type: The type of the association (AssociationType).
+        type: The types of the associations (AssociationType).
     """
 
     type: NDArray[np.int64]
 
 
-class LogicGate(NamedTuple):
-    """A representation of the logic class for a node in the attack graph.
+class LogicGates(NamedTuple):
+    """A representation of the logic class for steps in the attack graph.
 
     Should only be used for nodes with logic class 'and' or 'or'.
 
     Attributes:
-        id: The ID of the node which the logic gate belongs to.
-        type: The type of the logic gate (LogicGateType).
+        id: The IDs of the steps which the logic gates belong to.
+        type: The types of the logic gates (LogicGateType).
     """
 
     id: NDArray[np.int64]
@@ -106,10 +106,10 @@ class MALObsInstance(NamedTuple):
 
     time: np.int64
 
-    assets: Asset
-    steps: Step
-    associations: Association | None
-    logic_gates: LogicGate
+    assets: Assets
+    steps: Steps
+    associations: Associations | None
+    logic_gates: LogicGates
 
     step2asset: NDArray[np.int64]
     assoc2asset: NDArray[np.int64] | None
@@ -223,7 +223,7 @@ class MALObs(Space[MALObsInstance]):
         """Return boolean specifying if x is a valid member of this space."""
         if isinstance(x, MALObsInstance):
             attack_step_tags_valid = self.attack_step_tags.contains(x.steps.tags[0])
-            if isinstance(x.logic_gates, LogicGate) and len(x.logic_gates.type) > 0:
+            if isinstance(x.logic_gates, LogicGates) and len(x.logic_gates.type) > 0:
                 logic_gate_type_valid = all(
                     x.logic_gates.type[i] in self.logic_gate_type
                     for i in range(len(x.logic_gates.type))
@@ -321,7 +321,7 @@ class MALObs(Space[MALObsInstance]):
                         & (x.step2asset[1] < x.assets.type.shape[0])
                     ).all()
                     if x.assoc2asset is not None and isinstance(
-                        x.associations, Association
+                        x.associations, Associations
                     ):
                         assoc2asset_valid = (
                             (x.assoc2asset[0] >= 0)
@@ -338,7 +338,7 @@ class MALObs(Space[MALObsInstance]):
                         (x.step2step[1] >= 0) & (x.step2step[1] < x.steps.type.shape[0])
                     ).all()
                     if (
-                        isinstance(x.logic_gates, LogicGate)
+                        isinstance(x.logic_gates, LogicGates)
                         and x.logic2step.shape[1] > 0
                         and x.step2logic.shape[1] > 0
                     ):
@@ -460,7 +460,7 @@ class MALObs(Space[MALObsInstance]):
         """Convert a JSONable data type to a batch of samples from this space."""
         ret_n: list[MALObsInstance] = []
         for sample in sample_n:
-            step = Step(
+            step = Steps(
                 type=np.array(sample['step_type'], dtype=self.attack_step_type.dtype),
                 id=np.array(sample['step_id'], dtype=self.attack_step_id.dtype),
                 logic_class=np.array(
@@ -489,7 +489,7 @@ class MALObs(Space[MALObsInstance]):
                     )
                 ),
             )
-            assets = Asset(
+            assets = Assets(
                 type=np.array(sample['asset_type'], dtype=self.asset_type.dtype),
                 id=np.array(sample['asset_id'], dtype=self.asset_id.dtype),
                 action_mask=np.array(
@@ -498,7 +498,7 @@ class MALObs(Space[MALObsInstance]):
                 ),
             )
             associations = (
-                Association(
+                Associations(
                     type=np.array(
                         sample['association_type'], dtype=self.association_type.dtype
                     ),
@@ -507,7 +507,7 @@ class MALObs(Space[MALObsInstance]):
                 else None
             )
             if sample.get('logic_gate_type') and self.logic_gate_type:
-                logic_gates = LogicGate(
+                logic_gates = LogicGates(
                     id=np.array(
                         sample['logic_gate_id'], dtype=self.attack_step_id.dtype
                     ),
@@ -516,7 +516,7 @@ class MALObs(Space[MALObsInstance]):
                     ),
                 )
             else:
-                logic_gates = LogicGate(
+                logic_gates = LogicGates(
                     id=np.array([], dtype=self.attack_step_id.dtype),
                     type=np.array([], dtype=self.logic_gate_type.dtype),
                 )
