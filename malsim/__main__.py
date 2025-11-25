@@ -4,12 +4,7 @@ from __future__ import annotations
 import argparse
 import logging
 
-from . import (
-    MalSimulator,
-    MalSimulatorSettings,
-    run_simulation,
-    load_scenario,
-)
+from . import MalSimulator, MalSimulatorSettings, run_simulation, Scenario
 from .mal_simulator import TTCMode
 
 logging.basicConfig(level=logging.INFO)
@@ -52,7 +47,7 @@ def main() -> None:
         help='If set, simulator will send actions to malsim-gui',
     )
     args = parser.parse_args()
-    scenario = load_scenario(args.scenario_file)
+    scenario = Scenario.load_from_file(args.scenario_file)
     sim = MalSimulator.from_scenario(
         scenario,
         MalSimulatorSettings(
@@ -66,7 +61,7 @@ def main() -> None:
     if args.output_attack_graph:
         sim.attack_graph.save_to_file(args.output_attack_graph)
 
-    run_simulation(sim, scenario.agents)
+    run_simulation(sim, scenario.agent_settings)
 
 
 if __name__ == '__main__':

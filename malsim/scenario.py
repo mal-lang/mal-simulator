@@ -13,7 +13,7 @@ A scenario is a combination of:
 
 from __future__ import annotations
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional, TextIO
 from enum import Enum
 import logging
@@ -22,7 +22,7 @@ import yaml
 
 from maltoolbox.model import Model
 from maltoolbox.language import LanguageGraph
-from maltoolbox.attackgraph import AttackGraph, AttackGraphNode, create_attack_graph
+from maltoolbox.attackgraph import AttackGraphNode, AttackGraph, create_attack_graph
 
 from .agents import (
     BreadthFirstAttacker,
@@ -46,7 +46,7 @@ class AgentType(Enum):
     DEFENDER = 'defender'
 
 
-agent_class_name_to_class = {
+policy_name_to_class = {
     'KeyboardAgent': KeyboardAgent,
     'PassiveAgent': PassiveAgent,
     'DepthFirstAttacker': DepthFirstAttacker,
@@ -67,7 +67,7 @@ deprecated_fields = [
 # All required fields in scenario yml file
 # Tuple indicates one of the fields in the tuple is required
 required_fields: list[str | tuple[str, str]] = [
-    'agents',
+    ('agents', 'agent_settings'),
     'lang_file',
     ('model_file', 'model'),
 ]
@@ -82,98 +82,277 @@ allowed_fields = required_fields + [
 ]
 
 
-@dataclass
-class AgentConfig:
-    # Will be used for agents in the future instead of dicts
-    name: str
-    agent_class: Any
-    agent: Any
-    policy: Any
+class AgentRuntimeMixin:
+    """Provides agent construction for attacker and defender."""
+
+    policy: Optional[type]
     config: dict[str, Any]
-    type: AgentType
+    _agent: Optional[Any] = None
+
+    def _create_agent(self) -> Optional[Any]:
+        if self.policy:
+            return self.policy(self.config)
+        return None
+
+    def reset_agent(self) -> None:
+        self._agent = self._create_agent()
+
+    @property
+    def agent(self) -> Optional[Any]:
+        if self._agent:
+            return self._agent
+        if self.policy is None:
+            return None
+        self._agent = self._create_agent()
+        return self._agent
 
 
 @dataclass
-class AttackerAgentConfig(AgentConfig):
-    """Agent configuration for the scenario"""
+class AttackerSettings(AgentRuntimeMixin):
+    """Settings for an attacker in a scenario."""
 
-    entry_points: set[AttackGraphNode]
-    goals: set[AttackGraphNode]
-    ...
+    name: str
+    entry_points: set[str] | set[AttackGraphNode]
+    goals: set[str] | set[AttackGraphNode] = field(default_factory=set)
+    policy: Optional[type] = None
+    actionable_steps: Optional[NodePropertyRule] = None
+    rewards: Optional[NodePropertyRule] = None
+    config: dict[str, Any] = field(default_factory=dict)
+    type: AgentType = AgentType.ATTACKER
+
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
+            'name': self.name,
+            'type': AgentType.ATTACKER.value,
+            'entry_points': {
+                n.full_name if isinstance(n, AttackGraphNode) else n
+                for n in self.entry_points
+            },
+        }
+        if self.goals:
+            d['goals'] = {
+                n.full_name if isinstance(n, AttackGraphNode) else n for n in self.goals
+            }
+        if self.policy:
+            d['policy'] = self.policy.__name__
+        if self.actionable_steps:
+            d['actionable_steps'] = self.actionable_steps.to_dict()
+        if self.rewards:
+            d['rewards'] = self.rewards.to_dict()
+        if self.config:
+            d['config'] = self.config
+        return d
 
 
 @dataclass
-class DefenderAgentConfig(AgentConfig):
-    """Agent configuration for the scenario"""
+class DefenderSettings(AgentRuntimeMixin):
+    """Settings for a defender in a scenario."""
 
-    ...
+    name: str
+    policy: Optional[type] = None
+    observable_steps: Optional[NodePropertyRule] = None
+    actionable_steps: Optional[NodePropertyRule] = None
+    rewards: Optional[NodePropertyRule] = None
+    false_positive_rates: Optional[NodePropertyRule] = None
+    false_negative_rates: Optional[NodePropertyRule] = None
+    config: dict[str, Any] = field(default_factory=dict)
+    type: AgentType = AgentType.DEFENDER
+
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
+            'name': self.name,
+            'type': AgentType.DEFENDER.value,
+        }
+        if self.policy:
+            d['policy'] = self.policy.__name__
+        if self.observable_steps:
+            d['observable_steps'] = self.observable_steps.to_dict()
+        if self.actionable_steps:
+            d['actionable_steps'] = self.actionable_steps.to_dict()
+        if self.rewards:
+            d['rewards'] = self.rewards.to_dict()
+        if self.false_positive_rates:
+            d['false_positive_rates'] = self.false_positive_rates.to_dict()
+        if self.false_negative_rates:
+            d['false_negative_rates'] = self.false_negative_rates.to_dict()
+        if self.config:
+            d['config'] = self.config
+        return d
+
+
+def agent_settings_from_dict(
+    name: str,
+    d: dict[str, Any],
+) -> AttackerSettings | DefenderSettings:
+    """Load agent settings from a dict"""
+
+    agent_type = AgentType(d['type'])
+
+    # Resolve policy class if provided
+    policy = None
+    policy_name = d.get('policy') or d.get('agent_class')
+    if policy_name:
+        if policy_name not in policy_name_to_class:
+            raise LookupError(
+                f"Policy class '{policy_name}' not supported. "
+                f'Must be one of: {list(policy_name_to_class.keys())}'
+            )
+        policy = policy_name_to_class[policy_name]
+
+    config = d.get('config', {})
+
+    if agent_type == AgentType.ATTACKER:
+        return AttackerSettings(
+            name=name,
+            entry_points=set(d['entry_points']),
+            goals=set(d.get('goals', [])),
+            policy=policy,
+            actionable_steps=NodePropertyRule.from_optional_dict(
+                d.get('actionable_steps')
+            ),
+            rewards=NodePropertyRule.from_optional_dict(d.get('rewards')),
+            config=config,
+        )
+
+    # Defender
+    return DefenderSettings(
+        name=name,
+        policy=policy,
+        observable_steps=NodePropertyRule.from_optional_dict(d.get('observable_steps')),
+        actionable_steps=NodePropertyRule.from_optional_dict(d.get('actionable_steps')),
+        rewards=NodePropertyRule.from_optional_dict(d.get('rewards')),
+        false_positive_rates=NodePropertyRule.from_optional_dict(
+            d.get('false_positive_rates')
+        ),
+        false_negative_rates=NodePropertyRule.from_optional_dict(
+            d.get('false_negative_rates')
+        ),
+        config=config,
+    )
+
+
+@dataclass
+class NodePropertyRule:
+    """
+    Defines a mapping from nodes to values based on:
+    - asset_type filters
+    - asset_name filters
+    """
+
+    by_asset_type: dict[str, Any] = field(default_factory=dict)
+    by_asset_name: dict[str, Any] = field(default_factory=dict)
+    default: Any = None
+
+    def __post_init__(self) -> None:
+        if not self.by_asset_type and not self.by_asset_name:
+            raise ValueError('Expected either "by_asset_type" or "by_asset_name"')
+
+    def value(self, node: AttackGraphNode, default: Any = None) -> Any:
+        """Get value for `node` based on this node property config"""
+        if not node.model_asset:
+            return default
+
+        asset_name = node.model_asset.name
+        asset_type = node.model_asset.type
+
+        # precedence: asset_name > asset_type > default
+        by_asset_name = self.by_asset_name.get(asset_name, {})
+        if node.name in by_asset_name:
+            if isinstance(by_asset_name, list):
+                return True
+            return by_asset_name[node.name]
+        by_asset_type = self.by_asset_type.get(asset_type, {})
+        if node.name in by_asset_type:
+            if isinstance(by_asset_type, list):
+                return True
+            return by_asset_type[node.name]
+
+        return default
+
+    def per_node(self, attack_graph: AttackGraph) -> dict[str, Any]:
+        """Return a dict mapping from each step full name to value given by config"""
+        per_node_dict = dict()
+        for n in attack_graph.nodes.values():
+            value = self.value(n)
+            if value is not None:
+                per_node_dict[n.full_name] = value
+        return per_node_dict
+
+    @classmethod
+    def _validate_dict(cls, node_property_dict: dict[str, Any]) -> None:
+        allowed_fields = {'by_asset_type', 'by_asset_name'}
+        present_allowed_fields = allowed_fields & node_property_dict.keys()
+        forbidden_fields = node_property_dict.keys() - allowed_fields
+        if not present_allowed_fields:
+            raise ValueError(
+                "Node property dict need at least 'by_asset_type' or 'by_asset_name'"
+            )
+        if forbidden_fields:
+            raise ValueError(f'Node property fields not allowed: {forbidden_fields}')
+
+    @classmethod
+    def from_optional_dict(
+        cls, node_property_dict: dict[str, dict[str, Any]] | None
+    ) -> Optional[NodePropertyRule]:
+        if node_property_dict is None:
+            return None
+
+        cls._validate_dict(node_property_dict)
+        return NodePropertyRule(
+            node_property_dict.get('by_asset_type', {}),
+            node_property_dict.get('by_asset_name', {}),
+        )
+
+    def to_dict(self) -> dict[str, dict[str, Any]]:
+        return {
+            'by_asset_type': self.by_asset_type,
+            'by_asset_name': self.by_asset_name,
+        }
 
 
 @dataclass
 class Scenario:
-    """Scenarios defines everything needed to run a simulation"""
+    """Scenarios define everything needed to run a simulation"""
 
     def __init__(
         self,
         lang_file: str,
-        agents: dict[str, Any],
-        model_dict: Optional[dict[str, Any]] = None,
-        model_file: Optional[str] = None,
-        model: Optional[Model] = None,
+        model: Model | dict[str, Any] | str,
+        agent_settings: dict[str, AttackerSettings | DefenderSettings],
         rewards: Optional[dict[str, Any]] = None,
         false_positive_rates: Optional[dict[str, Any]] = None,
         false_negative_rates: Optional[dict[str, Any]] = None,
-        is_observable: Optional[dict[str, Any]] = None,
-        is_actionable: Optional[dict[str, Any]] = None,
+        observable_steps: Optional[dict[str, Any]] = None,
+        actionable_steps: Optional[dict[str, Any]] = None,
     ):
         # Lang file is required
         self._lang_file = lang_file
         self.lang_graph = LanguageGraph.load_from_file(self._lang_file)
 
-        # Model file is optional
-        self._model_file = model_file
-
-        # User must give one of model, model_dict, model_file
-        # and we load the model accordingly.
-        if model and not (model_dict or model_file):
+        self._model_file = None
+        if isinstance(model, str):
+            self._model_file = model
+            self.model = Model.load_from_file(self._model_file, self.lang_graph)
+        elif isinstance(model, dict):
+            self.model = Model._from_dict(model, self.lang_graph)
+        elif isinstance(model, Model):
             self.model = model
-        elif model_dict and not (model or model_file):
-            self.model = Model._from_dict(model_dict, self.lang_graph)
-        elif model_file and not (model or model_dict):
-            self.model = Model.load_from_file(model_file, self.lang_graph)
         else:
-            raise ValueError(
-                'Scenario needs exactly one of model_dict, model or model_file set'
-            )
+            raise ValueError('`model` must be Model, dict, or str (file path)')
 
-        # Attack graph is created from given lang and model
         self.attack_graph = create_attack_graph(self.lang_graph, self.model)
+        self.agent_settings = agent_settings
 
-        # Agents are generated from agents dict (in scenario file)
-        self._agents_dict = agents
-        self.agents = load_simulator_agents(self.attack_graph, agents)
-
-        self._rewards_dict = rewards
-        self.rewards = apply_scenario_node_property(self.attack_graph, rewards or {})
-        self.false_positive_rates = apply_scenario_node_property(
-            self.attack_graph, false_positive_rates or {}
+        # Wrap dicts in NodePropertyRule if given
+        self.rewards = NodePropertyRule.from_optional_dict(rewards)
+        self.false_positive_rates = NodePropertyRule.from_optional_dict(
+            false_positive_rates
         )
-        self._fpr_dict = false_positive_rates
-
-        self.false_negative_rates = apply_scenario_node_property(
-            self.attack_graph, false_negative_rates or {}
+        self.false_negative_rates = NodePropertyRule.from_optional_dict(
+            false_negative_rates
         )
-        self._fnr_dict = false_negative_rates
-
-        self.is_observable = apply_scenario_node_property(
-            self.attack_graph, is_observable or {}, default_value=False
-        )
-        self._is_observable_dict = is_observable
-
-        self.is_actionable = apply_scenario_node_property(
-            self.attack_graph, is_actionable or {}, default_value=False
-        )
-        self._is_actionable_dict = is_actionable
+        self.is_observable = NodePropertyRule.from_optional_dict(observable_steps)
+        self.is_actionable = NodePropertyRule.from_optional_dict(actionable_steps)
 
     def to_dict(self) -> dict[str, Any]:
         assert self._lang_file, (
@@ -182,101 +361,62 @@ class Scenario:
         scenario_dict = {
             # 'version': ?
             'lang_file': self._lang_file,
-            'agents': self._agents_dict,
+            'agents': {
+                name: agent.to_dict() for name, agent in self.agent_settings.items()
+            },
         }
 
-        if self._rewards_dict:
-            scenario_dict['rewards'] = self._rewards_dict
-        if self._fpr_dict:
-            scenario_dict['false_positive_rates'] = self._fpr_dict
-        if self._fnr_dict:
-            scenario_dict['false_negative_rates'] = self._fnr_dict
-        if self._is_observable_dict:
-            scenario_dict['observable_steps'] = self._is_observable_dict
-        if self._is_actionable_dict:
-            scenario_dict['actionable_steps'] = self._is_actionable_dict
+        if self.rewards:
+            scenario_dict['rewards'] = self.rewards.to_dict()
+        if self.false_positive_rates:
+            scenario_dict['false_positive_rates'] = self.false_positive_rates.to_dict()
+        if self.false_negative_rates:
+            scenario_dict['false_negative_rates'] = self.false_negative_rates.to_dict()
+        if self.is_observable:
+            scenario_dict['observable_steps'] = self.is_observable.to_dict()
+        if self.is_actionable:
+            scenario_dict['actionable_steps'] = self.is_actionable.to_dict()
         if self._model_file:
+            # Use model file name instead of full model if model file was given at init
             scenario_dict['model_file'] = self._model_file
-        elif self.model:
-            scenario_dict['model'] = self.model._to_dict()
+        else:
+            scenario_dict['model'] = self.model.to_dict()
 
         return scenario_dict
 
     def save_to_file(self, file_path: str) -> None:
-        save_scenario_dict(self.to_dict(), file_path)
+        """Save scenario to a yaml-file"""
+        with open(file_path, 'w', encoding='utf-8') as f:
+            yaml.safe_dump(self.to_dict(), f, sort_keys=False)
 
     @classmethod
     def from_dict(cls, scenario_dict: dict[str, Any]) -> Scenario:
+        """Create a scenario object from a scenario dictionary"""
+        _validate_scenario_dict(scenario_dict)
+
+        agent_settings = {}
+        # Load agent settings from dict
+        for name, agent_settings_dict in scenario_dict['agents'].items():
+            agent_settings[str(name)] = agent_settings_from_dict(
+                name, agent_settings_dict
+            )
+
+        model_or_model_file = scenario_dict.get('model') or scenario_dict['model_file']
         return Scenario(
             lang_file=scenario_dict['lang_file'],
-            agents=scenario_dict['agents'],
-            model_dict=scenario_dict.get('model'),
-            model_file=scenario_dict.get('model_file'),
+            agent_settings=agent_settings,
+            model=model_or_model_file,
             rewards=scenario_dict.get('rewards'),
             false_positive_rates=scenario_dict.get('false_positive_rates'),
             false_negative_rates=scenario_dict.get('false_negative_rates'),
-            is_observable=scenario_dict.get('observable_steps'),
-            is_actionable=scenario_dict.get('actionable_steps'),
+            observable_steps=scenario_dict.get('observable_steps'),
+            actionable_steps=scenario_dict.get('actionable_steps'),
         )
 
     @classmethod
     def load_from_file(cls, scenario_file: str) -> Scenario:
         scenario_dict = load_scenario_dict(scenario_file)
-        _validate_scenario_dict(scenario_dict)
         return cls.from_dict(scenario_dict)
-
-    def __getstate__(self) -> dict[str, Any]:
-        lang_state = self.lang_graph._to_dict()  # type: ignore[no-untyped-call]
-        model_state = self.model.to_dict()
-        ag_state = self.attack_graph._to_dict()
-        scenario_state = self.to_dict()
-        return {
-            'lang_state': lang_state,
-            'model_state': model_state,
-            'ag_state': ag_state,
-            'scenario_state': scenario_state,
-        }
-
-    def __setstate__(self, state: dict[str, dict[str, Any]]) -> None:
-        self._lang_file = state['scenario_state']['lang_file']
-        self.lang_graph = LanguageGraph._from_dict(state['lang_state'])
-
-        self._model_file = state['scenario_state'].get('model_file')
-        self.model = Model._from_dict(state['model_state'], self.lang_graph)
-        self.attack_graph = AttackGraph._from_dict(
-            state['ag_state'], self.lang_graph, self.model
-        )
-
-        self._agents_dict = state['scenario_state']['agents']
-        self.agents = load_simulator_agents(self.attack_graph, self._agents_dict)
-
-        self._rewards_dict = state['scenario_state'].get('rewards')
-        self.rewards = apply_scenario_node_property(
-            self.attack_graph, self._rewards_dict or {}
-        )
-        self.false_positive_rates = apply_scenario_node_property(
-            self.attack_graph, state['scenario_state'].get('false_positive_rates') or {}
-        )
-        self._fpr_dict = state['scenario_state'].get('false_positive_rates')
-
-        self.false_negative_rates = apply_scenario_node_property(
-            self.attack_graph, state['scenario_state'].get('false_negative_rates') or {}
-        )
-        self._fnr_dict = state['scenario_state'].get('false_negative_rates')
-
-        self.is_observable = apply_scenario_node_property(
-            self.attack_graph,
-            state['scenario_state'].get('observable_steps') or {},
-            default_value=False,
-        )
-        self._is_observable_dict = state['scenario_state'].get('observable_steps')
-
-        self.is_actionable = apply_scenario_node_property(
-            self.attack_graph,
-            state['scenario_state'].get('actionable_steps') or {},
-            default_value=False,
-        )
-        self._is_actionable_dict = state['scenario_state'].get('actionable_steps')
 
 
 def _validate_scenario_dict(scenario_dict: dict[str, Any]) -> None:
@@ -329,244 +469,6 @@ def path_relative_to_file_dir(rel_path: str, file: TextIO) -> str:
     return os.path.join(file_dir_path, rel_path)
 
 
-def _validate_scenario_node_property_config(
-    graph: AttackGraph, prop_config: dict[str, dict[str, Any]]
-) -> None:
-    """Verify that node property configurations in a scenario contains only
-    valid assets, asset types and step names"""
-
-    # a way to lookup attack steps for asset types
-    asset_type_step_names = {
-        asset_type_name: [step_name for step_name in asset_type.attack_steps]
-        for asset_type_name, asset_type in graph.lang_graph.assets.items()
-    }
-
-    if not prop_config:
-        # Property configurations can be empty
-        return
-
-    assert 'by_asset_type' in prop_config or 'by_asset_name' in prop_config, (
-        'Node property config in scenario file must  contain'
-        "either 'by_asset_type' or 'by_asset_name' as keys"
-    )
-
-    for asset_type in prop_config.get('by_asset_type', []):
-        # Make sure each specified asset type exists
-        assert asset_type in asset_type_step_names.keys(), (
-            f"Failed to find asset type '{asset_type}' in language "
-            'when applying node property configuration'
-        )
-
-        for step_name in prop_config['by_asset_type'][asset_type]:
-            # Make sure each specified attack step name
-            # exists for the specified asset type
-            assert step_name in asset_type_step_names[asset_type], (
-                f"Step '{step_name}' not found for asset type "
-                f"'{asset_type}' in language when applying "
-                'node property configuration'
-            )
-
-    assert graph.model, 'Attack graph in scenario needs to have a model attached to it'
-    asset_names = set(a.name for a in graph.model.assets.values())
-    for asset_name in prop_config.get('by_asset_name', []):
-        # Make sure each specified asset exist
-        assert asset_name in asset_names, (
-            f"Failed to find asset name '{asset_name}' in model "
-            f"'{graph.model.name}' when applying node property "
-            'configurations'
-        )
-
-        for step_name in prop_config['by_asset_name'][asset_name]:
-            # Make sure each specified attack step name exists
-            # for the specified asset
-            expected_full_name = f'{asset_name}:{step_name}'
-            assert graph.get_node_by_full_name(expected_full_name), (
-                f"Attack step '{step_name}' not found for asset "
-                f"'{asset_name}' when applying node property configurations"
-            )
-
-
-def apply_scenario_node_property(
-    attack_graph: AttackGraph,
-    prop_config: dict[str, dict[str, Any]],
-    default_value: Optional[Any] = None,
-) -> dict[AttackGraphNode, Any]:
-    """Apply node property values from scenario configuration.
-
-    Note: Property values provided 'by_asset_name' will take precedence over
-    those provided 'by_asset_type' as they are more specific.
-
-    Arguments:
-    - attack_graph:     The attack graph to apply the settings to
-    - node_prop:        Property name in string format (i.e. 'false_positive_rate')
-    - prop_config:      Settings from scenario file with keys `by_asset_name`
-                        and/or `by_asset_type`
-    - default_value:    The default value to set for the property for nodes
-                        where no value is given in the configuration. If None
-                        no values will be set. This is only relevant if the
-                        property is included in the scenario configuration.
-
-    Return dict mapping from attack graph node to the value it is given
-    for the requested property.
-    """
-
-    def _extract_value_from_entries(
-        entries: dict[str, Any] | list[str], step_name: str
-    ) -> Any:
-        """
-        Return the property value matching the step name in the provided
-        entries.
-
-        Arguments:
-        - entries:      A list or dictionary representing the property entries
-        - step_name:    The attack step name to look up
-
-        Returns:
-        - The value of the matching property or None if no match is found
-        """
-        if isinstance(entries, dict):
-            # If a value is provided in a dictionary we assign it to the node
-            return entries.get(step_name)
-        elif isinstance(entries, list):
-            # If a list of attack steps is provided we interpret it as a
-            # binary property and set it to 1 if the attack step is in the
-            # list
-            value = 1 if step_name in entries else None
-            return value
-        else:
-            raise ValueError(
-                'Error! Scenario node property configuration '
-                'is neither dictionary, nor list!'
-            )
-
-    property_dict: dict[AttackGraphNode, Any] = {}
-
-    if not prop_config:
-        return property_dict
-
-    _validate_scenario_node_property_config(attack_graph, prop_config)
-
-    for step in attack_graph.nodes.values():
-        if default_value is not None:
-            property_dict[step] = default_value
-
-        # Check for matching asset type property configuration entry
-        prop_asset_type_entries = prop_config.get('by_asset_type', {}).get(
-            step.lg_attack_step.asset.name, {}
-        )
-        prop_value_from_asset_type = _extract_value_from_entries(
-            prop_asset_type_entries, step.name
-        )
-
-        # Check for matching specific asset(given by name) property
-        # configuration entry
-        assert step.model_asset, f'Attack step {step} missing connection to model'
-        prop_specific_asset_entries = prop_config.get('by_asset_name', {}).get(
-            step.model_asset.name, {}
-        )
-        prop_value_from_specific_asset = _extract_value_from_entries(
-            prop_specific_asset_entries, step.name
-        )
-
-        # Asset type values are applied first
-        if prop_value_from_asset_type:
-            property_dict[step] = prop_value_from_asset_type
-
-        # Specific asset defined values override asset type values
-        if prop_value_from_specific_asset:
-            property_dict[step] = prop_value_from_specific_asset
-
-    return property_dict
-
-
-def get_entry_point_nodes(
-    attack_graph: AttackGraph, entry_point_names: list[str]
-) -> set[AttackGraphNode]:
-    """Get entry point nodes from attackgraph
-
-    Args:
-    - attack_graph: the attack graph to the nodes from
-    - entry_points: the entry points names to look for
-
-    Returns:
-    - the set of entry point nodes from the attack graph
-    """
-
-    entry_points = set()
-
-    for entry_point_name in entry_point_names:
-        entry_point = attack_graph.get_node_by_full_name(entry_point_name)
-        if not entry_point:
-            raise LookupError(f'Node {entry_point_name} does not exist')
-        entry_points.add(entry_point)
-
-    return entry_points
-
-
-def load_simulator_agents(
-    attack_graph: AttackGraph, scenario_agents: dict[str, Any]
-) -> list[dict[str, Any]]:
-    """Load agents to be registered in MALSimulator
-
-    Create the agents from the specified classes,
-    register entrypoints for attackers.
-
-    Args:
-    - attack_graph: the attack graph
-    - scenario: the scenario in question as a dict
-    Return:
-    - agents: a list of agent configurations (dicts)
-    """
-
-    # Create list of agents dicts
-    agents = []
-
-    for agent_name, agent_info in scenario_agents.items():
-        agent_type = AgentType(agent_info.get('type'))
-        agent_class_name = agent_info.get('agent_class')
-        agent_class = agent_class_name_to_class.get(agent_class_name)
-        agent_config = agent_info.get('config', {})
-        agent = agent_class(agent_config) if agent_class else None
-        policy = agent_class(agent_config) if agent_class else None
-
-        if agent_class_name and agent_class_name not in agent_class_name_to_class:
-            raise LookupError(
-                f"Agent class '{agent_class_name}' not supported.\n"
-                f'Must be one of: {agent_class_name_to_class.values()}'
-            )
-
-        if agent_type == AgentType.ATTACKER:
-            agent_config = {
-                'name': agent_name,
-                'agent_class': agent_class,
-                'agent': agent,
-                'policy': policy,
-                'config': agent_config,
-                'entry_points': get_entry_point_nodes(
-                    attack_graph,
-                    agent_info['entry_points'],  # Required
-                ),
-                'goals': get_entry_point_nodes(
-                    attack_graph,
-                    agent_info.get('goals', []),  # Optional
-                ),
-                'type': AgentType.ATTACKER,
-            }
-        elif agent_type == AgentType.DEFENDER:
-            agent_config = {
-                'name': agent_name,
-                'agent_class': agent_class,
-                'agent': agent,
-                'policy': policy,
-                'config': agent_config,
-                'type': AgentType.DEFENDER,
-            }
-
-        agents.append(agent_config)
-
-    return agents
-
-
 def _extend_scenario(
     original_scenario_path: str, overriding_scenario: dict[str, Any]
 ) -> dict[str, Any]:
@@ -577,7 +479,6 @@ def _extend_scenario(
 
     original_scenario: dict[str, Any] = load_scenario_dict(original_scenario_path)
     resulting_scenario = original_scenario.copy()
-
     for key, value in overriding_scenario.items():
         # Override the original scenario with the
         # overriding scenario key,value pairs
@@ -585,11 +486,14 @@ def _extend_scenario(
             # The 'extends' key is not needed after extend is done
             continue
         resulting_scenario[key] = value
-
     return resulting_scenario
 
 
 def load_scenario_dict(scenario_file: str) -> dict[str, Any]:
+    """From a scenario file, load a scenario dict.
+
+    Extend it with other scenario if `extend` keyword is used.
+    """
     with open(scenario_file, 'r', encoding='utf-8') as s_file:
         scenario: dict[str, Any] = yaml.safe_load(s_file)
 
@@ -606,40 +510,4 @@ def load_scenario_dict(scenario_file: str) -> dict[str, Any]:
             scenario['model_file'] = path_relative_to_file_dir(
                 scenario['model_file'], s_file
             )
-
     return scenario
-
-
-def load_scenario(scenario_file: str) -> Scenario:
-    """Load a Scenario from a scenario file"""
-    msg = (
-        "'load_scenario' will be deprecated in mal-simulator 2.0.0, "
-        'please use Scenario.load_from_file'
-    )
-    print(msg)
-    logger.warning(msg)
-    return Scenario.load_from_file(scenario_file)
-
-
-def create_simulator_from_scenario(
-    scenario_file: str,
-    **kwargs: Any,
-) -> None:
-    """Deprecated"""
-    raise DeprecationWarning('Use MalSimulator.from_scenario instead')
-
-
-def create_scenario_dict(
-    lang_file: str,
-    model: str | Model,
-    agents: dict[str, Any],
-    settings: Optional[dict[str, Any]] = None,
-) -> dict[str, Any]:
-    """Create a scenario dict from given settings"""
-    raise DeprecationWarning('Use Scenario.to_dict')
-
-
-def save_scenario_dict(scenario_dict: dict[str, Any], file_path: str) -> None:
-    """Save scenario to file"""
-    with open(file_path, 'w', encoding='utf-8') as f:
-        yaml.safe_dump(scenario_dict, f, sort_keys=False)
