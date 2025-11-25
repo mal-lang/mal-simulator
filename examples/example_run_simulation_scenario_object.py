@@ -6,27 +6,28 @@ from maltoolbox.model import Model
 from maltoolbox.language import LanguageGraph
 
 from malsim import MalSimulator, run_simulation
-from malsim.scenario import Scenario
+from malsim.scenario import Scenario, AttackerSettings, DefenderSettings
+from malsim.agents import BreadthFirstAttacker, PassiveAgent
 
 
 def test_scenario_obj_files() -> None:
     scenario = Scenario(
         lang_file='tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar',
-        model_file='tests/testdata/models/traininglang_model.yml',
-        agents={
-            'Attacker1': {
-                'type': 'attacker',
-                'agent_class': 'BreadthFirstAttacker',
-                'entry_points': ['User:3:phishing', 'Host:0:connect'],
-            },
-            'Defender1': {'type': 'defender', 'agent_class': 'PassiveAgent'},
+        model='tests/testdata/models/traininglang_model.yml',
+        agent_settings={
+            'Attacker1': AttackerSettings(
+                name='Attacker1',
+                entry_points={'User:3:phishing', 'Host:0:connect'},
+                policy=BreadthFirstAttacker,
+            ),
+            'Defender1': DefenderSettings(name='Defender1', policy=PassiveAgent),
         },
     )
 
     scenario.save_to_file('scenario1.yml')
 
     mal_simulator = MalSimulator.from_scenario(scenario)
-    _ = run_simulation(mal_simulator, scenario.agents)
+    _ = run_simulation(mal_simulator, scenario.agent_settings)
 
 
 def test_scenario_obj_file_and_dict() -> None:
@@ -39,21 +40,21 @@ def test_scenario_obj_file_and_dict() -> None:
     )
     scenario = Scenario(
         lang_file='tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar',
-        model_dict=model.to_dict(),
-        agents={
-            'Attacker1': {
-                'type': 'attacker',
-                'agent_class': 'BreadthFirstAttacker',
-                'entry_points': ['User:3:phishing', 'Host:0:connect'],
-            },
-            'Defender1': {'type': 'defender', 'agent_class': 'PassiveAgent'},
+        model=model.to_dict(),
+        agent_settings={
+            'Attacker1': AttackerSettings(
+                name='Attacker1',
+                entry_points={'User:3:phishing', 'Host:0:connect'},
+                policy=BreadthFirstAttacker,
+            ),
+            'Defender1': DefenderSettings(name='Defender1', policy=PassiveAgent),
         },
     )
 
     scenario.save_to_file('scenario2.yml')
 
     mal_simulator = MalSimulator.from_scenario(scenario)
-    _ = run_simulation(mal_simulator, scenario.agents)
+    _ = run_simulation(mal_simulator, scenario.agent_settings)
 
 
 def test_scenario_obj_file_and_model() -> None:
@@ -67,20 +68,20 @@ def test_scenario_obj_file_and_model() -> None:
     scenario = Scenario(
         lang_file='tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar',
         model=model,
-        agents={
-            'Attacker1': {
-                'type': 'attacker',
-                'agent_class': 'BreadthFirstAttacker',
-                'entry_points': ['User:3:phishing', 'Host:0:connect'],
-            },
-            'Defender1': {'type': 'defender', 'agent_class': 'PassiveAgent'},
+        agent_settings={
+            'Attacker1': AttackerSettings(
+                name='Attacker1',
+                entry_points={'User:3:phishing', 'Host:0:connect'},
+                policy=BreadthFirstAttacker,
+            ),
+            'Defender1': DefenderSettings(name='Defender1', policy=PassiveAgent),
         },
     )
 
     scenario.save_to_file('scenario3.yml')
 
     mal_simulator = MalSimulator.from_scenario(scenario)
-    _ = run_simulation(mal_simulator, scenario.agents)
+    _ = run_simulation(mal_simulator, scenario.agent_settings)
 
 
 if __name__ == '__main__':
