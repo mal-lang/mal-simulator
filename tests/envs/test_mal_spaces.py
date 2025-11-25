@@ -47,9 +47,9 @@ def test_attacker_obs() -> None:
     scenario_file = 'tests/testdata/scenarios/simple_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file)
     attacker_name = next(
-        agent['name']
-        for agent in scenario.agents
-        if agent['type'] == AgentType.ATTACKER
+        agent.name
+        for agent in scenario.agent_settings.values()
+        if agent.type == AgentType.ATTACKER
     )
     serializer = LangSerializer(
         scenario.lang_graph, split_assoc_types=False, split_step_types=True
@@ -136,9 +136,9 @@ def test_defender_obs() -> None:
     scenario_file = 'tests/testdata/scenarios/simple_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file)
     defender_name = next(
-        agent['name']
-        for agent in scenario.agents
-        if agent['type'] == AgentType.DEFENDER
+        agent.name
+        for agent in scenario.agent_settings.values()
+        if agent.type == AgentType.DEFENDER
     )
     serializer = LangSerializer(
         scenario.lang_graph, split_assoc_types=False, split_step_types=True
@@ -164,9 +164,11 @@ def test_jsonable() -> None:
     scenario_file = 'tests/testdata/scenarios/simple_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file)
     attacker = next(
-        agent for agent in scenario.agents if agent['type'] == AgentType.ATTACKER
+        agent
+        for agent in scenario.agent_settings.values()
+        if agent.type == AgentType.ATTACKER
     )
-    agent_name = attacker['name']
+    agent_name = attacker.name
     serializer = LangSerializer(
         scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
@@ -194,9 +196,9 @@ def test_asset_then_attacker_action() -> None:
     scenario_file = 'tests/testdata/scenarios/simple_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file)
     attacker_name = next(
-        agent['name']
-        for agent in scenario.agents
-        if agent['type'] == AgentType.ATTACKER
+        agent.name
+        for agent in scenario.agent_settings.values()
+        if agent.type == AgentType.ATTACKER
     )
     serializer = LangSerializer(
         scenario.lang_graph, split_assoc_types=False, split_step_types=True
@@ -238,9 +240,9 @@ def test_asset_then_defender_action() -> None:
     scenario_file = 'tests/testdata/scenarios/simple_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file)
     defender_name = next(
-        agent['name']
-        for agent in scenario.agents
-        if agent['type'] == AgentType.DEFENDER
+        agent.name
+        for agent in scenario.agent_settings.values()
+        if agent.type == AgentType.DEFENDER
     )
     serializer = LangSerializer(
         scenario.lang_graph, split_assoc_types=False, split_step_types=True
@@ -282,9 +284,9 @@ def test_attacker_action_then_asset() -> None:
     scenario_file = 'tests/testdata/scenarios/simple_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file)
     attacker_name = next(
-        agent['name']
-        for agent in scenario.agents
-        if agent['type'] == AgentType.ATTACKER
+        agent.name
+        for agent in scenario.agent_settings.values()
+        if agent.type == AgentType.ATTACKER
     )
     serializer = LangSerializer(
         scenario.lang_graph, split_assoc_types=False, split_step_types=True
@@ -326,9 +328,9 @@ def test_defender_action_then_asset() -> None:
     scenario_file = 'tests/testdata/scenarios/simple_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file)
     defender_name = next(
-        agent['name']
-        for agent in scenario.agents
-        if agent['type'] == AgentType.DEFENDER
+        agent.name
+        for agent in scenario.agent_settings.values()
+        if agent.type == AgentType.DEFENDER
     )
     serializer = LangSerializer(
         scenario.lang_graph, split_assoc_types=False, split_step_types=True
