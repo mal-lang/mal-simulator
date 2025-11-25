@@ -187,12 +187,13 @@ class DefenderGraphEnv(gym.Env[MALObsInstance, np.int64]):
 
 
 def get_agent_name(scenario: Scenario, type: AgentType) -> str:
-    agents = [agent for agent in scenario.agents if agent['type'] == type]
-    assert len(agents) == 1, (
-        f'Expected exactly one agent of type {type}, got {len(agents)} agents'
+    agent_names = [
+        name for name, agent in scenario.agent_settings.items() if agent.type == type
+    ]
+    assert len(agent_names) == 1, (
+        f'Expected exactly one agent of type {type}, got {len(agent_names)} agents'
     )
-    agent_name = agents[0]['name']
-    return str(agent_name)
+    return str(agent_names[0])
 
 
 class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
