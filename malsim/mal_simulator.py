@@ -394,104 +394,74 @@ class MalSimulator:
         )
         return self._ttc_values[node]
 
-    def _get_node_property_value(
-        self,
-        node: AttackGraphNode | str,
-        agent_property_rules: NodePropertyRule | None,
-        global_property_dict: dict[AttackGraphNode, Any] | None,
-        default_when_unconfigured: Any,
-        default_when_missing: Any,
-    ) -> Any:
-        """Helper to get a node property for a node for a specific agent"""
-        node = self._full_name_or_node_to_node(node)
-
-        if agent_property_rules:
-            return agent_property_rules.value(node, default_when_missing)
-
-        if global_property_dict:
-            return global_property_dict.get(node, default_when_missing)
-
-        return default_when_unconfigured
-
-    def node_is_observable(
-        self, node: AttackGraphNode, agent_name: Optional[str] = None
-    ) -> bool:
-        agent_settings = self._agent_settings[agent_name] if agent_name else None
-        return bool(
-            self._get_node_property_value(
-                node,
-                agent_property_rules=(
-                    agent_settings.observable_steps
-                    if isinstance(agent_settings, DefenderSettings)
-                    else None
-                ),
-                global_property_dict=self._node_observabilities,
-                default_when_unconfigured=True,
-                default_when_missing=False,
-            )
-        )
-
     def node_is_actionable(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> bool:
         agent_settings = self._agent_settings[agent_name] if agent_name else None
-        return bool(
-            self._get_node_property_value(
-                node,
-                agent_property_rules=agent_settings.actionable_steps
-                if agent_settings
-                else None,
-                global_property_dict=self._node_actionabilities,
-                default_when_unconfigured=True,
-                default_when_missing=False,
-            )
-        )
+        if agent_settings and agent_settings.actionable_steps:
+            # Actionability from agent settings
+            return bool(agent_settings.actionable_steps.value(node, False))
+        if self._node_actionabilities:
+            # Actionability from global settings
+            return self._node_actionabilities.get(node, False)
+        return True
 
     def node_reward(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> float:
         agent_settings = self._agent_settings[agent_name] if agent_name else None
-        return float(
-            self._get_node_property_value(
-                node,
-                agent_property_rules=agent_settings.rewards if agent_settings else None,
-                global_property_dict=self._rewards,
-                default_when_unconfigured=0.0,
-                default_when_missing=0.0,
-            )
-        )
+        if agent_settings and agent_settings.rewards:
+            # Node reward from agent settings
+            return float(agent_settings.rewards.value(node, 0.0))
+        if self._rewards:
+            # Node reward from global settings
+            return self._rewards.get(node, 0.0)
+        return 0.0
+
+    def node_is_observable(
+        self, node: AttackGraphNode, agent_name: Optional[str] = None
+    ) -> bool:
+        agent_settings = self._agent_settings[agent_name] if agent_name else None
+        if (
+            isinstance(agent_settings, DefenderSettings)
+            and agent_settings.observable_steps
+        ):
+            # Observability from agent settings
+            return bool(agent_settings.observable_steps.value(node, False))
+        if self._node_observabilities:
+            # Observability from global settings
+            return self._node_observabilities.get(node, False)
+        return True
 
     def node_false_positive_rate(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> float:
         agent_settings = self._agent_settings[agent_name] if agent_name else None
-        return float(
-            self._get_node_property_value(
-                node,
-                agent_property_rules=agent_settings.false_positive_rates
-                if isinstance(agent_settings, DefenderSettings)
-                else None,
-                global_property_dict=self._false_positive_rates,
-                default_when_unconfigured=0.0,
-                default_when_missing=0.0,
-            )
-        )
+        if (
+            isinstance(agent_settings, DefenderSettings)
+            and agent_settings.false_positive_rates
+        ):
+            # FPR from agent settings
+            return float(agent_settings.false_positive_rates.value(node, 0.0))
+        if self._false_positive_rates:
+            # FPR from global settings
+            return self._false_positive_rates.get(node, 0.0)
+        return 0.0
 
     def node_false_negative_rate(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> float:
         agent_settings = self._agent_settings[agent_name] if agent_name else None
-        return float(
-            self._get_node_property_value(
-                node,
-                agent_property_rules=agent_settings.false_negative_rates
-                if isinstance(agent_settings, DefenderSettings)
-                else None,
-                global_property_dict=self._false_negative_rates,
-                default_when_unconfigured=0.0,
-                default_when_missing=0.0,
-            )
-        )
+        if (
+            isinstance(agent_settings, DefenderSettings)
+            and agent_settings.false_negative_rates
+        ):
+            # FNR from agent settings
+            return float(agent_settings.false_negative_rates.value(node, 0.0))
+        if self._false_negative_rates:
+            # FNR from global settings
+            return self._false_negative_rates.get(node, 0.0)
+        return 0.0
 
     def node_is_viable(self, node: AttackGraphNode | str) -> bool:
         """Get viability of a node"""
