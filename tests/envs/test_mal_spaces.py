@@ -110,8 +110,8 @@ def test_attacker_obs() -> None:
                 and attacker_obs.steps.attempts[idx]
                 == attacker_state.num_attempts.get(node, 0)
             )
-            assert attacker_obs.steps.action_mask[idx] == sim.node_is_traversable(
-                attacker_state.performed_nodes, node
+            assert attacker_obs.steps.action_mask[idx] == (
+                node in attacker_state.action_surface
             )
             assert node.model_asset in visible_assets
             children = {
