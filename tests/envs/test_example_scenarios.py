@@ -6,7 +6,7 @@ These tests are to make sure the whole simulator maintains expected behavior.
 Determinism, ttcs, agents, action surfaces, step etc.
 """
 
-from malsim.scenario import load_scenario
+from malsim.scenario import Scenario
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
@@ -29,7 +29,7 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     """
 
     scenario_file = 'tests/testdata/scenarios/bfs_vs_bfs_network_app_data_scenario.yml'
-    scenario = load_scenario(scenario_file)
+    scenario = Scenario.load_from_file(scenario_file)
     sim = MalSimulator.from_scenario(
         scenario,
         sim_settings=MalSimulatorSettings(
@@ -41,16 +41,10 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     defender_agent_name = 'defender1'
     attacker_agent_name = 'attacker1'
 
-    attacker_agent = next(
-        agent['agent']
-        for agent in scenario.agents
-        if agent['name'] == attacker_agent_name
-    )
-    defender_agent = next(
-        agent['agent']
-        for agent in scenario.agents
-        if agent['name'] == defender_agent_name
-    )
+    attacker_agent = scenario.agent_settings[attacker_agent_name].agent
+    defender_agent = scenario.agent_settings[defender_agent_name].agent
+    assert attacker_agent
+    assert defender_agent
 
     total_reward_defender = 0.0
     total_reward_attacker = 0.0
@@ -180,7 +174,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     """
 
     scenario_file = 'tests/testdata/scenarios/bfs_vs_bfs_scenario.yml'
-    scenario = load_scenario(scenario_file)
+    scenario = Scenario.load_from_file(scenario_file)
     sim = MalSimulator.from_scenario(
         scenario,
         sim_settings=MalSimulatorSettings(
@@ -193,16 +187,10 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     defender_agent_name = 'defender1'
     attacker_agent_name = 'attacker1'
 
-    attacker_agent = next(
-        agent['agent']
-        for agent in scenario.agents
-        if agent['name'] == attacker_agent_name
-    )
-    defender_agent = next(
-        agent['agent']
-        for agent in scenario.agents
-        if agent['name'] == defender_agent_name
-    )
+    attacker_agent = scenario.agent_settings[attacker_agent_name].agent
+    defender_agent = scenario.agent_settings[defender_agent_name].agent
+    assert attacker_agent
+    assert defender_agent
 
     total_reward_defender = 0.0
     attacker_failed_steps = 0
@@ -320,7 +308,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
 
 def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
     scenario_file = 'tests/testdata/scenarios/bfs_vs_bfs_scenario.yml'
-    scenario = load_scenario(scenario_file)
+    scenario = Scenario.load_from_file(scenario_file)
     sim = MalSimulator.from_scenario(
         scenario,
         sim_settings=MalSimulatorSettings(
@@ -333,16 +321,10 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
     defender_agent_name = 'defender1'
     attacker_agent_name = 'attacker1'
 
-    attacker_agent = next(
-        agent['agent']
-        for agent in scenario.agents
-        if agent['name'] == attacker_agent_name
-    )
-    defender_agent = next(
-        agent['agent']
-        for agent in scenario.agents
-        if agent['name'] == defender_agent_name
-    )
+    attacker_agent = scenario.agent_settings[attacker_agent_name].agent
+    defender_agent = scenario.agent_settings[defender_agent_name].agent
+    assert attacker_agent
+    assert defender_agent
 
     total_reward_defender = 0.0
     total_reward_attacker = 0.0
@@ -436,7 +418,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
 
 def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
     scenario_file = 'tests/testdata/scenarios/bfs_vs_bfs_scenario.yml'
-    scenario = load_scenario(scenario_file)
+    scenario = Scenario.load_from_file(scenario_file)
 
     sim = MalSimulator.from_scenario(
         scenario,
@@ -450,16 +432,11 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
     defender_agent_name = 'defender1'
     attacker_agent_name = 'attacker1'
 
-    attacker_agent = next(
-        agent['agent']
-        for agent in scenario.agents
-        if agent['name'] == attacker_agent_name
-    )
-    defender_agent = next(
-        agent['agent']
-        for agent in scenario.agents
-        if agent['name'] == defender_agent_name
-    )
+    attacker_agent = scenario.agent_settings[attacker_agent_name].agent
+    defender_agent = scenario.agent_settings[defender_agent_name].agent
+
+    assert attacker_agent
+    assert defender_agent
 
     total_reward_defender = 0.0
     total_reward_attacker = 0.0
@@ -549,3 +526,100 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
 
     assert total_reward_attacker == -attacker_failed_steps
     assert total_reward_defender == -2000.0
+
+
+def test_traininglang_advanced_agents() -> None:
+    """
+    Run the trainingLang scenario with BFS attacker and defender agents.
+    This test verifies that the simulation is deterministic, actions are taken
+    as expected, and rewards are applied correctly.
+    """
+
+    scenario_file = (
+        'tests/testdata/scenarios/traininglang_scenario_advanced_agent_settings.yml'
+    )
+    scenario = Scenario.load_from_file(scenario_file)
+
+    sim = MalSimulator.from_scenario(
+        scenario,
+        sim_settings=MalSimulatorSettings(
+            attack_surface_skip_unnecessary=False,
+            run_defense_step_bernoullis=False,
+            run_attack_step_bernoullis=False,
+            seed=100,
+        ),
+    )
+
+    attacker_name = 'Attacker1'
+    defender_name = 'Defender1'
+
+    attacker_agent = scenario.agent_settings[attacker_name].agent
+    defender_agent = scenario.agent_settings[defender_name].agent
+    assert attacker_agent
+    assert defender_agent
+
+    total_reward_attacker = 0.0
+    total_reward_defender = 0.0
+
+    attacker_actions: list[str] = []
+    defender_actions: list[str] = []
+
+    states = sim.reset()
+    attacker_state = states[attacker_name]
+    defender_state = states[defender_name]
+
+    while not sim.done():
+        attacker_node = attacker_agent.get_next_action(attacker_state)
+        defender_node = defender_agent.get_next_action(defender_state)
+
+        actions = {
+            attacker_name: [attacker_node] if attacker_node else [],
+            defender_name: [defender_node] if defender_node else [],
+        }
+        states = sim.step(actions)
+
+        attacker_state = states[attacker_name]
+        defender_state = states[defender_name]
+        assert isinstance(attacker_state, MalSimAttackerState)
+        assert isinstance(defender_state, MalSimDefenderState)
+
+        if attacker_node and attacker_node in attacker_state.step_performed_nodes:
+            attacker_actions.append(attacker_node.full_name)
+            assert attacker_node in defender_state.step_compromised_nodes
+
+        if defender_node and defender_node in defender_state.step_performed_nodes:
+            defender_actions.append(defender_node.full_name)
+
+        total_reward_attacker += sim.agent_reward(attacker_state.name)
+        total_reward_defender += sim.agent_reward(defender_state.name)
+
+    # Example checks (adapt to exact expected sequence in your scenario)
+    expected_attacker_actions = [
+        'User:3:compromise',
+        'Host:0:authenticate',
+    ]
+    expected_defender_actions = [
+        'Host:0:notPresent',
+    ]
+
+    # Make sure all performed actions match expected (deterministic)
+    assert attacker_actions == expected_attacker_actions
+    assert defender_actions == expected_defender_actions
+
+    # Ensure all performed nodes are in agent state
+    for step_name in attacker_actions:
+        node = sim.get_node(step_name)
+        assert node in attacker_state.performed_nodes
+    for step_name in defender_actions:
+        node = sim.get_node(step_name)
+        assert node in defender_state.performed_nodes
+
+    # Verify latest rewards
+    assert isinstance(attacker_state, MalSimAttackerState)
+    assert isinstance(defender_state, MalSimDefenderState)
+    assert sim.agent_reward(attacker_state.name) == 1000.0  # Reward applied correctly
+    assert sim.agent_reward(defender_state.name) == -100.0  # Reward applied correctly
+
+    # Verify total rewards
+    assert total_reward_attacker == 1000.0
+    assert total_reward_defender == -200.0  # Sum over two steps

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 from maltoolbox.attackgraph import AttackGraph
 from malsim.mal_simulator import MalSimulator, MalSimAttackerState
 from malsim.envs import MalSimVectorizedObsEnv
-from malsim.scenario import load_scenario
+from malsim.scenario import Scenario
 
 from ..conftest import get_node
 
@@ -179,7 +179,7 @@ def test_create_blank_observation_observability_given(
 
     # Load Scenario with observability rules set
     scenario_file = 'tests/testdata/scenarios/traininglang_observability_scenario.yml'
-    scenario = load_scenario(scenario_file)
+    scenario = Scenario.load_from_file(scenario_file)
     env = MalSimVectorizedObsEnv(MalSimulator.from_scenario(scenario))
 
     num_objects = len(env.sim.attack_graph.nodes)
@@ -216,7 +216,7 @@ def test_create_blank_observation_actionability_given(
 
     # Load Scenario with observability rules set
     scenario_file = 'tests/testdata/scenarios/traininglang_actionability_scenario.yml'
-    scenario = load_scenario(scenario_file)
+    scenario = Scenario.load_from_file(scenario_file)
     env = MalSimVectorizedObsEnv(MalSimulator.from_scenario(scenario))
 
     num_objects = len(env.sim.attack_graph.nodes)
@@ -244,7 +244,7 @@ def test_create_blank_observation_actionability_given(
 
 
 def test_malsimulator_observe_attacker() -> None:
-    scenario = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
+    scenario = Scenario.load_from_file('tests/testdata/scenarios/simple_scenario.yml')
 
     # Create the simulator
     env = MalSimVectorizedObsEnv(MalSimulator(scenario.attack_graph))
@@ -343,7 +343,9 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
             else:
                 assert state == -1
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_scenario.yml'
+    )
     # Create the simulator
     env = MalSimVectorizedObsEnv(
         MalSimulator.from_scenario(scenario, register_agents=False)

@@ -13,9 +13,10 @@ from malsim.mal_simulator import (
     RewardMode,
 )
 from malsim.ttc_utils import TTCDist
+from malsim import Scenario, run_simulation
 
-from malsim import load_scenario, run_simulation
-from malsim.scenario import Scenario
+from malsim.agents import BreadthFirstAttacker
+from malsim.scenario import AttackerSettings, DefenderSettings, NodePropertyRule
 
 from dataclasses import asdict
 import numpy as np
@@ -36,7 +37,7 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     """Make sure attack graph is reset"""
     attack_graph = AttackGraph(corelang_lang_graph, model)
 
-    agent_entry_point = get_node(attack_graph, 'OS App:localConnect')
+    agent_entry_point = 'OS App:localConnect'
     attacker_name = 'testagent'
 
     sim = MalSimulator(attack_graph, sim_settings=MalSimulatorSettings(seed=10))
@@ -44,7 +45,9 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     viability_before = {n.full_name: v for n, v in sim._viability_per_node.items()}
     necessity_before = {n.full_name: v for n, v in sim._necessity_per_node.items()}
     enabled_defenses = {n.full_name for n in sim._enabled_defenses}
-    sim.register_attacker(attacker_name, {agent_entry_point})
+    sim.register_attacker_with_settings(
+        AttackerSettings(attacker_name, {agent_entry_point})
+    )
     assert attacker_name in sim.agent_states
     assert len(sim.agent_states) == 1
     attacker_state = sim.agent_states[attacker_name]
@@ -88,14 +91,14 @@ def test_register_agent_attacker(
     sim = MalSimulator(attack_graph)
 
     agent_name = 'attacker1'
-    sim.register_attacker(agent_name, set())
+    sim.register_attacker_with_settings(AttackerSettings(agent_name, set()))
 
     assert agent_name in sim.agent_states
     assert agent_name in sim.agent_states
 
     with pytest.raises(AssertionError):
         # Can not register two agents same name
-        sim.register_attacker(agent_name, set())
+        sim.register_attacker_with_settings(AttackerSettings(agent_name, set()))
 
 
 def test_register_agent_defender(
@@ -105,7 +108,7 @@ def test_register_agent_defender(
     sim = MalSimulator(attack_graph)
 
     agent_name = 'defender1'
-    sim.register_defender(agent_name)
+    sim.register_defender_with_settings(DefenderSettings(agent_name))
 
     assert agent_name in sim.agent_states
     assert agent_name in sim.agent_states
@@ -118,7 +121,7 @@ def test_register_agent_action_surface(
     sim = MalSimulator(attack_graph)
 
     agent_name = 'defender1'
-    sim.register_defender(agent_name)
+    sim.register_defender_with_settings(DefenderSettings(agent_name))
 
     defender_state = sim.agent_states[agent_name]
     action_surface = defender_state.action_surface
@@ -130,17 +133,17 @@ def test_simulator_actionable_action_surface(model: Model) -> None:
     scenario = Scenario(
         lang_file='tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar',
         model=model,
-        is_actionable={
+        actionable_steps={
             'by_asset_type': {
                 'Application': ['attemptRead', 'successfulRead', 'read', 'notPresent']
             }
         },
-        agents={
-            'Attacker1': {
-                'type': 'attacker',
-                'entry_points': ['OS App:fullAccess'],
-            },
-            'Defender': {'type': 'defender'},
+        agent_settings={
+            'Attacker1': AttackerSettings(
+                name='Attacker1',
+                entry_points={'OS App:fullAccess'},
+            ),
+            'Defender': DefenderSettings('Defender'),
         },
     )
     sim = MalSimulator.from_scenario(scenario)
@@ -162,7 +165,7 @@ def test_simulator_initialize_agents(
 ) -> None:
     """Test _initialize_agents"""
 
-    scenario = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
+    scenario = Scenario.load_from_file('tests/testdata/scenarios/simple_scenario.yml')
     sim = MalSimulator.from_scenario(scenario, register_agents=False)
 
     # Register the agents
@@ -179,7 +182,7 @@ def test_simulator_initialize_agents(
 def test_get_agents() -> None:
     """Test _get_attacker_agents and _get_defender_agents"""
 
-    scenario = load_scenario('tests/testdata/scenarios/simple_scenario.yml')
+    scenario = Scenario.load_from_file('tests/testdata/scenarios/simple_scenario.yml')
     sim = MalSimulator.from_scenario(scenario)
     sim.reset()
 
@@ -244,7 +247,7 @@ def test_node_full_names_to_simulator(
     attempt_read = 'OS App:attemptRead'
     access_network_and_conn = 'OS App:accessNetworkAndConnections'
 
-    node_rewards = {
+    rewards = {
         entry_point: 10.0,
         attempt_read: 100.0,
         access_network_and_conn: 50.4,
@@ -256,8 +259,8 @@ def test_node_full_names_to_simulator(
     }
     sim = MalSimulator(
         attack_graph,
-        node_rewards=node_rewards,
-        observability_per_node=observability_per_node,
+        rewards=rewards,
+        node_observabilities=observability_per_node,
     )
 
     attacker_name = 'Test Attacker'
@@ -283,8 +286,8 @@ def test_node_full_names_to_simulator(
     }
 
     # Make sure rewards worked
-    assert sim.agent_reward(attacker_name) == sum(node_rewards.values())
-    assert sim.agent_reward(defender_name) == -sum(node_rewards.values())
+    assert sim.agent_reward(attacker_name) == sum(rewards.values())
+    assert sim.agent_reward(defender_name) == -sum(rewards.values())
 
 
 def test_attacker_step_rewards_cumulative(
@@ -298,29 +301,29 @@ def test_attacker_step_rewards_cumulative(
         attack_graph, 'OS App:accessNetworkAndConnections'
     )
 
-    node_rewards = {
-        entry_point: 10.0,
-        attempt_read: 100.0,
-        access_network_and_conn: 50.4,
+    rewards = {
+        entry_point.full_name: 10.0,
+        attempt_read.full_name: 100.0,
+        access_network_and_conn.full_name: 50.4,
     }
-    sim = MalSimulator(attack_graph, node_rewards=node_rewards)
+    sim = MalSimulator(attack_graph, rewards=rewards)
 
     attacker_name = 'Test Attacker'
-    sim.register_attacker(attacker_name, {entry_point})
+    sim.register_attacker(attacker_name, {entry_point.full_name})
     sim.reset()
 
     states = sim.step({attacker_name: [attempt_read]})
     attacker_state = states[attacker_name]
     assert sim.agent_reward(attacker_state.name) == (
-        node_rewards[entry_point] + node_rewards[attempt_read]
+        rewards[entry_point.full_name] + rewards[attempt_read.full_name]
     )
 
     states = sim.step({attacker_name: [access_network_and_conn]})
     attacker_state = states[attacker_name]
     assert sim.agent_reward(attacker_state.name) == (
-        node_rewards[entry_point]
-        + node_rewards[attempt_read]
-        + node_rewards[access_network_and_conn]
+        rewards[entry_point.full_name]
+        + rewards[attempt_read.full_name]
+        + rewards[access_network_and_conn.full_name]
     )
 
     # Recording of the simulation
@@ -332,7 +335,7 @@ def test_attacker_step_rewards_cumulative(
 
 def test_is_traversable(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    entry_point = get_node(attack_graph, 'OS App:fullAccess')
+    entry_point = 'OS App:fullAccess'
     sim = MalSimulator(attack_graph)
 
     attacker_name = 'Test Attacker'
@@ -520,33 +523,33 @@ def test_attacker_step_rewards_one_off(
         attack_graph, 'OS App:accessNetworkAndConnections'
     )
 
-    node_rewards = {
-        entry_point: 10.0,
-        attempt_read: 100.0,
-        access_network_and_conn: 50.4,
+    rewards = {
+        entry_point.full_name: 10.0,
+        attempt_read.full_name: 100.0,
+        access_network_and_conn.full_name: 50.4,
     }
     sim = MalSimulator(
         attack_graph,
-        node_rewards=node_rewards,
+        rewards=rewards,
         sim_settings=MalSimulatorSettings(attacker_reward_mode=RewardMode.ONE_OFF),
     )
 
     attacker_name = 'Test Attacker'
-    sim.register_attacker(attacker_name, {entry_point})
+    sim.register_attacker(attacker_name, {entry_point.full_name})
     sim.reset()
 
     sim.step({attacker_name: [attempt_read]})
     state1 = sim.agent_states[attacker_name]
     assert isinstance(state1, MalSimAttackerState)
-    assert sim.agent_reward(attacker_name) == node_rewards[attempt_read] - float(
+    assert sim.agent_reward(attacker_name) == rewards[attempt_read.full_name] - float(
         len(state1.step_attempted_nodes)
     )
 
     sim.step({attacker_name: [access_network_and_conn]})
     state2 = sim.agent_states[attacker_name]
     assert isinstance(state2, MalSimAttackerState)
-    assert sim.agent_reward(attacker_name) == node_rewards[
-        access_network_and_conn
+    assert sim.agent_reward(attacker_name) == rewards[
+        access_network_and_conn.full_name
     ] - float(len(state2.step_attempted_nodes))
 
 
@@ -557,14 +560,14 @@ def test_attacker_step_rewards_expected_ttc(
     entry_point = get_node(attack_graph, 'OS App:fullAccess')
 
     # Set some random rewards for each node
-    node_rewards = {n: np.random.random() * 100 for n in attack_graph.attack_steps}
+    rewards = {n.full_name: np.random.random() * 100 for n in attack_graph.attack_steps}
     sim = MalSimulator(
         attack_graph,
-        node_rewards=node_rewards,
+        rewards=rewards,
         sim_settings=MalSimulatorSettings(attacker_reward_mode=RewardMode.EXPECTED_TTC),
     )
     attacker_name = 'Test Attacker'
-    sim.register_attacker(attacker_name, {entry_point})
+    sim.register_attacker(attacker_name, {entry_point.full_name})
     state = sim.reset()[attacker_name]
 
     while not sim.done():
@@ -578,7 +581,9 @@ def test_attacker_step_rewards_expected_ttc(
             for node in state.step_performed_nodes
         )
         # Rewarded by node rewards
-        reward = sum(node_rewards.get(node, 0) for node in state.step_performed_nodes)
+        reward = sum(
+            rewards.get(node.full_name, 0) for node in state.step_performed_nodes
+        )
         assert sim.agent_reward(attacker_name) == reward - ttc_penalty
 
 
@@ -594,30 +599,30 @@ def test_defender_step_rewards_cumulative(
         attack_graph, 'OS App:accessNetworkAndConnections'
     )
 
-    node_rewards = {
-        not_present: 100,
-        entry_point: 10.0,
-        attempt_read: 105.0,
-        access_network_and_conn: 35.04,
+    rewards = {
+        not_present.full_name: 100,
+        entry_point.full_name: 10.0,
+        attempt_read.full_name: 105.0,
+        access_network_and_conn.full_name: 35.04,
     }
-    sim = MalSimulator(attack_graph, node_rewards=node_rewards)
+    sim = MalSimulator(attack_graph, rewards=rewards)
 
     defender_name = 'defender'
     sim.register_defender(defender_name)
     attacker_name = 'Test Attacker'  # To be able to step
-    sim.register_attacker(attacker_name, {entry_point})
+    sim.register_attacker(attacker_name, {entry_point.full_name})
     sim.reset()
 
     sim.step({attacker_name: [attempt_read]})
     assert sim.agent_reward(defender_name) == -(
-        node_rewards[entry_point] + node_rewards[attempt_read]
+        rewards[entry_point.full_name] + rewards[attempt_read.full_name]
     )
 
     sim.step({attacker_name: [access_network_and_conn]})
     assert sim.agent_reward(defender_name) == -(
-        node_rewards[entry_point]
-        + node_rewards[attempt_read]
-        + node_rewards[access_network_and_conn]
+        rewards[entry_point.full_name]
+        + rewards[attempt_read.full_name]
+        + rewards[access_network_and_conn.full_name]
     )
 
 
@@ -633,7 +638,7 @@ def test_defender_step_rewards_one_off(
         attack_graph, 'OS App:accessNetworkAndConnections'
     )
 
-    node_rewards = {
+    rewards = {
         not_present: 100,
         entry_point: 10.0,
         attempt_read: 105.0,
@@ -641,25 +646,23 @@ def test_defender_step_rewards_one_off(
     }
     sim = MalSimulator(
         attack_graph,
-        node_rewards=node_rewards,
+        rewards=rewards,
         sim_settings=MalSimulatorSettings(defender_reward_mode=RewardMode.ONE_OFF),
     )
 
     defender_name = 'defender'
     sim.register_defender(defender_name)
     attacker_name = 'Test Attacker'  # To be able to step
-    sim.register_attacker(attacker_name, {entry_point})
+    sim.register_attacker(attacker_name, {entry_point.full_name})
     sim.reset()
 
     states = sim.step({attacker_name: [attempt_read]})
     defender_state = states[defender_name]
-    assert sim.agent_reward(defender_state.name) == -node_rewards[attempt_read]
+    assert sim.agent_reward(defender_state.name) == -rewards[attempt_read]
 
     states = sim.step({attacker_name: [access_network_and_conn]})
     defender_state = states[defender_name]
-    assert (
-        sim.agent_reward(defender_state.name) == -node_rewards[access_network_and_conn]
-    )
+    assert sim.agent_reward(defender_state.name) == -rewards[access_network_and_conn]
 
 
 # TODO: Some of the assert values in this test have changed when updating the
@@ -676,7 +679,7 @@ def test_agent_state_views_simple(
     sim = MalSimulator(attack_graph, sim_settings=mss)
     attacker_name = 'attacker'
     defender_name = 'defender'
-    sim.register_attacker(attacker_name, {entry_point})
+    sim.register_attacker(attacker_name, {entry_point.full_name})
     sim.register_defender(defender_name)
 
     # Evaluate the agent state views after reset
@@ -821,7 +824,9 @@ def test_agent_state_views_simple(
 
 
 def test_step_attacker_defender_action_surface_updates() -> None:
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_scenario.yml'
+    )
 
     sim = MalSimulator.from_scenario(scenario, register_agents=False)
     # Register the agents
@@ -830,7 +835,7 @@ def test_step_attacker_defender_action_surface_updates() -> None:
 
     user3_phishing = get_node(sim.attack_graph, 'User:3:phishing')
     host0_connect = get_node(sim.attack_graph, 'Host:0:connect')
-    sim.register_attacker(attacker_agent_id, set([user3_phishing, host0_connect]))
+    sim.register_attacker(attacker_agent_id, {user3_phishing, host0_connect})
     sim.register_defender(defender_agent_id)
 
     states = sim.agent_states
@@ -869,7 +874,9 @@ def test_step_attacker_defender_action_surface_updates() -> None:
 def test_default_simulator_default_settings_eviction() -> None:
     """Test attacker node eviction using MalSimulatorSettings default"""
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_scenario.yml'
+    )
     sim = MalSimulator.from_scenario(scenario)
 
     attacker_agent_id = 'Attacker1'
@@ -906,14 +913,16 @@ def test_default_simulator_default_settings_eviction() -> None:
 def test_simulator_false_positives() -> None:
     """Create a simulator with false positives"""
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_fp_fn_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
+    )
 
-    scenario.false_negative_rates = {}
+    scenario.false_negative_rates = None
 
     sim = MalSimulator.from_scenario(
         scenario, sim_settings=MalSimulatorSettings(seed=30), max_iter=100
     )
-    run_simulation(sim, scenario.agents)
+    run_simulation(sim, scenario.agent_settings)
 
     defender_state = sim.agent_states['defender']
     assert isinstance(defender_state, MalSimDefenderState)
@@ -927,9 +936,12 @@ def test_simulator_false_positives() -> None:
 def test_simulator_false_positives_reset() -> None:
     """Create a simulator with false positives"""
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_fp_fn_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
+    )
 
-    scenario.false_negative_rates = {}
+    scenario.false_negative_rates = None
+
     sim = MalSimulator.from_scenario(
         scenario, sim_settings=MalSimulatorSettings(seed=7), max_iter=100
     )
@@ -942,14 +954,15 @@ def test_simulator_false_positives_reset() -> None:
 def test_simulator_false_negatives() -> None:
     """Create a simulator with false negatives"""
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_fp_fn_scenario.yml')
-
-    scenario.false_positive_rates = {}
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
+    )
+    scenario.false_positive_rates = None
 
     sim = MalSimulator.from_scenario(
         scenario, sim_settings=MalSimulatorSettings(seed=100), max_iter=100
     )
-    run_simulation(sim, scenario.agents)
+    run_simulation(sim, scenario.agent_settings)
 
     defender_state = sim.agent_states['defender']
     assert isinstance(defender_state, MalSimDefenderState)
@@ -963,12 +976,14 @@ def test_simulator_false_negatives() -> None:
 def test_simulator_no_fpr_fnr() -> None:
     """Create a simulator with no fnr fpr"""
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_fp_fn_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
+    )
 
     sim = MalSimulator.from_scenario(
         scenario, sim_settings=MalSimulatorSettings(seed=100), max_iter=100
     )
-    run_simulation(sim, scenario.agents)
+    run_simulation(sim, scenario.agent_settings)
 
     defender_state = sim.agent_states['defender']
     assert isinstance(defender_state, MalSimDefenderState)
@@ -982,7 +997,9 @@ def test_simulator_no_fpr_fnr() -> None:
 def test_simulator_ttcs() -> None:
     """Create a simulator and check TTCs, then reset and check TTCs again"""
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_scenario.yml'
+    )
     sim = MalSimulator.from_scenario(
         scenario, sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.PER_STEP_SAMPLE)
     )
@@ -1036,7 +1053,9 @@ def test_simulator_multiple_attackers() -> None:
     full action surface every step. Defender is passive.
     """
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_scenario.yml'
+    )
 
     sim = MalSimulator.from_scenario(
         scenario,
@@ -1094,7 +1113,9 @@ def test_simulator_multiple_defenders() -> None:
     if use forces it. It makes no sense.
     """
 
-    scenario = load_scenario('tests/testdata/scenarios/traininglang_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_scenario.yml'
+    )
 
     sim = MalSimulator.from_scenario(
         scenario,
@@ -1142,7 +1163,9 @@ def test_simulator_multiple_defenders() -> None:
 def test_simulator_seed_setting() -> None:
     """Test that the seed setting works"""
 
-    scenario = load_scenario('tests/testdata/scenarios/socialEngineering_scenario.yml')
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/socialEngineering_scenario.yml'
+    )
     sim = MalSimulator.from_scenario(
         scenario,
         sim_settings=MalSimulatorSettings(
@@ -1162,15 +1185,13 @@ def test_simulator_seed_setting() -> None:
     ttcs = []
     for _ in range(100):
         state = sim.reset()['Attacker1']
-        node = sim.attack_graph.get_node_by_full_name(
-            'Human:successfulSocialEngineering'
-        )
+        node = sim.get_node('Human:successfulSocialEngineering')
         assert node in state.action_surface
         state = sim.step({'Attacker1': [node]})['Attacker1']
-        node = sim.attack_graph.get_node_by_full_name('Human:socialEngineering')
+        node = sim.get_node('Human:socialEngineering')
         assert node in state.action_surface
         state = sim.step({'Attacker1': [node]})['Attacker1']
-        node = sim.attack_graph.get_node_by_full_name('Human:unsafeUserActivity')
+        node = sim.get_node('Human:unsafeUserActivity')
         assert node in state.action_surface
         i = 0
         while node in state.action_surface:
@@ -1197,7 +1218,7 @@ def test_settings_serialization() -> None:
 def test_simulator_picklable() -> None:
     import pickle
 
-    scenario = load_scenario(
+    scenario = Scenario.load_from_file(
         'tests/testdata/scenarios/traininglang_observability_scenario.yml'
     )
     sim = MalSimulator.from_scenario(scenario)
@@ -1216,41 +1237,52 @@ def test_simulator_picklable() -> None:
     # Compare attack graph dicts
     assert restored.attack_graph._to_dict() == sim.attack_graph._to_dict()
 
-    # Compare node-based dictionaries by full_name
-    assert {n.full_name: v for n, v in restored._node_rewards.items()} == {
-        n.full_name: v for n, v in sim._node_rewards.items()
-    }
 
-    assert {n.full_name: v for n, v in restored._observability_per_node.items()} == {
-        n.full_name: v for n, v in sim._observability_per_node.items()
-    }
+def test_scenario_advanced_agent_settings() -> None:
+    """Verify:
+    - scenario loads correctly using new format
+    - agent settings are parsed
+    - NodePropertyRule objects are created
+    - Applies correctly in simulator methods
+    """
 
-    assert {n.full_name: v for n, v in restored._actionability_per_node.items()} == {
-        n.full_name: v for n, v in sim._actionability_per_node.items()
-    }
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_scenario_advanced_agent_settings.yml'
+    )
+    sim = MalSimulator.from_scenario(scenario)
 
-    assert {n.full_name: v for n, v in restored._false_positive_rates.items()} == {
-        n.full_name: v for n, v in sim._false_positive_rates.items()
-    }
+    defender_name = 'Defender1'
+    attacker_name = 'Attacker1'
 
-    assert {n.full_name: v for n, v in restored._false_negative_rates.items()} == {
-        n.full_name: v for n, v in sim._false_negative_rates.items()
-    }
+    # Start with defender
+    assert (
+        sim.node_false_negative_rate(sim.get_node('Host:0:access'), defender_name)
+        == 0.5
+    )
+    assert (
+        sim.node_false_negative_rate(sim.get_node('Data:2:read'), defender_name) == 0.0
+    )
 
-    # Compare sets of nodes by full_name
-    assert {n.full_name for n in restored._enabled_defenses} == {
-        n.full_name for n in sim._enabled_defenses
-    }
+    assert (
+        sim.node_false_positive_rate(sim.get_node('Host:0:connect'), defender_name)
+        == 0.5
+    )
+    assert (
+        sim.node_false_positive_rate(sim.get_node('Data:2:read'), defender_name) == 0.0
+    )
 
-    assert {n.full_name for n in restored._impossible_attack_steps} == {
-        n.full_name for n in sim._impossible_attack_steps
-    }
+    assert sim.node_is_actionable(sim.get_node('Host:0:notPresent'), defender_name)
+    assert not sim.node_is_actionable(sim.get_node('Data:2:notPresent'), defender_name)
 
-    # Compare derived dictionaries by node full_name
-    assert {n.full_name: v for n, v in restored._viability_per_node.items()} == {
-        n.full_name: v for n, v in sim._viability_per_node.items()
-    }
+    assert sim.node_is_observable(sim.get_node('Host:0:connect'), defender_name)
+    assert not sim.node_is_observable(sim.get_node('Data:2:read'), defender_name)
 
-    assert {n.full_name: v for n, v in restored._necessity_per_node.items()} == {
-        n.full_name: v for n, v in sim._necessity_per_node.items()
-    }
+    assert sim.node_reward(sim.get_node('Host:0:notPresent'), defender_name) == 100.0
+    assert sim.node_reward(sim.get_node('Host:0:access'), defender_name) == 0.0
+
+    # Attacker
+    assert sim.node_is_actionable(sim.get_node('Host:0:authenticate'), attacker_name)
+    assert not sim.node_is_actionable(sim.get_node('Data:2:read'), attacker_name)
+
+    assert sim.node_reward(sim.get_node('Host:0:authenticate'), attacker_name) == 1000
+    assert sim.node_reward(sim.get_node('Host:0:access'), attacker_name) == 0.0

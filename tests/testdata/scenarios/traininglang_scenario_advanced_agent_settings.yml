@@ -1,0 +1,69 @@
+lang_file: ../langs/org.mal-lang.trainingLang-1.0.0.mar
+model_file: ../models/traininglang_model.yml
+
+# Rewards for each attack step
+rewards:
+  by_asset_name:
+    Host:0:
+      notPresent: 2
+      access: 4
+    Host:1:
+      notPresent: 7
+      access: 5
+    Data:2:
+      notPresent: 8
+      read: 5
+      modify: 10
+
+false_negative_rates:
+  by_asset_type:
+    Data:
+      read: 0.1
+
+false_positive_rates:
+  by_asset_type:
+    Data:
+      read: 0.2
+
+agents:
+  'Attacker1':
+    type: 'attacker'
+    policy: 'BreadthFirstAttacker'
+    entry_points:
+    - 'User:3:phishing'
+    - 'Host:0:connect'
+    actionable_steps:
+      by_asset_type:
+        Host:
+          - authenticate
+          - connect
+        User:
+          - compromise
+    rewards:
+      by_asset_name:
+        Host:0:
+          authenticate: 1000
+
+  'Defender1':
+    type: 'defender'
+    policy: 'DefendCompromisedDefender'
+    false_negative_rates:
+      by_asset_type:
+        Host:
+          access: 0.5
+    false_positive_rates:
+      by_asset_type:
+        Host:
+          connect: 0.5
+    actionable_steps:
+      by_asset_type:
+        Host:
+          - notPresent
+    observable_steps:
+      by_asset_type:
+        Host:
+          - connect
+    rewards:
+      by_asset_name:
+        Host:0:
+          notPresent: 100

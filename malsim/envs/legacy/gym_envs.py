@@ -12,8 +12,13 @@ from gymnasium import spaces
 from gymnasium.core import RenderFrame
 import numpy as np
 
-from ...scenario import load_scenario
-from ...mal_simulator import MalSimulator, AgentType
+from ...scenario import (
+    Scenario,
+    AgentType,
+    AttackerSettings,
+    DefenderSettings,
+)
+from ...mal_simulator import MalSimulator
 from .malsim_vectorized_obs_env import MalSimVectorizedObsEnv
 from ...agents import DecisionAgent
 
@@ -31,11 +36,13 @@ class AttackerEnv(gym.Env[Any, Any]):
         self.render_mode = kwargs.pop('render_mode', None)
 
         # Create a simulator from the scenario given
-        scenario = load_scenario(scenario_file, **kwargs)
+        scenario = Scenario.load_from_file(scenario_file, **kwargs)
         self.sim = MalSimVectorizedObsEnv(MalSimulator(scenario.attack_graph))
 
         attacker_agents = [
-            agent for agent in scenario.agents if agent['type'] == AgentType.ATTACKER
+            agent
+            for agent in scenario.agent_settings.values()
+            if isinstance(agent, AttackerSettings)
         ]
 
         assert len(attacker_agents) == 1, (
@@ -43,11 +50,11 @@ class AttackerEnv(gym.Env[Any, Any]):
             'can not decide which one to use in AttackerEnv'
         )
 
-        attacker_agent = attacker_agents[0]
-        self.attacker_agent_name = attacker_agent['name']
+        attacker_config = attacker_agents[0]
+        self.attacker_agent_name = attacker_config.name
 
         self.sim.register_attacker(
-            self.attacker_agent_name, attacker_agent['entry_points']
+            self.attacker_agent_name, attacker_config.entry_points
         )
         self.sim.reset()
 
@@ -103,9 +110,9 @@ class DefenderEnv(gym.Env[Any, Any]):
         self.randomize = kwargs.pop('randomize_attacker_behavior', False)
         self.render_mode = kwargs.pop('render_mode', None)
 
-        scenario = load_scenario(scenario_file)
+        scenario = Scenario.load_from_file(scenario_file)
 
-        self.scenario_agents = scenario.agents
+        self.scenario_agents = scenario.agent_settings
         self.sim = MalSimVectorizedObsEnv(
             MalSimulator(
                 scenario.attack_graph,
@@ -124,27 +131,28 @@ class DefenderEnv(gym.Env[Any, Any]):
         self.observation_space = self.sim.observation_space(self.defender_agent_name)
         self.action_space = self.sim.action_space(self.defender_agent_name)
 
-    def _register_attacker_agents(self, agents: list[dict[str, Any]]) -> None:
+    def _register_attacker_agents(
+        self, agents: dict[str, AttackerSettings | DefenderSettings]
+    ) -> None:
         """Register attackers in simulator"""
-        for agent_config in agents:
-            if agent_config['type'] == AgentType.ATTACKER:
-                self.sim.register_attacker(
-                    agent_config['name'], agent_config['entry_points']
-                )
+        for agent_config in agents.values():
+            if isinstance(agent_config, AttackerSettings):
+                self.sim.register_attacker(agent_config.name, agent_config.entry_points)
 
     def _create_attacker_decision_agents(
-        self, agents: list[dict[str, Any]], seed: Optional[int] = None
+        self,
+        agents: dict[str, AttackerSettings | DefenderSettings],
+        seed: Optional[int] = None,
     ) -> dict[str, DecisionAgent]:
         """Create decision agents for each attacker"""
 
         attacker_agents = {}
-        for agent_config in agents:
-            if agent_config['type'] == AgentType.ATTACKER:
-                agent_name = agent_config['name']
-                if agent_config['agent_class']:
-                    attacker_agents[agent_name] = agent_config['agent_class'](
-                        {'seed': seed, 'randomize': self.randomize}
-                    )
+        for agent_config in agents.values():
+            if agent_config.type == AgentType.ATTACKER and agent_config.policy:
+                agent_name = agent_config.name
+                attacker_agents[agent_name] = agent_config.policy(
+                    {'seed': seed, 'randomize': self.randomize}
+                )
         return attacker_agents
 
     def reset(

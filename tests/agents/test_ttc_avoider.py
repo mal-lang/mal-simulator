@@ -1,4 +1,4 @@
-from malsim import MalSimulator, load_scenario, MalSimulatorSettings
+from malsim import MalSimulator, Scenario, MalSimulatorSettings
 from malsim.mal_simulator import TTCMode, MalSimAttackerState
 from malsim.agents import TTCSoftMinAttacker
 
@@ -7,7 +7,7 @@ def test_ttc_avoider() -> None:
     """TTC Avoider"""
 
     scenario_file = 'tests/testdata/scenarios/ttc_lang_scenario.yml'
-    scenario = load_scenario(scenario_file)
+    scenario = Scenario.load_from_file(scenario_file)
     sim = MalSimulator(
         scenario.attack_graph,
         sim_settings=MalSimulatorSettings(

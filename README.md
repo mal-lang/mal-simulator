@@ -49,136 +49,98 @@ sim = MalSimulator(attack_graph, sim_settings=settings, ...)
 
 ## Scenarios
 
-To make it easier to define simulation environment you can use scenarios defined in yml-files, or create `malsim.scenario.Scenario` objects.
-Scenarios consist of MAL language, model, rewards, agents and some other values.
-they are a setup for running a simulation. This is how the format looks like:
+A scenario defines everything required to run a simulation:
 
+- MAL language
+- MAL model (inline or via file)
+- Agent settings (attackers and defenders)
+- Optional reward and node-property rules (observability, actionability, false-positive/negative rates)
+
+Scenarios can be defined in YAML or built programmatically as malsim.scenario.Scenario objects.
+
+### Scenario fields
+
+Scenario files support only the fields listed below.
+
+Required fields:
+- lang_file
+- one of: model_file or model
+- one of: agent_settings or agents
+
+Allowed fields:
+- rewards
+- observable_steps
+- actionable_steps
+- false_positive_rates
+- false_negative_rates
+
+
+### Scenario class structure
+
+```python
+class Scenario:
+    def __init__(
+        self,
+        lang_file: str,
+        model: Model | dict[str, Any] | str,
+        agent_settings: dict[str, AttackerSettings | DefenderSettings],
+        rewards: Optional[dict[str, Any]] = None,
+        false_positive_rates: Optional[dict[str, Any]] = None,
+        false_negative_rates: Optional[dict[str, Any]] = None,
+        observable_steps: Optional[dict[str, Any]] = None,
+        actionable_steps: Optional[dict[str, Any]] = None,
+    ):
+        ...
+```
+
+### Example scenario file
 ```yml
-extends: <path to another scenario file> # optional
-lang_file: <path to .mar-archive>
-model_file: <path to json/yml model>
+extends: <path to another scenario>   # optional
+lang_file: <path to .mar archive>
+model_file: <path to model file>     # or use `model:` instead of `model_file`
 
-# Add agents / entry points to simulator / attack graph
-# Possible values for AGENT_CLASS:
-# PassiveAgent | DecisionAgent | KeyboardAgent | BreadthFirstAttacker |
-# DepthFirstAttacker | DefendCompromisedDefender | DefendFutureCompromisedDefender
 agents:
-  '<agent_name>':
-    type: 'attacker'
-    agent_class: <AGENT_CLASS>
+  attacker1:
+    type: attacker
+    policy: BreadthFirstAttacker
     entry_points:
-    - 'Credentials:6:attemptCredentialsReuse'
-    config:                   # optional
+      - "Credentials:6:attemptCredentialsReuse"
+    goals:
+      - "Host A:fullAccess"
+    config:
       seed: 1
-    goals:                    # optional
-      - 'Host A:fullAccess'
+    actionable_steps:
+      by_asset_type:
+        Host:
+          - access
 
-  '<agent_name>':
-    type: 'defender'
-    agent_class: <AGENT_CLASS>
-
-
-# Optionally add rewards to attack graph nodes.
-# Applies reward per attack step (default 0)
-rewards:
-  by_asset_type:
-    <asset_type>:
-      <step name>: reward (float)
-  by_asset_name:
-    <asset_name>:
-      <step name>: reward (float)
-
-# Example:
-#   by_asset_type:
-#     Host:
-#       access: 10
-#       authenticate: 15
-#     Data:
-#       read: 1
-
-#   by_asset_name:
-#     User_3:
-#       phishing: 10
-#     ...
-
-# Optionally add observability rules that are applied to AttackGrapNodes
-# to make only certain steps observable.
-# Note: These do not change the behavior of the simulator.
-#       Instead, they just create a dict in the scenario object.
-#
-# If 'observable_steps' are set:
-# - Nodes that match any rule will be marked as observable
-# - Nodes that don't match any rules will be marked as non-observable
-# If 'observable_steps' are not set:
-# - All nodes will be marked as observable
-observable_steps:
-  by_asset_type:
-    <asset_type>:
-      - <step name>
-  by_asset_name:
-    <asset_name>:
-      - <step name>
-
-# Optionally add actionability rules that are applied to AttackGrapNodes
-# to make only certain steps actionable. Works exactly as observability.
-actionable_steps:
-  by_asset_type:
-    <asset_type>:
-      - <step name>
-  by_asset_name:
-    <asset_name>:
-      - <step name>
-
-# Example:
-#   by_asset_type:
-#     Host:
-#       - access
-#       - authenticate
-#     Data:
-#       - read
-
-#   by_asset_name:
-#     User_3:
-#       - phishing
-#     ...
-
-# Optionally add false positive or false negative rates
-# Note: Also enable settings in MalSimulatorSettings
-false_positive_rates:
-  by_asset_type:
-    <asset_type>:
-      - <step name>
-  by_asset_name:
-    <asset_name>:
-      - <step name>
-
-false_negative_rates:
-  by_asset_type:
-    <asset_type>:
-      - <step name>
-  by_asset_name:
-    <asset_name>:
-      - <step name>
-
-# Examples
-# false_positive_rates:
-#   by_asset_name:
-#     Host:0:
-#       access: 0.2
-#     Host:1:
-#       access: 0.3
-
-# false_negative_rates:
-#   by_asset_name:
-#     Host:0:
-#       access: 0.4
-#     Host:1:
-#       access: 0.5
-#     User:3:
-#       compromise: 1.0
-
+  defender1:
+    type: defender
+    policy: DefendCompromisedDefender
+    observable_steps:
+      by_asset_name:
+        User_3:
+          - phishing
 
 ```
+
+### Node property rule structure
+
+All rule sections (rewards, observable_steps, actionable_steps, false_positive_rates, false_negative_rates) follow the same pattern:
+
+```yml
+rewards:
+  by_asset_type:
+    Host:
+      access: 10
+  by_asset_name:
+    User_3:
+      phishing: 5
+```
+
+Rules can specify either:
+lists → treated as “True” for those nodes
+dictionaries → mapping <step> → <value>
 
 ### Extending Scenarios
 
@@ -190,27 +152,12 @@ scenario will override the settings in the original (extended) scenario when you
 
 #### Load attack graph and config
 
-If you just want to load a scenario from a file, use `malsim.scenarios.load_scenario`.
+If you just want to load a scenario from a file, use `malsim.scenario.Scenario`.
 
 ```python
-from malsim import load_scenario
+from malsim import Scenario
 
-scenario_file = "scenario.yml"
-scenario: Scenario = load_scenario(scenario_file)
-
-# Scenario is a class containing:
-class Scenario:
-    """Scenarios defines everything needed to run a simulation"""
-      lang_file: str,
-      agents: dict[str, Any],
-      model_dict: Optional[dict[str, Any]] = None,
-      model_file: Optional[str] = None,
-      rewards: Optional[dict[str, Any]] = None,
-      false_positive_rates: Optional[dict[str, Any]] = None,
-      false_negative_rates: Optional[dict[str, Any]] = None,
-      is_observable: Optional[dict[str, Any]] = None,
-      is_actionable: Optional[dict[str, Any]] = None,
-
+scenario = Scenario.load_from_file("scenario.yml")
 ```
 
 #### Load simulator and config
@@ -218,12 +165,10 @@ class Scenario:
 If you want to create a simulator from a scenario, use `MalSimulator.from_scenario`.
 
 ```python
-from malsim import load_scenario, MalSimulator
+from malsim import Scenario, MalSimulator
 
-scenario_file = "scenario.yml"
-scenario = load_scenario(scenario_file)
+scenario = Scenario.load_from_file("scenario.yml")
 mal_simulator = MalSimulator.from_scenario(scenario)
-
 ```
 The returned MalSimulator contains the attackgraph created from the scenario, as well as registered agents.
 At this point, the simulator and the scenario agents can be used for running a simulation
@@ -236,47 +181,49 @@ and seed to agents in the scenario files.
 
 ```python
 from malsim import (
-  MalSimulator,
-  MalSimulatorSettings,
-  run_simulation,
-  load_scenario
+    MalSimulator,
+    MalSimulatorSettings,
+    run_simulation,
+    Scenario,
 )
 
-SCENARIO_FILE = "tests/testdata/scenarios/traininglang_scenario.yml"
-scenario = load_scenario(SCENARIO_FILE)
-mal_simulator = MalSimulator.from_scenario(
-  scenario, sim_settings=MalSimulatorSettings(seed=10)
+scenario = Scenario.load_from_file("scenario.yml")
+sim = MalSimulator.from_scenario(
+    scenario,
+    sim_settings=MalSimulatorSettings(seed=10),
 )
-run_simulation(mal_simulator, scenario.agents)
+
+paths = run_simulation(sim, scenario.agent_settings)
 ```
 
-## Agents
+## Agent settings
 
 Attacker and defender agents are important for running simulations in the MAL Simulator.
 
-### Attacker agent
-`type` - 'attacker'
+### Attacker settings
+type: "attacker"
+entry_points: set of step names
+goals: optional set of target steps
+policy: name of agent class
+config: passed to agent constructor
+actionable_steps: NodePropertyRule
+rewards: NodePropertyRule
 
-`entry_points` - Where the agent starts off
+### Defender settings
 
-`goals` - Optional setting telling where the agent wants to end up. If the goal is fulfilled the simulator will terminate the attacker agent.
-
-`config` - A dictionary given to the Agent class on initialization if running simulations with `malsim.mal_simulator.run_simulation` or CLI.
-
-`agent_class` - Name of the class for the agent used when running simulations with `run_simulation` or CLI, can be left empty or set to PassiveAgent if the agent should not act.
-
-### Defender agent
-
-`type` - 'defender'
-
-`config` - A dictionary given to the Agent class on initialization if running simulations with `malsim.mal_simulator.run_simulation` or CLI.
-
-`agent_class` - Name of the class for the agent used when running simulations with `run_simulation` or CLI, can be left empty or set to PassiveAgent if the agent should not act.
+type: "defender"
+policy
+config
+rewards
+observable_steps
+actionable_steps
+false_positive_rates
+false_negative_rates
 
 ## Rewards
 
 Reward functions are important, especially for ML implementations.
-Reward values can be set either in a scenario or by giving `node_rewards` to the MalSimulator.
+Reward values can be set either in a scenario or by giving `rewards` to the MalSimulator.
 
 RewardMode can be either CUMULATIVE or ONE_OFF, this is set through the MalSimulatorSettings given to MalSimulator (`sim_settings`). Default is CUMULATIVE.
 
@@ -346,12 +293,12 @@ To initialize the MalSimulator you either need a scenario file or an attack grap
 The regular simulator works with attack graph nodes and keeps track on agents state with those.
 
 ```python
-from malsim import MalSimulator, run_simulation, load_scenario
+from malsim import MalSimulator, run_simulation, Scenario
 
 logging.basicConfig() # Enable logging
 
 SCENARIO_FILE = "tests/testdata/scenarios/traininglang_scenario.yml"
-scenario = load_scenario(SCENARIO_FILE)
+scenario = Scenario.load_from_file(SCENARIO_FILE)
 sim = MalSimulator.from_scenario(scenario) # Can provide settings here
 agent_actions = run_simulation(sim, scenario.agents)
 
@@ -366,13 +313,13 @@ You can run the vectorized without gymnasium to receive serialized observations.
 import logging
 from typing import Optional
 
-from malsim import load_scenario, MalSimulator
+from malsim import Scenario, MalSimulator
 from malsim.envs import MalSimVectorizedObsEnv
 
 logging.basicConfig() # Enable logging
 
 scenario_file = "tests/testdata/scenarios/traininglang_scenario.yml"
-scenario = load_scenario(scenario_file)
+scenario = Scenario.load_from_file(scenario_file)
 
 # The vectorized obs env is a wrapper that creates serialized observations
 # for the simulator, similar to how the old simulator used to work, tailored
