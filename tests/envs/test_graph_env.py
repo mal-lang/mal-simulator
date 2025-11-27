@@ -133,8 +133,8 @@ def test_attacker_episode() -> None:
                 and state.num_attempts.get(node, 0) == obs.steps.attempts[node_idx]
             )
             assert (
-                state.sim.node_is_traversable(state.performed_nodes, node)
-                == obs.steps.action_mask[node_idx]
+                (node in state.action_surface)
+                == bool(obs.steps.action_mask[node_idx])
             )
 
         steps += 1
@@ -181,7 +181,7 @@ def test_attacker_episode() -> None:
                 and state.num_attempts.get(node, 0) == obs.steps.attempts[node_idx]
             )
             assert (
-                state.sim.node_is_traversable(state.performed_nodes, node)
+                (node in state.action_surface)
                 == obs.steps.action_mask[node_idx]
             )
 
