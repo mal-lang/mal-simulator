@@ -1,0 +1,210 @@
+from __future__ import annotations
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Optional
+from collections.abc import Set, Mapping
+from types import MappingProxyType
+
+from maltoolbox.attackgraph import AttackGraphNode
+
+if TYPE_CHECKING:
+    from .simulator import MalSimulator
+
+
+@dataclass(frozen=True)
+class MalSimAgentState:
+    """Stores the state of an agent in the simulator"""
+
+    # Identifier of the agent, used in MalSimulator for lookup
+    name: str
+    # Reference to the simulator
+    sim: MalSimulator
+    # Contains possible actions for the agent in the next step
+    action_surface: frozenset[AttackGraphNode]
+    # Contains all nodes that this agent has performed successfully
+    performed_nodes: frozenset[AttackGraphNode]
+    # Contains the nodes performed successfully in the last step
+    step_performed_nodes: frozenset[AttackGraphNode]
+    # Contains possible nodes that became available in the last step
+    step_action_surface_additions: frozenset[AttackGraphNode]
+    # Contains nodes that became unavailable in the last step
+    step_action_surface_removals: frozenset[AttackGraphNode]
+    # Contains nodes that became unviable in the last step by defender actions
+    step_unviable_nodes: frozenset[AttackGraphNode]
+
+
+@dataclass(frozen=True)
+class MalSimAttackerState(MalSimAgentState):
+    """Stores the state of an attacker in the simulator"""
+
+    # The starting points of an attacker agent
+    entry_points: frozenset[AttackGraphNode]
+    # Number of attempts to compromise a step (used for ttc caculations)
+    num_attempts: MappingProxyType[AttackGraphNode, int]
+    # Steps attempted but not succeeded (because of TTC value)
+    step_attempted_nodes: frozenset[AttackGraphNode]
+    # Goals affect simulation termination but is optional
+    goals: frozenset[AttackGraphNode] = field(default_factory=frozenset)
+
+    # Picklable
+    def __getstate__(self) -> dict[str, Any]:
+        # convert MappingProxyType to dict for pickling
+        state = self.__dict__.copy()
+        state['num_attempts'] = dict(state['num_attempts'])
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        # restore MappingProxyType
+        object.__setattr__(
+            self, 'num_attempts', MappingProxyType(state['num_attempts'])
+        )
+        # set other frozen attributes
+        for key, value in state.items():
+            if key != 'num_attempts':
+                object.__setattr__(self, key, value)
+
+
+def create_attacker_state(
+    sim: MalSimulator,
+    name: str,
+    entry_points: Set[AttackGraphNode],
+    goals: Set[AttackGraphNode] = frozenset(),
+    step_compromised_nodes: Set[AttackGraphNode] = frozenset(),
+    step_attempted_nodes: Set[AttackGraphNode] = frozenset(),
+    step_nodes_made_unviable: Set[AttackGraphNode] = frozenset(),
+    previous_state: Optional[MalSimAttackerState] = None,
+) -> MalSimAttackerState:
+    """
+    Update a previous attacker state based on what the agent compromised
+    and what nodes became unviable.
+    """
+
+    if previous_state is None:
+        # Initial compromised nodes
+        if sim.sim_settings.compromise_entrypoints_at_start:
+            step_compromised_nodes |= entry_points
+        compromised_nodes = step_compromised_nodes
+
+        # Create an initial attack surface
+        new_action_surface = sim._get_attack_surface(name, compromised_nodes)
+        action_surface_removals: set[AttackGraphNode] = set()
+        action_surface_additions = new_action_surface
+
+        if not sim.sim_settings.compromise_entrypoints_at_start:
+            # If entrypoints not compromised at start,
+            # we need to put them in action surface
+            new_action_surface |= entry_points
+            action_surface_additions |= entry_points
+
+        previous_num_attempts: Mapping[AttackGraphNode, int] = {
+            n: 0 for n in sim.attack_graph.attack_steps
+        }
+
+    else:
+        compromised_nodes = previous_state.performed_nodes | step_compromised_nodes
+
+        # Build on previous attack surface (for performance)
+        action_surface_additions = (
+            sim._get_attack_surface(
+                name,
+                compromised_nodes | step_compromised_nodes,
+                from_nodes=step_compromised_nodes,
+            )
+            - previous_state.action_surface
+        )
+        action_surface_removals = set(
+            (step_nodes_made_unviable & previous_state.action_surface)
+            | step_compromised_nodes
+        )
+        new_action_surface = frozenset(
+            (previous_state.action_surface - action_surface_removals)
+            | action_surface_additions
+        )
+        previous_num_attempts = previous_state.num_attempts
+
+    new_num_attempts = dict(previous_num_attempts)
+    for node in step_attempted_nodes:
+        new_num_attempts[node] += 1
+
+    return MalSimAttackerState(
+        name,
+        entry_points=frozenset(entry_points),
+        goals=frozenset(goals),
+        sim=sim,
+        performed_nodes=frozenset(compromised_nodes | step_compromised_nodes),
+        action_surface=new_action_surface,
+        step_action_surface_additions=action_surface_additions,
+        step_action_surface_removals=frozenset(action_surface_removals),
+        step_performed_nodes=frozenset(step_compromised_nodes),
+        step_unviable_nodes=frozenset(step_nodes_made_unviable),
+        step_attempted_nodes=frozenset(step_attempted_nodes),
+        num_attempts=MappingProxyType(new_num_attempts),
+    )
+
+
+@dataclass(frozen=True)
+class MalSimDefenderState(MalSimAgentState):
+    """Stores the state of a defender in the simulator"""
+
+    # Contains all steps performed by any attacker
+    compromised_nodes: frozenset[AttackGraphNode]
+    # Contains steps performed by any attacker in last step
+    step_compromised_nodes: frozenset[AttackGraphNode]
+    # Contains all observed steps by any attacker
+    # in regards to false positives/negatives and observability
+    observed_nodes: frozenset[AttackGraphNode]
+    # Contains observed steps made by any attacker in last step
+    step_observed_nodes: frozenset[AttackGraphNode]
+
+    @property
+    def step_all_compromised_nodes(self) -> None:
+        raise DeprecationWarning(
+            "Use 'step_compromised_nodes' instead of 'step_all_compromised_nodes'"
+        )
+
+
+def create_defender_state(
+    sim: MalSimulator,
+    name: str,
+    step_compromised_nodes: Set[AttackGraphNode] = frozenset(),
+    step_enabled_defenses: Set[AttackGraphNode] = frozenset(),
+    step_nodes_made_unviable: Set[AttackGraphNode] = frozenset(),
+    previous_state: Optional[MalSimDefenderState] = None,
+) -> MalSimDefenderState:
+    """
+    Update a previous defender state based on what steps
+    were enabled/compromised during last step
+    """
+
+    action_surface = frozenset(sim._get_defense_surface(name))
+
+    if previous_state is None:
+        # Initialize
+        previous_enabled_defenses: Set[AttackGraphNode] = frozenset()
+        previous_compromised_nodes: Set[AttackGraphNode] = frozenset()
+        previous_observed_nodes: Set[AttackGraphNode] = frozenset()
+        action_surface_additions: Set[AttackGraphNode] = action_surface
+        action_surface_removals: Set[AttackGraphNode] = frozenset()
+    else:
+        previous_enabled_defenses = previous_state.performed_nodes
+        previous_compromised_nodes = previous_state.compromised_nodes
+        previous_observed_nodes = previous_state.observed_nodes
+        action_surface_additions = frozenset()
+        action_surface_removals = step_enabled_defenses
+
+    step_observed_nodes = sim._defender_observed_nodes(name, step_compromised_nodes)
+    return MalSimDefenderState(
+        name,
+        sim=sim,
+        performed_nodes=frozenset(previous_enabled_defenses | step_enabled_defenses),
+        compromised_nodes=frozenset(
+            previous_compromised_nodes | step_compromised_nodes
+        ),
+        step_compromised_nodes=frozenset(step_compromised_nodes),
+        observed_nodes=frozenset(previous_observed_nodes | step_observed_nodes),
+        step_observed_nodes=frozenset(step_observed_nodes),
+        step_action_surface_additions=frozenset(action_surface_additions),
+        step_action_surface_removals=frozenset(action_surface_removals),
+        action_surface=frozenset(action_surface),
+        step_performed_nodes=frozenset(step_enabled_defenses),
+        step_unviable_nodes=frozenset(step_nodes_made_unviable),
+    )

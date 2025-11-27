@@ -1,6 +1,6 @@
 """Tests for analyzers"""
 
-from malsim.graph_processing import (
+from malsim.mal_simulator.graph_processing import (
     _propagate_viability_from_node,
     _propagate_necessity_from_node,
     prune_unviable_and_unnecessary_nodes,
