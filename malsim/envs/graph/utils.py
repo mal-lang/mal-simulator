@@ -260,9 +260,7 @@ def full_obs2attacker_obs(
         compromised_steps[i] = step in performed_nodes_set
         observable_steps[i] = step.type in ('and', 'or')
         step_attempts[i] = state.num_attempts.get(step, 0)
-        traversable_steps[i] = state.sim.node_is_traversable(
-            state.performed_nodes, step
-        )
+        traversable_steps[i] = step in state.action_surface
 
     new2old_step_idx = np.array(
         [step_id_to_idx[step_id] for step_id in visible_step_ids], dtype=np.int64
