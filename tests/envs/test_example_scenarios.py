@@ -623,3 +623,161 @@ def test_traininglang_advanced_agents() -> None:
     # Verify total rewards
     assert total_reward_attacker == 1000.0
     assert total_reward_defender == -200.0  # Sum over two steps
+
+
+def test_traininglang_dont_compromise_entrypoints() -> None:
+    """
+    Run the trainingLang scenario with BFS attacker and defender agents.
+    This test verifies that the simulation is deterministic, actions are taken
+    as expected, and rewards are applied correctly.
+    """
+
+    scenario_file = 'tests/testdata/scenarios/bfs_vs_bfs_scenario.yml'
+    scenario = Scenario.load_from_file(scenario_file)
+
+    sim = MalSimulator.from_scenario(
+        scenario,
+        sim_settings=MalSimulatorSettings(
+            attack_surface_skip_unnecessary=False,
+            run_defense_step_bernoullis=False,
+            run_attack_step_bernoullis=False,
+            seed=100,
+            compromise_entrypoints_at_start=False,
+        ),
+    )
+
+    attacker_name = 'attacker1'
+    defender_name = 'defender1'
+
+    attacker_agent = scenario.agent_settings[attacker_name].agent
+    defender_agent = scenario.agent_settings[defender_name].agent
+    assert attacker_agent
+    assert defender_agent
+
+    total_reward_attacker = 0.0
+    total_reward_defender = 0.0
+
+    attacker_actions: list[str] = []
+    defender_actions: list[str] = []
+
+    states = sim.reset()
+    attacker_state = states[attacker_name]
+    defender_state = states[defender_name]
+
+    while not sim.done():
+        attacker_node = attacker_agent.get_next_action(attacker_state)
+        defender_node = defender_agent.get_next_action(defender_state)
+
+        actions = {
+            attacker_name: [attacker_node] if attacker_node else [],
+            defender_name: [defender_node] if defender_node else [],
+        }
+        states = sim.step(actions)
+
+        attacker_state = states[attacker_name]
+        defender_state = states[defender_name]
+        assert isinstance(attacker_state, MalSimAttackerState)
+        assert isinstance(defender_state, MalSimDefenderState)
+
+        if attacker_node and attacker_node in attacker_state.step_performed_nodes:
+            attacker_actions.append(attacker_node.full_name)
+            assert attacker_node in defender_state.step_compromised_nodes
+
+        if defender_node and defender_node in defender_state.step_performed_nodes:
+            defender_actions.append(defender_node.full_name)
+
+        total_reward_attacker += sim.agent_reward(attacker_state.name)
+        total_reward_defender += sim.agent_reward(defender_state.name)
+
+    assert attacker_actions == [
+        'Program 1:fullAccess',
+        'Program 1:attemptApplicationRespondConnectThroughData',
+        'Program 1:attemptRead',
+        'Program 1:attemptDeny',
+        'Program 1:accessNetworkAndConnections',
+        'Program 1:attemptModify',
+        'ConnectionRule:1:attemptAccessNetworksUninspected',
+        'ConnectionRule:1:attemptConnectToApplicationsUninspected',
+        'ConnectionRule:1:attemptAccessNetworksInspected',
+        'ConnectionRule:1:attemptConnectToApplicationsInspected',
+        'ConnectionRule:1:bypassRestricted',
+        'ConnectionRule:1:successfulAccessNetworksUninspected',
+        'ConnectionRule:1:connectToApplicationsUninspected',
+        'ConnectionRule:1:bypassPayloadInspection',
+        'ConnectionRule:1:successfulAccessNetworksInspected',
+        'ConnectionRule:1:connectToApplicationsInspected',
+        'ConnectionRule:1:restrictedBypassed',
+        'ConnectionRule:1:accessNetworksUninspected',
+        'Program 1:networkConnectInspected',
+        'Program 1:networkConnectUninspected',
+        'ConnectionRule:1:payloadInspectionBypassed',
+        'ConnectionRule:1:accessNetworksInspected',
+        'Network:2:accessUninspected',
+        'Program 1:networkConnect',
+        'Program 1:specificAccessNetworkConnect',
+        'Program 1:softwareProductVulnerabilityNetworkAccessAchieved',
+        'Program 1:attemptUseVulnerability',
+        'Network:2:accessInspected',
+        'Network:2:networkForwardingUninspected',
+        'Network:2:attemptReverseReach',
+        'Network:2:deny',
+        'ConnectionRule:3:attemptConnectToApplicationsUninspected',
+        'Network:2:accessNetworkData',
+        'Network:2:networkForwardingInspected',
+        'ConnectionRule:3:attemptConnectToApplicationsInspected',
+        'ConnectionRule:3:attemptAccessNetworksUninspected',
+        'Network:2:reverseReach',
+        'ConnectionRule:1:attemptDeny',
+        'ConnectionRule:3:attemptDeny',
+        'ConnectionRule:3:bypassPayloadInspection',
+        'ConnectionRule:3:bypassRestricted',
+        'ConnectionRule:3:connectToApplicationsUninspected',
+        'Network:2:attemptAdversaryInTheMiddle',
+        'Network:2:attemptEavesdrop',
+        'ConnectionRule:3:attemptAccessNetworksInspected',
+        'ConnectionRule:3:connectToApplicationsInspected',
+        'ConnectionRule:3:successfulAccessNetworksUninspected',
+        'ConnectionRule:1:attemptReverseReach',
+        'ConnectionRule:3:attemptReverseReach',
+        'ConnectionRule:1:deny',
+        'ConnectionRule:3:deny',
+        'ConnectionRule:3:payloadInspectionBypassed',
+        'ConnectionRule:3:restrictedBypassed',
+        'Program 2:networkConnectInspected',
+        'Program 2:networkConnectUninspected',
+        'Network:2:successfulAdversaryInTheMiddle',
+        'Network:2:bypassAdversaryInTheMiddleDefense',
+        'Network:2:successfulEavesdrop',
+        'Network:2:bypassEavesdropDefense',
+        'ConnectionRule:3:successfulAccessNetworksInspected',
+        'ConnectionRule:3:accessNetworksUninspected',
+        'ConnectionRule:1:reverseReach',
+        'ConnectionRule:3:reverseReach',
+        'Program 1:denyFromNetworkingAsset',
+        'Program 2:denyFromNetworkingAsset',
+        'Program 2:specificAccessNetworkConnect',
+        'Program 2:networkConnect',
+        'Program 2:attemptUseVulnerability',
+        'Program 2:softwareProductVulnerabilityNetworkAccessAchieved',
+        'Network:2:adversaryInTheMiddle',
+        'Network:2:adversaryInTheMiddleDefenseBypassed',
+        'Network:2:eavesdrop',
+        'Network:2:eavesdropDefenseBypassed',
+        'ConnectionRule:3:accessNetworksInspected',
+        'Program 1:attemptReverseReach',
+        'Program 2:attemptReverseReach',
+        'Program 2:attemptDeny',
+    ]
+    assert defender_actions == [
+        'Network:2:adversaryInTheMiddleDefense',
+        'ConnectionRule:3:payloadInspection',
+        'Program 2:supplyChainAuditing',
+        'ConnectionRule:3:restricted',
+        'Network:2:eavesdropDefense',
+        'ConnectionRule:1:payloadInspection',
+        'Program 1:notPresent',
+        'Network:2:networkAccessControl',
+        'Program 1:supplyChainAuditing',
+        'Program 2:notPresent',
+        'ConnectionRule:1:restricted',
+    ]

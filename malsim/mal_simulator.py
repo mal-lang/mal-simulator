@@ -23,7 +23,6 @@ from malsim.scenario import (
     AttackerSettings,
     DefenderSettings,
     Scenario,
-    NodePropertyRule,
 )
 
 from malsim.visualization.malsim_gui_client import MalSimGUIClient
@@ -1079,12 +1078,14 @@ class MalSimulator:
                 'comes from the agents action surface.'
             )
 
-            traversable = self.node_is_traversable(agent.performed_nodes, node)
             if node in agent.entry_points:
-                # Entrypoints are traversable as long as they are viable
-                traversable = self.node_is_viable(node)
+                # Entrypoints can be compromised as long as they are viable
+                can_compromise = self.node_is_viable(node)
+            else:
+                # Otherwise it is limited by traversability
+                can_compromise = self.node_is_traversable(agent.performed_nodes, node)
 
-            if traversable:
+            if can_compromise:
                 if self._attempt_attacker_step(agent, node):
                     successful_compromises.append(node)
                     logger.info(
