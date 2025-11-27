@@ -132,9 +132,8 @@ def test_attacker_episode() -> None:
                 obs.steps.attempts is not None
                 and state.num_attempts.get(node, 0) == obs.steps.attempts[node_idx]
             )
-            assert (
-                (node in state.action_surface)
-                == bool(obs.steps.action_mask[node_idx])
+            assert (node in state.action_surface) == bool(
+                obs.steps.action_mask[node_idx]
             )
 
         steps += 1
@@ -180,10 +179,7 @@ def test_attacker_episode() -> None:
                 obs.steps.attempts is not None
                 and state.num_attempts.get(node, 0) == obs.steps.attempts[node_idx]
             )
-            assert (
-                (node in state.action_surface)
-                == obs.steps.action_mask[node_idx]
-            )
+            assert (node in state.action_surface) == obs.steps.action_mask[node_idx]
 
         steps += 1
         done = terminated or truncated or (steps > 10_000)
