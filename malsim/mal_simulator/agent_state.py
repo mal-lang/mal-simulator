@@ -85,7 +85,7 @@ def create_attacker_state(
         compromised_nodes = step_compromised_nodes
 
         # Create an initial attack surface
-        new_action_surface = sim._get_attack_surface(name, compromised_nodes)
+        new_action_surface = sim.get_attack_surface(name, compromised_nodes)
         action_surface_removals: set[AttackGraphNode] = set()
         action_surface_additions = new_action_surface
 
@@ -104,7 +104,7 @@ def create_attacker_state(
 
         # Build on previous attack surface (for performance)
         action_surface_additions = (
-            sim._get_attack_surface(
+            sim.get_attack_surface(
                 name,
                 compromised_nodes | step_compromised_nodes,
                 from_nodes=step_compromised_nodes,
@@ -175,7 +175,7 @@ def create_defender_state(
     were enabled/compromised during last step
     """
 
-    action_surface = frozenset(sim._get_defense_surface(name))
+    action_surface = frozenset(sim.get_defense_surface(name))
 
     if previous_state is None:
         # Initialize
