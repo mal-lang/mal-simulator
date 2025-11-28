@@ -1,4 +1,4 @@
-"""CLI to run simulations in MAL Simulator using scenario files"""
+"""MALSimulator related modules"""
 
 from .simulator import MalSimulator, run_simulation
 from .settings import MalSimulatorSettings, TTCMode, RewardMode
