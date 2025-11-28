@@ -6,7 +6,7 @@ from maltoolbox.model import Model
 from maltoolbox.attackgraph.attackgraph import AttackGraph
 from maltoolbox.language.languagegraph import LanguageGraph
 
-from malsim.ttc_utils import TTCDist, named_ttc_dists
+from malsim.mal_simulator.ttc_utils import TTCDist, named_ttc_dists
 
 from .conftest import path_testdata, get_node
 

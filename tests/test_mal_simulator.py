@@ -12,11 +12,10 @@ from malsim.mal_simulator import (
     TTCMode,
     RewardMode,
 )
-from malsim.ttc_utils import TTCDist
+from malsim.mal_simulator import TTCDist
 from malsim import Scenario, run_simulation
 
-from malsim.agents import BreadthFirstAttacker
-from malsim.scenario import AttackerSettings, DefenderSettings, NodePropertyRule
+from malsim.scenario import AttackerSettings, DefenderSettings
 
 from dataclasses import asdict
 import numpy as np

@@ -4,8 +4,8 @@ from __future__ import annotations
 import argparse
 import logging
 
-from . import MalSimulator, MalSimulatorSettings, run_simulation, Scenario
-from .mal_simulator import TTCMode
+from .mal_simulator import MalSimulator, MalSimulatorSettings, run_simulation, TTCMode
+from .scenario import Scenario
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
