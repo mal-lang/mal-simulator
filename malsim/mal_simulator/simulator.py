@@ -440,9 +440,9 @@ class MalSimulator:
                 ttc_dist = TTCDist.from_node(node)
                 # Check for degenerate distributions
                 if ttc_dist.success_probability(0) in (0.0, 1.0):
-                    if ttc_dist.expected_value == 1.0:
+                    if ttc_dist.success_probability(0) == 0.0:
                         pre_enabled_defenses.add(node)
-                    elif ttc_dist.expected_value == 0.0:
+                    elif ttc_dist.success_probability(0) == 1.0:
                         continue
                 # Otherwise sample the distribution
                 if sample and ttc_dist.attempt_bernoulli(self.rng):
