@@ -377,9 +377,31 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
     assert sim.cur_iter == 11
 
     # Make sure the actions performed were as expected
-    assert attacker_actions == ['Program 1:attemptApplicationRespondConnectThroughData', 'Program 1:attemptRead', 'Program 1:attemptDeny', 'Program 1:accessNetworkAndConnections', 'Program 1:attemptModify', 'Program 1:specificAccess', 'ConnectionRule:1:attemptAccessNetworksUninspected', 'ConnectionRule:1:attemptConnectToApplicationsUninspected', 'ConnectionRule:1:attemptAccessNetworksInspected']
+    assert attacker_actions == [
+        'Program 1:attemptApplicationRespondConnectThroughData',
+        'Program 1:attemptRead',
+        'Program 1:attemptDeny',
+        'Program 1:accessNetworkAndConnections',
+        'Program 1:attemptModify',
+        'Program 1:specificAccess',
+        'ConnectionRule:1:attemptAccessNetworksUninspected',
+        'ConnectionRule:1:attemptConnectToApplicationsUninspected',
+        'ConnectionRule:1:attemptAccessNetworksInspected',
+    ]
 
-    assert defender_actions == ['Network:2:adversaryInTheMiddleDefense', 'ConnectionRule:3:payloadInspection', 'Program 2:supplyChainAuditing', 'ConnectionRule:3:restricted', 'Network:2:eavesdropDefense', 'ConnectionRule:1:payloadInspection', 'Program 1:notPresent', 'Network:2:networkAccessControl', 'Program 1:supplyChainAuditing', 'Program 2:notPresent', 'ConnectionRule:1:restricted']
+    assert defender_actions == [
+        'Network:2:adversaryInTheMiddleDefense',
+        'ConnectionRule:3:payloadInspection',
+        'Program 2:supplyChainAuditing',
+        'ConnectionRule:3:restricted',
+        'Network:2:eavesdropDefense',
+        'ConnectionRule:1:payloadInspection',
+        'Program 1:notPresent',
+        'Network:2:networkAccessControl',
+        'Program 1:supplyChainAuditing',
+        'Program 2:notPresent',
+        'ConnectionRule:1:restricted',
+    ]
     for step_id in attacker_actions:
         # Make sure that all attacker actions led to compromise
         node = sim.attack_graph.get_node_by_full_name(step_id)
@@ -465,9 +487,31 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
     assert sim.cur_iter == 11
 
     # Make sure the actions performed were as expected
-    assert attacker_actions == ['Program 1:attemptApplicationRespondConnectThroughData', 'Program 1:attemptRead', 'Program 1:attemptDeny', 'Program 1:accessNetworkAndConnections', 'Program 1:attemptModify', 'Program 1:specificAccess', 'ConnectionRule:1:attemptAccessNetworksUninspected', 'ConnectionRule:1:attemptConnectToApplicationsUninspected', 'ConnectionRule:1:attemptAccessNetworksInspected']
+    assert attacker_actions == [
+        'Program 1:attemptApplicationRespondConnectThroughData',
+        'Program 1:attemptRead',
+        'Program 1:attemptDeny',
+        'Program 1:accessNetworkAndConnections',
+        'Program 1:attemptModify',
+        'Program 1:specificAccess',
+        'ConnectionRule:1:attemptAccessNetworksUninspected',
+        'ConnectionRule:1:attemptConnectToApplicationsUninspected',
+        'ConnectionRule:1:attemptAccessNetworksInspected',
+    ]
 
-    assert defender_actions == ['Network:2:adversaryInTheMiddleDefense', 'ConnectionRule:3:payloadInspection', 'Program 2:supplyChainAuditing', 'ConnectionRule:3:restricted', 'Network:2:eavesdropDefense', 'ConnectionRule:1:payloadInspection', 'Program 1:notPresent', 'Network:2:networkAccessControl', 'Program 1:supplyChainAuditing', 'Program 2:notPresent', 'ConnectionRule:1:restricted']
+    assert defender_actions == [
+        'Network:2:adversaryInTheMiddleDefense',
+        'ConnectionRule:3:payloadInspection',
+        'Program 2:supplyChainAuditing',
+        'ConnectionRule:3:restricted',
+        'Network:2:eavesdropDefense',
+        'ConnectionRule:1:payloadInspection',
+        'Program 1:notPresent',
+        'Network:2:networkAccessControl',
+        'Program 1:supplyChainAuditing',
+        'Program 2:notPresent',
+        'ConnectionRule:1:restricted',
+    ]
     for step_id in attacker_actions:
         # Make sure that all attacker actions led to compromise
         node = sim.attack_graph.get_node_by_full_name(step_id)
