@@ -1285,3 +1285,26 @@ def test_scenario_advanced_agent_settings() -> None:
 
     assert sim.node_reward(sim.get_node('Host:0:authenticate'), attacker_name) == 1000
     assert sim.node_reward(sim.get_node('Host:0:access'), attacker_name) == 0.0
+
+
+def test_active_defenses() -> None:
+    """Verify that active defenses are correctly applied"""
+
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/credentials_scenario.yml'
+    )
+    sim = MalSimulator.from_scenario(
+        scenario,
+        sim_settings=MalSimulatorSettings(
+            ttc_mode=TTCMode.DISABLED,
+            run_defense_step_bernoullis=False,
+            run_attack_step_bernoullis=False,
+            attack_surface_skip_unnecessary=False,
+            compromise_entrypoints_at_start=True,
+            attacker_reward_mode=RewardMode.SAMPLE_TTC,
+        ),
+    )
+
+    assert len(sim._enabled_defenses) == 2
+    assert sim.get_node('Admin:notGuessable') in sim._enabled_defenses
+    assert sim.get_node('Admin:notDisclosed') in sim._enabled_defenses
