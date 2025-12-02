@@ -113,7 +113,7 @@ class TTCDist:
             # Expected value of Bernoulli should affect existence (for attack steps)
             # and initial state (defenses). When fetching expected value we assume
             # the Bernoulli trial was successful.
-            value = 1.0
+            value = float(self.dist.mean())
         else:
             value = float(self.dist.expect())
 

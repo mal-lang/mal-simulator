@@ -1306,5 +1306,5 @@ def test_active_defenses() -> None:
     )
 
     assert len(sim._enabled_defenses) == 2
-    assert sim.get_node('Admin:notGuessable') in sim._enabled_defenses
-    assert sim.get_node('Admin:notDisclosed') in sim._enabled_defenses
+    assert sim.get_node('Creds:notGuessable') in sim._enabled_defenses
+    assert sim.get_node('Creds:notDisclosed') in sim._enabled_defenses

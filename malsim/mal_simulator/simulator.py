@@ -118,10 +118,11 @@ class MalSimulator:
         # will only be set if TTCMode PRE_SAMLE/EXPECTED_VALUE is used
         self._ttc_values = self._attack_step_ttcs()
 
-        # Do initial calculations
-        if self.sim_settings.run_defense_step_bernoullis:
-            # These steps will be enabled from the start of the simulation
-            self._enabled_defenses = self._get_pre_enabled_defenses()
+        # These steps will be enabled from the start of the simulation 
+        # depending on if bernoullis are sampled or not
+        self._enabled_defenses = self._get_pre_enabled_defenses(
+            sample=self.sim_settings.run_defense_step_bernoullis
+        )
 
         if self.sim_settings.run_attack_step_bernoullis:
             # These steps will not be traversable
@@ -389,8 +390,9 @@ class MalSimulator:
         self._agent_rewards = {}
         self._ttc_values = self._attack_step_ttcs()
 
-        if self.sim_settings.run_defense_step_bernoullis:
-            self._enabled_defenses = self._get_pre_enabled_defenses()
+        self._enabled_defenses = self._get_pre_enabled_defenses(
+            sample=self.sim_settings.run_defense_step_bernoullis
+        )
 
         if self.sim_settings.run_attack_step_bernoullis:
             self._impossible_attack_steps = self._get_impossible_attack_steps()
@@ -427,7 +429,7 @@ class MalSimulator:
 
         return ttc_values
 
-    def _get_pre_enabled_defenses(self) -> set[AttackGraphNode]:
+    def _get_pre_enabled_defenses(self, sample: bool) -> set[AttackGraphNode]:
         """
         Calculate and return pre defenses that got a non-infinite
         ttc value sample, which means they will be pre enabled
@@ -435,7 +437,15 @@ class MalSimulator:
         pre_enabled_defenses = set()
         for node in self.attack_graph.defense_steps:
             if node.type == 'defense':
-                if TTCDist.from_node(node).attempt_bernoulli(self.rng):
+                ttc_dist = TTCDist.from_node(node)
+                # Check for degenerate distributions
+                if ttc_dist.success_probability(0) in (0.0, 1.0):
+                    if ttc_dist.expected_value == 1.0:
+                        pre_enabled_defenses.add(node)
+                    elif ttc_dist.expected_value == 0.0:
+                        continue
+                # Otherwise sample the distribution
+                if sample and ttc_dist.attempt_bernoulli(self.rng):
                     pre_enabled_defenses.add(node)
         return pre_enabled_defenses
 
