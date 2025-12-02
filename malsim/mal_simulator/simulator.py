@@ -118,7 +118,7 @@ class MalSimulator:
         # will only be set if TTCMode PRE_SAMLE/EXPECTED_VALUE is used
         self._ttc_values = self._attack_step_ttcs()
 
-        # These steps will be enabled from the start of the simulation 
+        # These steps will be enabled from the start of the simulation
         # depending on if bernoullis are sampled or not
         self._enabled_defenses = self._get_pre_enabled_defenses(
             sample=self.sim_settings.run_defense_step_bernoullis
