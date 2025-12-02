@@ -113,6 +113,9 @@ class TTCDist:
             # Expected value of Bernoulli should affect existence (for attack steps)
             # and initial state (defenses). When fetching expected value we assume
             # the Bernoulli trial was successful.
+            # NOTE: This is really weird that bernoulli always have expected value 1.0
+            # It's basically not a distribution anymore
+            # https://en.wikipedia.org/wiki/Probability_axioms
             value = 1.0
         else:
             value = float(self.dist.expect())

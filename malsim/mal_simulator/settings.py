@@ -56,10 +56,10 @@ class MalSimulatorSettings:
     compromise_entrypoints_at_start: bool = True
 
     # run_defense_step_bernoullis
-    # - if true, sample defenses bernoullis to decide their initial states
+    # - if true, sample defense step bernoullis to decide their initial states
     run_defense_step_bernoullis: bool = True
     # run_attack_step_bernoullis
-    # - if true, sample attack step bernoullis to decide if they are impossible
+    # - if true, sample attack step bernoullis to decide if they are impossible/exists
     run_attack_step_bernoullis: bool = True
 
     # Reward settings
