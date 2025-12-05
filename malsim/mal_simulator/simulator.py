@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional, TYPE_CHECKING
 from collections.abc import Iterable, Set, Mapping
-from types import MappingProxyType  # For immutable dict
 
 from numpy.random import default_rng
 
@@ -199,9 +198,9 @@ class MalSimulator:
         if register_agents:
             for agent_settings in scenario.agent_settings.values():
                 if isinstance(agent_settings, AttackerSettings):
-                    sim.register_attacker_with_settings(agent_settings)
+                    sim.register_attacker_settings(agent_settings)
                 elif isinstance(agent_settings, DefenderSettings):
-                    sim.register_defender_with_settings(agent_settings)
+                    sim.register_defender_settings(agent_settings)
         return sim
 
     def done(self) -> bool:
@@ -435,18 +434,18 @@ class MalSimulator:
     def _attack_step_ttc_values(
         self,
         nodes: Iterable[AttackGraphNode],
-        ttc_dicts: Mapping[AttackGraphNode, TTCDist] = {},
+        ttc_dists: Optional[Mapping[AttackGraphNode, TTCDist]] = None,
     ) -> dict[AttackGraphNode, float]:
         """
         Calculate and return attack steps TTCs if settings use
         pre sample or expected value.
-        Optionally give overriding `ttc_dicts` per node.
+        Optionally give overriding `ttc_dists` per node.
         """
 
         ttc_values = {}
         for node in nodes:
-            if node in ttc_dicts:
-                ttc_dist = ttc_dicts[node]
+            if ttc_dists and node in ttc_dists:
+                ttc_dist = ttc_dists[node]
             else:
                 ttc_dist = TTCDist.from_node(node)
 
@@ -480,7 +479,7 @@ class MalSimulator:
     def _get_impossible_attack_steps(
         self,
         nodes: Iterable[AttackGraphNode],
-        ttc_dists: Mapping[AttackGraphNode, TTCDist] = {},
+        ttc_dists: Optional[Mapping[AttackGraphNode, TTCDist]] = None,
     ) -> set[AttackGraphNode]:
         """
         Calculate and return which attack steps in `nodes` gets
@@ -488,6 +487,7 @@ class MalSimulator:
         Optionally give overriding `ttc_dists`.
         """
         impossible_attack_steps = set()
+        ttc_dists = ttc_dists or {}
 
         for node in nodes:
             if node in ttc_dists:
@@ -607,55 +607,65 @@ class MalSimulator:
         observed_nodes = (observable_steps - false_negatives) | false_positives
         return observed_nodes
 
+    def _create_attacker_state(
+        self,
+        attacker_settings: AttackerSettings,
+    ) -> MalSimAttackerState:
+        """Create an attacker state from attacker settings"""
+        ttc_overrides, ttc_value_overrides, impossible_steps = (
+            self._attacker_overriding_ttc_settings(attacker_settings)
+        )
+        return create_attacker_state(
+            sim=self,
+            name=attacker_settings.name,
+            entry_points=set(
+                full_names_or_nodes_to_nodes(self, attacker_settings.entry_points)
+            ),
+            goals=set(full_names_or_nodes_to_nodes(self, attacker_settings.goals)),
+            ttc_overrides=ttc_overrides,
+            ttc_value_overrides=ttc_value_overrides,
+            impossible_step_overrides=impossible_steps,
+        )
+
+    def _create_defender_state(
+        self,
+        defender_settings: DefenderSettings,
+    ) -> MalSimDefenderState:
+        """Create a defender state from defender settings"""
+        return create_defender_state(
+            sim=self,
+            name=defender_settings.name,
+            step_compromised_nodes=self._compromised_nodes,
+            step_enabled_defenses=self._enabled_defenses,
+        )
+
     def _reset_agents(self) -> None:
         """Reset agent states to a fresh start"""
 
         # Revive all agents and reset reward
-        self._alive_agents = set(self._agent_states.keys())
+        self._alive_agents = set(self._agent_settings.keys())
+        self._agent_states = {}
         self._agent_rewards = {}
 
         # Create new attacker agent states
-        for attacker_state in self._get_attacker_agents():
-            # Get any overriding ttc settings from attacker settings
-            attacker_settings = self._agent_settings[attacker_state.name]
-            if isinstance(attacker_settings, DefenderSettings):
-                raise TypeError(f'{attacker_state.name} settings are for defender')
-
-            ttc_overrides, ttc_value_overrides, impossible_step_overrides = (
-                self._attacker_overriding_ttc_settings(attacker_settings)
-            )
-
-            new_attacker_state = create_attacker_state(
-                sim=self,
-                name=attacker_state.name,
-                entry_points=attacker_state.entry_points,
-                goals=attacker_state.goals,
-                ttc_overrides=ttc_overrides,
-                ttc_value_overrides=ttc_value_overrides,
-                impossible_step_overrides=impossible_step_overrides,
-            )
-            self._agent_states[attacker_state.name] = new_attacker_state
-            self._compromised_nodes |= new_attacker_state.step_performed_nodes
-
-            # Set to initial reward
-            self._agent_rewards[attacker_state.name] = self._attacker_step_reward(
-                new_attacker_state, self.sim_settings.attacker_reward_mode
-            )
+        for attacker in self._agent_settings.values():
+            if isinstance(attacker, AttackerSettings):
+                # Get any overriding ttc settings from attacker settings
+                new_attacker_state = self._create_attacker_state(attacker)
+                self._agent_states[attacker.name] = new_attacker_state
+                self._compromised_nodes |= new_attacker_state.step_performed_nodes
+                self._agent_rewards[attacker.name] = self._attacker_step_reward(
+                    new_attacker_state, self.sim_settings.attacker_reward_mode
+                )
 
         # Create new defender agent states
-        for defender_state in self._get_defender_agents():
-            new_defender_state = create_defender_state(
-                sim=self,
-                name=defender_state.name,
-                step_compromised_nodes=self._compromised_nodes,
-                step_enabled_defenses=self._enabled_defenses,
-            )
-            self._agent_states[defender_state.name] = new_defender_state
-
-            # Set to initial reward
-            self._agent_rewards[defender_state.name] = self._defender_step_reward(
-                new_defender_state, self.sim_settings.defender_reward_mode
-            )
+        for defender in self._agent_settings.values():
+            if isinstance(defender, DefenderSettings):
+                new_defender_state = self._create_defender_state(defender)
+                self._agent_states[defender.name] = new_defender_state
+                self._agent_rewards[defender.name] = self._defender_step_reward(
+                    new_defender_state, self.sim_settings.defender_reward_mode
+                )
 
     def register_attacker(
         self,
@@ -665,37 +675,19 @@ class MalSimulator:
     ) -> None:
         """Register a mal sim attacker agent without settings object"""
         attacker_settings = AttackerSettings(name, entry_points, goals or set())
-        self.register_attacker_with_settings(attacker_settings)
+        self.register_attacker_settings(attacker_settings)
 
-    def register_attacker_with_settings(
-        self, attacker_settings: AttackerSettings
-    ) -> None:
+    def register_attacker_settings(self, attacker_settings: AttackerSettings) -> None:
         """Register a mal sim attacker agent"""
         assert attacker_settings.name not in self._agent_settings, (
             f'Duplicate agent named {attacker_settings.name} not allowed'
         )
+        self._alive_agents.add(attacker_settings.name)
         self._agent_settings[attacker_settings.name] = attacker_settings
 
-        # Get any overriding ttc settings from attacker settings
-        ttc_overrides, ttc_value_overrides, impossible_step_overrides = (
-            self._attacker_overriding_ttc_settings(attacker_settings)
-        )
-
-        agent_state = create_attacker_state(
-            self,
-            attacker_settings.name,
-            frozenset(
-                full_names_or_nodes_to_nodes(self, attacker_settings.entry_points)
-            ),
-            frozenset(full_names_or_nodes_to_nodes(self, attacker_settings.goals)),
-            ttc_overrides=ttc_overrides,
-            ttc_value_overrides=ttc_value_overrides,
-            impossible_step_overrides=impossible_step_overrides,
-        )
-
+        agent_state = self._create_attacker_state(attacker_settings)
         self._compromised_nodes |= agent_state.performed_nodes
         self._agent_states[attacker_settings.name] = agent_state
-        self._alive_agents.add(attacker_settings.name)
         self._agent_rewards[attacker_settings.name] = self._attacker_step_reward(
             agent_state, self.sim_settings.attacker_reward_mode
         )
@@ -713,9 +705,13 @@ class MalSimulator:
         set[AttackGraphNode],
     ]:
         """
-        Get overriding ttc values and impossible attack steps
+        Get overriding TTC distributions, TTC values, and impossible attack steps
         from attacker settings if they exist.
-        Returns two empty collections if no overriding ttcs are set.
+
+        Returns three separate collections:
+            - a dict of TTC distributions
+            - a dict of TTC values
+            - a set of impossible steps
         """
 
         if not attacker_settings.ttc_overrides:
@@ -744,11 +740,9 @@ class MalSimulator:
     def register_defender(self, name: str) -> None:
         """Register a mal sim defender agent without setting object"""
         defender_settings = DefenderSettings(name)
-        self.register_defender_with_settings(defender_settings)
+        self.register_defender_settings(defender_settings)
 
-    def register_defender_with_settings(
-        self, defender_settings: DefenderSettings
-    ) -> None:
+    def register_defender_settings(self, defender_settings: DefenderSettings) -> None:
         """Register a mal sim defender agent"""
 
         if self._get_defender_agents():
@@ -762,12 +756,7 @@ class MalSimulator:
         )
 
         self._agent_settings[defender_settings.name] = defender_settings
-        agent_state = create_defender_state(
-            sim=self,
-            name=defender_settings.name,
-            step_compromised_nodes=self._compromised_nodes,
-            step_enabled_defenses=self._enabled_defenses,
-        )
+        agent_state = self._create_defender_state(defender_settings)
         self._agent_states[defender_settings.name] = agent_state
         self._alive_agents.add(defender_settings.name)
         self._agent_rewards[defender_settings.name] = self._defender_step_reward(
@@ -837,12 +826,7 @@ class MalSimulator:
         # Compare attempts to ttc expected value in EXPECTED_VALUE mode
         # or presampled ttcs in PRE_SAMPLE mode
         elif self.sim_settings.ttc_mode in (TTCMode.EXPECTED_VALUE, TTCMode.PRE_SAMPLE):
-            if node in agent.ttc_value_overrides:
-                # If agent has custom ttc value set for node, use it
-                node_ttc_value = agent.ttc_value_overrides[node]
-            else:
-                node_ttc_value = self._ttc_values.get(node, 0)
-
+            node_ttc_value = self.node_ttc_value(node, agent.name)
             return num_attempts + 1 >= node_ttc_value
 
         else:

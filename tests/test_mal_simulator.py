@@ -44,9 +44,7 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     viability_before = {n.full_name: v for n, v in sim._viability_per_node.items()}
     necessity_before = {n.full_name: v for n, v in sim._necessity_per_node.items()}
     enabled_defenses = {n.full_name for n in sim._enabled_defenses}
-    sim.register_attacker_with_settings(
-        AttackerSettings(attacker_name, {agent_entry_point})
-    )
+    sim.register_attacker_settings(AttackerSettings(attacker_name, {agent_entry_point}))
     assert attacker_name in sim.agent_states
     assert len(sim.agent_states) == 1
     attacker_state = sim.agent_states[attacker_name]
@@ -90,14 +88,14 @@ def test_register_agent_attacker(
     sim = MalSimulator(attack_graph)
 
     agent_name = 'attacker1'
-    sim.register_attacker_with_settings(AttackerSettings(agent_name, set()))
+    sim.register_attacker_settings(AttackerSettings(agent_name, set()))
 
     assert agent_name in sim.agent_states
     assert agent_name in sim.agent_states
 
     with pytest.raises(AssertionError):
         # Can not register two agents same name
-        sim.register_attacker_with_settings(AttackerSettings(agent_name, set()))
+        sim.register_attacker_settings(AttackerSettings(agent_name, set()))
 
 
 def test_register_agent_defender(
@@ -107,7 +105,7 @@ def test_register_agent_defender(
     sim = MalSimulator(attack_graph)
 
     agent_name = 'defender1'
-    sim.register_defender_with_settings(DefenderSettings(agent_name))
+    sim.register_defender_settings(DefenderSettings(agent_name))
 
     assert agent_name in sim.agent_states
     assert agent_name in sim.agent_states
@@ -120,7 +118,7 @@ def test_register_agent_action_surface(
     sim = MalSimulator(attack_graph)
 
     agent_name = 'defender1'
-    sim.register_defender_with_settings(DefenderSettings(agent_name))
+    sim.register_defender_settings(DefenderSettings(agent_name))
 
     defender_state = sim.agent_states[agent_name]
     action_surface = defender_state.action_surface
