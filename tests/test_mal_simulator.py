@@ -44,9 +44,7 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     viability_before = {n.full_name: v for n, v in sim._viability_per_node.items()}
     necessity_before = {n.full_name: v for n, v in sim._necessity_per_node.items()}
     enabled_defenses = {n.full_name for n in sim._enabled_defenses}
-    sim.register_attacker_with_settings(
-        AttackerSettings(attacker_name, {agent_entry_point})
-    )
+    sim.register_attacker_settings(AttackerSettings(attacker_name, {agent_entry_point}))
     assert attacker_name in sim.agent_states
     assert len(sim.agent_states) == 1
     attacker_state = sim.agent_states[attacker_name]
@@ -90,14 +88,14 @@ def test_register_agent_attacker(
     sim = MalSimulator(attack_graph)
 
     agent_name = 'attacker1'
-    sim.register_attacker_with_settings(AttackerSettings(agent_name, set()))
+    sim.register_attacker_settings(AttackerSettings(agent_name, set()))
 
     assert agent_name in sim.agent_states
     assert agent_name in sim.agent_states
 
     with pytest.raises(AssertionError):
         # Can not register two agents same name
-        sim.register_attacker_with_settings(AttackerSettings(agent_name, set()))
+        sim.register_attacker_settings(AttackerSettings(agent_name, set()))
 
 
 def test_register_agent_defender(
@@ -107,7 +105,7 @@ def test_register_agent_defender(
     sim = MalSimulator(attack_graph)
 
     agent_name = 'defender1'
-    sim.register_defender_with_settings(DefenderSettings(agent_name))
+    sim.register_defender_settings(DefenderSettings(agent_name))
 
     assert agent_name in sim.agent_states
     assert agent_name in sim.agent_states
@@ -120,7 +118,7 @@ def test_register_agent_action_surface(
     sim = MalSimulator(attack_graph)
 
     agent_name = 'defender1'
-    sim.register_defender_with_settings(DefenderSettings(agent_name))
+    sim.register_defender_settings(DefenderSettings(agent_name))
 
     defender_state = sim.agent_states[agent_name]
     action_surface = defender_state.action_surface
@@ -1156,6 +1154,93 @@ def test_simulator_multiple_defenders() -> None:
             'Attacker1': [],
         }
     }
+
+
+def test_simulator_attacker_override_ttcs_state() -> None:
+    """
+    Have an attacker that overrides ttcs
+    """
+
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/ttc_lang_scenario_override_ttcs.yml'
+    )
+
+    sim = MalSimulator.from_scenario(
+        scenario,
+        sim_settings=MalSimulatorSettings(seed=100, ttc_mode=TTCMode.PRE_SAMPLE),
+        max_iter=100,
+    )
+    states = sim.reset()
+
+    bad_attacker_settings = sim._agent_settings['BadAttacker']
+    assert isinstance(bad_attacker_settings, AttackerSettings)
+    assert bad_attacker_settings.ttc_overrides is not None
+    bad_attacker_state = states['BadAttacker']
+    assert isinstance(bad_attacker_state, MalSimAttackerState)
+
+    assert {
+        fn for fn in bad_attacker_settings.ttc_overrides.per_node(sim.attack_graph)
+    } == {
+        'ComputerC:easyConnect',
+        'ComputerA:easyConnect',
+        'ComputerD:easyConnect',
+        'ComputerB:easyConnect',
+    }
+    assert {
+        n.full_name: v for n, v in bad_attacker_state.ttc_value_overrides.items()
+    } == {
+        'ComputerA:easyConnect': 7.4543483865750755,
+        'ComputerB:easyConnect': 15.661809565462281,
+        'ComputerC:easyConnect': 5.434482312470439,
+        'ComputerD:easyConnect': 35.14904078865208,
+    }
+    assert {n.full_name for n in bad_attacker_state.impossible_step_overrides} == {
+        'ComputerB:easyConnect'
+    }
+
+    good_attacker_state = states['GoodAttacker']
+    assert isinstance(good_attacker_state, MalSimAttackerState)
+    assert not good_attacker_state.ttc_value_overrides
+    assert not good_attacker_state.impossible_step_overrides
+
+
+def test_simulator_attacker_override_ttcs_step() -> None:
+    """
+    Have an attacker that overrides ttcs step
+    """
+
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/ttc_lang_scenario_override_ttcs.yml'
+    )
+    sim = MalSimulator.from_scenario(
+        scenario,
+        sim_settings=MalSimulatorSettings(
+            seed=100, ttc_mode=TTCMode.PRE_SAMPLE, attack_surface_skip_unnecessary=False
+        ),
+        max_iter=1000,
+    )
+
+    states = sim.reset()
+    attacker_name = 'GoodAttacker'
+    while not sim.agent_is_terminated(attacker_name):
+        # Good attacker should be fast
+        attacker_state = states[attacker_name]
+        agent_conf = scenario.agent_settings[attacker_name]
+        assert agent_conf.agent is not None
+        next_action = agent_conf.agent.get_next_action(attacker_state)
+        states = sim.step({attacker_name: [next_action]})
+    assert sim.cur_iter == 8
+
+    states = sim.reset()
+    attacker_name = 'BadAttacker'
+    while not sim.agent_is_terminated(attacker_name):
+        # Bad attacker should be slow
+        attacker_state = states[attacker_name]
+        agent_conf = scenario.agent_settings[attacker_name]
+        assert agent_conf.agent is not None
+        next_action = agent_conf.agent.get_next_action(attacker_state)
+        states = sim.step({attacker_name: [next_action]})
+    assert sim.cur_iter == 15
 
 
 def test_simulator_seed_setting() -> None:

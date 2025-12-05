@@ -6,8 +6,10 @@ from types import MappingProxyType
 
 from maltoolbox.attackgraph import AttackGraphNode
 
+from malsim.mal_simulator.ttc_utils import TTCDist
+
 if TYPE_CHECKING:
-    from .simulator import MalSimulator
+    from malsim import MalSimulator
 
 
 @dataclass(frozen=True)
@@ -45,21 +47,42 @@ class MalSimAttackerState(MalSimAgentState):
     # Goals affect simulation termination but is optional
     goals: frozenset[AttackGraphNode] = field(default_factory=frozenset)
 
+    # TTC distributions that override TTCs set in language
+    ttc_overrides: MappingProxyType[AttackGraphNode, TTCDist] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
+    # Only used if `ttc_overrides` is set
+    ttc_value_overrides: MappingProxyType[AttackGraphNode, float] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
+    # Only used if `ttc_overrides` is set
+    impossible_step_overrides: frozenset[AttackGraphNode] = field(
+        default_factory=frozenset
+    )  # Steps that are impossible to perform
+
     # Picklable
     def __getstate__(self) -> dict[str, Any]:
         # convert MappingProxyType to dict for pickling
         state = self.__dict__.copy()
         state['num_attempts'] = dict(state['num_attempts'])
+        state['ttc_overrides'] = dict(state['ttc_overrides'])
+        state['ttc_value_overrides'] = dict(state['ttc_value_overrides'])
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
-        # restore MappingProxyType
+        # restore MappingProxyType, ttc_overrides, ttc_value_overrides
         object.__setattr__(
             self, 'num_attempts', MappingProxyType(state['num_attempts'])
         )
+        object.__setattr__(
+            self, 'ttc_overrides', MappingProxyType(state['ttc_overrides'])
+        )
+        object.__setattr__(
+            self, 'ttc_value_overrides', MappingProxyType(state['ttc_value_overrides'])
+        )
         # set other frozen attributes
         for key, value in state.items():
-            if key != 'num_attempts':
+            if key not in ('num_attempts', 'ttc_overrides', 'ttc_value_overrides'):
                 object.__setattr__(self, key, value)
 
 
@@ -71,6 +94,9 @@ def create_attacker_state(
     step_compromised_nodes: Set[AttackGraphNode] = frozenset(),
     step_attempted_nodes: Set[AttackGraphNode] = frozenset(),
     step_nodes_made_unviable: Set[AttackGraphNode] = frozenset(),
+    ttc_overrides: Mapping[AttackGraphNode, TTCDist] = MappingProxyType({}),
+    ttc_value_overrides: Mapping[AttackGraphNode, float] = MappingProxyType({}),
+    impossible_step_overrides: Set[AttackGraphNode] = frozenset(),
     previous_state: Optional[MalSimAttackerState] = None,
 ) -> MalSimAttackerState:
     """
@@ -100,6 +126,8 @@ def create_attacker_state(
         }
 
     else:
+        ttc_value_overrides = previous_state.ttc_value_overrides
+        impossible_step_overrides = previous_state.impossible_step_overrides
         compromised_nodes = previous_state.performed_nodes | step_compromised_nodes
 
         # Build on previous attack surface (for performance)
@@ -138,6 +166,9 @@ def create_attacker_state(
         step_unviable_nodes=frozenset(step_nodes_made_unviable),
         step_attempted_nodes=frozenset(step_attempted_nodes),
         num_attempts=MappingProxyType(new_num_attempts),
+        ttc_overrides=MappingProxyType(ttc_overrides),
+        ttc_value_overrides=MappingProxyType(ttc_value_overrides),
+        impossible_step_overrides=frozenset(impossible_step_overrides),
     )
 
 
