@@ -12,6 +12,11 @@ It allows you to:
 
 For in-depth documentation please refer to the official **[Wiki](https://github.com/mal-lang/mal-simulator/wiki)**.
 
+## Contributing
+
+- Use [Conventional commits](https://www.conventionalcommits.org/en/v1.0.0/)
+- The CI pipeline runs `mypy` and `ruff` for linting and type checking, and PRs will only be merged if pipeline succeeds.
+
 ---
 
 ## 🛠️ How to Run a Simulation
