@@ -1,6 +1,6 @@
 # MAL Simulator
 
-## 🚀 Overview
+## Overview
 
 The **MAL Simulator** is a tool designed for running simulations on systems modeled in the **Modeling Attack Language (MAL)**.
 
