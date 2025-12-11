@@ -512,7 +512,7 @@ class MalSimulator:
         observed_nodes = (observable_steps - false_negatives) | false_positives
         return observed_nodes
 
-    def _create_attacker_state(
+    def _initial_attacker_state(
         self,
         attacker_settings: AttackerSettings,
     ) -> MalSimAttackerState:
@@ -532,7 +532,7 @@ class MalSimulator:
             impossible_step_overrides=impossible_steps,
         )
 
-    def _create_defender_state(
+    def _initial_defender_state(
         self,
         defender_settings: DefenderSettings,
         pre_compromised_nodes: set[AttackGraphNode],
@@ -559,7 +559,7 @@ class MalSimulator:
         for attacker in self._agent_settings.values():
             if isinstance(attacker, AttackerSettings):
                 # Get any overriding ttc settings from attacker settings
-                new_attacker_state = self._create_attacker_state(attacker)
+                new_attacker_state = self._initial_attacker_state(attacker)
                 pre_compromised_nodes |= new_attacker_state.step_performed_nodes
                 self._agent_states[attacker.name] = new_attacker_state
                 self._agent_rewards[attacker.name] = self._attacker_step_reward(
@@ -569,7 +569,7 @@ class MalSimulator:
         # Create new defender agent states
         for defender in self._agent_settings.values():
             if isinstance(defender, DefenderSettings):
-                new_defender_state = self._create_defender_state(
+                new_defender_state = self._initial_defender_state(
                     defender,
                     pre_compromised_nodes,
                     self._graph_state.pre_enabled_defenses,
@@ -597,7 +597,7 @@ class MalSimulator:
         self._alive_agents.add(attacker_settings.name)
         self._agent_settings[attacker_settings.name] = attacker_settings
 
-        agent_state = self._create_attacker_state(attacker_settings)
+        agent_state = self._initial_attacker_state(attacker_settings)
         self._agent_states[attacker_settings.name] = agent_state
         self._agent_rewards[attacker_settings.name] = self._attacker_step_reward(
             agent_state, self.sim_settings.attacker_reward_mode
@@ -671,7 +671,7 @@ class MalSimulator:
 
         self._agent_settings[defender_settings.name] = defender_settings
 
-        agent_state = self._create_defender_state(
+        agent_state = self._initial_defender_state(
             defender_settings,
             self.compromised_nodes,
             self._graph_state.pre_enabled_defenses,
