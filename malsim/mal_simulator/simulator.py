@@ -96,7 +96,7 @@ class MalSimulator:
         self._alive_agents: set[str] = set()
         self._agent_rewards: dict[str, float] = {}
 
-        # Store properties of each AttackGraphNode
+        # Store graph state based on probabilities
         self._graph_state = compute_initial_graph_state(
             attack_graph, sim_settings, self.rng
         )
@@ -430,42 +430,38 @@ class MalSimulator:
         """
         Calculate the attack surface of the attacker.
         If from_nodes are provided only calculate the attack surface
-        stemming from those nodes, otherwise use all nodes the attacker
-        has compromised. If skip_compromised is true, exclude already
-        compromised nodes from the returned attack surface.
-
+        stemming from those nodes, otherwise use all performed_nodes.
         The attack surface includes all of the traversable children nodes.
 
         Arguments:
-        from_nodes        - the nodes to calculate the attack surface from;
-                            defaults to the attackers compromised nodes list
-                            if omitted
+        agent_name      - the agent to get attack surface for
+        performed_nodes - the nodes the agent has performed
+        from_nodes      - the nodes to calculate the attack surface from
+
         """
 
-        attack_surface = set()
         from_nodes = from_nodes if from_nodes is not None else performed_nodes
-        for attack_step in from_nodes:
-            for child in attack_step.children:
-                if (
-                    self.sim_settings.attack_surface_skip_compromised
-                    and child in performed_nodes
-                ):
+        attack_surface = set()
+
+        skip_compromised = self.sim_settings.attack_surface_skip_compromised
+        skip_unviable = self.sim_settings.attack_surface_skip_unviable
+        skip_unnecessary = self.sim_settings.attack_surface_skip_unnecessary
+
+        for parent in from_nodes:
+            for child in parent.children:
+                if skip_compromised and child in performed_nodes:
                     continue
-                if (
-                    self.sim_settings.attack_surface_skip_unviable
-                    and not self.node_is_viable(child)
-                ):
+
+                if skip_unviable and not self.node_is_viable(child):
                     continue
-                if (
-                    self.sim_settings.attack_surface_skip_unnecessary
-                    and not self.node_is_necessary(child)
-                ):
+
+                if skip_unnecessary and not self.node_is_necessary(child):
                     continue
+
                 if not self.node_is_actionable(child, agent_name):
                     continue
-                if child not in attack_surface and self.node_is_traversable(
-                    performed_nodes, child
-                ):
+
+                if self.node_is_traversable(performed_nodes, child):
                     attack_surface.add(child)
 
         return frozenset(attack_surface)
