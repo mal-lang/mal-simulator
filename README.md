@@ -73,3 +73,20 @@ sim = MalSimulator.from_scenario(scenario)
 agent_actions = run_simulation(sim, scenario.agents)
 
 print("Simulation finished. Agent actions:", agent_actions)
+```
+
+You can also run your own simulation loop.
+
+```
+from malsim import MalSimulator, Scenario
+
+scenario = Scenario.load_from_file("my_scenario.yml")
+sim = MalSimulator.from_scenario(scenario)
+agent_states = sim.reset()
+
+while not sim.done():
+    # ... calculate actions for each agent
+    agent_states = sim.step(actions)
+```
+
+Read the [Wiki](https://github.com/mal-lang/mal-simulator/wiki) for more ways to run the simulator.
