@@ -3,21 +3,15 @@ Script that takes a scenario file and converts the rewards from the old format
 (used until Mal Simulator v0.2.6) to the new format.
 """
 
-import json
-from typing import Any
-from maltoolbox.model import Model
 from malsim.mal_simulator import MalSimulator, run_simulation
 from malsim.scenario import Scenario, path_relative_to_file_dir
 import yaml
 
-    
+
 def _get_model_attackers(model_file: str) -> dict:
     attackers = {}
     with open(model_file, 'r', encoding='utf-8') as file:
-        try:
-            model_dict = yaml.safe_load(file)
-        except:
-            model_dict = json.load(file)
+        model_dict = yaml.safe_load(file)
         model_attackers = model_dict.get('attackers', {})
 
         for _, attacker_info in model_attackers.items():
@@ -33,6 +27,7 @@ def _get_model_attackers(model_file: str) -> dict:
             }
     return attackers
 
+
 def _convert_scenario_attackers(scenario_file: str) -> dict:
     """
     Convert scenario rewards from the old format to the new format.
@@ -46,12 +41,15 @@ def _convert_scenario_attackers(scenario_file: str) -> dict:
         scenario_dict = yaml.safe_load(file)
 
         if 'agents' in scenario_dict:
-            msg = "Seems to have already been converted, agents already defined in scenario file"
+            msg = (
+                'Seems to have already been converted, '
+                'agents already defined in scenario file'
+            )
             print(msg)
             raise RuntimeError(msg)
 
         if 'model_file' not in scenario_dict:
-            msg = "Model file not referenced in scenario"
+            msg = 'Model file not referenced in scenario'
             print(msg)
             raise RuntimeError(msg)
 
@@ -68,20 +66,14 @@ def _convert_scenario_attackers(scenario_file: str) -> dict:
             del scenario_dict['defender_agent_class']
         if 'attacker_entry_points' in scenario_dict:
             for attacker, eps in scenario_dict['attacker_entry_points'].items():
-                agents[attacker] = {
-                    'type': 'attacker',
-                    'entry_points': eps
-                }
+                agents[attacker] = {'type': 'attacker', 'entry_points': eps}
             del scenario_dict['attacker_entry_points']
 
         for attacker_name in agents:
             agents[attacker_name]['agent_class'] = attacker_class
 
         if defender_class:
-            agents['Defender'] = {
-                'type': 'defender',
-                'agent_class': defender_class
-            }
+            agents['Defender'] = {'type': 'defender', 'agent_class': defender_class}
 
         # Convert the rewards to the new format
         scenario_dict['agents'] = agents
