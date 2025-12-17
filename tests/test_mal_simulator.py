@@ -453,7 +453,7 @@ def test_get_node(corelang_lang_graph: LanguageGraph, model: Model) -> None:
 
     assert sim.get_node('OS App:fullAccess')
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(LookupError):
         sim.get_node('nonExisting:node')
 
 
