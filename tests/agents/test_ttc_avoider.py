@@ -52,7 +52,7 @@ def test_ttc_avoider_low_sharpness() -> None:
     )
 
     attacker_agent_name = 'TTCAvoidingAttacker'
-    attacker_agent = TTCSoftMinAttacker({'beta': 0.1})
+    attacker_agent = TTCSoftMinAttacker({'beta': 0.1, 'seed': 1})
     entry_point = sim.get_node('Net1:easyAccess')
     goal = sim.get_node('DataD:read')
     sim.register_attacker(attacker_agent_name, {entry_point}, {goal})

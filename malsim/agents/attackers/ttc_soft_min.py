@@ -37,6 +37,6 @@ class TTCSoftMinAttacker:
         beta = self.beta  # adjust sharpness of softargmax
         weights = np.exp(-beta * np.array(ttcs_left, dtype=np.float64))
         weights /= weights.sum()
-        idx = np.random.choice(len(possible_choices), p=weights)
+        idx = self.rng.choices(range(len(possible_choices)), weights, k=1)[0]
 
         return possible_choices[idx]
