@@ -37,3 +37,42 @@ def test_ttc_avoider() -> None:
         actions = {attacker_agent_name: [attacker_node] if attacker_node else []}
         states = sim.step(actions)
         attacker_state = states[attacker_agent_name]
+
+
+def test_ttc_avoider_low_sharpness() -> None:
+    """TTC Avoider with low beta/sharpness"""
+
+    scenario_file = 'tests/testdata/scenarios/ttc_lang_scenario.yml'
+    scenario = Scenario.load_from_file(scenario_file)
+    sim = MalSimulator(
+        scenario.attack_graph,
+        sim_settings=MalSimulatorSettings(
+            seed=48, ttc_mode=TTCMode.PRE_SAMPLE, attack_surface_skip_unnecessary=False
+        ),
+    )
+
+    attacker_agent_name = 'TTCAvoidingAttacker'
+    attacker_agent = TTCSoftMinAttacker({'beta': 0.1})
+    entry_point = sim.get_node('Net1:easyAccess')
+    goal = sim.get_node('DataD:read')
+    sim.register_attacker(attacker_agent_name, {entry_point}, {goal})
+
+    states = sim.agent_states
+    attacker_state = states[attacker_agent_name]
+
+    recording = []
+    while not sim.done():
+        # Run the simulation until agents are terminated/truncated
+        assert isinstance(attacker_state, MalSimAttackerState)
+        attacker_node = attacker_agent.get_next_action(attacker_state)
+        assert attacker_node
+
+        # Step
+        actions = {attacker_agent_name: [attacker_node] if attacker_node else []}
+        states = sim.step(actions)
+        recording.append(attacker_node)
+        attacker_state = states[attacker_agent_name]
+
+    # low sharpness will pick both easy and hard
+    assert any('easy' in n.name for n in recording)
+    assert any('hard' in n.name for n in recording)
