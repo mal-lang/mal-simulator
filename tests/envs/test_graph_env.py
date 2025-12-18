@@ -241,9 +241,9 @@ def test_asset_then_action_wrapper() -> None:
             attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
-    assert scenario.attack_graph.model is not None, (
-        'Attack graph needs to have a model attached to it'
-    )
+    assert (
+        scenario.attack_graph.model is not None
+    ), 'Attack graph needs to have a model attached to it'
     wrapped_env = AssetThenActionWrapper(
         attacker_env,
         scenario.attack_graph.model,
@@ -271,9 +271,9 @@ def test_asset_then_action_wrapper() -> None:
             attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
-    assert scenario.attack_graph.model is not None, (
-        'Attack graph needs to have a model attached to it'
-    )
+    assert (
+        scenario.attack_graph.model is not None
+    ), 'Attack graph needs to have a model attached to it'
     wrapped_env = AssetThenActionWrapper(
         defender_env,
         scenario.attack_graph.model,
@@ -304,9 +304,9 @@ def test_action_then_asset_wrapper() -> None:
             attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
-    assert scenario.attack_graph.model is not None, (
-        'Attack graph needs to have a model attached to it'
-    )
+    assert (
+        scenario.attack_graph.model is not None
+    ), 'Attack graph needs to have a model attached to it'
     wrapped_env = ActionThenAssetWrapper(
         attacker_env,
         scenario.attack_graph.model,

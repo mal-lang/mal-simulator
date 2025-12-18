@@ -190,9 +190,9 @@ def get_agent_name(scenario: Scenario, type: AgentType) -> str:
     agent_names = [
         name for name, agent in scenario.agent_settings.items() if agent.type == type
     ]
-    assert len(agent_names) == 1, (
-        f'Expected exactly one agent of type {type}, got {len(agent_names)} agents'
-    )
+    assert (
+        len(agent_names) == 1
+    ), f'Expected exactly one agent of type {type}, got {len(agent_names)} agents'
     return str(agent_names[0])
 
 
