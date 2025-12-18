@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+from functools import partial
 import logging
 from typing import Any, Optional, TYPE_CHECKING
 from collections.abc import Set
-
 from numpy.random import default_rng
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
+from malsim.mal_simulator.rewards import (
+    AttackerRewardFunction,
+    DefenderRewardFunction,
+    attacker_step_reward,
+    cumulative_reward_func,
+    defender_step_reward,
+)
 from malsim.scenario import (
     AttackerSettings,
     DefenderSettings,
@@ -95,6 +102,34 @@ class MalSimulator:
         self._agent_states: dict[str, MalSimAttackerState | MalSimDefenderState] = {}
         self._alive_agents: set[str] = set()
         self._agent_rewards: dict[str, float] = {}
+
+        # Bind defender reward function with settings
+        defender_reward_func = partial(
+            defender_step_reward, node_reward_for_agent=self.node_reward
+        )
+
+        # Create defender reward function based on reward mode
+        self._defender_step_reward: DefenderRewardFunction = (
+            cumulative_reward_func(defender_reward_func, self.agent_reward)
+            if sim_settings.defender_reward_mode == RewardMode.CUMULATIVE
+            else defender_reward_func
+        )
+
+        # Bind attacker reward function with settings
+        attacker_reward_func: AttackerRewardFunction = partial(
+            attacker_step_reward,
+            reward_mode=sim_settings.attacker_reward_mode,
+            ttc_mode=sim_settings.ttc_mode,
+            node_reward_for_agent=self.node_reward,
+            rng=self.rng,
+        )
+
+        # Create attacker reward function based on reward mode
+        self._attacker_step_reward: AttackerRewardFunction = (
+            cumulative_reward_func(attacker_reward_func, self.agent_reward)
+            if sim_settings.attacker_reward_mode == RewardMode.CUMULATIVE
+            else attacker_reward_func
+        )
 
         # Store graph state based on probabilities
         self._graph_state = compute_initial_graph_state(
@@ -441,7 +476,7 @@ class MalSimulator:
         """
 
         from_nodes = from_nodes if from_nodes is not None else performed_nodes
-        attack_surface = set()
+        attack_surface: set[AttackGraphNode] = set()
 
         skip_compromised = self.sim_settings.attack_surface_skip_compromised
         skip_unviable = self.sim_settings.attack_surface_skip_unviable
@@ -559,7 +594,7 @@ class MalSimulator:
                 pre_compromised_nodes |= new_attacker_state.step_performed_nodes
                 self._agent_states[attacker.name] = new_attacker_state
                 self._agent_rewards[attacker.name] = self._attacker_step_reward(
-                    new_attacker_state, self.sim_settings.attacker_reward_mode
+                    new_attacker_state
                 )
 
         # Create new defender agent states
@@ -572,7 +607,7 @@ class MalSimulator:
                 )
                 self._agent_states[defender.name] = new_defender_state
                 self._agent_rewards[defender.name] = self._defender_step_reward(
-                    new_defender_state, self.sim_settings.defender_reward_mode
+                    new_defender_state
                 )
 
     def register_attacker(
@@ -596,7 +631,7 @@ class MalSimulator:
         agent_state = self._initial_attacker_state(attacker_settings)
         self._agent_states[attacker_settings.name] = agent_state
         self._agent_rewards[attacker_settings.name] = self._attacker_step_reward(
-            agent_state, self.sim_settings.attacker_reward_mode
+            agent_state
         )
 
         if len(self._get_defender_agents()) > 0:
@@ -675,7 +710,7 @@ class MalSimulator:
         self._agent_states[defender_settings.name] = agent_state
         self._alive_agents.add(defender_settings.name)
         self._agent_rewards[defender_settings.name] = self._defender_step_reward(
-            agent_state, self.sim_settings.defender_reward_mode
+            agent_state
         )
 
     @property
@@ -759,8 +794,8 @@ class MalSimulator:
         Returns: two lists with compromised, attempted nodes
         """
 
-        successful_compromises = list()
-        attempted_compromises = list()
+        successful_compromises: list[AttackGraphNode] = list()
+        attempted_compromises: list[AttackGraphNode] = list()
 
         for node in nodes:
             assert node == self.attack_graph.nodes[node.id], (
@@ -812,8 +847,8 @@ class MalSimulator:
         and `attack_steps_made_unviable`.
         """
 
-        enabled_defenses = list()
-        attack_steps_made_unviable = set()
+        enabled_defenses: list[AttackGraphNode] = list()
+        attack_steps_made_unviable: set[AttackGraphNode] = set()
 
         for node in nodes:
             assert node == self.attack_graph.nodes[node.id], (
@@ -849,81 +884,6 @@ class MalSimulator:
                 )
 
         return enabled_defenses, attack_steps_made_unviable
-
-    def _attacker_step_reward(
-        self,
-        attacker_state: MalSimAttackerState,
-        reward_mode: RewardMode,
-    ) -> float:
-        """
-        Calculate current attacker reward either cumulative or one-off.
-        If cumulative, sum previous and one-off reward, otherwise
-        just return the one-off reward.
-
-        Args:
-        - attacker_state: the current attacker state
-        - reward_mode: which way to calculate reward
-        """
-
-        # Attacker is rewarded for compromised nodes
-        step_reward = sum(
-            self.node_reward(n, attacker_state.name)
-            for n in attacker_state.step_performed_nodes
-        )
-
-        if self.sim_settings.ttc_mode != TTCMode.DISABLED:
-            # If TTC Mode is not disabled, attacker is penalized for each attempt
-            step_reward -= len(attacker_state.step_attempted_nodes)
-        elif self.sim_settings.ttc_mode == TTCMode.DISABLED:
-            # If TTC Mode is disabled but reward mode uses TTCs, penalize with TTCs
-            for node in attacker_state.step_performed_nodes:
-                if reward_mode == RewardMode.EXPECTED_TTC:
-                    step_reward -= (
-                        TTCDist.from_node(node).expected_value if node.ttc else 0
-                    )
-                elif reward_mode == RewardMode.SAMPLE_TTC:
-                    step_reward -= (
-                        TTCDist.from_node(node).sample_value(self.rng)
-                        if node.ttc
-                        else 0
-                    )
-
-        # Cumulative reward mode for attacker makes no sense
-        # If I hack someones computer, do I just keep getting rewarded for it?
-        # Day after day I receive some kind of time payback that allows me
-        # to keep hacking?
-        if reward_mode == RewardMode.CUMULATIVE:
-            # To make it cumulative, add previous step reward
-            step_reward += self.agent_reward(attacker_state.name)
-
-        return step_reward
-
-    def _defender_step_reward(
-        self, defender_state: MalSimDefenderState, reward_mode: RewardMode
-    ) -> float:
-        """
-        Calculate current defender reward either cumulative or one-off.
-        If cumulative, sum previous and one-off reward, otherwise
-        just return the one-off reward.
-
-        Args:
-        - defender_state: the defender state before defenses were enabled
-        - reward_mode: which way to calculate reward
-        """
-        step_enabled_defenses = defender_state.step_performed_nodes
-        step_compromised_nodes = defender_state.step_compromised_nodes
-
-        # Defender is penalized for compromised steps and enabled defenses
-        step_reward = -sum(
-            self.node_reward(n, defender_state.name)
-            for n in step_enabled_defenses | step_compromised_nodes
-        )
-
-        if reward_mode == RewardMode.CUMULATIVE:
-            # To make it cumulative add previous step reward
-            step_reward += self.agent_reward(defender_state.name)
-
-        return step_reward
 
     @staticmethod
     def _attacker_is_terminated(attacker_state: MalSimAttackerState) -> bool:
@@ -1037,8 +997,7 @@ class MalSimulator:
 
             # Update attacker reward
             self._agent_rewards[attacker_state.name] = self._attacker_step_reward(
-                updated_attacker_state,
-                self.sim_settings.attacker_reward_mode,
+                updated_attacker_state
             )
 
         # Update defender states and remove 'dead' agents of any type
@@ -1059,8 +1018,7 @@ class MalSimulator:
 
                 # Update defender reward
                 self._agent_rewards[agent_state.name] = self._defender_step_reward(
-                    updated_defender_state,
-                    self.sim_settings.defender_reward_mode,
+                    updated_defender_state
                 )
 
             # Remove agents that are terminated
