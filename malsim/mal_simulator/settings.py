@@ -63,8 +63,8 @@ class MalSimulatorSettings:
     run_attack_step_bernoullis: bool = True
 
     # Reward settings
-    attacker_reward_mode: RewardMode = RewardMode.CUMULATIVE
-    defender_reward_mode: RewardMode = RewardMode.CUMULATIVE
+    attacker_reward_mode: RewardMode = RewardMode.ONE_OFF
+    defender_reward_mode: RewardMode = RewardMode.ONE_OFF
 
     def __post_init__(self) -> None:
         """Allow ttc/reward mode to be given as strings - convert to enums"""
