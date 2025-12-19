@@ -362,13 +362,9 @@ class MalSimulator:
         """Get node from attack graph by either full name or id"""
 
         if full_name and not node_id:
-            node = self.attack_graph.get_node_by_full_name(full_name)
-            assert node, f'Node with full_name {full_name} does not exist'
-            return node
+            return self.attack_graph.get_node_by_full_name(full_name)
         if node_id and not full_name:
-            node = self.attack_graph.nodes[node_id]
-            assert node, f'Node with id {node_id} does not exist'
-            return node
+            return self.attack_graph.nodes[node_id]
 
         raise ValueError("Provide either full_name or node_id to 'get_node'")
 
