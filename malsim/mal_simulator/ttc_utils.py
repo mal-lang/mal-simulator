@@ -90,7 +90,8 @@ class TTCDist:
             mean, std = args
             self.dist = lognorm(s=std, scale=np.exp(mean))
         elif function == DistFunction.UNIFORM:
-            self.dist = uniform()
+            low, high = args
+            self.dist = uniform(loc=low, scale=high - low)
         else:
             raise ValueError(f'Unknown distribution {function}')
 

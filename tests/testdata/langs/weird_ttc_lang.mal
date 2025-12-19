@@ -30,15 +30,15 @@ category TestAssets{
 
         | bernoulliStep [Bernoulli(0.5)]
 
-        | selfMadeComboAddition [Bernoulli(0.5) + Exponential(0.1)]
+        | selfMadeComboAddition [Binomial(10, 0.1) + Exponential(0.1)]
 
-        | selfMadeComboSubtract [Bernoulli(0.5) - Binomial(10, 0.1)]
+        | selfMadeComboSubtract [Gamma(1.0, 0.1) - Binomial(10, 0.1)]
 
-        | selfMadeComboMultiply [Bernoulli(0.5) * Gamma(1.0, 0.1)]
+        | selfMadeComboMultiply [LogNormal(1.0, 0.1) * Gamma(1.0, 0.1)]
 
-        | selfMadeComboDivision [Bernoulli(0.5) / LogNormal(1.0, 0.1)]
+        | selfMadeComboDivision [Uniform(1, 10) / LogNormal(1.0, 0.1)]
 
-        | selfMadeComboMultiplyUniform [Bernoulli(0.5) * Uniform(0.1)]
+        | selfMadeComboMultiplyUniform [Exponential(0.5) * Uniform(1, 10)]
 
     }
 
