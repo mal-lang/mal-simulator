@@ -278,34 +278,38 @@ def test_all_ttc_distributions() -> None:
     ttc_dist = TTCDist.from_node(node)
     assert np.isclose(ttc_dist.expected_value, 1.0)
 
-    # Bernoulli(0.5) + Exponential(0.1)
+    # Binomial(10, 0.1) + Exponential(0.1)
     node = get_node(attack_graph, 'TheAsset:selfMadeComboAddition')
     ttc_dist = TTCDist.from_node(node)
-    expected = 1 + (1 / 0.1)
+    expected = (10 * 0.1) + (1 / 0.1)
     assert np.isclose(ttc_dist.expected_value, expected)
 
-    # Bernoulli(0.5) - Binomial(10, 0.1)
+    # Gamma(1.0, 0.1) - Binomial(10, 0.1)
     node = get_node(attack_graph, 'TheAsset:selfMadeComboSubtract')
     ttc_dist = TTCDist.from_node(node)
-    expected = 1 - (10 * 0.1)
+    expected = (1.0 * 0.1) - (10 * 0.1)
     assert np.isclose(ttc_dist.expected_value, expected)
 
-    # Bernoulli(0.5) * Gamma(1.0, 0.1)
+    # LogNormal(1.0, 0.1) * Gamma(1.0, 0.1)
     node = get_node(attack_graph, 'TheAsset:selfMadeComboMultiply')
     ttc_dist = TTCDist.from_node(node)
-    expected = 1 * (1.0 * 0.1)
+    lognorm_mean = np.exp(1.0 + 0.1**2 / 2)
+    gamma_mean = 1.0 * 0.1
+    expected = lognorm_mean * gamma_mean
     assert np.isclose(ttc_dist.expected_value, expected)
 
-    # Bernoulli(0.5) / LogNormal(1.0, 0.1)
+    # Uniform(1, 10) / LogNormal(1.0, 0.1)
     node = get_node(attack_graph, 'TheAsset:selfMadeComboDivision')
     ttc_dist = TTCDist.from_node(node)
+    uniform_mean = (1 + 10) / 2
     lognorm_mean = np.exp(1.0 + 0.1**2 / 2)
-    expected = 1 / lognorm_mean
+    expected = uniform_mean / lognorm_mean
     assert np.isclose(ttc_dist.expected_value, expected)
 
-    # Bernoulli(0.5) * Uniform(0.1)
+    # Exponential(0.5) * Uniform(1, 10)
     node = get_node(attack_graph, 'TheAsset:selfMadeComboMultiplyUniform')
     ttc_dist = TTCDist.from_node(node)
-    uniform_mean = 0.5  # mean of Uniform(0,1)
-    expected = 1 * uniform_mean
+    exp_mean = 1 / 0.5
+    uniform_mean = (1 + 10) / 2
+    expected = exp_mean * uniform_mean
     assert np.isclose(ttc_dist.expected_value, expected)
