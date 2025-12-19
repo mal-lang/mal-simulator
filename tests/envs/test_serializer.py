@@ -102,9 +102,10 @@ def test_serializer() -> None:
     for attack_step in all_attack_steps:
         asset_name = attack_step.asset.name
         attack_name = attack_step.name
-        assert (asset_name, attack_name) in serializer.step_type, (
-            f'attack_step_type missing asset {asset_name}'
-        )
+        assert (
+            asset_name,
+            attack_name,
+        ) in serializer.step_type, f'attack_step_type missing asset {asset_name}'
         asset_idx = serializer.step_type[(asset_name, attack_name)]
         assert isinstance(asset_idx, int), (
             f'attack_step_type[{asset_name}][{attack_name}] should be int'
