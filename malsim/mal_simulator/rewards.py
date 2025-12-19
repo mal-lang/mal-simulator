@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 from typing import TypeVar
-from collections.abc import Callable, Generator
+from collections.abc import Callable
 from numpy.random import Generator
 
 
