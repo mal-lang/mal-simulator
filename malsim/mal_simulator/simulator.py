@@ -239,9 +239,9 @@ class MalSimulator:
             if node in agent_state.ttc_value_overrides:
                 return agent_state.ttc_value_overrides[node]
 
-        assert (
-            node in self._graph_state.ttc_values
-        ), f'Node {node.full_name} does not have a ttc value'
+        assert node in self._graph_state.ttc_values, (
+            f'Node {node.full_name} does not have a ttc value'
+        )
         return self._graph_state.ttc_values[node]
 
     def node_is_actionable(
@@ -618,9 +618,9 @@ class MalSimulator:
 
     def register_attacker_settings(self, attacker_settings: AttackerSettings) -> None:
         """Register a mal sim attacker agent"""
-        assert (
-            attacker_settings.name not in self._agent_settings
-        ), f'Duplicate agent named {attacker_settings.name} not allowed'
+        assert attacker_settings.name not in self._agent_settings, (
+            f'Duplicate agent named {attacker_settings.name} not allowed'
+        )
         self._alive_agents.add(attacker_settings.name)
         self._agent_settings[attacker_settings.name] = attacker_settings
 
@@ -692,9 +692,9 @@ class MalSimulator:
                 'It does not make sense to have more than one, '
                 'since all defender agents have the same state.'
             )
-        assert (
-            defender_settings.name not in self._agent_settings
-        ), f'Duplicate agent named {defender_settings.name} not allowed'
+        assert defender_settings.name not in self._agent_settings, (
+            f'Duplicate agent named {defender_settings.name} not allowed'
+        )
 
         self._agent_settings[defender_settings.name] = defender_settings
 
