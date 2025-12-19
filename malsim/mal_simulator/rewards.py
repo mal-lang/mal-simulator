@@ -34,13 +34,11 @@ def defender_step_reward(
     Args:
     - defender_state: the defender state before defenses were enabled
     """
-    step_enabled_defenses = defender_state.step_performed_nodes
-    step_compromised_nodes = defender_state.step_compromised_nodes
 
     # Defender is penalized for compromised steps and enabled defenses
     return -sum(
         node_reward_for_agent(n, defender_state.name)
-        for n in step_enabled_defenses | step_compromised_nodes
+        for n in defender_state.performed_nodes | defender_state.compromised_nodes
     )
 
 
