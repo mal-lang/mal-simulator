@@ -1222,11 +1222,12 @@ def test_simulator_attacker_override_ttcs_step() -> None:
         sim_settings=MalSimulatorSettings(
             seed=100, ttc_mode=TTCMode.PRE_SAMPLE, attack_surface_skip_unnecessary=False
         ),
-        max_iter=1000,
     )
+    max_iter=1000
 
     states = sim.reset()
     attacker_name = 'GoodAttacker'
+    attacker_state = None
     while not sim.agent_is_terminated(attacker_name):
         # Good attacker should be fast
         attacker_state = states[attacker_name]
@@ -1234,10 +1235,14 @@ def test_simulator_attacker_override_ttcs_step() -> None:
         assert agent_conf.agent is not None
         next_action = agent_conf.agent.get_next_action(attacker_state)
         states = sim.step({attacker_name: [next_action]})
-    assert sim.cur_iter == 8
+        if attacker_state.iteration > max_iter:
+            break
+    assert attacker_state is not None
+    assert attacker_state.iteration == 8
 
     states = sim.reset()
     attacker_name = 'BadAttacker'
+    attacker_state = None
     while not sim.agent_is_terminated(attacker_name):
         # Bad attacker should be slow
         attacker_state = states[attacker_name]
@@ -1245,7 +1250,10 @@ def test_simulator_attacker_override_ttcs_step() -> None:
         assert agent_conf.agent is not None
         next_action = agent_conf.agent.get_next_action(attacker_state)
         states = sim.step({attacker_name: [next_action]})
-    assert sim.cur_iter == 15
+        if attacker_state.iteration > max_iter:
+            break
+    assert attacker_state is not None
+    assert attacker_state.iteration == 15
 
 
 def test_simulator_seed_setting() -> None:
