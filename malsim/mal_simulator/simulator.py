@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import defaultdict, deque
 import logging
 from typing import Any, Iterable, Optional, TYPE_CHECKING
 from collections.abc import Callable, Mapping, Set
@@ -492,6 +492,10 @@ class MalSimulator:
 
         for parent in from_nodes:
             for child in parent.children:
+                if child.causal_mode == 'effect':
+                    # Nodes marked as effects are not actions/attacks
+                    continue
+
                 if skip_compromised and child in performed_nodes:
                     continue
 
@@ -790,6 +794,48 @@ class MalSimulator:
         else:
             raise ValueError(f'Invalid TTC mode: {self.sim_settings.ttc_mode}')
 
+    def _get_effects_of_attack_step(
+        self, attack_step: AttackGraphNode, performed_nodes: set[AttackGraphNode]
+    ) -> set[AttackGraphNode]:
+        """Get nodes performed as a consequence of `attack_step` being compromised"""
+        performed = set(performed_nodes) | {attack_step}
+        effects = list()
+        potential_effects = deque(
+            n for n in attack_step.children if n.causal_mode == 'effect'
+        )
+
+        while potential_effects:
+            effect = potential_effects.popleft()
+            has_visited = performed | set(effects)
+            if self.node_is_traversable(has_visited, effect):
+                effects.append(effect)
+                potential_effects += (
+                    n for n in effect.children if n.causal_mode == 'effect'
+                )
+        return effects
+
+    def _attacker_step_effects(
+        self, agent: MalSimAttackerState, action: AttackGraphNode
+    ) -> list[AttackGraphNode]:
+        """Perform the effects of an action performed by attacker.
+
+        Return the effects that descend from `action` and can be compromised.
+        """
+        # Find effects based on each action
+        performed_effects = list()
+        effects_by_action = self._get_effects_of_attack_step(
+            action, agent.performed_nodes
+        )
+        for effect in effects_by_action:
+            performed_effects.append(effect)
+            logger.info(
+                'Attacker agent "%s" compromised "%s" as an effect of compromising %s.',
+                agent.name,
+                effect.full_name,
+                action.full_name,
+            )
+        return performed_effects
+
     def _attacker_step(
         self, agent: MalSimAttackerState, nodes: list[AttackGraphNode]
     ) -> tuple[list[AttackGraphNode], list[AttackGraphNode]]:
@@ -828,6 +874,8 @@ class MalSimulator:
                         node.full_name,
                         self.node_reward(node, agent.name),
                     )
+                    # Run effects as a compromise of performing `node`
+                    successful_compromises += self._attacker_step_effects(agent, node)
                 else:
                     logger.info(
                         'Attacker agent "%s" attempted "%s" (attempt %d).',

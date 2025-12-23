@@ -1401,3 +1401,44 @@ def test_active_defenses() -> None:
     assert len(sim._graph_state.pre_enabled_defenses) == 2
     assert sim.get_node('Creds:notGuessable') in sim._graph_state.pre_enabled_defenses
     assert sim.get_node('Creds:notDisclosed') in sim._graph_state.pre_enabled_defenses
+
+
+def test_actions_effects() -> None:
+    """Verify actions and effects works as intended"""
+
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/actions_effects_scenario.yml'
+    )
+    sim = MalSimulator.from_scenario(
+        scenario,
+        sim_settings=MalSimulatorSettings(
+            ttc_mode=TTCMode.DISABLED,
+            run_defense_step_bernoullis=False,
+            run_attack_step_bernoullis=False,
+            attack_surface_skip_unnecessary=False,
+            compromise_entrypoints_at_start=True,
+            attacker_reward_mode=RewardMode.SAMPLE_TTC,
+            seed=1,
+        ),
+    )
+    recording_performed = run_simulation(sim, scenario.agent_settings)
+    assert {n.full_name for n in recording_performed['Attacker']} == {
+        'Net1:attemptScan',
+        'Net2:attemptScan',
+        'Net3:attemptScan',
+        'ComputerD:attemptConnect',
+        'ComputerA:attemptConnect',
+        'ComputerD:attemptAccess',
+        'ComputerA:attemptAccess',
+        'SecretData:attemptRead',
+    }
+
+    recorded_with_effects = sim.recording
+    for i in sim.recording:
+        action = sim.recording[i]['Attacker'][0]
+        effect = sim.recording[i]['Attacker'][1]
+        # Assert that both action and effect was performed each step
+        assert (
+            action.full_name
+            == effect.model_asset.name + ':attempt' + effect.name.capitalize()
+        )
