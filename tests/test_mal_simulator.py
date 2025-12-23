@@ -1434,6 +1434,7 @@ def test_actions_effects() -> None:
         action = sim.recording[i]['Attacker'][0]
         effect = sim.recording[i]['Attacker'][1]
         # Assert that both action and effect was performed each step
+        assert effect.model_asset
         assert (
             action.full_name
             == effect.model_asset.name + ':attempt' + effect.name.capitalize()

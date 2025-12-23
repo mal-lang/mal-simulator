@@ -749,11 +749,11 @@ class MalSimulator:
             raise ValueError(f'Invalid TTC mode: {self.sim_settings.ttc_mode}')
 
     def _get_effects_of_attack_step(
-        self, attack_step: AttackGraphNode, performed_nodes: set[AttackGraphNode]
-    ) -> set[AttackGraphNode]:
+        self, attack_step: AttackGraphNode, performed_nodes: frozenset[AttackGraphNode]
+    ) -> list[AttackGraphNode]:
         """Get nodes performed as a consequence of `attack_step` being compromised"""
         performed = set(performed_nodes) | {attack_step}
-        effects = list()
+        effects: list[AttackGraphNode] = list()
         potential_effects = deque(
             n for n in attack_step.children if n.causal_mode == 'effect'
         )
