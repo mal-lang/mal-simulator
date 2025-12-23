@@ -1001,9 +1001,7 @@ class MalSimulator:
             if self.recording.get(current_iteration) is None:
                 self.recording[current_iteration] = {}
 
-            self.recording[current_iteration][defender_state.name] = list(
-                enabled
-            )
+            self.recording[current_iteration][defender_state.name] = list(enabled)
             step_enabled_defenses += enabled
             step_nodes_made_unviable |= unviable
 

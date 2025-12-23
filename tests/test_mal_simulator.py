@@ -1223,7 +1223,7 @@ def test_simulator_attacker_override_ttcs_step() -> None:
             seed=100, ttc_mode=TTCMode.PRE_SAMPLE, attack_surface_skip_unnecessary=False
         ),
     )
-    max_iter=1000
+    max_iter = 1000
 
     states = sim.reset()
     attacker_name = 'GoodAttacker'

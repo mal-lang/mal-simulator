@@ -83,7 +83,6 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         total_reward_defender += sim.agent_reward(defender_state.name)
         total_reward_attacker += sim.agent_reward(attacker_state.name)
 
-
     assert defender_state.iteration == 44
     assert attacker_state.iteration == 44
 
