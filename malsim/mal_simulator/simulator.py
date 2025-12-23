@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 import logging
 from typing import Any, Optional, TYPE_CHECKING
 from collections.abc import Set
@@ -84,7 +85,7 @@ class MalSimulator:
 
         # Initialize all values
         self.attack_graph = attack_graph
-        self.recording: dict[int, dict[str, list[AttackGraphNode]]] = {}
+        self.recording: dict[int, dict[str, list[AttackGraphNode]]] = defaultdict(dict)
 
         # Agent related data
         self._agent_settings: dict[str, AttackerSettings | DefenderSettings] = {}
@@ -385,7 +386,7 @@ class MalSimulator:
         )
         self._agent_rewards = {}
 
-        self.recording = {}
+        self.recording = defaultdict(dict)
         self._reset_agents()
         # Upload initial state to the REST API
         if self.rest_api_client:
@@ -985,6 +986,12 @@ class MalSimulator:
         step_enabled_defenses: list[AttackGraphNode] = list()
         step_nodes_made_unviable: set[AttackGraphNode] = set()
         current_iteration = 0
+        recording = self.recording
+        agent_states = self._agent_states
+        agent_rewards = self._agent_rewards
+        live_agents = self._alive_agents
+        sim_settings = self.sim_settings
+        rest_api_client = self.rest_api_client
 
         # Perform defender actions first
         for defender_state in self._get_defender_agents(only_alive=True):
@@ -998,10 +1005,8 @@ class MalSimulator:
                 current_iteration,
                 defender_state.name,
             )
-            if self.recording.get(current_iteration) is None:
-                self.recording[current_iteration] = {}
 
-            self.recording[current_iteration][defender_state.name] = list(enabled)
+            recording[current_iteration][defender_state.name] = list(enabled)
             step_enabled_defenses += enabled
             step_nodes_made_unviable |= unviable
 
@@ -1015,9 +1020,7 @@ class MalSimulator:
             )
             current_iteration = attacker_state.iteration
             step_compromised_nodes += agent_compromised
-            self.recording[current_iteration][attacker_state.name] = list(
-                agent_compromised
-            )
+            recording[current_iteration][attacker_state.name] = list(agent_compromised)
 
             # Update attacker state
             updated_attacker_state = create_attacker_state(
@@ -1030,17 +1033,17 @@ class MalSimulator:
                 step_nodes_made_unviable=step_nodes_made_unviable,
                 previous_state=attacker_state,
             )
-            self._agent_states[attacker_state.name] = updated_attacker_state
+            agent_states[attacker_state.name] = updated_attacker_state
 
             # Update attacker reward
-            self._agent_rewards[attacker_state.name] = self._attacker_step_reward(
+            agent_rewards[attacker_state.name] = self._attacker_step_reward(
                 updated_attacker_state,
-                self.sim_settings.attacker_reward_mode,
+                sim_settings.attacker_reward_mode,
             )
 
         # Update defender states and remove 'dead' agents of any type
-        for agent_name in self._alive_agents.copy():
-            agent_state = self._agent_states[agent_name]
+        for agent_name in live_agents.copy():
+            agent_state = agent_states[agent_name]
 
             if isinstance(agent_state, MalSimDefenderState):
                 # Update defender state
@@ -1052,26 +1055,30 @@ class MalSimulator:
                     step_nodes_made_unviable=step_nodes_made_unviable,
                     previous_state=agent_state,
                 )
-                self._agent_states[agent_name] = updated_defender_state
+                agent_states[agent_name] = updated_defender_state
 
                 # Update defender reward
-                self._agent_rewards[agent_state.name] = self._defender_step_reward(
+                agent_rewards[agent_state.name] = self._defender_step_reward(
                     updated_defender_state,
-                    self.sim_settings.defender_reward_mode,
+                    sim_settings.defender_reward_mode,
                 )
 
             # Remove agents that are terminated
             if self.agent_is_terminated(agent_state.name):
                 logger.info('Agent %s terminated', agent_state.name)
-                self._alive_agents.remove(agent_state.name)
+                live_agents.remove(agent_state.name)
 
         # the way current_iteration is used here is flawed.
-        if self.rest_api_client:
-            self.rest_api_client.upload_performed_nodes(
+        if rest_api_client:
+            rest_api_client.upload_performed_nodes(
                 step_compromised_nodes + step_enabled_defenses,
                 current_iteration,
             )
 
+        self._agent_states = agent_states
+        self.recording = recording
+        self._agent_rewards = agent_rewards
+        self._alive_agents = live_agents
         return self.agent_states
 
     def render(self) -> None:

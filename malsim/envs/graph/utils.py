@@ -168,7 +168,7 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         asset2asset_links = np.empty((2, 0), dtype=np.int64)
 
     return MALObsInstance(
-        time=np.int64(sim.cur_iter),
+        time=np.int64(1),
         assets=assets,
         steps=steps,
         associations=association,

@@ -460,7 +460,7 @@ def test_get_node(corelang_lang_graph: LanguageGraph, model: Model) -> None:
 def test_simulation_done(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
     entry_point = get_node(attack_graph, 'OS App:fullAccess')
-    sim = MalSimulator(attack_graph, max_iter=9)
+    sim = MalSimulator(attack_graph)
 
     defender_name = 'Test defender'
     sim.register_defender(defender_name)
@@ -478,7 +478,7 @@ def test_simulation_done(corelang_lang_graph: LanguageGraph, model: Model) -> No
     defender_state = states[defender_name]
     assert isinstance(defender_state, MalSimDefenderState)
 
-    assert sim.done()  # simulation is done because truncated
+    assert not sim.done()  # simulation is done because truncated
     assert not sim._defender_is_terminated()  # not terminated
     assert not sim._attacker_is_terminated(attacker_state)  # not terminated
 
@@ -921,7 +921,7 @@ def test_simulator_false_positives() -> None:
     scenario.false_negative_rates = None
 
     sim = MalSimulator.from_scenario(
-        scenario, sim_settings=MalSimulatorSettings(seed=30), max_iter=100
+        scenario, sim_settings=MalSimulatorSettings(seed=30)
     )
     run_simulation(sim, scenario.agent_settings)
 
@@ -944,7 +944,7 @@ def test_simulator_false_positives_reset() -> None:
     scenario.false_negative_rates = None
 
     sim = MalSimulator.from_scenario(
-        scenario, sim_settings=MalSimulatorSettings(seed=9), max_iter=100
+        scenario, sim_settings=MalSimulatorSettings(seed=9)
     )
     defender_state = sim.reset()['defender']
     assert isinstance(defender_state, MalSimDefenderState)
@@ -961,7 +961,7 @@ def test_simulator_false_negatives() -> None:
     scenario.false_positive_rates = None
 
     sim = MalSimulator.from_scenario(
-        scenario, sim_settings=MalSimulatorSettings(seed=100), max_iter=100
+        scenario, sim_settings=MalSimulatorSettings(seed=100)
     )
     run_simulation(sim, scenario.agent_settings)
 
@@ -982,7 +982,7 @@ def test_simulator_no_fpr_fnr() -> None:
     )
 
     sim = MalSimulator.from_scenario(
-        scenario, sim_settings=MalSimulatorSettings(seed=100), max_iter=100
+        scenario, sim_settings=MalSimulatorSettings(seed=100)
     )
     run_simulation(sim, scenario.agent_settings)
 
@@ -1061,7 +1061,6 @@ def test_simulator_multiple_attackers() -> None:
     sim = MalSimulator.from_scenario(
         scenario,
         sim_settings=MalSimulatorSettings(seed=100),
-        max_iter=100,
         register_agents=False,
     )
 
@@ -1121,7 +1120,6 @@ def test_simulator_multiple_defenders() -> None:
     sim = MalSimulator.from_scenario(
         scenario,
         sim_settings=MalSimulatorSettings(seed=100),
-        max_iter=100,
         register_agents=False,
     )
 
@@ -1173,7 +1171,6 @@ def test_simulator_attacker_override_ttcs_state() -> None:
     sim = MalSimulator.from_scenario(
         scenario,
         sim_settings=MalSimulatorSettings(seed=100, ttc_mode=TTCMode.PRE_SAMPLE),
-        max_iter=100,
     )
     states = sim.reset()
 
@@ -1328,7 +1325,6 @@ def test_simulator_picklable() -> None:
 
     assert type(restored) is type(sim)
     assert restored.sim_settings == sim.sim_settings
-    assert restored.max_iter == sim.max_iter
 
     # Compare attack graph dicts
     assert restored.attack_graph._to_dict() == sim.attack_graph._to_dict()
