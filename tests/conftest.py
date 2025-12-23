@@ -41,7 +41,7 @@ def path_testdata(filename: str) -> str:
 def fixture_env() -> MalSimVectorizedObsEnv:
     attack_graph = create_attack_graph(lang_file_name, model_file_name)
     attack_graph.save_to_file(attack_graph_file_name)
-    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph, max_iter=1000))
+    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
     env.register_defender('defender')
 
     os_app_fa = get_node(attack_graph, 'OS App:fullAccess')

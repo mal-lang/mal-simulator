@@ -168,7 +168,7 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         asset2asset_links = np.empty((2, 0), dtype=np.int64)
 
     return MALObsInstance(
-        time=np.int64(sim.cur_iter),
+        time=np.int64(1),
         assets=assets,
         steps=steps,
         associations=association,
@@ -418,7 +418,7 @@ def full_obs2attacker_obs(
     new_asset2asset = asset_index_remap[visible_old_asset2asset].astype(np.int64)
 
     return MALObsInstance(
-        time=np.int64(state.sim.cur_iter),
+        time=np.int64(state.iteration),
         assets=assets,
         steps=steps,
         associations=assocs,
@@ -459,7 +459,7 @@ def full_obs2defender_obs(
     observed = np.isin(full_obs.steps.id, observed_step_ids)
 
     return MALObsInstance(
-        time=np.int64(state.sim.cur_iter),
+        time=np.int64(state.iteration),
         assets=full_obs.assets,
         steps=Steps(
             type=serializer.step_type2defender_step_type[full_obs.steps.type],
