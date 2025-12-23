@@ -1,0 +1,166 @@
+lang_file: ../langs/actions_effects_lang.mal
+model:
+  assets:
+    0:
+      associated_assets:
+        networks:
+          2: Net1
+        users:
+          11: UserOnA
+      extras:
+        position:
+          x: -1304.191438763377
+          y: 35.73127229488704
+      name: ComputerA
+      type: Computer
+    1:
+      associated_assets:
+        networks:
+          3: Net2
+        users:
+          9: UserOnC
+      extras:
+        position:
+          x: -542.668697978597
+          y: -11.166022592152203
+      name: ComputerC
+      type: Computer
+    2:
+      associated_assets:
+        computers:
+          0: ComputerA
+        fromNets:
+          3: Net2
+        toNets:
+          3: Net2
+      extras:
+        position:
+          x: -1303.0
+          y: -241.0
+      name: Net1
+      type: Network
+    3:
+      associated_assets:
+        computers:
+          1: ComputerC
+          6: ComputerB
+        fromNets:
+          2: Net1
+          4: Net3
+        toNets:
+          2: Net1
+          4: Net3
+      extras:
+        position:
+          x: -542.0
+          y: -245.0
+      name: Net2
+      type: Network
+    4:
+      associated_assets:
+        computers:
+          5: ComputerD
+        fromNets:
+          3: Net2
+        toNets:
+          3: Net2
+      extras:
+        position:
+          x: 335.125
+          y: -248.0625
+      name: Net3
+      type: Network
+    5:
+      associated_assets:
+        datas:
+          8: SecretData
+        networks:
+          4: Net3
+        users:
+          7: UserOnD
+      extras:
+        position:
+          x: 361.77913198573134
+          y: -8.932818073721762
+      name: ComputerD
+      type: Computer
+    6:
+      associated_assets:
+        networks:
+          3: Net2
+        users:
+          10: UserOnB
+      extras:
+        position:
+          x: -562.767538644471
+          y: -485.7219827586207
+      name: ComputerB
+      type: Computer
+    7:
+      associated_assets:
+        computer:
+          5: ComputerD
+      extras:
+        position:
+          x: 104.96061236623069
+          y: 165.25713436385257
+      name: UserOnD
+      type: User
+    8:
+      associated_assets:
+        computer:
+          5: ComputerD
+      extras:
+        position:
+          x: 409.06978361499876
+          y: 211.90041422716004
+      name: SecretData
+      type: Data
+    9:
+      associated_assets:
+        computer:
+          1: ComputerC
+      extras:
+        position:
+          x: -54.391550175955445
+          y: -26.06261779264537
+      name: UserOnC
+      type: User
+    10:
+      associated_assets:
+        computer:
+          6: ComputerB
+      extras:
+        position:
+          x: -145.044133802548
+          y: -484.99132240227016
+      name: UserOnB
+      type: User
+    11:
+      associated_assets:
+        computer:
+          0: ComputerA
+      extras:
+        position:
+          x: -920.1237238099143
+          y: 31.72840426930739
+      name: UserOnA
+      type: User
+  metadata:
+    MAL-Toolbox Version: 1.2.1
+    info: Created by the mal-toolbox model python module.
+    langID: action-effects-lang
+    langVersion: 0.0.0
+    malVersion: 0.1.0-SNAPSHOT
+    name: actions_effects_model
+
+agents:
+  Attacker:
+    type: attacker
+    entry_points:
+    - ComputerA:access
+    goals:
+    - SecretData:read
+    agent_class: RandomAgent
+    config:
+      seed: 1
