@@ -6,6 +6,7 @@ import numpy as np
 
 from maltoolbox.attackgraph import AttackGraphNode
 
+from malsim.mal_simulator.attack_surface import get_effects_of_attack_step
 from malsim.mal_simulator.graph_utils import (
     node_is_traversable,
     node_is_viable,
@@ -46,6 +47,30 @@ def attacker_is_terminated(attacker_state: MalSimAttackerState) -> bool:
         )
     # Otherwise not terminated
     return False
+
+
+def attacker_step_effects(
+    sim_state: MalSimulatorState,
+    agent: MalSimAttackerState,
+    action: AttackGraphNode
+) -> list[AttackGraphNode]:
+    """Perform the effects of an action performed by attacker.
+    Return the effects that descend from `action` and can be compromised.
+    """
+    # Find effects based on each action
+    performed_effects = list()
+    effects_by_action = get_effects_of_attack_step(
+        sim_state, action, agent.performed_nodes
+    )
+    for effect in effects_by_action:
+        performed_effects.append(effect)
+        logger.info(
+            'Attacker agent "%s" compromised "%s" as an effect of compromising %s.',
+            agent.name,
+            effect.full_name,
+            action.full_name,
+        )
+    return performed_effects
 
 
 def attempt_attacker_step(
@@ -123,6 +148,7 @@ def attacker_step(
         else:
             # Otherwise it is limited by traversability
             can_compromise = node_is_traversable(sim_state, agent.performed_nodes, node)
+
         if can_compromise:
             if attempt_attacker_step(
                 sim_state, rng, sim_state.settings.ttc_mode, agent, node
@@ -134,6 +160,8 @@ def attacker_step(
                     node.full_name,
                     node_reward(agent, node),
                 )
+                # Run effects as a compromise of performing `node`
+                successful_compromises += attacker_step_effects(sim_state, agent, node)
             else:
                 logger.info(
                     'Attacker agent "%s" attempted "%s" (attempt %d).',

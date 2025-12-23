@@ -1,0 +1,65 @@
+#id: "action-effects-lang"
+#version: "0.0.0"
+
+category ActionEffectsLang{
+    asset Network {
+        # shutDown
+            -> scan
+
+        | action attemptScan
+            -> scan
+
+        & effect scan
+            -> computers.attemptConnect,
+               toNets.attemptScan
+    }
+
+    asset Computer {
+        # shutDown
+            -> connect
+        | action attemptConnect
+            -> connect
+
+        & effect connect
+            -> attemptAccess
+
+        | action attemptAccess
+            -> access
+
+        & effect access
+            -> datas.attemptRead,
+               networks.attemptScan
+    }
+
+    asset User {
+        # lockout
+            -> crackPassword,
+               authenticate
+
+        | action attemptCrackPassword
+            -> crackPassword
+
+        & effect crackPassword
+            -> authenticate
+
+        | action authenticate
+            -> computer.access
+    }
+
+    asset Data {
+        # remove
+            -> read
+
+        | action attemptRead
+            -> read
+
+        & effect read
+    }
+}
+
+associations {
+  Network       [fromNets] *    <-- NetToNet -->                * [toNets] Network
+  Network       [networks] *    <-- NetToComputers -->          * [computers] Computer
+  User          [users] *       <-- UserOnComputer -->          1 [computer] Computer
+  Data          [datas] *       <-- DataOnComputer -->          1 [computer] Computer
+}
