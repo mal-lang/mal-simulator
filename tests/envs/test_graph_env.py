@@ -371,7 +371,9 @@ def test_async_vector_env() -> None:
     done = np.zeros((env.num_envs,), dtype=bool)
     vec_obs, info = env.reset()
     while not done.all():
-        vec_action_mask = tuple(obs.steps.action_mask.astype(np.int8) for obs in vec_obs)
+        vec_action_mask = tuple(
+            obs.steps.action_mask.astype(np.int8) for obs in vec_obs
+        )
         padded_vec_action_mask = tuple(
             np.pad(
                 vec_action_mask[i],
@@ -383,4 +385,4 @@ def test_async_vector_env() -> None:
         )
         actions = env.action_space.sample(padded_vec_action_mask)
         vec_obs, reward, terminated, truncated, info = env.step(actions)
-        done |= (terminated | truncated)
+        done |= terminated | truncated
