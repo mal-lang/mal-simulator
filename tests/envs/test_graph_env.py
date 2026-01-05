@@ -16,6 +16,8 @@ from malsim.envs.graph.mal_spaces import (
     AssetThenDefenderAction,
     AttackerActionThenAsset,
     DefenderActionThenAsset,
+    MALObsAttackStepSpace,
+    MALObsInstance,
 )
 from malsim.scenario import Scenario
 from typing import Any
@@ -354,7 +356,7 @@ def test_async_vector_env() -> None:
     scenario_file = 'tests/testdata/scenarios/traininglang_scenario_with_model.yml'
     scenario = Scenario.load_from_file(scenario_file)
 
-    def thunk():
+    def thunk() -> AttackerGraphEnv:
         return AttackerGraphEnv(
             scenario,
             MalSimulatorSettings(
@@ -369,15 +371,20 @@ def test_async_vector_env() -> None:
     env = AsyncVectorEnv([thunk] * 32, shared_memory=False, daemon=True, copy=False)
 
     done = np.zeros((env.num_envs,), dtype=bool)
+    vec_obs: tuple[MALObsInstance, ...]
+    reward: NDArray[np.float32]
+    terminated: NDArray[np.bool_]
+    truncated: NDArray[np.bool_]
+    info: dict[str, NDArray[Any]]
     vec_obs, info = env.reset()
     while not done.all():
-        vec_action_mask = tuple(
+        vec_action_mask: tuple[NDArray[np.int8], ...] = tuple(
             obs.steps.action_mask.astype(np.int8) for obs in vec_obs
         )
         padded_vec_action_mask = tuple(
             np.pad(
                 vec_action_mask[i],
-                (0, env.action_space[i].n - vec_action_mask[i].shape[0]),
+                (0, env.action_space[i].n - vec_action_mask[i].shape[0]),  # type: ignore
                 'constant',
                 constant_values=0,
             )
