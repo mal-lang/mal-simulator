@@ -348,3 +348,39 @@ def test_action_then_asset_wrapper() -> None:
         obs, reward, terminated, truncated, info = wrapped_env.step(action)
         i += 1
         done = terminated or truncated
+
+
+def test_async_vector_env() -> None:
+    scenario_file = 'tests/testdata/scenarios/traininglang_scenario_with_model.yml'
+    scenario = Scenario.load_from_file(scenario_file)
+
+    def thunk():
+        return AttackerGraphEnv(
+            scenario,
+            MalSimulatorSettings(
+                ttc_mode=TTCMode.PER_STEP_SAMPLE,
+                run_defense_step_bernoullis=False,
+                run_attack_step_bernoullis=False,
+                attack_surface_skip_unnecessary=False,
+                attacker_reward_mode=RewardMode.ONE_OFF,
+            ),
+        )
+
+    env = AsyncVectorEnv([thunk] * 32, shared_memory=False, daemon=True, copy=False)
+
+    done = np.zeros((env.num_envs,), dtype=bool)
+    vec_obs, info = env.reset()
+    while not done.all():
+        vec_action_mask = tuple(obs.steps.action_mask.astype(np.int8) for obs in vec_obs)
+        padded_vec_action_mask = tuple(
+            np.pad(
+                vec_action_mask[i],
+                (0, env.action_space[i].n - vec_action_mask[i].shape[0]),
+                'constant',
+                constant_values=0,
+            )
+            for i in range(env.num_envs)
+        )
+        actions = env.action_space.sample(padded_vec_action_mask)
+        vec_obs, reward, terminated, truncated, info = env.step(actions)
+        done |= (terminated | truncated)
