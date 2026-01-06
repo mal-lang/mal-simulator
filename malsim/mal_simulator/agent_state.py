@@ -24,6 +24,8 @@ class MalSimAgentState:
     action_surface: frozenset[AttackGraphNode]
     # Contains all nodes that this agent has performed successfully
     performed_nodes: frozenset[AttackGraphNode]
+    # Contains the order of performed nodes
+    performed_nodes_order: dict[int, frozenset[AttackGraphNode]]
     # Contains the nodes performed successfully in the last step
     step_performed_nodes: frozenset[AttackGraphNode]
     # Contains possible nodes that became available in the last step
@@ -99,6 +101,7 @@ def create_attacker_state(
     ttc_value_overrides: Mapping[AttackGraphNode, float] = MappingProxyType({}),
     impossible_step_overrides: Set[AttackGraphNode] = frozenset(),
     previous_state: Optional[MalSimAttackerState] = None,
+    time: int | None = None,
 ) -> MalSimAttackerState:
     """
     Update a previous attacker state based on what the agent compromised
@@ -115,12 +118,15 @@ def create_attacker_state(
         new_action_surface = sim.get_attack_surface(name, compromised_nodes)
         action_surface_removals: set[AttackGraphNode] = set()
         action_surface_additions = new_action_surface
+        performed_nodes_order: dict[int, frozenset[AttackGraphNode]] = {}
 
         if not sim.sim_settings.compromise_entrypoints_at_start:
             # If entrypoints not compromised at start,
             # we need to put them in action surface
             new_action_surface |= entry_points
             action_surface_additions |= entry_points
+        else:
+            performed_nodes_order[0] = frozenset(entry_points)
 
         previous_num_attempts: Mapping[AttackGraphNode, int] = {
             n: 0 for n in sim.attack_graph.attack_steps
@@ -130,6 +136,13 @@ def create_attacker_state(
         ttc_value_overrides = previous_state.ttc_value_overrides
         impossible_step_overrides = previous_state.impossible_step_overrides
         compromised_nodes = previous_state.performed_nodes | step_compromised_nodes
+        performed_nodes_order = previous_state.performed_nodes_order
+        if time is not None:
+            # Nested if is required here
+            if len(step_compromised_nodes) > 0:
+                performed_nodes_order[time] = frozenset(step_compromised_nodes)
+        else:
+            raise ValueError('Time must be provided if previous state is provided')
 
         # Build on previous attack surface (for performance)
         action_surface_additions = (
@@ -171,6 +184,7 @@ def create_attacker_state(
         ttc_value_overrides=MappingProxyType(ttc_value_overrides),
         impossible_step_overrides=frozenset(impossible_step_overrides),
         iteration=(previous_state.iteration + 1) if previous_state else 1,
+        performed_nodes_order=performed_nodes_order,
     )
 
 
@@ -202,6 +216,7 @@ def create_defender_state(
     step_enabled_defenses: Set[AttackGraphNode] = frozenset(),
     step_nodes_made_unviable: Set[AttackGraphNode] = frozenset(),
     previous_state: Optional[MalSimDefenderState] = None,
+    time: int | None = None,
 ) -> MalSimDefenderState:
     """
     Update a previous defender state based on what steps
@@ -217,12 +232,22 @@ def create_defender_state(
         previous_observed_nodes: Set[AttackGraphNode] = frozenset()
         action_surface_additions: Set[AttackGraphNode] = action_surface
         action_surface_removals: Set[AttackGraphNode] = frozenset()
+        performed_nodes_order: dict[int, frozenset[AttackGraphNode]] = {}
+        if len(step_enabled_defenses) > 0:
+            performed_nodes_order[0] = frozenset(step_enabled_defenses)
     else:
         previous_enabled_defenses = previous_state.performed_nodes
         previous_compromised_nodes = previous_state.compromised_nodes
         previous_observed_nodes = previous_state.observed_nodes
         action_surface_additions = frozenset()
         action_surface_removals = step_enabled_defenses
+        performed_nodes_order = previous_state.performed_nodes_order
+        if time is not None:
+            # Nested if is required here
+            if len(step_enabled_defenses) > 0:
+                performed_nodes_order[time] = frozenset(step_enabled_defenses)
+        else:
+            raise ValueError('Time must be provided if previous state is provided')
 
     step_observed_nodes = sim._defender_observed_nodes(name, step_compromised_nodes)
     return MalSimDefenderState(
@@ -241,4 +266,5 @@ def create_defender_state(
         step_performed_nodes=frozenset(step_enabled_defenses),
         step_unviable_nodes=frozenset(step_nodes_made_unviable),
         iteration=(previous_state.iteration + 1) if previous_state else 1,
+        performed_nodes_order=performed_nodes_order,
     )
