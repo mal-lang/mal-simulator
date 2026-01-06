@@ -362,11 +362,15 @@ class MalSimulator:
         """Get node from attack graph by either full name or id"""
 
         if full_name and not node_id:
-            return self.attack_graph.get_node_by_full_name(full_name)
-        if node_id and not full_name:
-            return self.attack_graph.nodes[node_id]
+            node = self.attack_graph.get_node_by_full_name(full_name)
+        elif node_id and not full_name:
+            node = self.attack_graph.nodes[node_id]
+        else:
+            raise ValueError("Provide either full_name or node_id to 'get_node'")
 
-        raise ValueError("Provide either full_name or node_id to 'get_node'")
+        if node is None:
+            raise LookupError(f'Could not find node {full_name or node_id}')
+        return node
 
     def agent_reward(self, agent_name: str) -> float:
         """Get an agents current reward"""

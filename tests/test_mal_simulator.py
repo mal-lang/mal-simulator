@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from maltoolbox.attackgraph import AttackGraph
+from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
@@ -451,7 +451,7 @@ def test_get_node(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(attack_graph)
 
-    assert sim.get_node('OS App:fullAccess')
+    assert isinstance(sim.get_node('OS App:fullAccess'), AttackGraphNode)
 
     with pytest.raises(LookupError):
         sim.get_node('nonExisting:node')
