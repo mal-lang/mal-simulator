@@ -31,13 +31,10 @@ def main():
         default='simulation_profile.prof',
         help='File to save profiling results',
     )
-    parser.add_argument(
-        '--max_iter', type=int, default=100, help='MAX iterations in simulator'
-    )
 
     args = parser.parse_args()
     scenario = Scenario.load_from_file(args.scenario_file)
-    sim = MalSimulator.from_scenario(scenario, max_iter=args.max_iter)
+    sim = MalSimulator.from_scenario(scenario)
 
     # Run the profiler
     profiler = cProfile.Profile()

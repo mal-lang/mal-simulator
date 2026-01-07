@@ -32,6 +32,7 @@ class MalSimAgentState:
     step_action_surface_removals: frozenset[AttackGraphNode]
     # Contains nodes that became unviable in the last step by defender actions
     step_unviable_nodes: frozenset[AttackGraphNode]
+    iteration: int
 
 
 @dataclass(frozen=True)
@@ -169,6 +170,7 @@ def create_attacker_state(
         ttc_overrides=MappingProxyType(ttc_overrides),
         ttc_value_overrides=MappingProxyType(ttc_value_overrides),
         impossible_step_overrides=frozenset(impossible_step_overrides),
+        iteration=(previous_state.iteration + 1) if previous_state else 1,
     )
 
 
@@ -238,4 +240,5 @@ def create_defender_state(
         action_surface=frozenset(action_surface),
         step_performed_nodes=frozenset(step_enabled_defenses),
         step_unviable_nodes=frozenset(step_nodes_made_unviable),
+        iteration=(previous_state.iteration + 1) if previous_state else 1,
     )

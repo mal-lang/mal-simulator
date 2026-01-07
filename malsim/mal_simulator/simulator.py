@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 import logging
 from typing import Any, Iterable, Optional, TYPE_CHECKING
 from collections.abc import Callable, Mapping, Set
@@ -85,7 +86,6 @@ class MalSimulator:
         self,
         attack_graph: AttackGraph,
         sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
-        max_iter: int = ITERATIONS_LIMIT,
         rewards: Optional[dict[str, float] | dict[AttackGraphNode, float]] = None,
         false_positive_rates: Optional[
             dict[str, float] | dict[AttackGraphNode, float]
@@ -105,7 +105,6 @@ class MalSimulator:
         Args:
             attack_graph                -   The attack graph to use
             sim_settings                -   Settings for simulator
-            max_iter                    -   Max iterations in simulation
         """
         logger.info('Creating Base MAL Simulator.')
         self.sim_settings = sim_settings
@@ -118,9 +117,7 @@ class MalSimulator:
 
         # Initialize all values
         self.attack_graph = attack_graph
-        self.max_iter = max_iter  # Max iterations before stopping simulation
-        self.cur_iter = 0  # Keep track on current iteration
-        self.recording: dict[int, dict[str, list[AttackGraphNode]]] = {}
+        self.recording: dict[int, dict[str, list[AttackGraphNode]]] = defaultdict(dict)
 
         # Agent related data
         self._agent_settings: dict[str, AttackerSettings | DefenderSettings] = {}
@@ -173,7 +170,6 @@ class MalSimulator:
         cls,
         scenario: Scenario | str,
         sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
-        max_iter: int = ITERATIONS_LIMIT,
         register_agents: bool = True,
         send_to_api: bool = False,
         **kwargs: Any,
@@ -183,7 +179,6 @@ class MalSimulator:
         Args:
             scenario - a Scenario object or a path to a scenario file
             sim_settings - settings to use in the simulator
-            max_iter - max number of steps to run simulation for
             register_agents - whether to register the agents from the scenario or not
             send_to_api - whether to send data to GUI REST API or not
         """
@@ -195,7 +190,6 @@ class MalSimulator:
         sim = MalSimulator(
             scenario.attack_graph,
             sim_settings=sim_settings,
-            max_iter=max_iter,
             send_to_api=send_to_api,
             rewards=(
                 scenario.rewards.per_node(scenario.attack_graph)
@@ -235,7 +229,7 @@ class MalSimulator:
 
     def done(self) -> bool:
         """Return True if simulation run is done"""
-        return len(self._alive_agents) == 0 or self.cur_iter > self.max_iter
+        return len(self._alive_agents) == 0
 
     def node_ttc_value(
         self, node: AttackGraphNode | str, agent_name: Optional[str] = None
@@ -437,7 +431,7 @@ class MalSimulator:
             raise TypeError(f'Unknown agent state for {agent_name}')
 
     def reset(self) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
-        """Reset attack graph, iteration and reinitialize agents"""
+        """Reset attack graph and reinitialize agents"""
         logger.info('Resetting MAL Simulator.')
 
         # Re-calculate initial graph state
@@ -446,8 +440,7 @@ class MalSimulator:
         )
         self._agent_rewards = {}
 
-        self.cur_iter = 0
-        self.recording = {}
+        self.recording = defaultdict(dict)
         self._reset_agents()
         # Upload initial state to the REST API
         if self.rest_api_client:
@@ -1030,16 +1023,19 @@ class MalSimulator:
         - A dictionary containing the agent state views keyed by agent names
         """
 
-        self.cur_iter += 1
-        logger.info('Stepping through iteration %d/%d', self.cur_iter, self.max_iter)
-
         self._pre_step_check(actions)
-        self.recording[self.cur_iter] = {}
 
         # Populate these from the results for all agents' actions.
         step_compromised_nodes: list[AttackGraphNode] = list()
         step_enabled_defenses: list[AttackGraphNode] = list()
         step_nodes_made_unviable: set[AttackGraphNode] = set()
+        current_iteration = 0
+        recording = self.recording
+        agent_states = self._agent_states
+        agent_rewards = self._agent_rewards
+        live_agents = self._alive_agents
+        sim_settings = self.sim_settings
+        rest_api_client = self.rest_api_client
 
         # Perform defender actions first
         for defender_state in self._get_defender_agents(only_alive=True):
@@ -1047,7 +1043,14 @@ class MalSimulator:
                 full_names_or_nodes_to_nodes(self, actions.get(defender_state.name, []))
             )
             enabled, unviable = self._defender_step(defender_state, agent_actions)
-            self.recording[self.cur_iter][defender_state.name] = list(enabled)
+            current_iteration = defender_state.iteration
+            logger.info(
+                'Stepping through iteration %d for %s',
+                current_iteration,
+                defender_state.name,
+            )
+
+            recording[current_iteration][defender_state.name] = list(enabled)
             step_enabled_defenses += enabled
             step_nodes_made_unviable |= unviable
 
@@ -1059,8 +1062,9 @@ class MalSimulator:
             agent_compromised, agent_attempted = self._attacker_step(
                 attacker_state, agent_actions
             )
+            current_iteration = attacker_state.iteration
             step_compromised_nodes += agent_compromised
-            self.recording[self.cur_iter][attacker_state.name] = list(agent_compromised)
+            recording[current_iteration][attacker_state.name] = list(agent_compromised)
 
             # Update attacker state
             updated_attacker_state = create_attacker_state(
@@ -1073,17 +1077,17 @@ class MalSimulator:
                 step_nodes_made_unviable=step_nodes_made_unviable,
                 previous_state=attacker_state,
             )
-            self._agent_states[attacker_state.name] = updated_attacker_state
+            agent_states[attacker_state.name] = updated_attacker_state
 
             # Update attacker reward
-            self._agent_rewards[attacker_state.name] = self._attacker_step_reward(
+            agent_rewards[attacker_state.name] = self._attacker_step_reward(
                 updated_attacker_state,
-                self.sim_settings.attacker_reward_mode,
+                sim_settings.attacker_reward_mode,
             )
 
         # Update defender states and remove 'dead' agents of any type
-        for agent_name in self._alive_agents.copy():
-            agent_state = self._agent_states[agent_name]
+        for agent_name in live_agents.copy():
+            agent_state = agent_states[agent_name]
 
             if isinstance(agent_state, MalSimDefenderState):
                 # Update defender state
@@ -1095,24 +1099,30 @@ class MalSimulator:
                     step_nodes_made_unviable=step_nodes_made_unviable,
                     previous_state=agent_state,
                 )
-                self._agent_states[agent_name] = updated_defender_state
+                agent_states[agent_name] = updated_defender_state
 
                 # Update defender reward
-                self._agent_rewards[agent_state.name] = self._defender_step_reward(
+                agent_rewards[agent_state.name] = self._defender_step_reward(
                     updated_defender_state,
-                    self.sim_settings.defender_reward_mode,
+                    sim_settings.defender_reward_mode,
                 )
 
             # Remove agents that are terminated
             if self.agent_is_terminated(agent_state.name):
                 logger.info('Agent %s terminated', agent_state.name)
-                self._alive_agents.remove(agent_state.name)
+                live_agents.remove(agent_state.name)
 
-        if self.rest_api_client:
-            self.rest_api_client.upload_performed_nodes(
-                step_compromised_nodes + step_enabled_defenses, self.cur_iter
+        # the way current_iteration is used here is flawed.
+        if rest_api_client:
+            rest_api_client.upload_performed_nodes(
+                step_compromised_nodes + step_enabled_defenses,
+                current_iteration,
             )
 
+        self._agent_states = agent_states
+        self.recording = recording
+        self._agent_rewards = agent_rewards
+        self._alive_agents = live_agents
         return self.agent_states
 
     def render(self) -> None:
@@ -1131,9 +1141,9 @@ def run_simulation(
 
     logger.info('Starting CLI env simulator.')
     states = sim.reset()
-
+    iteration = 0
     while not sim.done():
-        print(f'Iteration {sim.cur_iter}')
+        print(f'Iteration {iteration}')
         actions: dict[str, list[AttackGraphNode]] = {}
 
         # Select actions for each agent
@@ -1160,10 +1170,10 @@ def run_simulation(
         states = sim.step(actions)
         for agent_name in agents:
             total_rewards[agent_name] += sim.agent_reward(agent_name)
-
+        iteration += 1
         print('---')
 
-    print(f'Simulation over after {sim.cur_iter} steps.')
+    print(f'Simulation over after {iteration} steps.')
 
     # Print total rewards
     for agent_name in agents:
