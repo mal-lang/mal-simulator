@@ -1,16 +1,85 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, NamedTuple, Optional
 from collections.abc import Set, Mapping
 from types import MappingProxyType
 
 from maltoolbox.attackgraph import AttackGraphNode
 
+
+from malsim.mal_simulator.false_alerts import defender_observed_nodes
+from malsim.mal_simulator.graph_state import GraphState
+from malsim.mal_simulator.node import node_is_actionable, node_is_viable
+from malsim.mal_simulator.settings import MalSimulatorSettings
+from malsim.mal_simulator.sim_data import SimData
+from malsim.mal_simulator.surface import get_attack_surface
 from malsim.mal_simulator.ttc_utils import TTCDist
+from malsim.scenario import AttackerSettings, DefenderSettings
+from maltoolbox.attackgraph import AttackGraph
 
-if TYPE_CHECKING:
-    from malsim import MalSimulator
 
+from malsim.scenario import AttackerSettings, DefenderSettings
+
+
+from typing import NamedTuple
+
+
+class AgentData(NamedTuple):
+    agent_settings: dict[str, AttackerSettings | DefenderSettings] = {}
+    agent_states: dict[str, MalSimAttackerState | MalSimDefenderState] = {}
+    alive_agents: set[str] = set()
+    agent_rewards: dict[str, float] = {}
+
+
+def get_defender_agents(
+    agent_data: AgentData, only_alive: bool = False
+) -> list[MalSimDefenderState]:
+    """Return list of mutable defender agent states of defenders.
+    If `only_alive` is set to True, only return the agents that are alive.
+    """
+    return [
+        a
+        for a in agent_data.agent_states.values()
+        if (a.name in agent_data.alive_agents or not only_alive)
+        and isinstance(a, MalSimDefenderState)
+    ]
+
+
+def get_attacker_agents(
+    agent_data: AgentData, only_alive: bool = False
+) -> list[MalSimAttackerState]:
+    """Return list of mutable attacker agent states of attackers.
+    If `only_alive` is set to True, only return the agents that are alive.
+    """
+    return [
+        a
+        for a in agent_data.agent_states.values()
+        if (a.name in agent_data.alive_agents or not only_alive)
+        and isinstance(a, MalSimAttackerState)
+    ]
+
+
+def get_defense_surface(
+    sim_data: SimData,
+    attack_graph: AttackGraph,
+    graph_state: GraphState,
+    agent_settings: DefenderSettings,
+    agent_data: AgentData,
+) -> set[AttackGraphNode]:
+    """Get the defense surface.
+    All non-suppressed defense steps that are not already enabled.
+
+    Arguments:
+    graph       - the attack graph
+    """
+    return {
+        node
+        for node in attack_graph.defense_steps
+        if node_is_actionable(sim_data, node, agent_settings)
+        and node_is_viable(graph_state, node)
+        and 'suppress' not in node.tags
+        and not node_is_enabled_defense(agent_data, node)
+    }
 
 @dataclass(frozen=True)
 class MalSimAgentState:
@@ -18,8 +87,6 @@ class MalSimAgentState:
 
     # Identifier of the agent, used in MalSimulator for lookup
     name: str
-    # Reference to the simulator
-    sim: MalSimulator
     # Contains possible actions for the agent in the next step
     action_surface: frozenset[AttackGraphNode]
     # Contains all nodes that this agent has performed successfully
@@ -88,8 +155,11 @@ class MalSimAttackerState(MalSimAgentState):
 
 
 def create_attacker_state(
-    sim: MalSimulator,
-    name: str,
+    graph_state: GraphState,
+    sim_data: SimData,
+    attack_graph: AttackGraph,
+    sim_settings: MalSimulatorSettings,
+    agent_settings: AttackerSettings,
     entry_points: Set[AttackGraphNode],
     goals: Set[AttackGraphNode] = frozenset(),
     step_compromised_nodes: Set[AttackGraphNode] = frozenset(),
@@ -107,23 +177,25 @@ def create_attacker_state(
 
     if previous_state is None:
         # Initial compromised nodes
-        if sim.sim_settings.compromise_entrypoints_at_start:
+        if sim_settings.compromise_entrypoints_at_start:
             step_compromised_nodes |= entry_points
         compromised_nodes = step_compromised_nodes
 
         # Create an initial attack surface
-        new_action_surface = sim.get_attack_surface(name, compromised_nodes)
+        new_action_surface = get_attack_surface(
+            graph_state, sim_data, sim_settings, agent_settings, compromised_nodes
+        )
         action_surface_removals: set[AttackGraphNode] = set()
         action_surface_additions = new_action_surface
 
-        if not sim.sim_settings.compromise_entrypoints_at_start:
+        if not sim_settings.compromise_entrypoints_at_start:
             # If entrypoints not compromised at start,
             # we need to put them in action surface
             new_action_surface |= entry_points
             action_surface_additions |= entry_points
 
         previous_num_attempts: Mapping[AttackGraphNode, int] = {
-            n: 0 for n in sim.attack_graph.attack_steps
+            n: 0 for n in attack_graph.attack_steps
         }
 
     else:
@@ -133,8 +205,11 @@ def create_attacker_state(
 
         # Build on previous attack surface (for performance)
         action_surface_additions = (
-            sim.get_attack_surface(
-                name,
+            get_attack_surface(
+                graph_state,
+                sim_data,
+                sim_settings,
+                agent_settings,
                 compromised_nodes | step_compromised_nodes,
                 from_nodes=step_compromised_nodes,
             )
@@ -196,8 +271,11 @@ class MalSimDefenderState(MalSimAgentState):
 
 
 def create_defender_state(
-    sim: MalSimulator,
-    name: str,
+    sim_data: SimData,
+    attack_graph: AttackGraph,
+    agent_data: AgentData,
+    graph_state: GraphState,
+    agent_settings: DefenderSettings,
     step_compromised_nodes: Set[AttackGraphNode] = frozenset(),
     step_enabled_defenses: Set[AttackGraphNode] = frozenset(),
     step_nodes_made_unviable: Set[AttackGraphNode] = frozenset(),
@@ -208,7 +286,11 @@ def create_defender_state(
     were enabled/compromised during last step
     """
 
-    action_surface = frozenset(sim.get_defense_surface(name))
+    action_surface = frozenset(
+        get_defense_surface(
+            sim_data, attack_graph, graph_state, agent_settings, agent_data
+        )
+    )
 
     if previous_state is None:
         # Initialize
@@ -224,7 +306,7 @@ def create_defender_state(
         action_surface_additions = frozenset()
         action_surface_removals = step_enabled_defenses
 
-    step_observed_nodes = sim._defender_observed_nodes(name, step_compromised_nodes)
+    step_observed_nodes = defender_observed_nodes(name, step_compromised_nodes)
     return MalSimDefenderState(
         name,
         sim=sim,
@@ -242,3 +324,42 @@ def create_defender_state(
         step_unviable_nodes=frozenset(step_nodes_made_unviable),
         iteration=(previous_state.iteration + 1) if previous_state else 1,
     )
+
+
+def node_is_enabled_defense(agent_data: AgentData, node: AttackGraphNode) -> bool:
+    """Get a nodes defense status"""
+    return any(
+        node in agent.performed_nodes for agent in get_defender_agents(agent_data)
+    )
+
+
+def node_is_compromised(agent_data: AgentData, node: AttackGraphNode) -> bool:
+    """Return True if node is compromised by any attacker agent"""
+    return any(
+        node in attacker_agent.performed_nodes
+        for attacker_agent in get_attacker_agents(agent_data)
+    )
+
+
+def node_ttc_value(
+    graph_state: GraphState,
+    node: AttackGraphNode,
+    agent_state: Optional[MalSimAttackerState] = None,
+) -> float:
+    """Return ttc value of node if it has been sampled"""
+
+    # assert malsim.sim_settings.ttc_mode in (
+    #     TTCMode.PRE_SAMPLE,
+    #     TTCMode.EXPECTED_VALUE,
+    # ), 'TTC value only when TTCMode is PRE_SAMPLE or EXPECTED_VALUE'
+
+    if agent_state:
+        # If agent name is given and it overrides the global TTC values
+        # Return that value instead of the global ttc value
+        if node in agent_state.ttc_value_overrides:
+            return agent_state.ttc_value_overrides[node]
+
+    assert node in graph_state.ttc_values, (
+        f'Node {node.full_name} does not have a ttc value'
+    )
+    return graph_state.ttc_values[node]
