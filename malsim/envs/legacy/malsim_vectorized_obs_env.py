@@ -93,12 +93,12 @@ class MalSimVectorizedObsEnv(ParallelEnv):
     @property
     def agents(self) -> list[str]:
         """Required by ParallelEnv"""
-        return list(self.sim._alive_agents)
+        return list(self.sim.alive_agents)
 
     @property
     def possible_agents(self) -> list[str]:
         """Required by ParallelEnv"""
-        return list(self.sim._agent_states.keys())
+        return list(self.sim.agent_states.keys())
 
     def get_agent_state(self, agent_name: str) -> MalSimAgentState:
         return self.sim.agent_states[agent_name]

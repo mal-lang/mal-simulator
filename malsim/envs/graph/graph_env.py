@@ -222,7 +222,7 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
         }
         self._full_obs = create_full_obs(self.sim, self.lang_serializer)
         self.possible_agents = [name for name in self.sim.agent_states.keys()]
-        self.agents = list(self.sim._alive_agents)
+        self.agents = list(self.sim.alive_agents)
 
     def reset(
         self, seed: int | None = None, options: dict[str, Any] | None = None
@@ -274,7 +274,7 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
             for agent_name, action_idx in actions.items()
         }
         states = self.sim.step(action_nodes)
-        self.agents = list(self.sim._alive_agents)
+        self.agents = list(self.sim.alive_agents)
         self._obs = {
             agent_name: (
                 full_obs2attacker_obs(

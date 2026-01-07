@@ -42,12 +42,12 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     sim = MalSimulator(attack_graph, sim_settings=MalSimulatorSettings(seed=10))
 
     viability_before = {
-        n.full_name: v for n, v in sim._graph_state.viability_per_node.items()
+        n.full_name: v for n, v in sim.graph_state.viability_per_node.items()
     }
     necessity_before = {
-        n.full_name: v for n, v in sim._graph_state.necessity_per_node.items()
+        n.full_name: v for n, v in sim.graph_state.necessity_per_node.items()
     }
-    enabled_defenses = {n.full_name for n in sim._graph_state.pre_enabled_defenses}
+    enabled_defenses = {n.full_name for n in sim.graph_state.pre_enabled_defenses}
     sim.register_attacker_settings(AttackerSettings(attacker_name, {agent_entry_point}))
     assert attacker_name in sim.agent_states
     assert len(sim.agent_states) == 1
@@ -59,7 +59,7 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     attacker_state = sim.agent_states[attacker_name]
     assert action_surface_before == {n.full_name for n in attacker_state.action_surface}
     assert enabled_defenses == {
-        n.full_name for n in sim._graph_state.pre_enabled_defenses
+        n.full_name for n in sim.graph_state.pre_enabled_defenses
     }
 
     sim.reset()
@@ -77,11 +77,11 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     # Re-creating the simulator object with the same seed
     # should result in getting the same viability and necessity values
     sim = MalSimulator(attack_graph, sim_settings=MalSimulatorSettings(seed=10))
-    for node, viable in sim._graph_state.viability_per_node.items():
+    for node, viable in sim.graph_state.viability_per_node.items():
         # viability is the same after reset
         assert viability_before[node.full_name] == viable
 
-    for node, necessary in sim._graph_state.necessity_per_node.items():
+    for node, necessary in sim.graph_state.necessity_per_node.items():
         # necessity is the same after reset
         assert necessity_before[node.full_name] == necessary
 
@@ -128,7 +128,7 @@ def test_register_agent_action_surface(
     defender_state = sim.agent_states[agent_name]
     action_surface = defender_state.action_surface
     for node in action_surface:
-        assert node not in sim._graph_state.pre_enabled_defenses
+        assert node not in sim.graph_state.pre_enabled_defenses
 
 
 def test_simulator_actionable_action_surface(model: Model) -> None:
@@ -202,7 +202,7 @@ def test_attacker_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
     sim.register_attacker(attacker_name, {entry_point})
     sim.reset()
 
-    attacker_agent = sim._agent_states[attacker_name]
+    attacker_agent = sim.agent_states[attacker_name]
     assert isinstance(attacker_agent, MalSimAttackerState)
 
     # Can not attack the notPresent step
@@ -223,7 +223,7 @@ def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
     sim.register_defender(defender_name)
     sim.reset()
 
-    defender_agent = sim._agent_states[defender_name]
+    defender_agent = sim.agent_states[defender_name]
     assert isinstance(defender_agent, MalSimDefenderState)
 
     defense_step = get_node(attack_graph, 'OS App:notPresent')
@@ -688,7 +688,7 @@ def test_agent_state_views_simple(
     state_views = sim.agent_states
     entry_point = get_node(attack_graph, 'OS App:fullAccess')
 
-    pre_enabled_defenses = set(sim._graph_state.pre_enabled_defenses)
+    pre_enabled_defenses = set(sim.graph_state.pre_enabled_defenses)
 
     asv = state_views['attacker']
     dsv = state_views['defender']
@@ -1039,13 +1039,13 @@ def test_simulator_ttcs() -> None:
     #     network_3_access: 1.0
     # }
 
-    assert not sim._graph_state.impossible_attack_steps
-    assert not sim._graph_state.pre_enabled_defenses
+    assert not sim.graph_state.impossible_attack_steps
+    assert not sim.graph_state.pre_enabled_defenses
 
     sim.reset()
 
-    assert not sim._graph_state.impossible_attack_steps
-    assert not sim._graph_state.pre_enabled_defenses
+    assert not sim.graph_state.impossible_attack_steps
+    assert not sim.graph_state.pre_enabled_defenses
 
 
 def test_simulator_multiple_attackers() -> None:
@@ -1174,7 +1174,7 @@ def test_simulator_attacker_override_ttcs_state() -> None:
     )
     states = sim.reset()
 
-    bad_attacker_settings = sim._agent_settings['BadAttacker']
+    bad_attacker_settings = sim.agent_settings['BadAttacker']
     assert isinstance(bad_attacker_settings, AttackerSettings)
     assert bad_attacker_settings.ttc_overrides is not None
     bad_attacker_state = states['BadAttacker']
@@ -1398,6 +1398,6 @@ def test_active_defenses() -> None:
         ),
     )
 
-    assert len(sim._graph_state.pre_enabled_defenses) == 2
-    assert sim.get_node('Creds:notGuessable') in sim._graph_state.pre_enabled_defenses
-    assert sim.get_node('Creds:notDisclosed') in sim._graph_state.pre_enabled_defenses
+    assert len(sim.graph_state.pre_enabled_defenses) == 2
+    assert sim.get_node('Creds:notGuessable') in sim.graph_state.pre_enabled_defenses
+    assert sim.get_node('Creds:notDisclosed') in sim.graph_state.pre_enabled_defenses

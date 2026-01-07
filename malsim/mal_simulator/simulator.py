@@ -1,8 +1,10 @@
+# ignore reportDeprecated
+# pylance: disable=reportDeprecated
 from __future__ import annotations
 
 from collections import defaultdict
 import logging
-from typing import Any, Iterable, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 from collections.abc import Callable, Mapping, Set
 
 from numpy.random import default_rng
@@ -415,6 +417,13 @@ class MalSimulator:
         """Return read only agent state for all dead and alive agents"""
         return self._agent_states
 
+    @agent_states.setter
+    def agent_states(
+        self, value: dict[str, MalSimAttackerState | MalSimDefenderState]
+    ) -> None:
+        """Set agent states"""
+        self._agent_states = value
+
     def _get_attacker_agents(
         self, only_alive: bool = False
     ) -> list[MalSimAttackerState]:
@@ -492,7 +501,7 @@ class MalSimulator:
 
 def done(sim: MalSimulator) -> bool:
     """Return True if simulation run is done"""
-    return len(sim._alive_agents) == 0
+    return len(sim.alive_agents) == 0
 
 
 def node_ttc_value(
@@ -508,7 +517,7 @@ def node_ttc_value(
     if agent_name:
         # If agent name is given and it overrides the global TTC values
         # Return that value instead of the global ttc value
-        agent_state = sim._agent_states[agent_name]
+        agent_state = sim.agent_states[agent_name]
         if not isinstance(agent_state, MalSimAttackerState):
             raise ValueError(
                 f'Agent {agent_name} is not an attacker and has no TTC values'
@@ -516,93 +525,93 @@ def node_ttc_value(
         if node in agent_state.ttc_value_overrides:
             return agent_state.ttc_value_overrides[node]
 
-    assert node in sim._graph_state.ttc_values, (
+    assert node in sim.graph_state.ttc_values, (
         f'Node {node.full_name} does not have a ttc value'
     )
-    return sim._graph_state.ttc_values[node]
+    return sim.graph_state.ttc_values[node]
 
 
 def node_is_actionable(
     sim: MalSimulator, node: AttackGraphNode, agent_name: Optional[str] = None
 ) -> bool:
-    agent_settings = sim._agent_settings[agent_name] if agent_name else None
+    agent_settings = sim.agent_settings[agent_name] if agent_name else None
     if agent_settings and agent_settings.actionable_steps:
         # Actionability from agent settings
         return bool(agent_settings.actionable_steps.value(node, False))
-    if sim._node_actionabilities:
+    if sim.node_actionabilities:
         # Actionability from global settings
-        return sim._node_actionabilities.get(node, False)
+        return sim.node_actionabilities.get(node, False)
     return True
 
 
 def node_reward(
     sim: MalSimulator, node: AttackGraphNode, agent_name: Optional[str] = None
 ) -> float:
-    agent_settings = sim._agent_settings[agent_name] if agent_name else None
+    agent_settings = sim.agent_settings[agent_name] if agent_name else None
     if agent_settings and agent_settings.rewards:
         # Node reward from agent settings
         return float(agent_settings.rewards.value(node, 0.0))
-    if sim._rewards:
+    if sim.rewards:
         # Node reward from global settings
-        return sim._rewards.get(node, 0.0)
+        return sim.rewards.get(node, 0.0)
     return 0.0
 
 
 def node_is_observable(
     sim: MalSimulator, node: AttackGraphNode, agent_name: Optional[str] = None
 ) -> bool:
-    agent_settings = sim._agent_settings[agent_name] if agent_name else None
+    agent_settings = sim.agent_settings[agent_name] if agent_name else None
     if isinstance(agent_settings, DefenderSettings) and agent_settings.observable_steps:
         # Observability from agent settings
         return bool(agent_settings.observable_steps.value(node, False))
-    if sim._node_observabilities:
+    if sim.node_observabilities:
         # Observability from global settings
-        return sim._node_observabilities.get(node, False)
+        return sim.node_observabilities.get(node, False)
     return True
 
 
 def node_false_positive_rate(
     sim: MalSimulator, node: AttackGraphNode, agent_name: Optional[str] = None
 ) -> float:
-    agent_settings = sim._agent_settings[agent_name] if agent_name else None
+    agent_settings = sim.agent_settings[agent_name] if agent_name else None
     if (
         isinstance(agent_settings, DefenderSettings)
         and agent_settings.false_positive_rates
     ):
         # FPR from agent settings
         return float(agent_settings.false_positive_rates.value(node, 0.0))
-    if sim._false_positive_rates:
+    if sim.false_positive_rates:
         # FPR from global settings
-        return sim._false_positive_rates.get(node, 0.0)
+        return sim.false_positive_rates.get(node, 0.0)
     return 0.0
 
 
 def node_false_negative_rate(
     sim: MalSimulator, node: AttackGraphNode, agent_name: Optional[str] = None
 ) -> float:
-    agent_settings = sim._agent_settings[agent_name] if agent_name else None
+    agent_settings = sim.agent_settings[agent_name] if agent_name else None
     if (
         isinstance(agent_settings, DefenderSettings)
         and agent_settings.false_negative_rates
     ):
         # FNR from agent settings
         return float(agent_settings.false_negative_rates.value(node, 0.0))
-    if sim._false_negative_rates:
+    if sim.false_negative_rates:
         # FNR from global settings
-        return sim._false_negative_rates.get(node, 0.0)
+        return sim.false_negative_rates.get(node, 0.0)
     return 0.0
 
 
 def node_is_viable(sim: MalSimulator, node: AttackGraphNode | str) -> bool:
     """Get viability of a node"""
     node = full_name_or_node_to_node(sim, node)
-    return sim._graph_state.viability_per_node[node]
+    return sim.graph_state.viability_per_node[node]
 
 
 def node_is_necessary(sim: MalSimulator, node: AttackGraphNode | str) -> bool:
     """Get necessity of a node"""
     node = full_name_or_node_to_node(sim, node)
-    return sim._graph_state.necessity_per_node[node]
+    return sim.graph_state.necessity_per_node[node]
 
 
 def node_is_enabled_defense(sim: MalSimulator, node: AttackGraphNode | str) -> bool:
@@ -684,22 +693,22 @@ def get_node(
     else:
         raise ValueError("Provide either full_name or node_id to 'get_node'")
 
-    if node is None:
+    if node is None:  # type: ignore[unreachable]
         raise LookupError(f'Could not find node {full_name or node_id}')
     return node
 
 
 def agent_reward(sim: MalSimulator, agent_name: str) -> float:
     """Get an agents current reward"""
-    return sim._agent_rewards.get(agent_name, 0)
+    return sim.agent_rewards.get(agent_name, 0)
 
 
 def agent_is_terminated(sim: MalSimulator, agent_name: str) -> bool:
     """Return True if agent was terminated"""
-    agent_state = sim._agent_states[agent_name]
+    agent_state = sim.agent_states[agent_name]
     if isinstance(agent_state, MalSimAttackerState):
         return _attacker_is_terminated(agent_state)
-    elif isinstance(agent_state, MalSimDefenderState):
+    elif isinstance(agent_state, MalSimDefenderState):  # type: ignore[unreachable]
         return _defender_is_terminated(sim)
     else:
         raise TypeError(f'Unknown agent state for {agent_name}')
@@ -710,10 +719,10 @@ def reset(sim: MalSimulator) -> dict[str, MalSimAttackerState | MalSimDefenderSt
     logger.info('Resetting MAL Simulator.')
 
     # Re-calculate initial graph state
-    sim._graph_state = compute_initial_graph_state(
+    sim.graph_state = compute_initial_graph_state(
         sim.attack_graph, sim.sim_settings, sim.rng
     )
-    sim._agent_rewards = {}
+    sim.agent_rewards = {}
 
     sim.recording = defaultdict(dict)
     _reset_agents(sim)
@@ -736,7 +745,7 @@ def get_defense_surface(sim: MalSimulator, agent_name: str) -> set[AttackGraphNo
         for node in sim.attack_graph.defense_steps
         if node_is_actionable(sim, node, agent_name)
         and node_is_viable(sim, node)
-        and 'suppress' not in node.tags
+        and 'suppress' not in node.tags  # type: ignore[attr-defined]
         and not node_is_enabled_defense(sim, node)
     }
 
@@ -761,7 +770,7 @@ def get_attack_surface(
     """
 
     from_nodes = from_nodes if from_nodes is not None else performed_nodes
-    attack_surface = set()
+    attack_surface: set[AttackGraphNode] = set()
 
     skip_compromised = sim.sim_settings.attack_surface_skip_compromised
     skip_unviable = sim.sim_settings.attack_surface_skip_unviable
@@ -791,7 +800,7 @@ def _generate_false_negatives(
     sim: MalSimulator, agent_name: str, observed_nodes: Set[AttackGraphNode]
 ) -> set[AttackGraphNode]:
     """Return a set of false negative attack steps from observed nodes"""
-    if sim._false_negative_rates:
+    if sim.false_negative_rates:
         return set(
             node
             for node in observed_nodes
@@ -805,7 +814,7 @@ def _generate_false_positives(
     sim: MalSimulator, agent_name: str
 ) -> set[AttackGraphNode]:
     """Return a set of false positive attack steps from attack graph"""
-    if sim._false_positive_rates:
+    if sim.false_positive_rates:
         return set(
             node
             for node in sim.attack_graph.attack_steps
@@ -872,33 +881,33 @@ def _reset_agents(sim: MalSimulator) -> None:
     """Reset agent states to a fresh start"""
 
     # Revive all agents and reset reward
-    sim._alive_agents = set(sim._agent_settings.keys())
-    sim._agent_states = {}
-    sim._agent_rewards = {}
+    sim.alive_agents = set(sim.agent_settings.keys())
+    sim.agent_states = {}
+    sim.agent_rewards = {}
     pre_compromised_nodes: set[AttackGraphNode] = set()
 
     # Create new attacker agent states
-    for attacker in sim._agent_settings.values():
+    for attacker in sim.agent_settings.values():
         if isinstance(attacker, AttackerSettings):
             # Get any overriding ttc settings from attacker settings
             new_attacker_state = _initial_attacker_state(sim, attacker)
             pre_compromised_nodes |= new_attacker_state.step_performed_nodes
-            sim._agent_states[attacker.name] = new_attacker_state
-            sim._agent_rewards[attacker.name] = _attacker_step_reward(
+            sim.agent_states[attacker.name] = new_attacker_state
+            sim.agent_rewards[attacker.name] = _attacker_step_reward(
                 sim, new_attacker_state, sim.sim_settings.attacker_reward_mode
             )
 
     # Create new defender agent states
-    for defender in sim._agent_settings.values():
+    for defender in sim.agent_settings.values():
         if isinstance(defender, DefenderSettings):
             new_defender_state = _initial_defender_state(
                 sim,
                 defender,
                 pre_compromised_nodes,
-                sim._graph_state.pre_enabled_defenses,
+                sim.graph_state.pre_enabled_defenses,
             )
-            sim._agent_states[defender.name] = new_defender_state
-            sim._agent_rewards[defender.name] = _defender_step_reward(
+            sim.agent_states[defender.name] = new_defender_state
+            sim.agent_rewards[defender.name] = _defender_step_reward(
                 sim, new_defender_state, sim.sim_settings.defender_reward_mode
             )
 
@@ -918,15 +927,15 @@ def register_attacker_settings(
     sim: MalSimulator, attacker_settings: AttackerSettings
 ) -> None:
     """Register a mal sim attacker agent"""
-    assert attacker_settings.name not in sim._agent_settings, (
+    assert attacker_settings.name not in sim.agent_settings, (
         f'Duplicate agent named {attacker_settings.name} not allowed'
     )
-    sim._alive_agents.add(attacker_settings.name)
-    sim._agent_settings[attacker_settings.name] = attacker_settings
+    sim.alive_agents.add(attacker_settings.name)
+    sim.agent_settings[attacker_settings.name] = attacker_settings
 
     agent_state = _initial_attacker_state(sim, attacker_settings)
-    sim._agent_states[attacker_settings.name] = agent_state
-    sim._agent_rewards[attacker_settings.name] = _attacker_step_reward(
+    sim.agent_states[attacker_settings.name] = agent_state
+    sim.agent_rewards[attacker_settings.name] = _attacker_step_reward(
         sim, agent_state, sim.sim_settings.attacker_reward_mode
     )
 
@@ -995,28 +1004,30 @@ def register_defender_settings(
             'It does not make sense to have more than one, '
             'since all defender agents have the same state.'
         )
-    assert defender_settings.name not in sim._agent_settings, (
+    assert defender_settings.name not in sim.agent_settings, (
         f'Duplicate agent named {defender_settings.name} not allowed'
     )
 
-    sim._agent_settings[defender_settings.name] = defender_settings
+    sim.agent_settings[defender_settings.name] = defender_settings
 
     agent_state = _initial_defender_state(
         sim,
         defender_settings,
         sim.compromised_nodes,
-        sim._graph_state.pre_enabled_defenses,
+        sim.graph_state.pre_enabled_defenses,
     )
-    sim._agent_states[defender_settings.name] = agent_state
-    sim._alive_agents.add(defender_settings.name)
-    sim._agent_rewards[defender_settings.name] = _defender_step_reward(
+    sim.agent_states[defender_settings.name] = agent_state
+    sim.alive_agents.add(defender_settings.name)
+    sim.agent_rewards[defender_settings.name] = _defender_step_reward(
         sim, agent_state, sim.sim_settings.defender_reward_mode
     )
 
 
-def agent_states(sim) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
+def agent_states(
+    sim: MalSimulator,
+) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
     """Return read only agent state for all dead and alive agents"""
-    return sim._agent_states
+    return sim.agent_states
 
 
 def _get_attacker_agents(
@@ -1027,8 +1038,8 @@ def _get_attacker_agents(
     """
     return [
         a
-        for a in sim._agent_states.values()
-        if (a.name in sim._alive_agents or not only_alive)
+        for a in sim.agent_states.values()
+        if (a.name in sim.alive_agents or not only_alive)
         and isinstance(a, MalSimAttackerState)
     ]
 
@@ -1041,8 +1052,8 @@ def _get_defender_agents(
     """
     return [
         a
-        for a in sim._agent_states.values()
-        if (a.name in sim._alive_agents or not only_alive)
+        for a in sim.agent_states.values()
+        if (a.name in sim.alive_agents or not only_alive)
         and isinstance(a, MalSimDefenderState)
     ]
 
@@ -1098,8 +1109,8 @@ def _attacker_step(
     Returns: two lists with compromised, attempted nodes
     """
 
-    successful_compromises = list()
-    attempted_compromises = list()
+    successful_compromises: list[AttackGraphNode] = list()
+    attempted_compromises: list[AttackGraphNode] = list()
 
     for node in nodes:
         assert node == sim.attack_graph.nodes[node.id], (
@@ -1152,8 +1163,8 @@ def _defender_step(
     and `attack_steps_made_unviable`.
     """
 
-    enabled_defenses = list()
-    attack_steps_made_unviable = set()
+    enabled_defenses: list[AttackGraphNode] = list()
+    attack_steps_made_unviable: set[AttackGraphNode] = set()
 
     for node in nodes:
         assert node == sim.attack_graph.nodes[node.id], (
@@ -1173,10 +1184,10 @@ def _defender_step(
             )
         else:
             enabled_defenses.append(node)
-            sim._graph_state.viability_per_node, made_unviable = make_node_unviable(
+            sim.graph_state.viability_per_node, made_unviable = make_node_unviable(
                 node,
-                sim._graph_state.viability_per_node,
-                sim._graph_state.impossible_attack_steps,
+                sim.graph_state.viability_per_node,
+                sim.graph_state.impossible_attack_steps,
             )
             attack_steps_made_unviable |= made_unviable
             logger.info(
@@ -1217,10 +1228,10 @@ def _attacker_step_reward(
         # If TTC Mode is disabled but reward mode uses TTCs, penalize with TTCs
         for node in performed_steps:
             if reward_mode == RewardMode.EXPECTED_TTC:
-                step_reward -= TTCDist.from_node(node).expected_value if node.ttc else 0
+                step_reward -= TTCDist.from_node(node).expected_value if node.ttc else 0  # type: ignore
             elif reward_mode == RewardMode.SAMPLE_TTC:
                 step_reward -= (
-                    TTCDist.from_node(node).sample_value(sim.rng) if node.ttc else 0
+                    TTCDist.from_node(node).sample_value(sim.rng) if node.ttc else 0  # type: ignore
                 )
 
     return step_reward
@@ -1286,7 +1297,7 @@ def _pre_step_check(
     sim: MalSimulator, actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]]
 ) -> None:
     """Do some checks before performing step to inform the users"""
-    if not sim._agent_states:
+    if not sim.agent_states:
         msg = (
             'No agents registered, register with `.register_attacker() `'
             'and .register_defender() before stepping'
@@ -1300,7 +1311,7 @@ def _pre_step_check(
         print(msg)
 
     for agent_name in actions:
-        if agent_name not in sim._agent_states:
+        if agent_name not in sim.agent_states:
             raise KeyError(f"No agent has name '{agent_name}'")
 
 
@@ -1325,9 +1336,9 @@ def step(
     step_nodes_made_unviable: set[AttackGraphNode] = set()
     current_iteration = 0
     recording = sim.recording
-    agent_states = sim._agent_states
-    agent_rewards = sim._agent_rewards
-    live_agents = sim._alive_agents
+    agent_states = sim.agent_states
+    agent_rewards = sim.agent_rewards
+    live_agents = sim.alive_agents
     sim_settings = sim.sim_settings
     rest_api_client = sim.rest_api_client
 
@@ -1415,14 +1426,14 @@ def step(
             current_iteration,
         )
 
-    sim._agent_states = agent_states
+    sim.agent_states = agent_states
     sim.recording = recording
-    sim._agent_rewards = agent_rewards
-    sim._alive_agents = live_agents
+    sim.agent_rewards = agent_rewards
+    sim.alive_agents = live_agents
     return sim.agent_states
 
 
-def render(sim) -> None:
+def render(sim: MalSimulator) -> None:
     pass
 
 
