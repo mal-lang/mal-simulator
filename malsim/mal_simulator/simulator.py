@@ -41,15 +41,14 @@ ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
 
 
-ENABLED_ATTACKS_FUNCS: Mapping[
-    RewardMode, Callable[[MalSimAttackerState], frozenset[AttackGraphNode]]
+PERFORMED_ATTACKS_FUNCS: Mapping[
+    RewardMode,
+    Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
 ] = {
-    # all performed attacks. i.e. reward is only defined as a function of state
     RewardMode.CUMULATIVE: lambda ds: ds.performed_nodes,
-    # only newly performed attacks
-    # (one off means that the reward actually be defined
-    # as a function of the state+action, or just the action.)
     RewardMode.ONE_OFF: lambda ds: ds.step_performed_nodes,
+    RewardMode.EXPECTED_TTC: lambda ds: ds.step_performed_nodes,
+    RewardMode.SAMPLE_TTC: lambda ds: ds.step_performed_nodes,
 }
 
 ENABLED_DEFENSES_FUNCS: Mapping[
@@ -62,6 +61,15 @@ ENABLED_DEFENSES_FUNCS: Mapping[
     # as a function of the state+action
     #  but whatever)
     RewardMode.ONE_OFF: lambda ds: ds.step_performed_nodes,
+}
+
+ENABLED_ATTACKS_FUNCS: Mapping[
+    RewardMode, Callable[[MalSimDefenderState], frozenset[AttackGraphNode]]
+] = {
+    # all performed attacks
+    RewardMode.CUMULATIVE: lambda ds: ds.compromised_nodes,
+    # only newly performed attacks
+    RewardMode.ONE_OFF: lambda ds: ds.step_compromised_nodes,
 }
 
 
@@ -142,10 +150,13 @@ class MalSimulator:
             full_name_dict_to_node_dict(self, node_observabilities or {})
         )
 
-        self.enabled_attacks_func = ENABLED_ATTACKS_FUNCS[
+        self.performed_attacks_func = PERFORMED_ATTACKS_FUNCS[
             sim_settings.attacker_reward_mode
         ]
         self.enabled_defenses_func = ENABLED_DEFENSES_FUNCS[
+            sim_settings.defender_reward_mode
+        ]
+        self.enabled_attacks_func = ENABLED_ATTACKS_FUNCS[
             sim_settings.defender_reward_mode
         ]
 
@@ -896,7 +907,7 @@ class MalSimulator:
         - reward_mode: which way to calculate reward
         """
 
-        performed_steps = self.enabled_attacks_func(attacker_state)
+        performed_steps = self.performed_attacks_func(attacker_state)
         action = attacker_state.step_attempted_nodes
 
         # Attacker is rewarded for compromised nodes
@@ -936,7 +947,7 @@ class MalSimulator:
         - reward_mode: which way to calculate reward
         """
         enabled_defenses = self.enabled_defenses_func(defender_state)
-        compromised_nodes = defender_state.compromised_nodes
+        compromised_nodes = self.enabled_attacks_func(defender_state)
 
         # Defender is penalized for compromised steps and enabled defenses
         step_reward = -sum(
