@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from malsim.mal_simulator.settings import MalSimulatorSettings
 
 
-@dataclass
+@dataclass(frozen=True)
 class GraphState:
     ttc_values: dict[AttackGraphNode, float]
     pre_enabled_defenses: set[AttackGraphNode]
@@ -43,7 +43,7 @@ def compute_initial_graph_state(
     enabled_defenses = get_pre_enabled_defenses(
         graph.defense_steps, settings.run_defense_step_bernoullis, rng
     )
-    impossible_attack_steps = set()
+    impossible_attack_steps: set[AttackGraphNode] = set()
     if settings.run_attack_step_bernoullis:
         # These steps will not be traversable
         impossible_attack_steps = get_impossible_attack_steps(graph.attack_steps, rng)
