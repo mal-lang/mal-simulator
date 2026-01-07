@@ -27,7 +27,7 @@ from malsim.mal_simulator.agent_state import (
     create_defender_state,
 )
 from malsim.mal_simulator.settings import MalSimulatorSettings, TTCMode, RewardMode
-from malsim.mal_simulator.graph_state import compute_initial_graph_state
+from malsim.mal_simulator.graph_state import GraphState, compute_initial_graph_state
 from malsim.mal_simulator.node_utils import (
     full_name_or_node_to_node,
     full_names_or_nodes_to_nodes,
@@ -156,6 +156,44 @@ class MalSimulator:
         self.enabled_attacks_func = ENABLED_ATTACKS_FUNCS[
             sim_settings.defender_reward_mode
         ]
+
+
+    @property
+    def rewards(self) -> dict[AttackGraphNode, float]:
+        return self._rewards
+
+    @property
+    def false_positive_rates(self) -> dict[AttackGraphNode, float]:
+        return self._false_positive_rates
+
+    @property
+    def false_negative_rates(self) -> dict[AttackGraphNode, float]:
+        return self._false_negative_rates
+
+    @property
+    def agent_settings(self) -> dict[str, AttackerSettings | DefenderSettings]:
+        """Return read only agent settings for all registered agents"""
+        return self._agent_settings
+
+    @property
+    def alive_agents(self) -> set[str]:
+        """Return read only set of alive agents"""
+        return self._alive_agents
+
+    @alive_agents.setter
+    def alive_agents(self, value: set[str]) -> None:
+        """Set alive agents"""
+        self._alive_agents = value
+
+    @property
+    def agent_rewards(self) -> dict[str, float]:
+        """Return read only agent rewards"""
+        return self._agent_rewards
+
+    @agent_rewards.setter
+    def agent_rewards(self, value: dict[str, float]) -> None:
+        """Set agent rewards"""
+        self._agent_rewards = value
 
     def __getstate__(self) -> dict[str, Any]:
         do_not_pickle = {
@@ -434,6 +472,23 @@ class MalSimulator:
 
     def render(self) -> None:
         pass
+
+    @property
+    def node_actionabilities(self) -> dict[AttackGraphNode, bool]:
+        return self._node_actionabilities
+
+    @property
+    def node_observabilities(self) -> dict[AttackGraphNode, bool]:
+        return self._node_observabilities
+
+    @property
+    def graph_state(self) -> GraphState:
+        return self._graph_state
+
+    @graph_state.setter
+    def graph_state(self, value: GraphState) -> None:
+        """Set graph state"""
+        self._graph_state = value
 
 
 def done(sim: MalSimulator) -> bool:
