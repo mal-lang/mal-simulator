@@ -901,8 +901,7 @@ class MalSimulator:
 
         # Attacker is rewarded for compromised nodes
         step_reward = sum(
-            self.node_reward(n, attacker_state.name)
-            for n in attacker_state.step_performed_nodes
+            self.node_reward(n, attacker_state.name) for n in performed_steps
         )
 
         if self.sim_settings.ttc_mode != TTCMode.DISABLED:
