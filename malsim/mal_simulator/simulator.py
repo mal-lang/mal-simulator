@@ -160,6 +160,14 @@ class MalSimulator:
             sim_settings.defender_reward_mode
         ]
 
+    def __getstate__(self):
+        do_not_pickle = {
+            'performed_attacks_func',
+            'enabled_defenses_func',
+            'enabled_attacks_func',
+        }
+        return {k: v for (k, v) in self.__dict__.items() if k not in do_not_pickle}
+
     @classmethod
     def from_scenario(
         cls,
