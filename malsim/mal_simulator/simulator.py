@@ -157,7 +157,6 @@ class MalSimulator:
             sim_settings.defender_reward_mode
         ]
 
-
     @property
     def rewards(self) -> dict[AttackGraphNode, float]:
         return self._rewards
