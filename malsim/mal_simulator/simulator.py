@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional, TYPE_CHECKING
-from collections.abc import Set
+from typing import Any, Iterable, Optional, TYPE_CHECKING
+from collections.abc import Callable, Mapping, Set
 
 from numpy.random import default_rng
 
@@ -39,6 +39,38 @@ if TYPE_CHECKING:
 
 ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
+
+
+PERFORMED_ATTACKS_FUNCS: Mapping[
+    RewardMode,
+    Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
+] = {
+    RewardMode.CUMULATIVE: lambda ds: ds.performed_nodes,
+    RewardMode.ONE_OFF: lambda ds: ds.step_performed_nodes,
+    RewardMode.EXPECTED_TTC: lambda ds: ds.step_performed_nodes,
+    RewardMode.SAMPLE_TTC: lambda ds: ds.step_performed_nodes,
+}
+
+ENABLED_DEFENSES_FUNCS: Mapping[
+    RewardMode, Callable[[MalSimDefenderState], frozenset[AttackGraphNode]]
+] = {
+    # all enabled defenses
+    RewardMode.CUMULATIVE: lambda ds: ds.performed_nodes,
+    # only newly enabled defenses
+    # (this means that the reward actually be defined
+    # as a function of the state+action
+    #  but whatever)
+    RewardMode.ONE_OFF: lambda ds: ds.step_performed_nodes,
+}
+
+ENABLED_ATTACKS_FUNCS: Mapping[
+    RewardMode, Callable[[MalSimDefenderState], frozenset[AttackGraphNode]]
+] = {
+    # all performed attacks
+    RewardMode.CUMULATIVE: lambda ds: ds.compromised_nodes,
+    # only newly performed attacks
+    RewardMode.ONE_OFF: lambda ds: ds.step_compromised_nodes,
+}
 
 
 class MalSimulator:
@@ -117,6 +149,24 @@ class MalSimulator:
         self._node_observabilities: dict[AttackGraphNode, bool] = (
             full_name_dict_to_node_dict(self, node_observabilities or {})
         )
+
+        self.performed_attacks_func = PERFORMED_ATTACKS_FUNCS[
+            sim_settings.attacker_reward_mode
+        ]
+        self.enabled_defenses_func = ENABLED_DEFENSES_FUNCS[
+            sim_settings.defender_reward_mode
+        ]
+        self.enabled_attacks_func = ENABLED_ATTACKS_FUNCS[
+            sim_settings.defender_reward_mode
+        ]
+
+    def __getstate__(self) -> dict[str, Any]:
+        do_not_pickle = {
+            'performed_attacks_func',
+            'enabled_defenses_func',
+            'enabled_attacks_func',
+        }
+        return {k: v for (k, v) in self.__dict__.items() if k not in do_not_pickle}
 
     @classmethod
     def from_scenario(
@@ -865,18 +915,20 @@ class MalSimulator:
         - reward_mode: which way to calculate reward
         """
 
+        performed_steps = self.performed_attacks_func(attacker_state)
+        action = attacker_state.step_attempted_nodes
+
         # Attacker is rewarded for compromised nodes
         step_reward = sum(
-            self.node_reward(n, attacker_state.name)
-            for n in attacker_state.step_performed_nodes
+            self.node_reward(n, attacker_state.name) for n in performed_steps
         )
 
         if self.sim_settings.ttc_mode != TTCMode.DISABLED:
             # If TTC Mode is not disabled, attacker is penalized for each attempt
-            step_reward -= len(attacker_state.step_attempted_nodes)
+            step_reward -= len(action)
         elif self.sim_settings.ttc_mode == TTCMode.DISABLED:
             # If TTC Mode is disabled but reward mode uses TTCs, penalize with TTCs
-            for node in attacker_state.step_performed_nodes:
+            for node in performed_steps:
                 if reward_mode == RewardMode.EXPECTED_TTC:
                     step_reward -= (
                         TTCDist.from_node(node).expected_value if node.ttc else 0
@@ -887,14 +939,6 @@ class MalSimulator:
                         if node.ttc
                         else 0
                     )
-
-        # Cumulative reward mode for attacker makes no sense
-        # If I hack someones computer, do I just keep getting rewarded for it?
-        # Day after day I receive some kind of time payback that allows me
-        # to keep hacking?
-        if reward_mode == RewardMode.CUMULATIVE:
-            # To make it cumulative, add previous step reward
-            step_reward += self.agent_reward(attacker_state.name)
 
         return step_reward
 
@@ -910,18 +954,14 @@ class MalSimulator:
         - defender_state: the defender state before defenses were enabled
         - reward_mode: which way to calculate reward
         """
-        step_enabled_defenses = defender_state.step_performed_nodes
-        step_compromised_nodes = defender_state.step_compromised_nodes
+        enabled_defenses = self.enabled_defenses_func(defender_state)
+        compromised_nodes = self.enabled_attacks_func(defender_state)
 
         # Defender is penalized for compromised steps and enabled defenses
         step_reward = -sum(
             self.node_reward(n, defender_state.name)
-            for n in step_enabled_defenses | step_compromised_nodes
+            for n in enabled_defenses | compromised_nodes
         )
-
-        if reward_mode == RewardMode.CUMULATIVE:
-            # To make it cumulative add previous step reward
-            step_reward += self.agent_reward(defender_state.name)
 
         return step_reward
 
