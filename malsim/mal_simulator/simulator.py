@@ -797,20 +797,23 @@ class MalSimulator:
     def _get_effects_of_attack_step(
         self, attack_step: AttackGraphNode, performed_nodes: frozenset[AttackGraphNode]
     ) -> list[AttackGraphNode]:
-        """Get nodes performed as a consequence of `attack_step` being compromised"""
+        """Get effects of `attack_step`
+
+        Get nodes that should be performed as a consequence of `attack_step`
+        being compromised
+        """
         performed = set(performed_nodes) | {attack_step}
         effects: list[AttackGraphNode] = list()
         potential_effects = deque(
             n for n in attack_step.children if n.causal_mode == 'effect'
         )
-
         while potential_effects:
-            effect = potential_effects.popleft()
-            has_visited = performed | set(effects)
-            if self.node_is_traversable(has_visited, effect):
-                effects.append(effect)
+            potential_effect = potential_effects.popleft()
+            if self.node_is_traversable(performed, potential_effect):
+                performed.add(potential_effect)
+                effects.append(potential_effect)
                 potential_effects += (
-                    n for n in effect.children if n.causal_mode == 'effect'
+                    n for n in potential_effect.children if n.causal_mode == 'effect'
                 )
         return effects
 
