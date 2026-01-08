@@ -6,10 +6,8 @@ from types import MappingProxyType
 
 from maltoolbox.attackgraph import AttackGraphNode
 
-from malsim.mal_simulator.ttc_utils import TTCDist
-
 if TYPE_CHECKING:
-    from malsim import MalSimulator
+    from malsim.mal_simulator import MalSimulator, TTCDist
 
 
 @dataclass(frozen=True)
