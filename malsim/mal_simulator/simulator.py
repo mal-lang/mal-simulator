@@ -397,7 +397,7 @@ class MalSimulator:
             self._agent_states,
             self._graph_state,
             self._alive_agents,
-            self._node_observabilities,
+            self._node_actionabilities,
             agent_name,
         )
 
@@ -413,7 +413,7 @@ class MalSimulator:
             self.attack_graph,
             self._agent_settings,
             self._agent_states,
-            self._node_observabilities,
+            self._node_actionabilities,
             agent_name,
             performed_nodes,
             from_nodes,
