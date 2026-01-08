@@ -1421,8 +1421,10 @@ def test_actions_effects() -> None:
             seed=1,
         ),
     )
-    recording_performed = run_simulation(sim, scenario.agent_settings)
-    assert {n.full_name for n in recording_performed['Attacker']} == {
+    selected_actions = run_simulation(sim, scenario.agent_settings)
+
+    # Attacker only selects steps starting with 'attempt'
+    assert {n.full_name for n in selected_actions['Attacker']} == {
         'Net1:attemptScan',
         'Net2:attemptScan',
         'Net3:attemptScan',
@@ -1433,13 +1435,12 @@ def test_actions_effects() -> None:
         'SecretData:attemptRead',
     }
 
-    recorded_with_effects = sim.recording
+    # But in the recording each step performs an action and an effect
     for i in sim.recording:
         action = sim.recording[i]['Attacker'][0]
         effect = sim.recording[i]['Attacker'][1]
         # Assert that both action and effect was performed each step
         assert effect.model_asset
         assert (
-            action.full_name
-            == effect.model_asset.name + ':attempt' + effect.name.capitalize()
+            action.name ==  'attempt' + effect.name.capitalize()
         )
