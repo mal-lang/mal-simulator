@@ -31,7 +31,7 @@ def get_node(
     else:
         raise ValueError("Provide either full_name or node_id to 'get_node'")
 
-    if node is None:  # type: ignore[unreachable]
+    if node is None:
         raise LookupError(f'Could not find node {full_name or node_id}')
     return node
 

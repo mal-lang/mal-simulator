@@ -170,6 +170,6 @@ def get_defense_surface(
         for node in attack_graph.defense_steps
         if node_is_actionable(agent_settings, node_actionabilities, node, agent_name)
         and node_is_viable(graph_state, attack_graph, node)
-        and 'suppress' not in node.tags  # type: ignore
+        and 'suppress' not in node.tags
         and not node_is_enabled_defense(attack_graph, agent_states, live_agents, node)
     }

@@ -506,7 +506,7 @@ class MalSimulator:
             for agent_settings in scenario.agent_settings.values():
                 if isinstance(agent_settings, AttackerSettings):
                     sim.register_attacker_settings(agent_settings)
-                elif isinstance(agent_settings, DefenderSettings):  # type: ignore[unreachable]
+                elif isinstance(agent_settings, DefenderSettings):
                     sim.register_defender_settings(agent_settings)
         return sim
 
@@ -1007,7 +1007,7 @@ def agent_is_terminated(
     agent_state = agent_states[agent_name]
     if isinstance(agent_state, MalSimAttackerState):
         return attacker_is_terminated(agent_state)
-    elif isinstance(agent_state, MalSimDefenderState):  # type: ignore[unreachable]
+    elif isinstance(agent_state, MalSimDefenderState):
         return defender_is_terminated(agent_states, live_agents)
     else:
         raise TypeError(f'Unknown agent state for {agent_name}')

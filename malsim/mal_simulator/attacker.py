@@ -70,10 +70,10 @@ def attacker_step_reward(
         # If TTC Mode is disabled but reward mode uses TTCs, penalize with TTCs
         for node in performed_steps:
             if reward_mode == RewardMode.EXPECTED_TTC:
-                step_reward -= TTCDist.from_node(node).expected_value if node.ttc else 0  # type: ignore
+                step_reward -= TTCDist.from_node(node).expected_value if node.ttc else 0
             elif reward_mode == RewardMode.SAMPLE_TTC:
                 step_reward -= (
-                    TTCDist.from_node(node).sample_value(rng) if node.ttc else 0  # type: ignore
+                    TTCDist.from_node(node).sample_value(rng) if node.ttc else 0
                 )
 
     return step_reward
