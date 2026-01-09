@@ -1076,7 +1076,7 @@ class MalSimulator:
                 step_attempted_nodes=frozenset(agent_attempted),
                 step_nodes_made_unviable=step_nodes_made_unviable,
                 previous_state=attacker_state,
-                time=self.cur_iter,
+                iteration=current_iteration,
             )
             agent_states[attacker_state.name] = updated_attacker_state
 
@@ -1091,6 +1091,7 @@ class MalSimulator:
             agent_state = agent_states[agent_name]
 
             if isinstance(agent_state, MalSimDefenderState):
+                current_iteration = agent_state.iteration
                 # Update defender state
                 updated_defender_state = create_defender_state(
                     sim=self,
@@ -1099,7 +1100,7 @@ class MalSimulator:
                     step_enabled_defenses=set(step_enabled_defenses),
                     step_nodes_made_unviable=step_nodes_made_unviable,
                     previous_state=agent_state,
-                    time=self.cur_iter,
+                    iteration=current_iteration,
                 )
                 agent_states[agent_name] = updated_defender_state
 
