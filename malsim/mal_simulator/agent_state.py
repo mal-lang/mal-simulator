@@ -135,7 +135,7 @@ def create_attacker_state(
         ttc_value_overrides = previous_state.ttc_value_overrides
         impossible_step_overrides = previous_state.impossible_step_overrides
         compromised_nodes = previous_state.performed_nodes | step_compromised_nodes
-        performed_nodes_order = previous_state.performed_nodes_order
+        performed_nodes_order = dict(previous_state.performed_nodes_order)
         if len(step_compromised_nodes) > 0:
             performed_nodes_order[previous_state.iteration] = frozenset(
                 step_compromised_nodes
@@ -181,7 +181,7 @@ def create_attacker_state(
         ttc_value_overrides=MappingProxyType(ttc_value_overrides),
         impossible_step_overrides=frozenset(impossible_step_overrides),
         iteration=(previous_state.iteration + 1) if previous_state else 1,
-        performed_nodes_order=performed_nodes_order,
+        performed_nodes_order=MappingProxyType(performed_nodes_order),
     )
 
 
@@ -237,7 +237,7 @@ def create_defender_state(
         previous_observed_nodes = previous_state.observed_nodes
         action_surface_additions = frozenset()
         action_surface_removals = step_enabled_defenses
-        performed_nodes_order = previous_state.performed_nodes_order
+        performed_nodes_order = dict(previous_state.performed_nodes_order)
         if len(step_enabled_defenses) > 0:
             performed_nodes_order[previous_state.iteration] = frozenset(
                 step_enabled_defenses
@@ -260,5 +260,5 @@ def create_defender_state(
         step_performed_nodes=frozenset(step_enabled_defenses),
         step_unviable_nodes=frozenset(step_nodes_made_unviable),
         iteration=(previous_state.iteration + 1) if previous_state else 1,
-        performed_nodes_order=performed_nodes_order,
+        performed_nodes_order=MappingProxyType(performed_nodes_order),
     )
