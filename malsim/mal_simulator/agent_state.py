@@ -137,12 +137,10 @@ def create_attacker_state(
         impossible_step_overrides = previous_state.impossible_step_overrides
         compromised_nodes = previous_state.performed_nodes | step_compromised_nodes
         performed_nodes_order = previous_state.performed_nodes_order
-        if time is not None:
-            # Nested if is required here
-            if len(step_compromised_nodes) > 0:
-                performed_nodes_order[time] = frozenset(step_compromised_nodes)
-        else:
+        if time is None:
             raise ValueError('Time must be provided if previous state is provided')
+        if len(step_compromised_nodes) > 0:
+            performed_nodes_order[time] = frozenset(step_compromised_nodes)
 
         # Build on previous attack surface (for performance)
         action_surface_additions = (
