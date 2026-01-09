@@ -240,12 +240,10 @@ def create_defender_state(
         action_surface_additions = frozenset()
         action_surface_removals = step_enabled_defenses
         performed_nodes_order = previous_state.performed_nodes_order
-        if time is not None:
-            # Nested if is required here
-            if len(step_enabled_defenses) > 0:
-                performed_nodes_order[time] = frozenset(step_enabled_defenses)
-        else:
+        if time is None:
             raise ValueError('Time must be provided if previous state is provided')
+        if len(step_enabled_defenses) > 0:
+            performed_nodes_order[time] = frozenset(step_enabled_defenses)
 
     step_observed_nodes = sim._defender_observed_nodes(name, step_compromised_nodes)
     return MalSimDefenderState(
