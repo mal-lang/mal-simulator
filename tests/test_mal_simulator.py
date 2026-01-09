@@ -1433,7 +1433,6 @@ def test_compromise_order() -> None:
             actions['Attacker1'] = [
                 random.choice(list(states['Attacker1'].action_surface))
             ]
-            attacker_record[i] = set(actions['Attacker1'])
 
         if len(states['Defender1'].action_surface) == 0 or random.random() < 0.3:
             actions['Defender1'] = []
@@ -1441,10 +1440,15 @@ def test_compromise_order() -> None:
             actions['Defender1'] = [
                 random.choice(list(states['Defender1'].action_surface))
             ]
-            defender_record[i] = set(actions['Defender1'])
         states = sim.step(actions)
+        if len(sim.recording[i]['Attacker1']) > 0:
+            attacker_record[i] = set(sim.recording[i]['Attacker1'])
+        if len(sim.recording[i]['Defender1']) > 0:
+            defender_record[i] = set(sim.recording[i]['Defender1'])
+        if sim.done():
+            break
 
-    for i in range(100):
+    for i in range(max(max(attacker_record.keys()), max(defender_record.keys())) + 1):
         if i in attacker_record and i in states['Attacker1'].performed_nodes_order:
             assert attacker_record[i] == states['Attacker1'].performed_nodes_order[i], (
                 f'Attacker record does not match simulator at time {i}'
