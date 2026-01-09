@@ -25,7 +25,7 @@ class MalSimAgentState:
     # Contains all nodes that this agent has performed successfully
     performed_nodes: frozenset[AttackGraphNode]
     # Contains the order of performed nodes
-    performed_nodes_order: dict[int, frozenset[AttackGraphNode]]
+    performed_nodes_order: MappingProxyType[int, frozenset[AttackGraphNode]]
     # Contains the nodes performed successfully in the last step
     step_performed_nodes: frozenset[AttackGraphNode]
     # Contains possible nodes that became available in the last step
