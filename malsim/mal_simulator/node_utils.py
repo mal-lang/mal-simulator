@@ -53,6 +53,7 @@ def full_names_or_nodes_to_nodes(
     for n in nodes_or_full_names:
         yield get_node(attack_graph, n) if isinstance(n, str) else n
 
+
 def full_name_dict_to_node_dict(
     attack_graph: AttackGraph, mapping: dict[str, Any] | dict[AttackGraphNode, Any]
 ) -> dict[AttackGraphNode, Any]:

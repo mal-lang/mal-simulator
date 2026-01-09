@@ -2,7 +2,11 @@ from collections.abc import Callable, Set
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 import numpy as np
 from malsim.mal_simulator.agent_state import AgentStates
-from malsim.mal_simulator.agent_state import AgentSettings, MalSimDefenderState, get_attacker_agents
+from malsim.mal_simulator.agent_state import (
+    AgentSettings,
+    MalSimDefenderState,
+    get_attacker_agents,
+)
 from malsim.mal_simulator.attacker import attacker_is_terminated
 from malsim.mal_simulator.false_alerts import (
     generate_false_negatives,

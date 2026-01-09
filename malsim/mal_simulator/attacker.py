@@ -34,6 +34,7 @@ from malsim.scenario import AttackerSettings
 
 logger = logging.getLogger(__name__)
 
+
 def attacker_step_reward(
     performed_attacks_func: Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
     attacker_state: MalSimAttackerState,
