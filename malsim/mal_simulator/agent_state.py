@@ -137,7 +137,9 @@ def create_attacker_state(
         compromised_nodes = previous_state.performed_nodes | step_compromised_nodes
         performed_nodes_order = previous_state.performed_nodes_order
         if len(step_compromised_nodes) > 0:
-            performed_nodes_order[previous_state.iteration] = frozenset(step_compromised_nodes)
+            performed_nodes_order[previous_state.iteration] = frozenset(
+                step_compromised_nodes
+            )
 
         # Build on previous attack surface (for performance)
         action_surface_additions = (
@@ -237,7 +239,9 @@ def create_defender_state(
         action_surface_removals = step_enabled_defenses
         performed_nodes_order = previous_state.performed_nodes_order
         if len(step_enabled_defenses) > 0:
-            performed_nodes_order[previous_state.iteration] = frozenset(step_enabled_defenses)
+            performed_nodes_order[previous_state.iteration] = frozenset(
+                step_enabled_defenses
+            )
 
     step_observed_nodes = sim._defender_observed_nodes(name, step_compromised_nodes)
     return MalSimDefenderState(
