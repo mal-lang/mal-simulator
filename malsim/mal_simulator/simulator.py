@@ -1090,6 +1090,7 @@ class MalSimulator:
             agent_state = agent_states[agent_name]
 
             if isinstance(agent_state, MalSimDefenderState):
+                current_iteration = agent_state.iteration
                 # Update defender state
                 updated_defender_state = create_defender_state(
                     sim=self,
