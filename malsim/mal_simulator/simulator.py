@@ -1076,7 +1076,6 @@ class MalSimulator:
                 step_attempted_nodes=frozenset(agent_attempted),
                 step_nodes_made_unviable=step_nodes_made_unviable,
                 previous_state=attacker_state,
-                iteration=current_iteration,
             )
             agent_states[attacker_state.name] = updated_attacker_state
 
@@ -1100,7 +1099,6 @@ class MalSimulator:
                     step_enabled_defenses=set(step_enabled_defenses),
                     step_nodes_made_unviable=step_nodes_made_unviable,
                     previous_state=agent_state,
-                    iteration=current_iteration,
                 )
                 agent_states[agent_name] = updated_defender_state
 

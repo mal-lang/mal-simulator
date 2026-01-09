@@ -101,7 +101,6 @@ def create_attacker_state(
     ttc_value_overrides: Mapping[AttackGraphNode, float] = MappingProxyType({}),
     impossible_step_overrides: Set[AttackGraphNode] = frozenset(),
     previous_state: Optional[MalSimAttackerState] = None,
-    iteration: int | None = None,
 ) -> MalSimAttackerState:
     """
     Update a previous attacker state based on what the agent compromised
@@ -137,10 +136,8 @@ def create_attacker_state(
         impossible_step_overrides = previous_state.impossible_step_overrides
         compromised_nodes = previous_state.performed_nodes | step_compromised_nodes
         performed_nodes_order = previous_state.performed_nodes_order
-        if iteration is None:
-            raise ValueError('Time must be provided if previous state is provided')
         if len(step_compromised_nodes) > 0:
-            performed_nodes_order[iteration] = frozenset(step_compromised_nodes)
+            performed_nodes_order[previous_state.iteration] = frozenset(step_compromised_nodes)
 
         # Build on previous attack surface (for performance)
         action_surface_additions = (
@@ -214,7 +211,6 @@ def create_defender_state(
     step_enabled_defenses: Set[AttackGraphNode] = frozenset(),
     step_nodes_made_unviable: Set[AttackGraphNode] = frozenset(),
     previous_state: Optional[MalSimDefenderState] = None,
-    iteration: int | None = None,
 ) -> MalSimDefenderState:
     """
     Update a previous defender state based on what steps
@@ -240,10 +236,8 @@ def create_defender_state(
         action_surface_additions = frozenset()
         action_surface_removals = step_enabled_defenses
         performed_nodes_order = previous_state.performed_nodes_order
-        if iteration is None:
-            raise ValueError('Time must be provided if previous state is provided')
         if len(step_enabled_defenses) > 0:
-            performed_nodes_order[iteration] = frozenset(step_enabled_defenses)
+            performed_nodes_order[previous_state.iteration] = frozenset(step_enabled_defenses)
 
     step_observed_nodes = sim._defender_observed_nodes(name, step_compromised_nodes)
     return MalSimDefenderState(
