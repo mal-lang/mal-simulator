@@ -20,7 +20,6 @@ from malsim.mal_simulator.defender_step import (
     defender_step,
 )
 from malsim.mal_simulator.node_getters import (
-    full_name_dict_to_node_dict,
     full_names_or_nodes_to_nodes,
     get_node,
 )
@@ -694,6 +693,7 @@ def step(
         agent_state = agent_states[agent_name]
 
         if isinstance(agent_state, MalSimDefenderState):
+            current_iteration = agent_state.iteration
             # Update defender state
             updated_defender_state = create_defender_state(
                 sim_state=sim_state,

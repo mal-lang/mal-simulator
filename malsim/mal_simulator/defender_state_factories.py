@@ -1,6 +1,7 @@
 """Creation/manipulation of defender state"""
 
 from collections.abc import Set
+from types import MappingProxyType
 from typing import Optional
 
 import numpy as np
@@ -43,6 +44,11 @@ def create_defender_state(
         previous_observed_nodes: Set[AttackGraphNode] = frozenset()
         action_surface_additions: Set[AttackGraphNode] = action_surface
         action_surface_removals: Set[AttackGraphNode] = frozenset()
+        performed_nodes_order: dict[int, frozenset[AttackGraphNode]] = {}
+
+        if step_enabled_defenses:
+            # Pre enabled defenses go into iteration 0
+            performed_nodes_order[0] = frozenset(step_enabled_defenses)
     else:
         # Previous rules used if previous state given
         reward_rule = previous_state.reward_rule
@@ -64,6 +70,11 @@ def create_defender_state(
         previous_observed_nodes = previous_state.observed_nodes
         action_surface_additions = frozenset()
         action_surface_removals = step_enabled_defenses
+        performed_nodes_order = dict(previous_state.performed_nodes_order)
+        if step_enabled_defenses:
+            performed_nodes_order[previous_state.iteration] = frozenset(
+                step_enabled_defenses
+            )
 
     step_observed_nodes = defender_observed_nodes(
         observability_rule,
@@ -94,6 +105,7 @@ def create_defender_state(
         actionability_rule=actionability_rule,
         false_negative_rates_rule=false_negative_rates_rule,
         false_positive_rates_rule=false_positive_rates_rule,
+        performed_nodes_order=MappingProxyType(performed_nodes_order),
     )
 
 

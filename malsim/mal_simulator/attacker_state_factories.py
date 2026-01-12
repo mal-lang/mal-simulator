@@ -63,8 +63,11 @@ def create_attacker_state(
         )
         action_surface_removals: set[AttackGraphNode] = set()
         action_surface_additions = new_action_surface
+        performed_nodes_order: dict[int, frozenset[AttackGraphNode]] = {}
 
-        if not sim_state.settings.compromise_entrypoints_at_start:
+        if sim_state.settings.compromise_entrypoints_at_start:
+            performed_nodes_order[0] = frozenset(entry_points)
+        else:
             # If entrypoints not compromised at start,
             # we need to put them in action surface
             new_action_surface |= entry_points
@@ -82,6 +85,12 @@ def create_attacker_state(
         ttc_value_overrides = previous_state.ttc_value_overrides
         impossible_step_overrides = previous_state.impossible_step_overrides
         compromised_nodes = previous_state.performed_nodes | step_compromised_nodes
+        performed_nodes_order = dict(previous_state.performed_nodes_order)
+
+        if step_compromised_nodes:
+            performed_nodes_order[previous_state.iteration] = frozenset(
+                step_compromised_nodes
+            )
 
         # Build on previous attack surface (for performance)
         action_surface_additions = (
@@ -128,6 +137,7 @@ def create_attacker_state(
         iteration=(previous_state.iteration + 1) if previous_state else 1,
         reward_rule=reward_rule,
         actionability_rule=actionability_rule,
+        performed_nodes_order=MappingProxyType(performed_nodes_order),
     )
 
 

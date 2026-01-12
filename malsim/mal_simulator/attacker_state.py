@@ -45,6 +45,7 @@ class MalSimAttackerState(MalSimAgentState):
         state['num_attempts'] = dict(state['num_attempts'])
         state['ttc_overrides'] = dict(state['ttc_overrides'])
         state['ttc_value_overrides'] = dict(state['ttc_value_overrides'])
+        state['performed_nodes_order'] = dict(state['performed_nodes_order'])
         return state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
@@ -57,6 +58,9 @@ class MalSimAttackerState(MalSimAgentState):
         )
         object.__setattr__(
             self, 'ttc_value_overrides', MappingProxyType(state['ttc_value_overrides'])
+        )
+        object.__setattr__(
+            self, 'performed_nodes_order', MappingProxyType(state['performed_nodes_order']),
         )
         # set other frozen attributes
         for key, value in state.items():
