@@ -206,7 +206,7 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
     ):
         self.see_def_steps = attacker_visible_defense_steps
         self.sim = simulator
-        self.attack_graph = self.sim.attack_graph
+        self.attack_graph = self.sim.sim_state.attack_graph
         self.lang_serializer = LangSerializer(
             self.attack_graph.lang_graph, split_assoc_types=False, split_step_types=True
         )

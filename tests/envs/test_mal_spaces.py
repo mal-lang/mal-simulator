@@ -204,7 +204,7 @@ def test_asset_then_attacker_action() -> None:
         scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
-    model = sim.attack_graph.model
+    model = sim.sim_state.attack_graph.model
     assert model is not None, 'Attack graph needs to have a model attached to it'
     full_obs = create_full_obs(sim, serializer)
 
@@ -248,7 +248,7 @@ def test_asset_then_defender_action() -> None:
         scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
-    model = sim.attack_graph.model
+    model = sim.sim_state.attack_graph.model
     assert model is not None, 'Attack graph needs to have a model attached to it'
     full_obs = create_full_obs(sim, serializer)
 
@@ -292,7 +292,7 @@ def test_attacker_action_then_asset() -> None:
         scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
-    model = sim.attack_graph.model
+    model = sim.sim_state.attack_graph.model
     assert model is not None, 'Attack graph needs to have a model attached to it'
     full_obs = create_full_obs(sim, serializer)
 
@@ -336,7 +336,7 @@ def test_defender_action_then_asset() -> None:
         scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
-    model = sim.attack_graph.model
+    model = sim.sim_state.attack_graph.model
     assert model is not None, 'Attack graph needs to have a model attached to it'
     full_obs = create_full_obs(sim, serializer)
 

@@ -124,7 +124,7 @@ def create_attacker_state(
             action_surface_additions |= entry_points
 
         previous_num_attempts: Mapping[AttackGraphNode, int] = {
-            n: 0 for n in sim.attack_graph.attack_steps
+            n: 0 for n in sim.sim_state.attack_graph.attack_steps
         }
 
     else:

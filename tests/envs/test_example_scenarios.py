@@ -147,12 +147,12 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     ]
     for step_id in attacker_actions:
         # Make sure that all attacker actions led to compromise
-        node = sim.attack_graph.get_node_by_full_name(step_id)
+        node = sim.sim_state.attack_graph.get_node_by_full_name(step_id)
         assert node in attacker_state.performed_nodes
 
     for step_id in defender_actions:
         # Make sure that all defender actions let to defense enabled
-        node = sim.attack_graph.get_node_by_full_name(step_id)
+        node = sim.sim_state.attack_graph.get_node_by_full_name(step_id)
         assert node in defender_state.performed_nodes
 
     # Verify rewards in latest run and total rewards
@@ -297,12 +297,12 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     ]
     for step_id in attacker_actions:
         # Make sure that all attacker actions led to compromise
-        node = sim.attack_graph.get_node_by_full_name(step_id)
+        node = sim.sim_state.attack_graph.get_node_by_full_name(step_id)
         assert node in attacker_state.performed_nodes
 
     for step_id in defender_actions:
         # Make sure that all defender actions let to defense enabled
-        node = sim.attack_graph.get_node_by_full_name(step_id)
+        node = sim.sim_state.attack_graph.get_node_by_full_name(step_id)
         assert node in defender_state.performed_nodes
 
     # Verify rewards in latest run and total rewards
@@ -406,12 +406,12 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
     ]
     for step_id in attacker_actions:
         # Make sure that all attacker actions led to compromise
-        node = sim.attack_graph.get_node_by_full_name(step_id)
+        node = sim.sim_state.attack_graph.get_node_by_full_name(step_id)
         assert node in attacker_state.performed_nodes
 
     for step_id in defender_actions:
         # Make sure that all defender actions let to defense enabled
-        node = sim.attack_graph.get_node_by_full_name(step_id)
+        node = sim.sim_state.attack_graph.get_node_by_full_name(step_id)
         assert node in defender_state.performed_nodes
 
     # Verify rewards in latest run and total rewards
@@ -517,12 +517,12 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
     ]
     for step_id in attacker_actions:
         # Make sure that all attacker actions led to compromise
-        node = sim.attack_graph.get_node_by_full_name(step_id)
+        node = sim.sim_state.attack_graph.get_node_by_full_name(step_id)
         assert node in attacker_state.performed_nodes
 
     for step_id in defender_actions:
         # Make sure that all defender actions let to defense enabled
-        node = sim.attack_graph.get_node_by_full_name(step_id)
+        node = sim.sim_state.attack_graph.get_node_by_full_name(step_id)
         assert node in defender_state.performed_nodes
 
     # Verify rewards in latest run and total rewards

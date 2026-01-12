@@ -32,11 +32,11 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
     # NOTE: Sorting is for defender
     # The attacker changes the step sorting anyways
     sorted_steps = sorted(
-        [node for node in sim.attack_graph.nodes.values() if node.type == 'defense'],
+        [node for node in sim.sim_state.attack_graph.nodes.values() if node.type == 'defense'],
         key=lambda node: node.id,
     )
     sorted_steps += sorted(
-        [node for node in sim.attack_graph.nodes.values() if node.type != 'defense'],
+        [node for node in sim.sim_state.attack_graph.nodes.values() if node.type != 'defense'],
         key=lambda node: node.id,
     )
     step_type_keys: list[tuple[str, ...]]
@@ -74,10 +74,10 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         if child in sorted_steps
     }
 
-    assert sim.attack_graph.model, 'Attack graph needs to have a model attached to it'
+    assert sim.sim_state.attack_graph.model, 'Attack graph needs to have a model attached to it'
     sorted_assets = [
-        sim.attack_graph.model.assets[asset_id]
-        for asset_id in sorted(sim.attack_graph.model.assets.keys())
+        sim.sim_state.attack_graph.model.assets[asset_id]
+        for asset_id in sorted(sim.sim_state.attack_graph.model.assets.keys())
     ]
     step2asset = {
         (sorted_steps.index(node), sorted_assets.index(node.model_asset))
@@ -236,7 +236,7 @@ def full_obs2attacker_obs(
     and_or_steps = []
     defense_steps = []
 
-    for node in state.sim.attack_graph.nodes.values():
+    for node in state.sim.sim_state.attack_graph.nodes.values():
         if not node.model_asset or node.model_asset.id not in visible_asset_ids_set:
             continue
         if node.type in ('and', 'or'):

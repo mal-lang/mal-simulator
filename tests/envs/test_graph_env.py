@@ -108,7 +108,7 @@ def test_attacker_episode() -> None:
         }
         visible_steps = {
             node
-            for node in state.sim.attack_graph.nodes.values()
+            for node in state.sim.sim_state.attack_graph.nodes.values()
             if node.model_asset in visible_assets and node.type in ('and', 'or')
         }
         for node in visible_steps:
@@ -155,7 +155,7 @@ def test_attacker_episode() -> None:
         }
         visible_steps = {
             node
-            for node in state.sim.attack_graph.nodes.values()
+            for node in state.sim.sim_state.attack_graph.nodes.values()
             if node.model_asset in visible_assets and node.type in ('and', 'or')
         }
         for node in visible_steps:

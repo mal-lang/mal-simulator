@@ -59,7 +59,7 @@ def main() -> None:
     )
 
     if args.output_attack_graph:
-        sim.attack_graph.save_to_file(args.output_attack_graph)
+        sim.sim_state.attack_graph.save_to_file(args.output_attack_graph)
 
     run_simulation(sim, scenario.agent_settings)
 

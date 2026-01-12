@@ -587,7 +587,7 @@ class MALObsAttackStepSpace(Discrete):
             sorted(
                 {
                     node
-                    for node in sim.attack_graph.nodes.values()
+                    for node in sim.sim_state.attack_graph.nodes.values()
                     if node.type in ('and', 'or')
                 },
                 key=lambda step: step.id,
@@ -630,7 +630,7 @@ class MALObsDefenseStepSpace(Discrete):
             sorted(
                 {
                     node
-                    for node in sim.attack_graph.nodes.values()
+                    for node in sim.sim_state.attack_graph.nodes.values()
                     if node.type == 'defense'
                 },
                 key=lambda step: step.id,

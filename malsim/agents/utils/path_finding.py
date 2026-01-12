@@ -138,7 +138,7 @@ def get_shortest_paths_for_attacker(
     """Return shortest path for each of the attackers goals"""
     ttc_values = {
         n: attacker_state.sim.node_ttc_value(n)
-        for n in attacker_state.sim.attack_graph.nodes.values()
+        for n in attacker_state.sim.sim_state.attack_graph.nodes.values()
         if n.type in ('or', 'and')
     }
 
@@ -146,7 +146,7 @@ def get_shortest_paths_for_attacker(
     assert attacker_state.goals, 'Attacker needs goal set for shortest path calculation'
     for goal in attacker_state.goals:
         shortest_paths[goal] = get_shortest_path_to(
-            attacker_state.sim.attack_graph,
+            attacker_state.sim.sim_state.attack_graph,
             list(attacker_state.performed_nodes),
             goal,
             ttc_values,

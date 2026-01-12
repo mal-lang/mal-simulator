@@ -182,7 +182,7 @@ def test_create_blank_observation_observability_given(
     scenario = Scenario.load_from_file(scenario_file)
     env = MalSimVectorizedObsEnv(MalSimulator.from_scenario(scenario))
 
-    num_objects = len(env.sim.attack_graph.nodes)
+    num_objects = len(env.sim.sim_state.attack_graph.nodes)
     blank_observation = env._create_blank_observation()
 
     assert len(blank_observation['is_observable']) == num_objects
@@ -219,7 +219,7 @@ def test_create_blank_observation_actionability_given(
     scenario = Scenario.load_from_file(scenario_file)
     env = MalSimVectorizedObsEnv(MalSimulator.from_scenario(scenario))
 
-    num_objects = len(env.sim.attack_graph.nodes)
+    num_objects = len(env.sim.sim_state.attack_graph.nodes)
     blank_observation = env._create_blank_observation()
 
     assert len(blank_observation['is_actionable']) == num_objects
@@ -505,7 +505,7 @@ def test_malsimulator_initial_observation_defender(
 
     nodes_to_observe = [
         node
-        for node in env.sim.attack_graph.nodes.values()
+        for node in env.sim.sim_state.attack_graph.nodes.values()
         if node in defender_agent_state.performed_nodes
     ]
 

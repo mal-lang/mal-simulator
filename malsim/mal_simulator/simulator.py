@@ -49,6 +49,9 @@ from malsim.mal_simulator.agent_state import (
     create_defender_state,
     get_attacker_agents,
 )
+from malsim.mal_simulator.simulator_state import (
+    MalSimulatorState
+)
 from malsim.mal_simulator.settings import MalSimulatorSettings, TTCMode, RewardMode
 from malsim.mal_simulator.graph_state import GraphState, compute_initial_graph_state
 from malsim.mal_simulator.node_utils import (
@@ -362,34 +365,24 @@ class MalSimulator:
             self.rest_api_client = MalSimGUIClient()
 
         # Initialize all values
-        self.attack_graph = attack_graph
         self.recording: Recording = defaultdict(dict)
-
-        # Agent related data
         self._agent_settings: dict[str, AttackerSettings | DefenderSettings] = {}
         self._agent_states: AgentStates = {}
         self._alive_agents: set[str] = set()
         self._agent_rewards: AgentRewards = {}
 
         # Store graph state based on probabilities
-        self._graph_state = compute_initial_graph_state(
+        graph_state = compute_initial_graph_state(
             attack_graph, sim_settings, self.rng
         )
 
-        # Global settings (can be overriden by each agent)
-        self._rewards: dict[AttackGraphNode, float] = full_name_dict_to_node_dict(
-            attack_graph, rewards or {}
-        )
-        self._false_positive_rates: dict[AttackGraphNode, float] = (
-            full_name_dict_to_node_dict(attack_graph, false_positive_rates or {})
-        )
-        self._false_negative_rates: dict[AttackGraphNode, float] = (
-            full_name_dict_to_node_dict(attack_graph, false_negative_rates or {})
-        )
-        self._node_actionabilities: dict[AttackGraphNode, bool] = (
-            full_name_dict_to_node_dict(attack_graph, node_actionabilities or {})
-        )
-        self._node_observabilities: dict[AttackGraphNode, bool] = (
+        self.sim_state = MalSimulatorState(
+            attack_graph,
+            graph_state,
+            full_name_dict_to_node_dict(attack_graph, rewards or {}),
+            full_name_dict_to_node_dict(attack_graph, false_positive_rates or {}),
+            full_name_dict_to_node_dict(attack_graph, false_negative_rates or {}),
+            full_name_dict_to_node_dict(attack_graph, node_actionabilities or {}),
             full_name_dict_to_node_dict(attack_graph, node_observabilities or {})
         )
 
@@ -405,15 +398,15 @@ class MalSimulator:
 
     @property
     def rewards(self) -> dict[AttackGraphNode, float]:
-        return self._rewards
+        return self.sim_state.global_rewards
 
     @property
     def false_positive_rates(self) -> dict[AttackGraphNode, float]:
-        return self._false_positive_rates
+        return self.sim_state.global_false_positive_rates
 
     @property
     def false_negative_rates(self) -> dict[AttackGraphNode, float]:
-        return self._false_negative_rates
+        return self.sim_state.global_false_negative_rates
 
     @property
     def agent_settings(self) -> dict[str, AttackerSettings | DefenderSettings]:
@@ -518,8 +511,8 @@ class MalSimulator:
     ) -> float:
         return node_ttc_value(
             self._agent_states,
-            self._graph_state,
-            self.attack_graph,
+            self.sim_state.graph_state,
+            self.sim_state.attack_graph,
             self.sim_settings.ttc_mode,
             node,
             agent_name,
@@ -529,44 +522,44 @@ class MalSimulator:
         self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> bool:
         return node_is_actionable(
-            self._agent_settings, self._node_actionabilities, node, agent_name
+            self._agent_settings, self.sim_state.global_actionability, node, agent_name
         )
 
     def node_reward(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> float:
-        return node_reward(self._agent_settings, self._rewards, node, agent_name)
+        return node_reward(self._agent_settings, self.sim_state.global_rewards, node, agent_name)
 
     def node_is_observable(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> bool:
         return node_is_observable(
-            self._agent_settings, self._node_observabilities, node, agent_name
+            self._agent_settings, self.sim_state.global_observability, node, agent_name
         )
 
     def node_false_positive_rate(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> float:
         return node_false_positive_rate(
-            self._agent_settings, self._false_positive_rates, node, agent_name
+            self._agent_settings, self.sim_state.global_false_positive_rates, node, agent_name
         )
 
     def node_false_negative_rate(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> float:
         return node_false_negative_rate(
-            self._agent_settings, self._false_negative_rates, node, agent_name
+            self._agent_settings, self.sim_state.global_false_negative_rates, node, agent_name
         )
 
     def node_is_viable(self, node: AttackGraphNode | str) -> bool:
-        return node_is_viable(self._graph_state, self.attack_graph, node)
+        return node_is_viable(self.sim_state.graph_state, self.sim_state.attack_graph, node)
 
     def node_is_necessary(self, node: AttackGraphNode | str) -> bool:
-        return node_is_necessary(self._graph_state, self.attack_graph, node)
+        return node_is_necessary(self.sim_state.graph_state, self.sim_state.attack_graph, node)
 
     def node_is_enabled_defense(self, node: AttackGraphNode | str) -> bool:
         return node_is_enabled_defense(
-            self.attack_graph,
+            self.sim_state.attack_graph,
             self._agent_states,
             self._alive_agents,
             node,
@@ -574,7 +567,7 @@ class MalSimulator:
 
     def node_is_compromised(self, node: AttackGraphNode | str) -> bool:
         return node_is_compromised(
-            self.attack_graph,
+            self.sim_state.attack_graph,
             self._agent_states,
             self._alive_agents,
             node,
@@ -591,8 +584,8 @@ class MalSimulator:
         self, performed_nodes: Set[AttackGraphNode], node: AttackGraphNode
     ) -> bool:
         return node_is_traversable(
-            self._graph_state,
-            self.attack_graph,
+            self.sim_state.graph_state,
+            self.sim_state.attack_graph,
             performed_nodes,
             node,
         )
@@ -600,7 +593,7 @@ class MalSimulator:
     def get_node(
         self, full_name: Optional[str] = None, node_id: Optional[int] = None
     ) -> AttackGraphNode:
-        return get_node(self.attack_graph, full_name, node_id)
+        return get_node(self.sim_state.attack_graph, full_name, node_id)
 
     def agent_reward(self, agent_name: str) -> float:
         return agent_reward(self._agent_rewards, agent_name)
@@ -611,7 +604,7 @@ class MalSimulator:
     def reset(self) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
         agent_states, alive_agents, graph_state, agent_rewards, recording = reset(
             self,
-            self.attack_graph,
+            self.sim_state.attack_graph,
             self.sim_settings,
             self._agent_settings,
             self.rng,
@@ -619,11 +612,11 @@ class MalSimulator:
             self.performed_attacks_func,
             self.enabled_defenses_func,
             self.enabled_attacks_func,
-            self._rewards,
+            self.sim_state.global_rewards,
         )
         self._agent_states = agent_states
         self._alive_agents = alive_agents
-        self._graph_state = graph_state
+        self.sim_state.graph_state = graph_state
         self._agent_rewards = agent_rewards
         self.recording = recording
         return self._agent_states
@@ -631,11 +624,11 @@ class MalSimulator:
     def get_defense_surface(self, agent_name: str) -> set[AttackGraphNode]:
         return get_defense_surface(
             self._agent_settings,
-            self.attack_graph,
+            self.sim_state.attack_graph,
             self._agent_states,
-            self._graph_state,
+            self.sim_state.graph_state,
             self._alive_agents,
-            self._node_actionabilities,
+            self.sim_state.global_actionability,
             agent_name,
         )
 
@@ -647,11 +640,11 @@ class MalSimulator:
     ) -> frozenset[AttackGraphNode]:
         return get_attack_surface(
             self.sim_settings,
-            self._graph_state,
-            self.attack_graph,
+            self.sim_state.graph_state,
+            self.sim_state.attack_graph,
             self._agent_settings,
             self._agent_states,
-            self._node_actionabilities,
+            self.sim_state.global_actionability,
             agent_name,
             performed_nodes,
             from_nodes,
@@ -662,7 +655,7 @@ class MalSimulator:
     ) -> set[AttackGraphNode]:
         return generate_false_negatives(
             self._agent_settings,
-            self._false_negative_rates,
+            self.sim_state.global_false_negative_rates,
             self.rng,
             agent_name,
             observed_nodes,
@@ -670,9 +663,9 @@ class MalSimulator:
 
     def _generate_false_positives(self, agent_name: str) -> set[AttackGraphNode]:
         return generate_false_positives(
-            self._false_positive_rates,
+            self.sim_state.global_false_positive_rates,
             self._agent_settings,
-            self.attack_graph,
+            self.sim_state.attack_graph,
             agent_name,
             self.rng,
         )
@@ -682,11 +675,11 @@ class MalSimulator:
     ) -> set[AttackGraphNode]:
         return defender_observed_nodes(
             self.agent_settings,
-            self._false_negative_rates,
-            self._false_positive_rates,
+            self.sim_state.global_false_negative_rates,
+            self.sim_state.global_false_positive_rates,
             self.rng,
-            self.attack_graph,
-            self._node_observabilities,
+            self.sim_state.attack_graph,
+            self.sim_state.global_observability,
             defender_name,
             compromised_nodes,
         )
@@ -699,7 +692,7 @@ class MalSimulator:
             self,
             self.sim_settings.ttc_mode,
             self.rng,
-            self.attack_graph,
+            self.sim_state.attack_graph,
             attacker_settings,
         )
 
@@ -719,7 +712,7 @@ class MalSimulator:
     def _reset_agents(self) -> None:
         agent_states, alive_agents, agent_rewards = _reset_agents(
             self,
-            self.attack_graph,
+            self.sim_state.attack_graph,
             self.rng,
             self.graph_state,
             self.agent_settings,
@@ -727,7 +720,7 @@ class MalSimulator:
             self.performed_attacks_func,
             self.enabled_defenses_func,
             self.enabled_attacks_func,
-            self._rewards,
+            self.sim_state.global_rewards,
         )
         self._agent_states = agent_states
         self._alive_agents = alive_agents
@@ -741,10 +734,10 @@ class MalSimulator:
     ) -> None:
         agent_states, alive_agents, agent_rewards, agent_settings = register_attacker(
             self,
-            self.attack_graph,
-            self._graph_state,
+            self.sim_state.attack_graph,
+            self.sim_state.graph_state,
             name,
-            self._rewards,
+            self.sim_state.global_rewards,
             self._alive_agents,
             self._agent_settings,
             self._agent_states,
@@ -767,13 +760,13 @@ class MalSimulator:
             register_attacker_settings(
                 self,
                 self.performed_attacks_func,
-                self.attack_graph,
-                self._graph_state,
+                self.sim_state.attack_graph,
+                self.sim_state.graph_state,
                 self._alive_agents,
                 self._agent_settings,
                 self._agent_states,
                 self._agent_rewards,
-                self._rewards,
+                self.sim_state.global_rewards,
                 self.sim_settings,
                 self.rng,
                 attacker_settings,
@@ -794,7 +787,7 @@ class MalSimulator:
         set[AttackGraphNode],
     ]:
         return attacker_overriding_ttc_settings(
-            self.attack_graph, attacker_settings, self.sim_settings.ttc_mode, self.rng
+            self.sim_state.attack_graph, attacker_settings, self.sim_settings.ttc_mode, self.rng
         )
 
     def register_defender(self, name: str) -> None:
@@ -802,13 +795,13 @@ class MalSimulator:
             self,
             self.enabled_defenses_func,
             self.enabled_attacks_func,
-            self.attack_graph,
-            self._graph_state,
+            self.sim_state.attack_graph,
+            self.sim_state.graph_state,
             self._agent_states,
             self._alive_agents,
             self._agent_rewards,
             self._agent_settings,
-            self._rewards,
+            self.sim_state.global_rewards,
             self.compromised_nodes,
             name,
         )
@@ -823,14 +816,14 @@ class MalSimulator:
                 self,
                 self.enabled_defenses_func,
                 self.enabled_attacks_func,
-                self.attack_graph,
-                self._graph_state,
+                self.sim_state.attack_graph,
+                self.sim_state.graph_state,
                 self._agent_states,
                 self._alive_agents,
                 self._agent_rewards,
                 self._agent_settings,
                 defender_settings,
-                self._rewards,
+                self.sim_state.global_rewards,
                 self.compromised_nodes,
             )
         )
@@ -867,8 +860,8 @@ class MalSimulator:
     ) -> bool:
         return attempt_attacker_step(
             self._agent_states,
-            self._graph_state,
-            self.attack_graph,
+            self.sim_state.graph_state,
+            self.sim_state.attack_graph,
             self.rng,
             self.sim_settings.ttc_mode,
             agent,
@@ -885,7 +878,7 @@ class MalSimulator:
             self._agent_settings,
             self.rewards,
             self.graph_state,
-            self.attack_graph,
+            self.sim_state.attack_graph,
             agent,
             nodes,
         )
@@ -894,12 +887,12 @@ class MalSimulator:
         self, agent: MalSimDefenderState, nodes: list[AttackGraphNode]
     ) -> tuple[list[AttackGraphNode], set[AttackGraphNode]]:
         return defender_step(
-            self._graph_state,
+            self.sim_state.graph_state,
             agent,
             self.rewards,
             self._agent_settings,
             nodes,
-            self.attack_graph,
+            self.sim_state.attack_graph,
         )
 
     def _attacker_step_reward(
@@ -914,7 +907,7 @@ class MalSimulator:
             self._agent_settings,
             reward_mode,
             self.sim_settings.ttc_mode,
-            self._rewards,
+            self.sim_state.global_rewards,
         )
 
     def _defender_step_reward(
@@ -925,7 +918,7 @@ class MalSimulator:
             self.enabled_defenses_func,
             self.enabled_attacks_func,
             defender_state,
-            self._rewards,
+            self.sim_state.global_rewards,
         )
 
     @staticmethod
@@ -946,7 +939,7 @@ class MalSimulator:
         agent_states, recording, graph_state, agent_rewards, live_agents = step(
             self,
             self.recording,
-            self._graph_state,
+            self.sim_state.graph_state,
             self._agent_states,
             self._alive_agents,
             self._agent_settings,
@@ -954,8 +947,8 @@ class MalSimulator:
             self.rng,
             self._alive_agents,
             self._agent_rewards,
-            self._rewards,
-            self.attack_graph,
+            self.sim_state.global_rewards,
+            self.sim_state.attack_graph,
             self.performed_attacks_func,
             self.enabled_defenses_func,
             self.enabled_attacks_func,
@@ -964,7 +957,7 @@ class MalSimulator:
         )
         self._agent_states = agent_states
         self.recording = recording
-        self._graph_state = graph_state
+        self.sim_state.graph_state = graph_state
         self._agent_rewards = agent_rewards
         self._alive_agents = live_agents
         return self._agent_states
@@ -974,20 +967,20 @@ class MalSimulator:
 
     @property
     def node_actionabilities(self) -> dict[AttackGraphNode, bool]:
-        return self._node_actionabilities
+        return self.sim_state.global_actionability
 
     @property
     def node_observabilities(self) -> dict[AttackGraphNode, bool]:
-        return self._node_observabilities
+        return self.sim_state.global_observability
 
     @property
     def graph_state(self) -> GraphState:
-        return self._graph_state
+        return self.sim_state.graph_state
 
     @graph_state.setter
     def graph_state(self, value: GraphState) -> None:
         """Set graph state"""
-        self._graph_state = value
+        self.sim_state.graph_state = value
 
 
 def done(alive_agents: set[str]) -> bool:
