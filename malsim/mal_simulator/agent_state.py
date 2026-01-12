@@ -7,6 +7,7 @@ from types import MappingProxyType
 from maltoolbox.attackgraph import AttackGraphNode
 
 from malsim.mal_simulator.ttc_utils import TTCDist
+from malsim.scenario import AttackerSettings, DefenderSettings
 
 if TYPE_CHECKING:
     from malsim import MalSimulator
@@ -195,6 +196,11 @@ class MalSimDefenderState(MalSimAgentState):
         )
 
 
+AgentStates = dict[str, MalSimAttackerState | MalSimDefenderState]
+AgentSettings = dict[str, AttackerSettings | DefenderSettings]
+AgentRewards = dict[str, float]
+
+
 def create_defender_state(
     sim: MalSimulator,
     name: str,
@@ -242,3 +248,31 @@ def create_defender_state(
         step_unviable_nodes=frozenset(step_nodes_made_unviable),
         iteration=(previous_state.iteration + 1) if previous_state else 1,
     )
+
+
+def get_attacker_agents(
+    agent_states: AgentStates, alive_agents: set[str], only_alive: bool = False
+) -> list[MalSimAttackerState]:
+    """Return list of mutable attacker agent states of attackers.
+    If `only_alive` is set to True, only return the agents that are alive.
+    """
+    return [
+        a
+        for a in agent_states.values()
+        if (a.name in alive_agents or not only_alive)
+        and isinstance(a, MalSimAttackerState)
+    ]
+
+
+def get_defender_agents(
+    agent_states: AgentStates, alive_agents: set[str], only_alive: bool = False
+) -> list[MalSimDefenderState]:
+    """Return list of mutable defender agent states of defenders.
+    If `only_alive` is set to True, only return the agents that are alive.
+    """
+    return [
+        a
+        for a in agent_states.values()
+        if (a.name in alive_agents or not only_alive)
+        and isinstance(a, MalSimDefenderState)
+    ]
