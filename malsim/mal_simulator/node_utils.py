@@ -14,8 +14,8 @@ from malsim.mal_simulator.agent_state import get_defender_agents
 from malsim.mal_simulator.graph_state import GraphState
 from malsim.mal_simulator.settings import TTCMode
 from malsim.mal_simulator.agent_state import AgentStates
+from malsim.mal_simulator.simulator_state import MalSimulatorState
 from malsim.scenario import DefenderSettings
-
 
 def get_node(
     attack_graph: AttackGraph,
@@ -62,24 +62,23 @@ def full_name_dict_to_node_dict(
 
 
 def node_is_viable(
-    graph_state: GraphState, attack_graph: AttackGraph, node: AttackGraphNode | str
+    sim_state: MalSimulatorState, node: AttackGraphNode | str
 ) -> bool:
     """Get viability of a node"""
-    node = full_name_or_node_to_node(attack_graph, node)
-    return graph_state.viability_per_node[node]
+    node = full_name_or_node_to_node(sim_state.attack_graph, node)
+    return sim_state.graph_state.viability_per_node[node]
 
 
 def node_is_necessary(
-    graph_state: GraphState, attack_graph: AttackGraph, node: AttackGraphNode | str
+    sim_state: MalSimulatorState, node: AttackGraphNode | str
 ) -> bool:
     """Get necessity of a node"""
-    node = full_name_or_node_to_node(attack_graph, node)
-    return graph_state.necessity_per_node[node]
+    node = full_name_or_node_to_node(sim_state.attack_graph, node)
+    return sim_state.graph_state.necessity_per_node[node]
 
 
 def node_is_traversable(
-    graph_state: GraphState,
-    attack_graph: AttackGraph,
+    sim_state: MalSimulatorState,
     performed_nodes: Set[AttackGraphNode],
     node: AttackGraphNode,
 ) -> bool:
@@ -97,7 +96,7 @@ def node_is_traversable(
     node            - the node we wish to evalute traversability for
     """
 
-    if not node_is_viable(graph_state, attack_graph, node):
+    if not node_is_viable(sim_state, node):
         return False
 
     if node.type in ('defense', 'exist', 'notExist'):
@@ -113,7 +112,7 @@ def node_is_traversable(
     elif node.type == 'and':
         traversable = all(
             parent in performed_nodes
-            or not node_is_necessary(graph_state, attack_graph, parent)
+            or not node_is_necessary(sim_state, parent)
             for parent in node.parents
         )
     else:
@@ -214,14 +213,13 @@ def compromised_nodes(
 
 def node_ttc_value(
     agent_states: AgentStates,
-    graph_state: GraphState,
-    attack_graph: AttackGraph,
+    sim_state: MalSimulatorState,
     ttc_mode: TTCMode,
     node: AttackGraphNode | str,
     agent_name: Optional[str] = None,
 ) -> float:
     """Return ttc value of node if it has been sampled"""
-    node = full_name_or_node_to_node(attack_graph, node)
+    node = full_name_or_node_to_node(sim_state.attack_graph, node)
     assert ttc_mode in (
         TTCMode.PRE_SAMPLE,
         TTCMode.EXPECTED_VALUE,
@@ -238,7 +236,7 @@ def node_ttc_value(
         if node in agent_state.ttc_value_overrides:
             return agent_state.ttc_value_overrides[node]
 
-    assert node in graph_state.ttc_values, (
+    assert node in sim_state.graph_state.ttc_values, (
         f'Node {node.full_name} does not have a ttc value'
     )
-    return graph_state.ttc_values[node]
+    return sim_state.graph_state.ttc_values[node]

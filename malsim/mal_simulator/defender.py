@@ -21,6 +21,7 @@ from malsim.mal_simulator.node_utils import (
     node_is_viable,
     node_reward,
 )
+from malsim.mal_simulator.simulator_state import MalSimulatorState
 import logging
 
 logger = logging.getLogger(__name__)
@@ -152,9 +153,8 @@ def defender_observed_nodes(
 
 def get_defense_surface(
     agent_settings: AgentSettings,
-    attack_graph: AttackGraph,
     agent_states: AgentStates,
-    graph_state: GraphState,
+    sim_state: MalSimulatorState,
     live_agents: set[str],
     node_actionabilities: dict[AttackGraphNode, bool],
     agent_name: str,
@@ -167,9 +167,9 @@ def get_defense_surface(
     """
     return {
         node
-        for node in attack_graph.defense_steps
+        for node in sim_state.attack_graph.defense_steps
         if node_is_actionable(agent_settings, node_actionabilities, node, agent_name)
-        and node_is_viable(graph_state, attack_graph, node)
+        and node_is_viable(sim_state, node)
         and 'suppress' not in node.tags
-        and not node_is_enabled_defense(attack_graph, agent_states, live_agents, node)
+        and not node_is_enabled_defense(sim_state.attack_graph, agent_states, live_agents, node)
     }

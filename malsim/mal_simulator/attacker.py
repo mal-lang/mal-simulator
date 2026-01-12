@@ -22,7 +22,7 @@ from malsim.mal_simulator.ttc_utils import (
     attack_step_ttc_values,
     get_impossible_attack_steps,
 )
-
+from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 import numpy as np
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
@@ -105,8 +105,7 @@ def attacker_is_terminated(attacker_state: MalSimAttackerState) -> bool:
 
 def attempt_attacker_step(
     agent_states: AgentStates,
-    graph_state: GraphState,
-    attack_graph: AttackGraph,
+    sim_state: MalSimulatorState,
     rng: np.random.Generator,
     ttc_mode: TTCMode,
     agent: MalSimAttackerState,
@@ -142,7 +141,7 @@ def attempt_attacker_step(
     # or presampled ttcs in PRE_SAMPLE mode
     elif ttc_mode in (TTCMode.EXPECTED_VALUE, TTCMode.PRE_SAMPLE):
         _node_ttc_value = node_ttc_value(
-            agent_states, graph_state, attack_graph, ttc_mode, node, agent.name
+            agent_states, sim_state, ttc_mode, node, agent.name
         )
         return num_attempts + 1 >= _node_ttc_value
 
@@ -156,8 +155,7 @@ def attacker_step(
     ttc_mode: TTCMode,
     agent_settings: AgentSettings,
     rewards: dict[AttackGraphNode, float],
-    graph_state: GraphState,
-    attack_graph: AttackGraph,
+    sim_state: MalSimulatorState,
     agent: MalSimAttackerState,
     nodes: list[AttackGraphNode],
 ) -> tuple[list[AttackGraphNode], list[AttackGraphNode]]:
@@ -174,7 +172,7 @@ def attacker_step(
     attempted_compromises: list[AttackGraphNode] = list()
 
     for node in nodes:
-        assert node == attack_graph.nodes[node.id], (
+        assert node == sim_state.attack_graph.nodes[node.id], (
             f'{agent.name} tried to enable a node that is not part '
             'of this simulators attack_graph. Make sure the node '
             'comes from the agents action surface.'
@@ -182,15 +180,15 @@ def attacker_step(
 
         if node in agent.entry_points:
             # Entrypoints can be compromised as long as they are viable
-            can_compromise = node_is_viable(graph_state, attack_graph, node)
+            can_compromise = node_is_viable(sim_state, node)
         else:
             # Otherwise it is limited by traversability
             can_compromise = node_is_traversable(
-                graph_state, attack_graph, agent.performed_nodes, node
+                sim_state, agent.performed_nodes, node
             )
         if can_compromise:
             if attempt_attacker_step(
-                agent_states, graph_state, attack_graph, rng, ttc_mode, agent, node
+                agent_states, sim_state, rng, ttc_mode, agent, node
             ):
                 successful_compromises.append(node)
                 logger.info(
@@ -261,8 +259,7 @@ def attacker_overriding_ttc_settings(
 
 def get_attack_surface(
     sim_settings: MalSimulatorSettings,
-    graph_state: GraphState,
-    attack_graph: AttackGraph,
+    sim_state: MalSimulatorState,
     agent_settings: AgentSettings,
     agent_states: AgentStates,
     node_actionabilities: dict[AttackGraphNode, bool],
@@ -295,12 +292,10 @@ def get_attack_surface(
             if skip_compromised and child in performed_nodes:
                 continue
 
-            if skip_unviable and not node_is_viable(graph_state, attack_graph, child):
+            if skip_unviable and not node_is_viable(sim_state, child):
                 continue
 
-            if skip_unnecessary and not node_is_necessary(
-                graph_state, attack_graph, child
-            ):
+            if skip_unnecessary and not node_is_necessary(sim_state, child):
                 continue
 
             if not node_is_actionable(
@@ -308,7 +303,7 @@ def get_attack_surface(
             ):
                 continue
 
-            if node_is_traversable(graph_state, attack_graph, performed_nodes, child):
+            if node_is_traversable(sim_state, performed_nodes, child):
                 attack_surface.add(child)
 
     return frozenset(attack_surface)
