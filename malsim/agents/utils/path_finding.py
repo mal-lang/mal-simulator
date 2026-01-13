@@ -11,6 +11,8 @@ import networkx as nx
 from networkx.algorithms.shortest_paths.generic import shortest_path
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
+from malsim.mal_simulator.state_query import node_ttc_value
+
 if TYPE_CHECKING:
     from malsim.mal_simulator import MalSimAttackerState
 
@@ -137,7 +139,7 @@ def get_shortest_paths_for_attacker(
 ) -> dict[AttackGraphNode, list[AttackGraphNode]]:
     """Return shortest path for each of the attackers goals"""
     ttc_values = {
-        n: attacker_state.sim.node_ttc_value(n)
+        n: node_ttc_value(attacker_state.sim_state, n)
         for n in attacker_state.sim_state.attack_graph.nodes.values()
         if n.type in ('or', 'and')
     }

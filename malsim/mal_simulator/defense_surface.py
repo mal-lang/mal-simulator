@@ -6,7 +6,7 @@ from malsim.mal_simulator.graph_utils import node_is_actionable, node_is_viable
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
     from malsim.mal_simulator.simulator_state import MalSimulatorState
-    from malsim.mal_simulator.agent_state import AgentSettings, AgentStates
+    from malsim.mal_simulator.agent_state import AgentSettings
 
 def get_defense_surface(
     agent_settings: AgentSettings,

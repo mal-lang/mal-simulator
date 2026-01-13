@@ -1,12 +1,15 @@
-from typing import Optional
+"""Functions to generate false negatives/positives in the simulator"""
+
+from __future__ import annotations
+from typing import Optional, TYPE_CHECKING
 from collections.abc import Set
 
 import numpy as np
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
-
-from malsim.mal_simulator.agent_state import AgentSettings
 from malsim.scenario.scenario import DefenderSettings
 
+if TYPE_CHECKING:
+    from malsim.scenario.agent_settings import AgentSettings
 
 def node_false_negative_rate(
     agent_settings: AgentSettings,

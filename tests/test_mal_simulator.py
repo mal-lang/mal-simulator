@@ -12,10 +12,13 @@ from malsim.mal_simulator import (
     TTCMode,
     RewardMode,
 )
+from malsim.mal_simulator.attacker_step import attacker_is_terminated, attacker_step
+from malsim.mal_simulator.defender_step import defender_is_terminated, defender_step
 from malsim.mal_simulator import TTCDist
 from malsim import Scenario, run_simulation
 
 from malsim.scenario.scenario import AttackerSettings, DefenderSettings
+from malsim.mal_simulator.agent_state import get_attacker_agents, get_defender_agents
 
 from dataclasses import asdict
 import numpy as np
@@ -188,8 +191,8 @@ def test_get_agents() -> None:
     sim = MalSimulator.from_scenario(scenario)
     sim.reset()
 
-    assert [a.name for a in sim._get_attacker_agents()] == ['Attacker1']
-    assert [a.name for a in sim._get_defender_agents()] == ['Defender1']
+    assert [a.name for a in get_attacker_agents(sim.agent_states, sim._alive_agents)] == ['Attacker1']
+    assert [a.name for a in get_defender_agents(sim.agent_states, sim._alive_agents)] == ['Defender1']
 
 
 def test_attacker_step(corelang_lang_graph: LanguageGraph, model: Model) -> None:
@@ -207,11 +210,24 @@ def test_attacker_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
 
     # Can not attack the notPresent step
     defense_step = get_node(attack_graph, 'OS App:notPresent')
-    actions, _ = sim._attacker_step(attacker_agent, [defense_step])
+    actions, _ = attacker_step(
+        sim.sim_state,
+        sim._agent_settings,
+        attacker_agent,
+        [defense_step],
+        sim.rng
+    )
+
     assert not actions
 
     attack_step = get_node(attack_graph, 'OS App:attemptRead')
-    actions, _ = sim._attacker_step(attacker_agent, [attack_step])
+    actions, _ = attacker_step(
+        sim.sim_state,
+        sim._agent_settings,
+        attacker_agent,
+        [attack_step],
+        sim.rng
+    )
     assert actions == [attack_step]
 
 
@@ -227,14 +243,24 @@ def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
     assert isinstance(defender_agent, MalSimDefenderState)
 
     defense_step = get_node(attack_graph, 'OS App:notPresent')
-    enabled, made_unviable = sim._defender_step(defender_agent, [defense_step])
+    enabled, made_unviable = defender_step(
+        sim.sim_state,
+        defender_agent,
+        sim._agent_settings,
+        [defense_step],
+    )
     assert enabled == [defense_step]
     assert made_unviable
 
     # Can not defend attack_step
     attack_step = get_node(attack_graph, 'OS App:attemptUseVulnerability')
     assert attack_step
-    enabled, made_unviable = sim._defender_step(defender_agent, [attack_step])
+    enabled, made_unviable = defender_step(
+        sim.sim_state,
+        defender_agent,
+        sim._agent_settings,
+        [attack_step],
+    )
     assert enabled == []
     assert not made_unviable
 
@@ -479,8 +505,8 @@ def test_simulation_done(corelang_lang_graph: LanguageGraph, model: Model) -> No
     assert isinstance(defender_state, MalSimDefenderState)
 
     assert not sim.done()  # simulation is done because truncated
-    assert not sim._defender_is_terminated()  # not terminated
-    assert not sim._attacker_is_terminated(attacker_state)  # not terminated
+    assert not defender_is_terminated(sim._agent_states, sim._alive_agents)  # not terminated
+    assert not attacker_is_terminated(attacker_state)  # not terminated
 
 
 def test_simulation_terminations(
@@ -510,8 +536,8 @@ def test_simulation_terminations(
     assert isinstance(defender_state, MalSimDefenderState)
 
     assert sim.done()  # simulation is done because all agents terminated
-    assert sim._defender_is_terminated()
-    assert sim._attacker_is_terminated(attacker_state)
+    assert defender_is_terminated(sim._agent_states, sim._alive_agents)
+    assert attacker_is_terminated(attacker_state)
 
 
 def test_attacker_step_rewards_one_off(

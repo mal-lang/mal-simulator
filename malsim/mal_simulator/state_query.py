@@ -6,7 +6,7 @@ from typing import Optional, TYPE_CHECKING
 from maltoolbox.attackgraph import AttackGraphNode
 from maltoolbox.attackgraph import AttackGraph
 
-from malsim.mal_simulator.agent_state_utils import get_attacker_agents, get_defender_agents
+from malsim.mal_simulator.agent_state import get_attacker_agents, get_defender_agents
 from malsim.mal_simulator.settings import TTCMode
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 from malsim.mal_simulator.graph_utils import full_name_or_node_to_node
@@ -57,13 +57,12 @@ def compromised_nodes(
 
 def node_ttc_value(
     sim_state: MalSimulatorState,
-    ttc_mode: TTCMode,
     node: AttackGraphNode | str,
     agent_state: Optional[MalSimAgentState] = None,
 ) -> float:
     """Return ttc value of node if it has been sampled"""
     node = full_name_or_node_to_node(sim_state.attack_graph, node)
-    assert ttc_mode in (
+    assert sim_state.settings.ttc_mode in (
         TTCMode.PRE_SAMPLE,
         TTCMode.EXPECTED_VALUE,
     ), 'TTC value only when TTCMode is PRE_SAMPLE or EXPECTED_VALUE'

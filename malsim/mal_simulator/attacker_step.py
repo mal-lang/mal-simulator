@@ -1,81 +1,28 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from collections.abc import Callable
 import logging
 
 import numpy as np
 
-from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+from maltoolbox.attackgraph import AttackGraphNode
 
-from malsim.scenario.agent_settings import AttackerSettings
 from malsim.mal_simulator.graph_utils import (
-    full_name_dict_to_node_dict,
-    full_name_or_node_to_node,
     node_is_traversable,
     node_is_viable,
     node_reward,
 )
 from malsim.mal_simulator.state_query import node_ttc_value
-from malsim.mal_simulator.settings import RewardMode, TTCMode
+from malsim.mal_simulator.settings import TTCMode
 from malsim.mal_simulator.ttc_utils import (
     TTCDist,
-    attack_step_ttc_values,
-    get_impossible_attack_steps,
 )
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 if TYPE_CHECKING:
-    from malsim.mal_simulator.agent_state import (
-        AgentStates,
-        AgentSettings,
-        MalSimAttackerState,
-    )
+    from malsim.mal_simulator.agent_state import MalSimAttackerState
+    from malsim.scenario.agent_settings import AgentSettings
 
 logger = logging.getLogger(__name__)
-
-
-def attacker_step_reward(
-    performed_attacks_func: Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
-    attacker_state: MalSimAttackerState,
-    rng: np.random.Generator,
-    agent_settings: AgentSettings,
-    reward_mode: RewardMode,
-    ttc_mode: TTCMode,
-    node_rewards: dict[AttackGraphNode, float],
-) -> float:
-    """
-    Calculate current attacker reward either cumulative or one-off.
-    If cumulative, sum previous and one-off reward, otherwise
-    just return the one-off reward.
-
-    Args:
-    - attacker_state: the current attacker state
-    - reward_mode: which way to calculate reward
-    """
-
-    performed_steps = performed_attacks_func(attacker_state)
-    action = attacker_state.step_attempted_nodes
-
-    # Attacker is rewarded for compromised nodes
-    step_reward = sum(
-        node_reward(agent_settings, node_rewards, n, attacker_state.name)
-        for n in performed_steps
-    )
-
-    if ttc_mode != TTCMode.DISABLED:
-        # If TTC Mode is not disabled, attacker is penalized for each attempt
-        step_reward -= len(action)
-    elif ttc_mode == TTCMode.DISABLED:
-        # If TTC Mode is disabled but reward mode uses TTCs, penalize with TTCs
-        for node in performed_steps:
-            if reward_mode == RewardMode.EXPECTED_TTC:
-                step_reward -= TTCDist.from_node(node).expected_value if node.ttc else 0
-            elif reward_mode == RewardMode.SAMPLE_TTC:
-                step_reward -= (
-                    TTCDist.from_node(node).sample_value(rng) if node.ttc else 0
-                )
-
-    return step_reward
 
 
 def attacker_is_terminated(attacker_state: MalSimAttackerState) -> bool:
@@ -138,9 +85,7 @@ def attempt_attacker_step(
     # Compare attempts to ttc expected value in EXPECTED_VALUE mode
     # or presampled ttcs in PRE_SAMPLE mode
     elif ttc_mode in (TTCMode.EXPECTED_VALUE, TTCMode.PRE_SAMPLE):
-        _node_ttc_value = node_ttc_value(
-            sim_state, ttc_mode, node, agent
-        )
+        _node_ttc_value = node_ttc_value(sim_state, node, agent)
         return num_attempts + 1 >= _node_ttc_value
 
     else:
@@ -148,14 +93,11 @@ def attempt_attacker_step(
 
 
 def attacker_step(
-    agent_states: AgentStates,
-    rng: np.random.Generator,
-    ttc_mode: TTCMode,
-    agent_settings: AgentSettings,
-    rewards: dict[AttackGraphNode, float],
     sim_state: MalSimulatorState,
+    agent_settings: AgentSettings,
     agent: MalSimAttackerState,
     nodes: list[AttackGraphNode],
+    rng: np.random.Generator,
 ) -> tuple[list[AttackGraphNode], list[AttackGraphNode]]:
     """Compromise attack step nodes with attacker
 
@@ -186,14 +128,14 @@ def attacker_step(
             )
         if can_compromise:
             if attempt_attacker_step(
-                sim_state, rng, ttc_mode, agent, node
+                sim_state, rng, sim_state.settings.ttc_mode, agent, node
             ):
                 successful_compromises.append(node)
                 logger.info(
                     'Attacker agent "%s" compromised "%s" (reward: %d).',
                     agent.name,
                     node.full_name,
-                    node_reward(agent_settings, rewards, node, agent.name),
+                    node_reward(agent_settings, sim_state.global_rewards, node, agent.name),
                 )
             else:
                 logger.info(
@@ -208,48 +150,3 @@ def attacker_step(
             logger.warning('Attacker could not compromise %s', node.full_name)
 
     return successful_compromises, attempted_compromises
-
-
-def attacker_overriding_ttc_settings(
-    attack_graph: AttackGraph,
-    attacker_settings: AttackerSettings,
-    ttc_mode: TTCMode,
-    rng: np.random.Generator,
-) -> tuple[
-    dict[AttackGraphNode, TTCDist],
-    dict[AttackGraphNode, float],
-    set[AttackGraphNode],
-]:
-    """
-    Get overriding TTC distributions, TTC values, and impossible attack steps
-    from attacker settings if they exist.
-
-    Returns three separate collections:
-        - a dict of TTC distributions
-        - a dict of TTC values
-        - a set of impossible steps
-    """
-
-    if not attacker_settings.ttc_overrides:
-        return {}, {}, set()
-
-    ttc_overrides_names = attacker_settings.ttc_overrides.per_node(attack_graph)
-
-    # Convert names to TTCDist objects and map from AttackGraphNode
-    # objects instead of from full names
-    ttc_overrides = {
-        full_name_or_node_to_node(attack_graph, node): TTCDist.from_name(name)
-        for node, name in ttc_overrides_names.items()
-    }
-    ttc_value_overrides = attack_step_ttc_values(
-        ttc_overrides.keys(),
-        ttc_mode,
-        rng,
-        ttc_dists=full_name_dict_to_node_dict(attack_graph, ttc_overrides),
-    )
-    impossible_step_overrides = get_impossible_attack_steps(
-        ttc_overrides.keys(),
-        rng,
-        ttc_dists=full_name_dict_to_node_dict(attack_graph, ttc_overrides),
-    )
-    return ttc_overrides, ttc_value_overrides, impossible_step_overrides

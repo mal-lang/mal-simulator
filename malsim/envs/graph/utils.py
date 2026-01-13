@@ -12,6 +12,7 @@ from .serialization import LangSerializer
 from malsim.mal_simulator import MalSimAttackerState, MalSimDefenderState, MalSimulator
 from maltoolbox.attackgraph import AttackGraphNode
 from maltoolbox.model import ModelAsset
+from malsim.mal_simulator.agent_state import get_attacker_agents
 
 
 def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInstance:
@@ -20,13 +21,14 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
 
     def get_total_attempts(node: AttackGraphNode) -> int:
         return sum(
-            state.num_attempts.get(node, 0) for state in sim._get_attacker_agents()
+            state.num_attempts.get(node, 0)
+            for state in get_attacker_agents(sim.agent_states, sim._alive_agents)
         )
 
     def is_traversable_by_any(node: AttackGraphNode) -> bool:
         return any(
             sim.node_is_traversable(state.performed_nodes, node)
-            for state in sim._get_attacker_agents()
+            for state in get_attacker_agents(sim.agent_states, sim._alive_agents)
         )
 
     # NOTE: Sorting is for defender

@@ -8,8 +8,7 @@ from maltoolbox.attackgraph import AttackGraphNode
 
 from malsim.scenario.node_property_rule import NodePropertyRule
 
-
-from ..agents import (
+from malsim.agents import (
     BreadthFirstAttacker,
     DepthFirstAttacker,
     KeyboardAgent,
@@ -190,3 +189,5 @@ def agent_settings_from_dict(
         ),
         config=config,
     )
+
+AgentSettings = dict[str, AttackerSettings | DefenderSettings]

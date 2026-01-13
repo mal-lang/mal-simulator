@@ -1,3 +1,5 @@
+"""Creation/manipulation of agent states used in the simulator"""
+
 from __future__ import annotations
 from collections.abc import Set, Mapping
 from types import MappingProxyType
@@ -11,15 +13,23 @@ from malsim.mal_simulator.agent_state import (
     MalSimDefenderState,
 )
 
+from malsim.mal_simulator.node_getters import (
+    full_name_dict_to_node_dict,
+    full_name_or_node_to_node,
+    full_names_or_nodes_to_nodes
+)
 from malsim.mal_simulator.observability import defender_observed_nodes
+from malsim.mal_simulator.ttc_utils import (
+    TTCDist,
+    attack_step_ttc_values,
+    get_impossible_attack_steps
+)
+from malsim.scenario.agent_settings import AttackerSettings
+from malsim.mal_simulator.settings import TTCMode
 
 if TYPE_CHECKING:
-    from maltoolbox.attackgraph import AttackGraphNode
-    from malsim.mal_simulator.agent_state import (
-        AgentStates,
-        AgentSettings
-    )
-    from malsim.mal_simulator.ttc_utils import TTCDist
+    from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+    from malsim.scenario.agent_settings import AgentSettings
     from malsim.mal_simulator.simulator_state import MalSimulatorState
     import numpy as np
 
@@ -121,6 +131,32 @@ def create_attacker_state(
         iteration=(previous_state.iteration + 1) if previous_state else 1,
     )
 
+
+def initial_attacker_state(
+    sim_state: MalSimulatorState,
+    agent_settings: AgentSettings,
+    ttc_mode: TTCMode,
+    rng: np.random.Generator,
+    attacker_settings: AttackerSettings,
+) -> MalSimAttackerState:
+    """Create an attacker state from attacker settings"""
+    ttc_overrides, ttc_value_overrides, impossible_steps = (
+        attacker_overriding_ttc_settings(sim_state.attack_graph, attacker_settings, ttc_mode, rng)
+    )
+    return create_attacker_state(
+        agent_settings=agent_settings,
+        sim_state=sim_state,
+        name=attacker_settings.name,
+        entry_points=set(
+            full_names_or_nodes_to_nodes(sim_state.attack_graph, attacker_settings.entry_points)
+        ),
+        goals=set(full_names_or_nodes_to_nodes(sim_state.attack_graph, attacker_settings.goals)),
+        ttc_overrides=ttc_overrides,
+        ttc_value_overrides=ttc_value_overrides,
+        impossible_step_overrides=impossible_steps,
+    )
+
+
 def create_defender_state(
     sim_state: MalSimulatorState,
     agent_settings: AgentSettings,
@@ -180,29 +216,64 @@ def create_defender_state(
     )
 
 
-def get_attacker_agents(
-    agent_states: AgentStates, alive_agents: set[str], only_alive: bool = False
-) -> list[MalSimAttackerState]:
-    """Return list of mutable attacker agent states of attackers.
-    If `only_alive` is set to True, only return the agents that are alive.
+def attacker_overriding_ttc_settings(
+    attack_graph: AttackGraph,
+    attacker_settings: AttackerSettings,
+    ttc_mode: TTCMode,
+    rng: np.random.Generator,
+) -> tuple[
+    dict[AttackGraphNode, TTCDist],
+    dict[AttackGraphNode, float],
+    set[AttackGraphNode],
+]:
     """
-    return [
-        a
-        for a in agent_states.values()
-        if (a.name in alive_agents or not only_alive)
-        and isinstance(a, MalSimAttackerState)
-    ]
+    Get overriding TTC distributions, TTC values, and impossible attack steps
+    from attacker settings if they exist.
 
-
-def get_defender_agents(
-    agent_states: AgentStates, alive_agents: set[str], only_alive: bool = False
-) -> list[MalSimDefenderState]:
-    """Return list of mutable defender agent states of defenders.
-    If `only_alive` is set to True, only return the agents that are alive.
+    Returns three separate collections:
+        - a dict of TTC distributions
+        - a dict of TTC values
+        - a set of impossible steps
     """
-    return [
-        a
-        for a in agent_states.values()
-        if (a.name in alive_agents or not only_alive)
-        and isinstance(a, MalSimDefenderState)
-    ]
+
+    if not attacker_settings.ttc_overrides:
+        return {}, {}, set()
+
+    ttc_overrides_names = attacker_settings.ttc_overrides.per_node(attack_graph)
+
+    # Convert names to TTCDist objects and map from AttackGraphNode
+    # objects instead of from full names
+    ttc_overrides = {
+        full_name_or_node_to_node(attack_graph, node): TTCDist.from_name(name)
+        for node, name in ttc_overrides_names.items()
+    }
+    ttc_value_overrides = attack_step_ttc_values(
+        ttc_overrides.keys(),
+        ttc_mode,
+        rng,
+        ttc_dists=full_name_dict_to_node_dict(attack_graph, ttc_overrides),
+    )
+    impossible_step_overrides = get_impossible_attack_steps(
+        ttc_overrides.keys(),
+        rng,
+        ttc_dists=full_name_dict_to_node_dict(attack_graph, ttc_overrides),
+    )
+    return ttc_overrides, ttc_value_overrides, impossible_step_overrides
+
+def initial_defender_state(
+    sim_state: MalSimulatorState,
+    agent_settings: AgentSettings,
+    name: str,
+    rng: np.random.Generator,
+    pre_compromised_nodes: set[AttackGraphNode],
+    pre_enabled_defenses: set[AttackGraphNode],
+) -> MalSimDefenderState:
+    """Create a defender state from defender settings"""
+    return create_defender_state(
+        sim_state=sim_state,
+        agent_settings=agent_settings,
+        name=name,
+        step_compromised_nodes=pre_compromised_nodes,
+        step_enabled_defenses=pre_enabled_defenses,
+        rng=rng,
+    )
