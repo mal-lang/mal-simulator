@@ -236,7 +236,7 @@ def full_obs2attacker_obs(
     and_or_steps = []
     defense_steps = []
 
-    for node in state.sim.sim_state.attack_graph.nodes.values():
+    for node in state.sim_state.attack_graph.nodes.values():
         if not node.model_asset or node.model_asset.id not in visible_asset_ids_set:
             continue
         if node.type in ('and', 'or'):

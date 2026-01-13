@@ -1,14 +1,11 @@
 from typing import Optional
-from malsim.mal_simulator.agent_state import AgentSettings
-
+from collections.abc import Set
 
 import numpy as np
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
-
-from collections.abc import Set
-
-from malsim.scenario import DefenderSettings
+from malsim.mal_simulator.agent_state import AgentSettings
+from malsim.scenario.scenario import DefenderSettings
 
 
 def node_false_negative_rate(

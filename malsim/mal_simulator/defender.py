@@ -1,28 +1,21 @@
-from collections.abc import Callable, Set
+from __future__ import annotations
+from typing import TYPE_CHECKING
+from collections.abc import Callable
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
-import numpy as np
-from malsim.mal_simulator.agent_state import AgentStates
-from malsim.mal_simulator.agent_state import (
-    AgentSettings,
-    MalSimDefenderState,
-    get_attacker_agents,
-)
+import logging
+
+from malsim.mal_simulator.agent_state_utils import get_attacker_agents
 from malsim.mal_simulator.attacker import attacker_is_terminated
-from malsim.mal_simulator.false_alerts import (
-    generate_false_negatives,
-    generate_false_positives,
-)
 from malsim.mal_simulator.graph_processing import make_node_unviable
 from malsim.mal_simulator.graph_state import GraphState
-from malsim.mal_simulator.node_utils import (
-    node_is_actionable,
-    node_is_enabled_defense,
-    node_is_observable,
-    node_is_viable,
-    node_reward,
-)
-from malsim.mal_simulator.simulator_state import MalSimulatorState
-import logging
+from malsim.mal_simulator.graph_utils import node_reward
+
+if TYPE_CHECKING:
+    from malsim.mal_simulator.agent_state import (
+        AgentStates,
+        AgentSettings,
+        MalSimDefenderState,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -119,57 +112,3 @@ def defender_step(
             )
 
     return enabled_defenses, attack_steps_made_unviable
-
-
-def defender_observed_nodes(
-    agent_settings: AgentSettings,
-    false_negative_rates: dict[AttackGraphNode, float],
-    false_positive_rates: dict[AttackGraphNode, float],
-    rng: np.random.Generator,
-    attack_graph: AttackGraph,
-    node_observabilities: dict[AttackGraphNode, bool],
-    defender_name: str,
-    compromised_nodes: Set[AttackGraphNode],
-) -> set[AttackGraphNode]:
-    """Generate set of observed compromised nodes
-    From set of compromised nodes, generate observed nodes for a defender
-    in regards to observability, false negatives and false positives.
-    """
-    observable_steps = set(
-        n
-        for n in compromised_nodes
-        if node_is_observable(agent_settings, node_observabilities, n, defender_name)
-    )
-    false_negatives = generate_false_negatives(
-        agent_settings, false_negative_rates, rng, defender_name, compromised_nodes
-    )
-    false_positives = generate_false_positives(
-        false_positive_rates, agent_settings, attack_graph, defender_name, rng
-    )
-
-    observed_nodes = (observable_steps - false_negatives) | false_positives
-    return observed_nodes
-
-
-def get_defense_surface(
-    agent_settings: AgentSettings,
-    agent_states: AgentStates,
-    sim_state: MalSimulatorState,
-    live_agents: set[str],
-    node_actionabilities: dict[AttackGraphNode, bool],
-    agent_name: str,
-) -> set[AttackGraphNode]:
-    """Get the defense surface.
-    All non-suppressed defense steps that are not already enabled.
-
-    Arguments:
-    graph       - the attack graph
-    """
-    return {
-        node
-        for node in sim_state.attack_graph.defense_steps
-        if node_is_actionable(agent_settings, node_actionabilities, node, agent_name)
-        and node_is_viable(sim_state, node)
-        and 'suppress' not in node.tags
-        and not node_is_enabled_defense(sim_state.attack_graph, agent_states, live_agents, node)
-    }

@@ -9,7 +9,7 @@ from malsim.mal_simulator import (
     run_simulation,
     TTCMode,
 )
-from malsim.scenario import (
+from malsim.scenario.scenario import (
     Scenario,
     AttackerSettings,
     DefenderSettings,

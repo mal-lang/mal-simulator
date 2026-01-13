@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 from maltoolbox.attackgraph import AttackGraph
 from malsim.mal_simulator import MalSimulator, MalSimAttackerState
 from malsim.envs import MalSimVectorizedObsEnv
-from malsim.scenario import Scenario
+from malsim.scenario.scenario import Scenario
 
 from ..conftest import get_node
 

@@ -11,7 +11,10 @@ from .mal_spaces import (
 )
 from .utils import create_full_obs, full_obs2attacker_obs, full_obs2defender_obs
 from os import PathLike
-from malsim.scenario import AgentType, Scenario
+
+from malsim.scenario.scenario import Scenario
+from malsim.scenario.agent_settings import AgentType
+
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,

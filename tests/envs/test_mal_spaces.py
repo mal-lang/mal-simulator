@@ -15,7 +15,8 @@ from malsim.envs.graph.utils import (
     full_obs2attacker_obs,
     full_obs2defender_obs,
 )
-from malsim.scenario import Scenario, AgentType
+from malsim.scenario.agent_settings import AgentType
+from malsim.scenario.scenario import Scenario
 from malsim.mal_simulator import MalSimulator, MalSimAttackerState, MalSimDefenderState
 
 

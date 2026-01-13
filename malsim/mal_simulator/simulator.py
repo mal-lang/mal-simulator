@@ -10,29 +10,29 @@ from numpy.random import default_rng
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
-from malsim.mal_simulator.agent_state import AgentRewards, get_defender_agents
 from malsim.mal_simulator.attacker import (
     attacker_is_terminated,
     attacker_overriding_ttc_settings,
     attacker_step,
     attacker_step_reward,
     attempt_attacker_step,
-    get_attack_surface,
 )
 from malsim.mal_simulator.defender import (
     defender_is_terminated,
-    defender_observed_nodes,
     defender_step,
     defender_step_reward,
-    get_defense_surface,
 )
+
+from malsim.mal_simulator.attack_surface import get_attack_surface
+from malsim.mal_simulator.defense_surface import get_defense_surface
+
 from malsim.mal_simulator.false_alerts import (
     generate_false_negatives,
     generate_false_positives,
     node_false_negative_rate,
     node_false_positive_rate,
 )
-from malsim.scenario import (
+from malsim.scenario.scenario import (
     AttackerSettings,
     DefenderSettings,
     Scenario,
@@ -41,33 +41,39 @@ from malsim.mal_simulator.ttc_utils import (
     TTCDist,
 )
 from malsim.mal_simulator.agent_state import (
+    AgentRewards,
     AgentSettings,
     AgentStates,
     MalSimAttackerState,
-    create_attacker_state,
     MalSimDefenderState,
+)
+from malsim.mal_simulator.agent_state_utils import (
+    create_attacker_state,
     create_defender_state,
     get_attacker_agents,
+    get_defender_agents
 )
 from malsim.mal_simulator.simulator_state import (
     MalSimulatorState
 )
 from malsim.mal_simulator.settings import MalSimulatorSettings, TTCMode, RewardMode
 from malsim.mal_simulator.graph_state import GraphState, compute_initial_graph_state
-from malsim.mal_simulator.node_utils import (
-    compromised_nodes,
+from malsim.mal_simulator.graph_utils import (
     full_names_or_nodes_to_nodes,
     full_name_dict_to_node_dict,
     get_node,
     node_is_actionable,
-    node_is_compromised,
-    node_is_enabled_defense,
     node_is_necessary,
     node_is_observable,
     node_is_traversable,
     node_is_viable,
     node_reward,
-    node_ttc_value,
+)
+from malsim.mal_simulator.state_query import (
+    compromised_nodes,
+    node_is_compromised,
+    node_is_enabled_defense,
+    node_ttc_value
 )
 from malsim.visualization.malsim_gui_client import MalSimGUIClient
 
@@ -125,7 +131,8 @@ def initial_attacker_state(
         attacker_overriding_ttc_settings(sim_state.attack_graph, attacker_settings, ttc_mode, rng)
     )
     return create_attacker_state(
-        sim=sim,
+        agent_settings=sim.agent_settings,
+        sim_state=sim_state,
         name=attacker_settings.name,
         entry_points=set(
             full_names_or_nodes_to_nodes(sim_state.attack_graph, attacker_settings.entry_points)
@@ -145,7 +152,7 @@ def register_attacker_settings(
     agent_settings: AgentSettings,
     agent_states: AgentStates,
     agent_rewards: AgentRewards,
-    rewards: dict[AttackGraphNode, float],
+    node_rewards: dict[AttackGraphNode, float],
     sim_settings: MalSimulatorSettings,
     sim_rng: np.random.Generator,
     attacker_settings: AttackerSettings,
@@ -170,7 +177,7 @@ def register_attacker_settings(
         agent_settings,
         sim_settings.attacker_reward_mode,
         sim_settings.ttc_mode,
-        rewards,
+        node_rewards,
     )
 
     if len(get_defender_agents(agent_states, alive_agents)) > 0:
@@ -185,7 +192,7 @@ def register_attacker_settings(
             performed_attacks_func,
             enabled_defenses_func,
             enabled_attacks_func,
-            rewards,
+            node_rewards,
         )
     return agent_states, alive_agents, agent_rewards, agent_settings
 
@@ -194,7 +201,7 @@ def register_attacker(
     sim: MalSimulator,
     sim_state: MalSimulatorState,
     name: str,
-    rewards: dict[AttackGraphNode, float],
+    node_rewards: dict[AttackGraphNode, float],
     alive_agents: set[str],
     agent_settings: AgentSettings,
     agent_states: AgentStates,
@@ -217,7 +224,7 @@ def register_attacker(
         agent_settings,
         agent_states,
         agent_rewards,
-        rewards,
+        node_rewards,
         sim_settings,
         sim_rng,
         attacker_settings,
@@ -227,22 +234,25 @@ def register_attacker(
 
 
 def initial_defender_state(
-    sim: MalSimulator,
-    defender_settings: DefenderSettings,
+    sim_state: MalSimulatorState,
+    agent_settings: AgentSettings,
+    name: str,
+    rng: np.random.Generator,
     pre_compromised_nodes: set[AttackGraphNode],
     pre_enabled_defenses: set[AttackGraphNode],
 ) -> MalSimDefenderState:
     """Create a defender state from defender settings"""
     return create_defender_state(
-        sim=sim,
-        name=defender_settings.name,
+        sim_state=sim_state,
+        agent_settings=agent_settings,
+        name=name,
         step_compromised_nodes=pre_compromised_nodes,
         step_enabled_defenses=pre_enabled_defenses,
+        rng=rng,
     )
 
 
 def register_defender_settings(
-    sim: MalSimulator,
     enabled_defenses_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
     enabled_attacks_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
     sim_state: MalSimulatorState,
@@ -253,6 +263,7 @@ def register_defender_settings(
     defender_settings: DefenderSettings,
     rewards: dict[AttackGraphNode, float],
     compromised_nodes: set[AttackGraphNode],
+    rng: np.random.Generator,
 ) -> tuple[AgentStates, set[str], AgentRewards, AgentSettings]:
     """Register a mal sim defender agent"""
 
@@ -269,8 +280,10 @@ def register_defender_settings(
     agent_settings[defender_settings.name] = defender_settings
 
     agent_state = initial_defender_state(
-        sim,
-        defender_settings,
+        sim_state,
+        agent_settings,
+        defender_settings.name,
+        rng,
         compromised_nodes,
         sim_state.graph_state.pre_enabled_defenses,
     )
@@ -302,7 +315,6 @@ def register_defender(
     """Register a mal sim defender agent without setting object"""
     defender_settings = DefenderSettings(name)
     return register_defender_settings(
-        sim,
         enabled_defenses_func,
         enabled_attacks_func,
         sim_state,
@@ -313,6 +325,7 @@ def register_defender(
         defender_settings,
         rewards,
         _compromised_nodes,
+        sim.rng
     )
 
 
@@ -371,6 +384,7 @@ class MalSimulator:
 
         self.sim_state = MalSimulatorState(
             attack_graph,
+            sim_settings,
             graph_state,
             full_name_dict_to_node_dict(attack_graph, rewards or {}),
             full_name_dict_to_node_dict(attack_graph, false_positive_rates or {}),
@@ -503,11 +517,10 @@ class MalSimulator:
         self, node: AttackGraphNode | str, agent_name: Optional[str] = None
     ) -> float:
         return node_ttc_value(
-            self._agent_states,
             self.sim_state,
             self.sim_settings.ttc_mode,
             node,
-            agent_name,
+            self._agent_states[agent_name] if agent_name else None,
         )
 
     def node_is_actionable(
@@ -611,9 +624,7 @@ class MalSimulator:
     def get_defense_surface(self, agent_name: str) -> set[AttackGraphNode]:
         return get_defense_surface(
             self._agent_settings,
-            self._agent_states,
             self.sim_state,
-            self._alive_agents,
             self.sim_state.global_actionability,
             agent_name,
         )
@@ -655,20 +666,6 @@ class MalSimulator:
             self.rng,
         )
 
-    def _defender_observed_nodes(
-        self, defender_name: str, compromised_nodes: Set[AttackGraphNode]
-    ) -> set[AttackGraphNode]:
-        return defender_observed_nodes(
-            self.agent_settings,
-            self.sim_state.global_false_negative_rates,
-            self.sim_state.global_false_positive_rates,
-            self.rng,
-            self.sim_state.attack_graph,
-            self.sim_state.global_observability,
-            defender_name,
-            compromised_nodes,
-        )
-
     def _initial_attacker_state(
         self,
         attacker_settings: AttackerSettings,
@@ -688,7 +685,7 @@ class MalSimulator:
         pre_enabled_defenses: set[AttackGraphNode],
     ) -> MalSimDefenderState:
         return initial_defender_state(
-            self,
+            self.sim_state,
             defender_settings,
             pre_compromised_nodes,
             pre_enabled_defenses,
@@ -699,7 +696,6 @@ class MalSimulator:
             self,
             self.rng,
             self.sim_state,
-            self.graph_state,
             self.agent_settings,
             self.sim_settings,
             self.performed_attacks_func,
@@ -795,7 +791,6 @@ class MalSimulator:
     def register_defender_settings(self, defender_settings: DefenderSettings) -> None:
         agent_states, alive_agents, agent_rewards, agent_settings = (
             register_defender_settings(
-                self,
                 self.enabled_defenses_func,
                 self.enabled_attacks_func,
                 self.sim_state,
@@ -806,6 +801,7 @@ class MalSimulator:
                 defender_settings,
                 self.sim_state.global_rewards,
                 self.compromised_nodes,
+                self.rng
             )
         )
         self._agent_states = agent_states
@@ -994,7 +990,7 @@ def reset(
     performed_attacks_func: Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
     enabled_defenses_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
     enabled_attacks_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
-    rewards: dict[AttackGraphNode, float],
+    node_rewards: dict[AttackGraphNode, float],
 ) -> tuple[
     AgentStates,
     set[str],
@@ -1019,7 +1015,7 @@ def reset(
         performed_attacks_func,
         enabled_defenses_func,
         enabled_attacks_func,
-        rewards,
+        node_rewards,
     )
     # Upload initial state to the REST API
     if rest_api_client:
@@ -1037,7 +1033,7 @@ def _reset_agents(
     performed_attacks_func: Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
     enabled_defenses_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
     enabled_attacks_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
-    rewards: dict[AttackGraphNode, float],
+    node_rewards: dict[AttackGraphNode, float],
 ) -> tuple[AgentStates, set[str], AgentRewards]:
     """Reset agent states to a fresh start"""
 
@@ -1067,15 +1063,17 @@ def _reset_agents(
                 agent_settings=agent_settings,
                 reward_mode=sim_settings.attacker_reward_mode,
                 ttc_mode=sim_settings.ttc_mode,
-                rewards=rewards,
+                node_rewards=node_rewards,
             )
 
     # Create new defender agent states
     for defender in agent_settings.values():
         if isinstance(defender, DefenderSettings):
             new_defender_state = initial_defender_state(
-                sim,
-                defender,
+                sim_state,
+                agent_settings,
+                defender.name,
+                rng,
                 pre_compromised_nodes,
                 sim_state.graph_state.pre_enabled_defenses,
             )
@@ -1085,7 +1083,7 @@ def _reset_agents(
                 enabled_defenses_func,
                 enabled_attacks_func,
                 new_defender_state,
-                rewards,
+                node_rewards,
             )
 
     return agent_states, alive_agents, agent_rewards
@@ -1210,7 +1208,8 @@ def step(
 
         # Update attacker state
         updated_attacker_state = create_attacker_state(
-            sim=sim,
+            sim_state=sim_state,
+            agent_settings=agent_settings,
             name=attacker_state.name,
             entry_points=attacker_state.entry_points,
             goals=attacker_state.goals,
@@ -1239,8 +1238,10 @@ def step(
         if isinstance(agent_state, MalSimDefenderState):
             # Update defender state
             updated_defender_state = create_defender_state(
-                sim=sim,
+                sim_state=sim_state,
+                agent_settings=agent_settings,
                 name=agent_state.name,
+                rng=rng,
                 step_compromised_nodes=set(step_compromised_nodes),
                 step_enabled_defenses=set(step_enabled_defenses),
                 step_nodes_made_unviable=step_nodes_made_unviable,

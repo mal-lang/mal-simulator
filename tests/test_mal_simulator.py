@@ -15,7 +15,7 @@ from malsim.mal_simulator import (
 from malsim.mal_simulator import TTCDist
 from malsim import Scenario, run_simulation
 
-from malsim.scenario import AttackerSettings, DefenderSettings
+from malsim.scenario.scenario import AttackerSettings, DefenderSettings
 
 from dataclasses import asdict
 import numpy as np

@@ -3,7 +3,7 @@ The easiest way to run a scenario is probably through a scenario file.
 """
 
 from malsim import MalSimulator, run_simulation
-from malsim.scenario import Scenario
+from malsim.scenario.scenario import Scenario
 
 
 def test_example_scenario_file() -> None:

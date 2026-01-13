@@ -23,7 +23,7 @@ from malsim.mal_simulator import (
     run_simulation,
 )
 
-from malsim.scenario import Scenario, AttackerSettings, DefenderSettings
+from malsim.scenario.scenario import Scenario, AttackerSettings, DefenderSettings
 
 __title__ = 'malsim'
 __version__ = '1.2.0'

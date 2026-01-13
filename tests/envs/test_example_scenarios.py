@@ -6,7 +6,7 @@ These tests are to make sure the whole simulator maintains expected behavior.
 Determinism, ttcs, agents, action surfaces, step etc.
 """
 
-from malsim.scenario import Scenario
+from malsim.scenario.scenario import Scenario
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,

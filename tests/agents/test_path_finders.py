@@ -1,6 +1,6 @@
 from malsim.mal_simulator import MalSimulator, MalSimulatorSettings, TTCMode
 from malsim.agents import get_shortest_path_to
-from malsim.scenario import Scenario
+from malsim.scenario.scenario import Scenario
 
 import numpy as np
 

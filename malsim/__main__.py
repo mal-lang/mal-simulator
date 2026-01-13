@@ -5,7 +5,7 @@ import argparse
 import logging
 
 from .mal_simulator import MalSimulator, MalSimulatorSettings, run_simulation, TTCMode
-from .scenario import Scenario
+from .scenario.scenario import Scenario
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

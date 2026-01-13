@@ -2,20 +2,17 @@
 
 from __future__ import annotations
 from collections.abc import Set
-from typing import Any, Iterable, Optional
-from maltoolbox.attackgraph import AttackGraphNode
+from typing import Any, Iterable, Optional, TYPE_CHECKING
 
+from maltoolbox.attackgraph import AttackGraphNode
 from maltoolbox.attackgraph import AttackGraph
 
-from malsim.mal_simulator.agent_state import AgentSettings
-from malsim.mal_simulator.agent_state import MalSimAttackerState
-from malsim.mal_simulator.agent_state import get_attacker_agents
-from malsim.mal_simulator.agent_state import get_defender_agents
-from malsim.mal_simulator.graph_state import GraphState
-from malsim.mal_simulator.settings import TTCMode
-from malsim.mal_simulator.agent_state import AgentStates
+from malsim.scenario.agent_settings import DefenderSettings
 from malsim.mal_simulator.simulator_state import MalSimulatorState
-from malsim.scenario import DefenderSettings
+
+if TYPE_CHECKING:
+    from malsim.mal_simulator.agent_state import AgentSettings
+
 
 def get_node(
     attack_graph: AttackGraph,
@@ -140,7 +137,7 @@ def node_is_actionable(
 
 def node_reward(
     agent_settings: AgentSettings,
-    rewards: dict[AttackGraphNode, float],
+    global_rewards: dict[AttackGraphNode, float],
     node: AttackGraphNode,
     agent_name: Optional[str] = None,
 ) -> float:
@@ -148,9 +145,9 @@ def node_reward(
     if _agent_settings and _agent_settings.rewards:
         # Node reward from agent settings
         return float(_agent_settings.rewards.value(node, 0.0))
-    if rewards:
+    if global_rewards:
         # Node reward from global settings
-        return rewards.get(node, 0.0)
+        return global_rewards.get(node, 0.0)
     return 0.0
 
 
@@ -171,72 +168,3 @@ def node_is_observable(
         # Observability from global settings
         return node_observabilities.get(node, False)
     return True
-
-
-def node_is_enabled_defense(
-    attack_graph: AttackGraph,
-    agent_states: AgentStates,
-    live_agents: set[str],
-    node: AttackGraphNode | str,
-) -> bool:
-    """Get a nodes defense status"""
-    node = full_name_or_node_to_node(attack_graph, node)
-    return any(
-        node in attacker_agent.performed_nodes
-        for attacker_agent in get_defender_agents(agent_states, live_agents)
-    )
-
-
-def node_is_compromised(
-    attack_graph: AttackGraph,
-    agent_states: AgentStates,
-    live_agents: set[str],
-    node: AttackGraphNode | str,
-) -> bool:
-    """Return True if node is compromised by any attacker agent"""
-    node = full_name_or_node_to_node(attack_graph, node)
-    return any(
-        node in attacker_agent.performed_nodes
-        for attacker_agent in get_attacker_agents(agent_states, live_agents)
-    )
-
-
-def compromised_nodes(
-    agent_states: AgentStates,
-    live_agents: set[str],
-) -> set[AttackGraphNode]:
-    compromised: set[AttackGraphNode] = set()
-    for attacker in get_attacker_agents(agent_states, live_agents):
-        compromised |= attacker.performed_nodes
-    return compromised
-
-
-def node_ttc_value(
-    agent_states: AgentStates,
-    sim_state: MalSimulatorState,
-    ttc_mode: TTCMode,
-    node: AttackGraphNode | str,
-    agent_name: Optional[str] = None,
-) -> float:
-    """Return ttc value of node if it has been sampled"""
-    node = full_name_or_node_to_node(sim_state.attack_graph, node)
-    assert ttc_mode in (
-        TTCMode.PRE_SAMPLE,
-        TTCMode.EXPECTED_VALUE,
-    ), 'TTC value only when TTCMode is PRE_SAMPLE or EXPECTED_VALUE'
-
-    if agent_name:
-        # If agent name is given and it overrides the global TTC values
-        # Return that value instead of the global ttc value
-        agent_state = agent_states[agent_name]
-        if not isinstance(agent_state, MalSimAttackerState):
-            raise ValueError(
-                f'Agent {agent_name} is not an attacker and has no TTC values'
-            )
-        if node in agent_state.ttc_value_overrides:
-            return agent_state.ttc_value_overrides[node]
-
-    assert node in sim_state.graph_state.ttc_values, (
-        f'Node {node.full_name} does not have a ttc value'
-    )
-    return sim_state.graph_state.ttc_values[node]

@@ -1,22 +1,22 @@
-from typing import Optional
-from malsim.mal_simulator.agent_state import AgentStates
-from malsim.mal_simulator.agent_state import (
-    AgentSettings,
-    MalSimAttackerState,
-)
-from malsim.mal_simulator.graph_state import GraphState
-from malsim.mal_simulator.node_utils import (
+from __future__ import annotations
+from typing import TYPE_CHECKING
+from collections.abc import Callable
+import logging
+
+import numpy as np
+
+from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+
+from malsim.scenario.agent_settings import AttackerSettings
+from malsim.mal_simulator.graph_utils import (
     full_name_dict_to_node_dict,
     full_name_or_node_to_node,
-    node_is_actionable,
-    node_is_necessary,
     node_is_traversable,
     node_is_viable,
     node_reward,
-    node_ttc_value,
 )
-from malsim.mal_simulator.settings import MalSimulatorSettings, RewardMode, TTCMode
-import logging
+from malsim.mal_simulator.state_query import node_ttc_value
+from malsim.mal_simulator.settings import RewardMode, TTCMode
 from malsim.mal_simulator.ttc_utils import (
     TTCDist,
     attack_step_ttc_values,
@@ -24,13 +24,12 @@ from malsim.mal_simulator.ttc_utils import (
 )
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
-import numpy as np
-from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
-
-
-from collections.abc import Callable, Set
-
-from malsim.scenario import AttackerSettings
+if TYPE_CHECKING:
+    from malsim.mal_simulator.agent_state import (
+        AgentStates,
+        AgentSettings,
+        MalSimAttackerState,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +41,7 @@ def attacker_step_reward(
     agent_settings: AgentSettings,
     reward_mode: RewardMode,
     ttc_mode: TTCMode,
-    rewards: dict[AttackGraphNode, float],
+    node_rewards: dict[AttackGraphNode, float],
 ) -> float:
     """
     Calculate current attacker reward either cumulative or one-off.
@@ -59,7 +58,7 @@ def attacker_step_reward(
 
     # Attacker is rewarded for compromised nodes
     step_reward = sum(
-        node_reward(agent_settings, rewards, n, attacker_state.name)
+        node_reward(agent_settings, node_rewards, n, attacker_state.name)
         for n in performed_steps
     )
 
@@ -104,7 +103,6 @@ def attacker_is_terminated(attacker_state: MalSimAttackerState) -> bool:
 
 
 def attempt_attacker_step(
-    agent_states: AgentStates,
     sim_state: MalSimulatorState,
     rng: np.random.Generator,
     ttc_mode: TTCMode,
@@ -141,7 +139,7 @@ def attempt_attacker_step(
     # or presampled ttcs in PRE_SAMPLE mode
     elif ttc_mode in (TTCMode.EXPECTED_VALUE, TTCMode.PRE_SAMPLE):
         _node_ttc_value = node_ttc_value(
-            agent_states, sim_state, ttc_mode, node, agent.name
+            sim_state, ttc_mode, node, agent
         )
         return num_attempts + 1 >= _node_ttc_value
 
@@ -188,7 +186,7 @@ def attacker_step(
             )
         if can_compromise:
             if attempt_attacker_step(
-                agent_states, sim_state, rng, ttc_mode, agent, node
+                sim_state, rng, ttc_mode, agent, node
             ):
                 successful_compromises.append(node)
                 logger.info(
@@ -255,55 +253,3 @@ def attacker_overriding_ttc_settings(
         ttc_dists=full_name_dict_to_node_dict(attack_graph, ttc_overrides),
     )
     return ttc_overrides, ttc_value_overrides, impossible_step_overrides
-
-
-def get_attack_surface(
-    sim_settings: MalSimulatorSettings,
-    sim_state: MalSimulatorState,
-    agent_settings: AgentSettings,
-    agent_states: AgentStates,
-    node_actionabilities: dict[AttackGraphNode, bool],
-    agent_name: str,
-    performed_nodes: Set[AttackGraphNode],
-    from_nodes: Optional[Set[AttackGraphNode]] = None,
-) -> frozenset[AttackGraphNode]:
-    """
-    Calculate the attack surface of the attacker.
-    If from_nodes are provided only calculate the attack surface
-    stemming from those nodes, otherwise use all performed_nodes.
-    The attack surface includes all of the traversable children nodes.
-
-    Arguments:
-    agent_name      - the agent to get attack surface for
-    performed_nodes - the nodes the agent has performed
-    from_nodes      - the nodes to calculate the attack surface from
-
-    """
-
-    from_nodes = from_nodes if from_nodes is not None else performed_nodes
-    attack_surface: set[AttackGraphNode] = set()
-
-    skip_compromised = sim_settings.attack_surface_skip_compromised
-    skip_unviable = sim_settings.attack_surface_skip_unviable
-    skip_unnecessary = sim_settings.attack_surface_skip_unnecessary
-
-    for parent in from_nodes:
-        for child in parent.children:
-            if skip_compromised and child in performed_nodes:
-                continue
-
-            if skip_unviable and not node_is_viable(sim_state, child):
-                continue
-
-            if skip_unnecessary and not node_is_necessary(sim_state, child):
-                continue
-
-            if not node_is_actionable(
-                agent_settings, node_actionabilities, child, agent_name
-            ):
-                continue
-
-            if node_is_traversable(sim_state, performed_nodes, child):
-                attack_surface.add(child)
-
-    return frozenset(attack_surface)
