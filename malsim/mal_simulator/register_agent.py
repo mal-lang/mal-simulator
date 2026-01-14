@@ -12,7 +12,7 @@ from malsim.mal_simulator.agent_state import (
     get_defender_agents,
     
 )
-from malsim.mal_simulator.agent_state_utils import initial_attacker_state, initial_defender_state
+from malsim.mal_simulator.agent_state_factories import initial_attacker_state, initial_defender_state
 from malsim.mal_simulator.reset_agent import reset_agents
 from malsim.mal_simulator.rewards import attacker_step_reward, defender_step_reward
 from malsim.mal_simulator.simulator_state import MalSimulatorState

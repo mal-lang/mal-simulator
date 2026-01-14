@@ -580,7 +580,6 @@ def test_traininglang_advanced_agents() -> None:
         attacker_node = attacker_agent.get_next_action(attacker_state)
         defender_node = defender_agent.get_next_action(defender_state)
         
-
         actions = {
             attacker_name: [attacker_node] if attacker_node else [],
             defender_name: [defender_node] if defender_node else [],
@@ -591,7 +590,6 @@ def test_traininglang_advanced_agents() -> None:
         defender_state = states[defender_name]
         assert isinstance(attacker_state, MalSimAttackerState)
         assert isinstance(defender_state, MalSimDefenderState)
-
         if attacker_node and attacker_node in attacker_state.step_performed_nodes:
             attacker_actions.append(attacker_node.full_name)
             assert attacker_node in defender_state.step_compromised_nodes

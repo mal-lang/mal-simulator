@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.graph_utils import node_is_actionable, node_is_viable

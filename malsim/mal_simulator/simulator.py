@@ -48,7 +48,7 @@ from malsim.mal_simulator.agent_state import (
     get_attacker_agents,
     get_defender_agents
 )
-from malsim.mal_simulator.agent_state_utils import (
+from malsim.mal_simulator.agent_state_factories import (
     create_attacker_state,
     create_defender_state,
 )
@@ -264,7 +264,7 @@ class MalSimulator:
             assert isinstance(agent, MalSimDefenderState), (
                 "False positives only apply to defenders"
             )
-            false_positive_rates_rule = agent.false_positives_rule
+            false_positive_rates_rule = agent.false_positive_rates_rule
         return node_false_positive_rate(
             false_positive_rates_rule, self.sim_state.global_false_positive_rates, node
         )
@@ -278,7 +278,7 @@ class MalSimulator:
             assert isinstance(agent, MalSimDefenderState), (
                 "False negatives only apply to defenders"
             )
-            false_negative_rates_rule = agent.false_negatives_rule
+            false_negative_rates_rule = agent.false_negative_rates_rule
         return node_false_negative_rate(
             false_negative_rates_rule, self.sim_state.global_false_negative_rates, node
         )
@@ -623,13 +623,7 @@ def step(
     enabled_attacks_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
     actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]],
     rest_api_client: Optional[MalSimGUIClient] = None,
-) -> tuple[
-    AgentStates,
-    Recording,
-    GraphState,
-    dict[str, float],
-    set[str],
-]:
+) -> tuple[AgentStates, Recording, GraphState, dict[str, float], set[str]]:
     """Take a step in the simulation
 
     Args:
@@ -657,15 +651,8 @@ def step(
                 sim_state.attack_graph, actions.get(defender_state.name, [])
             )
         )
-        enabled, unviable = defender_step(
-            sim_state, defender_state, agent_settings, agent_actions
-        )
+        enabled, unviable = defender_step(sim_state, defender_state, agent_actions)
         current_iteration = defender_state.iteration
-        logger.info(
-            'Stepping through iteration %d for %s',
-            current_iteration,
-            defender_state.name,
-        )
 
         recording[current_iteration][defender_state.name] = list(enabled)
         step_enabled_defenses += enabled
@@ -681,7 +668,7 @@ def step(
             )
         )
         agent_compromised, agent_attempted = attacker_step(
-            sim_state, agent_settings, attacker_state, agent_actions, rng
+            sim_state, attacker_state, agent_actions, rng
         )
         current_iteration = attacker_state.iteration
         step_compromised_nodes += agent_compromised
@@ -690,7 +677,6 @@ def step(
         # Update attacker state
         updated_attacker_state = create_attacker_state(
             sim_state=sim_state,
-            attacker_settings=agent_settings[attacker_state.name],
             name=attacker_state.name,
             entry_points=attacker_state.entry_points,
             goals=attacker_state.goals,
@@ -718,22 +704,20 @@ def step(
             # Update defender state
             updated_defender_state = create_defender_state(
                 sim_state=sim_state,
-                defender_settings=agent_settings[agent_name],
-                rng=rng,
+                name=agent_name,
                 step_compromised_nodes=set(step_compromised_nodes),
                 step_enabled_defenses=set(step_enabled_defenses),
                 step_nodes_made_unviable=step_nodes_made_unviable,
                 previous_state=agent_state,
+                rng=rng,
             )
             agent_states[agent_name] = updated_defender_state
 
             # Update defender reward
             agent_rewards[agent_state.name] = defender_step_reward(
-                agent_settings,
                 enabled_defenses_func,
                 enabled_attacks_func,
                 updated_defender_state,
-                sim_state.global_rewards,
             )
 
         # Remove agents that are terminated

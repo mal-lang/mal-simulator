@@ -212,7 +212,6 @@ def test_attacker_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
     defense_step = get_node(attack_graph, 'OS App:notPresent')
     actions, _ = attacker_step(
         sim.sim_state,
-        sim._agent_settings,
         attacker_agent,
         [defense_step],
         sim.rng
@@ -223,7 +222,6 @@ def test_attacker_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
     attack_step = get_node(attack_graph, 'OS App:attemptRead')
     actions, _ = attacker_step(
         sim.sim_state,
-        sim._agent_settings,
         attacker_agent,
         [attack_step],
         sim.rng
@@ -246,7 +244,6 @@ def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
     enabled, made_unviable = defender_step(
         sim.sim_state,
         defender_agent,
-        sim._agent_settings,
         [defense_step],
     )
     assert enabled == [defense_step]
@@ -258,7 +255,6 @@ def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
     enabled, made_unviable = defender_step(
         sim.sim_state,
         defender_agent,
-        sim._agent_settings,
         [attack_step],
     )
     assert enabled == []

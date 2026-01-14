@@ -106,8 +106,8 @@ class MalSimDefenderState(MalSimAgentState):
     # Agent specific rules for node properties
     reward_rule: Optional[NodePropertyRule] = None
     actionability_rule: Optional[NodePropertyRule] = None
-    false_positives_rule: Optional[NodePropertyRule] = None
-    false_negatives_rule: Optional[NodePropertyRule] = None
+    false_positive_rates_rule: Optional[NodePropertyRule] = None
+    false_negative_rates_rule: Optional[NodePropertyRule] = None
     observability_rule: Optional[NodePropertyRule] = None
 
 

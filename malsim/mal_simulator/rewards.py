@@ -7,15 +7,12 @@ from malsim.mal_simulator.agent_state import MalSimAttackerState, MalSimDefender
 from malsim.mal_simulator.graph_utils import node_reward
 from malsim.mal_simulator.settings import RewardMode, TTCMode
 from malsim.mal_simulator.ttc_utils import TTCDist
-from malsim.config.agent_settings import AgentSettings
 
 
 def defender_step_reward(
-    agent_settings: AgentSettings,
     enabled_defenses_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
     enabled_attacks_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
     defender_state: MalSimDefenderState,
-    rewards: dict[AttackGraphNode, float],
 ) -> float:
     """
     Calculate current defender reward either cumulative or one-off.

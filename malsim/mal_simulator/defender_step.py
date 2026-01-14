@@ -34,7 +34,6 @@ def defender_is_terminated(agent_states: AgentStates, alive_agents: set[str]) ->
 def defender_step(
     sim_state: MalSimulatorState,
     agent: MalSimDefenderState,
-    agent_settings: AgentSettings,
     nodes: list[AttackGraphNode],
 ) -> tuple[list[AttackGraphNode], set[AttackGraphNode]]:
     """Enable defense step nodes with defender.
@@ -47,6 +46,7 @@ def defender_step(
     and `attack_steps_made_unviable`.
     """
 
+    logger.info('Stepping with %s', agent.name)
     enabled_defenses: list[AttackGraphNode] = list()
     attack_steps_made_unviable: set[AttackGraphNode] = set()
 

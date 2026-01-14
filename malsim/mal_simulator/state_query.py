@@ -1,14 +1,13 @@
 """Utilities to convert full names to nodes"""
 
 from __future__ import annotations
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from maltoolbox.attackgraph import AttackGraphNode
 from maltoolbox.attackgraph import AttackGraph
 
 from malsim.mal_simulator.agent_state import get_attacker_agents, get_defender_agents
 from malsim.mal_simulator.settings import TTCMode
-from malsim.mal_simulator.simulator_state import MalSimulatorState
 from malsim.mal_simulator.graph_utils import full_name_or_node_to_node
 from malsim.mal_simulator.agent_state import MalSimAttackerState
 

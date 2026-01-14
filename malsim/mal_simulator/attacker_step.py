@@ -94,7 +94,6 @@ def attempt_attacker_step(
 
 def attacker_step(
     sim_state: MalSimulatorState,
-    agent_settings: AgentSettings,
     agent: MalSimAttackerState,
     nodes: list[AttackGraphNode],
     rng: np.random.Generator,
@@ -108,6 +107,7 @@ def attacker_step(
     Returns: two lists with compromised, attempted nodes
     """
 
+    logger.info('Stepping with agent %s', agent.name)
     successful_compromises: list[AttackGraphNode] = list()
     attempted_compromises: list[AttackGraphNode] = list()
 
