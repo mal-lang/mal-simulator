@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 @dataclass
 class GraphState:
     """Dataclass containing simulator specific graph state"""
+
     ttc_values: dict[AttackGraphNode, float]
     pre_enabled_defenses: set[AttackGraphNode]
     impossible_attack_steps: set[AttackGraphNode]

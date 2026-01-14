@@ -123,9 +123,7 @@ def attacker_step(
             can_compromise = node_is_viable(sim_state, node)
         else:
             # Otherwise it is limited by traversability
-            can_compromise = node_is_traversable(
-                sim_state, agent.performed_nodes, node
-            )
+            can_compromise = node_is_traversable(sim_state, agent.performed_nodes, node)
         if can_compromise:
             if attempt_attacker_step(
                 sim_state, rng, sim_state.settings.ttc_mode, agent, node

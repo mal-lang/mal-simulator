@@ -17,44 +17,43 @@ from malsim.mal_simulator.defender_step import (
     defender_is_terminated,
     defender_step,
 )
-from malsim.mal_simulator.node_getters import full_name_dict_to_node_dict, full_names_or_nodes_to_nodes, get_node
+from malsim.mal_simulator.node_getters import (
+    full_name_dict_to_node_dict,
+    full_names_or_nodes_to_nodes,
+    get_node,
+)
 from malsim.mal_simulator.observability import node_is_observable
 from malsim.mal_simulator.register_agent import (
     register_attacker,
     register_attacker_settings,
     register_defender,
-    register_defender_settings
+    register_defender_settings,
 )
 from malsim.mal_simulator.reset_agent import reset_agents
-from malsim.mal_simulator.rewards import (
-    defender_step_reward,
-    attacker_step_reward
-)
+from malsim.mal_simulator.rewards import defender_step_reward, attacker_step_reward
 from malsim.mal_simulator.false_alerts import (
     node_false_negative_rate,
     node_false_positive_rate,
 )
-from malsim.config.agent_settings import AgentSettings
-from malsim.scenario.scenario import (
+from malsim.config.agent_settings import (
+    AgentSettings,
     AttackerSettings,
     DefenderSettings,
-    Scenario,
 )
+from malsim.scenario.scenario import Scenario
 from malsim.mal_simulator.agent_state import (
     AgentRewards,
     AgentStates,
     MalSimAttackerState,
     MalSimDefenderState,
     get_attacker_agents,
-    get_defender_agents
+    get_defender_agents,
 )
 from malsim.mal_simulator.agent_state_factories import (
     create_attacker_state,
     create_defender_state,
 )
-from malsim.mal_simulator.simulator_state import (
-    MalSimulatorState
-)
+from malsim.mal_simulator.simulator_state import MalSimulatorState
 from malsim.mal_simulator.settings import MalSimulatorSettings, RewardMode
 from malsim.mal_simulator.graph_state import GraphState, compute_initial_graph_state
 from malsim.mal_simulator.graph_utils import (
@@ -68,7 +67,7 @@ from malsim.mal_simulator.state_query import (
     compromised_nodes,
     node_is_compromised,
     node_is_enabled_defense,
-    node_ttc_value
+    node_ttc_value,
 )
 from malsim.visualization.malsim_gui_client import MalSimGUIClient
 
@@ -106,6 +105,7 @@ ENABLED_ATTACKS_FUNCS: Mapping[
 }
 
 Recording = dict[int, dict[str, list[AttackGraphNode]]]
+
 
 class MalSimulator:
     """A MAL Simulator that works on the AttackGraph
@@ -158,14 +158,12 @@ class MalSimulator:
         self.sim_state = MalSimulatorState(
             attack_graph,
             sim_settings,
-            compute_initial_graph_state(
-                attack_graph, sim_settings, self.rng
-            ),
+            compute_initial_graph_state(attack_graph, sim_settings, self.rng),
             full_name_dict_to_node_dict(attack_graph, rewards or {}),
             full_name_dict_to_node_dict(attack_graph, false_positive_rates or {}),
             full_name_dict_to_node_dict(attack_graph, false_negative_rates or {}),
             full_name_dict_to_node_dict(attack_graph, node_actionabilities or {}),
-            full_name_dict_to_node_dict(attack_graph, node_observabilities or {})
+            full_name_dict_to_node_dict(attack_graph, node_observabilities or {}),
         )
 
         self.performed_attacks_func = PERFORMED_ATTACKS_FUNCS[
@@ -225,9 +223,7 @@ class MalSimulator:
         if agent_name:
             agent_actionability = self._agent_states[agent_name].actionability_rule
         return node_is_actionable(
-            agent_actionability,
-            self.sim_state.global_actionability,
-            node
+            agent_actionability, self.sim_state.global_actionability, node
         )
 
     def node_reward(
@@ -245,14 +241,12 @@ class MalSimulator:
         if agent_name:
             agent = self._agent_states[agent_name]
             assert isinstance(agent, MalSimDefenderState), (
-                "Observability only apply to defenders"
+                'Observability only apply to defenders'
             )
             agent_observability = agent.observability_rule
 
         return node_is_observable(
-            agent_observability,
-            self.sim_state.global_observability,
-            node
+            agent_observability, self.sim_state.global_observability, node
         )
 
     def node_false_positive_rate(
@@ -262,7 +256,7 @@ class MalSimulator:
         if agent_name:
             agent = self._agent_states[agent_name]
             assert isinstance(agent, MalSimDefenderState), (
-                "False positives only apply to defenders"
+                'False positives only apply to defenders'
             )
             false_positive_rates_rule = agent.false_positive_rates_rule
         return node_false_positive_rate(
@@ -276,7 +270,7 @@ class MalSimulator:
         if agent_name:
             agent = self._agent_states[agent_name]
             assert isinstance(agent, MalSimDefenderState), (
-                "False negatives only apply to defenders"
+                'False negatives only apply to defenders'
             )
             false_negative_rates_rule = agent.false_negative_rates_rule
         return node_false_negative_rate(
@@ -425,7 +419,7 @@ class MalSimulator:
                 defender_settings,
                 self.sim_state.global_rewards,
                 self.compromised_nodes,
-                self.rng
+                self.rng,
             )
         )
         self._agent_states = agent_states
@@ -437,7 +431,6 @@ class MalSimulator:
     def agent_states(self) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
         """Return read only agent state for all dead and alive agents"""
         return self._agent_states
-
 
     def _defender_is_terminated(self) -> bool:
         return defender_is_terminated(self._agent_states, self._alive_agents)
@@ -469,12 +462,12 @@ class MalSimulator:
 
 
 def create_simulator_from_scenario(
-        scenario: str | Scenario,
-        sim_settings: MalSimulatorSettings,
-        register_agents: bool = True,
-        send_to_api: bool = False,
-        **kwargs,
-    ):
+    scenario: str | Scenario,
+    sim_settings: MalSimulatorSettings,
+    register_agents: bool = True,
+    send_to_api: bool = False,
+    **kwargs: Any,
+) -> MalSimulator:
     if isinstance(scenario, str):
         # Load scenario if file was given
         scenario = Scenario.load_from_file(scenario)

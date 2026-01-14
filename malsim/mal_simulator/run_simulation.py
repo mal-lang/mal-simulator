@@ -1,4 +1,3 @@
-
 from typing import Optional
 from venv import logger
 from maltoolbox.attackgraph import AttackGraphNode

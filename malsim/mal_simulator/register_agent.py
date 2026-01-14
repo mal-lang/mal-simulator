@@ -10,13 +10,19 @@ from malsim.mal_simulator.agent_state import (
     MalSimAttackerState,
     MalSimDefenderState,
     get_defender_agents,
-    
 )
-from malsim.mal_simulator.agent_state_factories import initial_attacker_state, initial_defender_state
+from malsim.mal_simulator.agent_state_factories import (
+    initial_attacker_state,
+    initial_defender_state,
+)
 from malsim.mal_simulator.reset_agent import reset_agents
 from malsim.mal_simulator.rewards import attacker_step_reward, defender_step_reward
 from malsim.mal_simulator.simulator_state import MalSimulatorState
-from malsim.config.agent_settings import AgentSettings, AttackerSettings, DefenderSettings
+from malsim.config.agent_settings import (
+    AgentSettings,
+    AttackerSettings,
+    DefenderSettings,
+)
 
 
 def register_attacker_settings(
@@ -135,11 +141,9 @@ def register_defender_settings(
     agent_states[defender_settings.name] = agent_state
     alive_agents.add(defender_settings.name)
     agent_rewards[defender_settings.name] = defender_step_reward(
-        agent_settings,
         enabled_defenses_func,
         enabled_attacks_func,
         agent_state,
-        rewards,
     )
     return agent_states, alive_agents, agent_rewards, agent_settings
 
@@ -155,7 +159,7 @@ def register_defender(
     rewards: dict[AttackGraphNode, float],
     _compromised_nodes: set[AttackGraphNode],
     name: str,
-    rng,
+    rng: np.random.Generator,
 ) -> tuple[AgentStates, set[str], AgentRewards, AgentSettings]:
     """Register a mal sim defender agent without setting object"""
     defender_settings = DefenderSettings(name)
@@ -170,5 +174,5 @@ def register_defender(
         defender_settings,
         rewards,
         _compromised_nodes,
-        rng
+        rng,
     )

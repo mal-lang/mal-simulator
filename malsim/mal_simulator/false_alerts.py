@@ -8,6 +8,7 @@ import numpy as np
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
 
+
 def node_false_negative_rate(
     false_negative_rates_rule: Optional[NodePropertyRule],
     global_false_negative_rates: dict[AttackGraphNode, float],

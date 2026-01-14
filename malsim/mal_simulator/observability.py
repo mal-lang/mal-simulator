@@ -48,21 +48,19 @@ def defender_observed_nodes(
     observable_steps = set(
         n
         for n in compromised_nodes
-        if node_is_observable(
-            observability_rule, sim_state.global_observability, n
-        )
+        if node_is_observable(observability_rule, sim_state.global_observability, n)
     )
     false_negatives = generate_false_negatives(
         false_negative_rates_rule,
         sim_state.global_false_negative_rates,
         compromised_nodes,
-        rng 
+        rng,
     )
     false_positives = generate_false_positives(
         false_positive_rates_rule,
         sim_state.global_false_positive_rates,
         sim_state.attack_graph,
-        rng
+        rng,
     )
 
     observed_nodes = (observable_steps - false_negatives) | false_positives

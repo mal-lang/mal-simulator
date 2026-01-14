@@ -128,7 +128,8 @@ def test_attacker_episode() -> None:
                 == obs.steps.tags[node_idx]
             )
             assert (
-                attacker_env.sim.node_is_compromised(node) == obs.steps.compromised[node_idx]
+                attacker_env.sim.node_is_compromised(node)
+                == obs.steps.compromised[node_idx]
             )
             assert (
                 obs.steps.attempts is not None
@@ -175,7 +176,8 @@ def test_attacker_episode() -> None:
                 == obs.steps.tags[node_idx]
             )
             assert (
-                attacker_env.sim.node_is_compromised(node) == obs.steps.compromised[node_idx]
+                attacker_env.sim.node_is_compromised(node)
+                == obs.steps.compromised[node_idx]
             )
             assert (
                 obs.steps.attempts is not None

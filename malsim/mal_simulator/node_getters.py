@@ -1,6 +1,7 @@
 from typing import Any, Iterable, Optional
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
+
 def get_node(
     attack_graph: AttackGraph,
     full_name: Optional[str] = None,

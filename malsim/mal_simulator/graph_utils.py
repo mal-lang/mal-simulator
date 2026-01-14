@@ -13,9 +13,8 @@ from malsim.mal_simulator.agent_state import MalSimAttackerState, MalSimDefender
 if TYPE_CHECKING:
     from malsim.config.agent_settings import AgentSettings
 
-def node_is_viable(
-    sim_state: MalSimulatorState, node: AttackGraphNode | str
-) -> bool:
+
+def node_is_viable(sim_state: MalSimulatorState, node: AttackGraphNode | str) -> bool:
     """Get viability of a node"""
     node = full_name_or_node_to_node(sim_state.attack_graph, node)
     return sim_state.graph_state.viability_per_node[node]
@@ -63,8 +62,7 @@ def node_is_traversable(
         traversable = any(parent in performed_nodes for parent in node.parents)
     elif node.type == 'and':
         traversable = all(
-            parent in performed_nodes
-            or not node_is_necessary(sim_state, parent)
+            parent in performed_nodes or not node_is_necessary(sim_state, parent)
             for parent in node.parents
         )
     else:
@@ -92,7 +90,6 @@ def node_reward(
     agent: MalSimDefenderState | MalSimAttackerState,
     node: AttackGraphNode,
 ) -> float:
-
     if agent.reward_rule:
         # Node reward from agent settings
         return float(agent.reward_rule.value(node, 0.0))

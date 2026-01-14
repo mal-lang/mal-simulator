@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
+
 @dataclass
 class NodePropertyRule:
     """

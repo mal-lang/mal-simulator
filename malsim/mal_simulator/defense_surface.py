@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
     from malsim.mal_simulator.simulator_state import MalSimulatorState
 
+
 def get_defense_surface(
     sim_state: MalSimulatorState,
     agent_actionability_rule: Optional[NodePropertyRule],
@@ -22,11 +23,7 @@ def get_defense_surface(
     return {
         node
         for node in sim_state.attack_graph.defense_steps
-        if node_is_actionable(
-            agent_actionability_rule,
-            global_actionability,
-            node
-        )
+        if node_is_actionable(agent_actionability_rule, global_actionability, node)
         and node_is_viable(sim_state, node)
         and 'suppress' not in node.tags
     }

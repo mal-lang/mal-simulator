@@ -28,8 +28,7 @@ def defender_step_reward(
 
     # Defender is penalized for compromised steps and enabled defenses
     step_reward = -sum(
-        node_reward(defender_state, n)
-        for n in enabled_defenses | compromised_nodes
+        node_reward(defender_state, n) for n in enabled_defenses | compromised_nodes
     )
 
     return step_reward
@@ -56,10 +55,7 @@ def attacker_step_reward(
     action = attacker_state.step_attempted_nodes
 
     # Attacker is rewarded for compromised nodes
-    step_reward = sum(
-        node_reward(attacker_state, n)
-        for n in performed_steps
-    )
+    step_reward = sum(node_reward(attacker_state, n) for n in performed_steps)
 
     if ttc_mode != TTCMode.DISABLED:
         # If TTC Mode is not disabled, attacker is penalized for each attempt

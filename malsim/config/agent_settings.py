@@ -189,4 +189,5 @@ def agent_settings_from_dict(
         config=config,
     )
 
+
 AgentSettings = dict[str, AttackerSettings | DefenderSettings]

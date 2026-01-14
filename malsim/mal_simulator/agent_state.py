@@ -9,6 +9,7 @@ from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.ttc_utils import TTCDist
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
+
 @dataclass(frozen=True)
 class MalSimAgentState:
     """Stores the state of an agent in the simulator"""

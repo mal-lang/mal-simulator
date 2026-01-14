@@ -7,8 +7,8 @@ from maltoolbox.attackgraph import AttackGraphNode
 from maltoolbox.attackgraph import AttackGraph
 
 from malsim.mal_simulator.agent_state import get_attacker_agents, get_defender_agents
+from malsim.mal_simulator.node_getters import full_name_or_node_to_node
 from malsim.mal_simulator.settings import TTCMode
-from malsim.mal_simulator.graph_utils import full_name_or_node_to_node
 from malsim.mal_simulator.agent_state import MalSimAttackerState
 
 if TYPE_CHECKING:

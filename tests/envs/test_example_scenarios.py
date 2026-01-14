@@ -579,7 +579,7 @@ def test_traininglang_advanced_agents() -> None:
     while not sim.done():
         attacker_node = attacker_agent.get_next_action(attacker_state)
         defender_node = defender_agent.get_next_action(defender_state)
-        
+
         actions = {
             attacker_name: [attacker_node] if attacker_node else [],
             defender_name: [defender_node] if defender_node else [],

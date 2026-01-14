@@ -9,14 +9,17 @@ from malsim.mal_simulator.agent_state import (
     MalSimAttackerState,
     MalSimDefenderState,
 )
-from malsim.mal_simulator.agent_state_factories import initial_attacker_state, initial_defender_state
+from malsim.mal_simulator.agent_state_factories import (
+    initial_attacker_state,
+    initial_defender_state,
+)
 from malsim.mal_simulator.rewards import attacker_step_reward, defender_step_reward
 from malsim.mal_simulator.settings import MalSimulatorSettings
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 from malsim.config.agent_settings import (
     AgentSettings,
     AttackerSettings,
-    DefenderSettings
+    DefenderSettings,
 )
 
 
@@ -67,11 +70,9 @@ def reset_agents(
             )
             agent_states[defender_settings.name] = new_defender_state
             agent_rewards[defender_settings.name] = defender_step_reward(
-                agent_settings,
                 enabled_defenses_func,
                 enabled_attacks_func,
                 new_defender_state,
-                global_rewards,
             )
 
     return agent_states, alive_agents, agent_rewards

@@ -6,13 +6,9 @@ import pytest
 from typing import Any
 
 from maltoolbox.model import Model
-from malsim.config.agent_settings import AgentType
+from malsim.config.agent_settings import AgentType, AttackerSettings, DefenderSettings
 from malsim.config.node_property_rule import NodePropertyRule
-from malsim.scenario.scenario import (
-    Scenario,
-    AttackerSettings,
-    DefenderSettings,
-)
+from malsim.scenario.scenario import Scenario
 from malsim.policies import PassiveAgent, BreadthFirstAttacker
 
 from .conftest import get_node

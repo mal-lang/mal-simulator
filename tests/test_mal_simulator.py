@@ -17,7 +17,7 @@ from malsim.mal_simulator.defender_step import defender_is_terminated, defender_
 from malsim.mal_simulator import TTCDist
 from malsim import Scenario, run_simulation
 
-from malsim.scenario.scenario import AttackerSettings, DefenderSettings
+from malsim.config.agent_settings import AttackerSettings, DefenderSettings
 from malsim.mal_simulator.agent_state import get_attacker_agents, get_defender_agents
 
 from dataclasses import asdict
@@ -50,7 +50,9 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     necessity_before = {
         n.full_name: v for n, v in sim.sim_state.graph_state.necessity_per_node.items()
     }
-    enabled_defenses = {n.full_name for n in sim.sim_state.graph_state.pre_enabled_defenses}
+    enabled_defenses = {
+        n.full_name for n in sim.sim_state.graph_state.pre_enabled_defenses
+    }
     sim.register_attacker_settings(AttackerSettings(attacker_name, {agent_entry_point}))
     assert attacker_name in sim.agent_states
     assert len(sim.agent_states) == 1
@@ -191,8 +193,12 @@ def test_get_agents() -> None:
     sim = MalSimulator.from_scenario(scenario)
     sim.reset()
 
-    assert [a.name for a in get_attacker_agents(sim.agent_states, sim._alive_agents)] == ['Attacker1']
-    assert [a.name for a in get_defender_agents(sim.agent_states, sim._alive_agents)] == ['Defender1']
+    assert [
+        a.name for a in get_attacker_agents(sim.agent_states, sim._alive_agents)
+    ] == ['Attacker1']
+    assert [
+        a.name for a in get_defender_agents(sim.agent_states, sim._alive_agents)
+    ] == ['Defender1']
 
 
 def test_attacker_step(corelang_lang_graph: LanguageGraph, model: Model) -> None:
@@ -210,22 +216,12 @@ def test_attacker_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
 
     # Can not attack the notPresent step
     defense_step = get_node(attack_graph, 'OS App:notPresent')
-    actions, _ = attacker_step(
-        sim.sim_state,
-        attacker_agent,
-        [defense_step],
-        sim.rng
-    )
+    actions, _ = attacker_step(sim.sim_state, attacker_agent, [defense_step], sim.rng)
 
     assert not actions
 
     attack_step = get_node(attack_graph, 'OS App:attemptRead')
-    actions, _ = attacker_step(
-        sim.sim_state,
-        attacker_agent,
-        [attack_step],
-        sim.rng
-    )
+    actions, _ = attacker_step(sim.sim_state, attacker_agent, [attack_step], sim.rng)
     assert actions == [attack_step]
 
 
@@ -501,7 +497,9 @@ def test_simulation_done(corelang_lang_graph: LanguageGraph, model: Model) -> No
     assert isinstance(defender_state, MalSimDefenderState)
 
     assert not sim.done()  # simulation is done because truncated
-    assert not defender_is_terminated(sim._agent_states, sim._alive_agents)  # not terminated
+    assert not defender_is_terminated(
+        sim._agent_states, sim._alive_agents
+    )  # not terminated
     assert not attacker_is_terminated(attacker_state)  # not terminated
 
 
@@ -1203,7 +1201,10 @@ def test_simulator_attacker_override_ttcs_state() -> None:
     assert isinstance(bad_attacker_state, MalSimAttackerState)
 
     assert {
-        fn for fn in bad_attacker_settings.ttc_overrides.per_node(sim.sim_state.attack_graph)
+        fn
+        for fn in bad_attacker_settings.ttc_overrides.per_node(
+            sim.sim_state.attack_graph
+        )
     } == {
         'ComputerC:easyConnect',
         'ComputerA:easyConnect',
@@ -1349,7 +1350,10 @@ def test_simulator_picklable() -> None:
     assert restored.sim_settings == sim.sim_settings
 
     # Compare attack graph dicts
-    assert restored.sim_state.attack_graph._to_dict() == sim.sim_state.attack_graph._to_dict()
+    assert (
+        restored.sim_state.attack_graph._to_dict()
+        == sim.sim_state.attack_graph._to_dict()
+    )
 
 
 def test_scenario_advanced_agent_settings() -> None:
@@ -1421,5 +1425,11 @@ def test_active_defenses() -> None:
     )
 
     assert len(sim.sim_state.graph_state.pre_enabled_defenses) == 2
-    assert sim.get_node('Creds:notGuessable') in sim.sim_state.graph_state.pre_enabled_defenses
-    assert sim.get_node('Creds:notDisclosed') in sim.sim_state.graph_state.pre_enabled_defenses
+    assert (
+        sim.get_node('Creds:notGuessable')
+        in sim.sim_state.graph_state.pre_enabled_defenses
+    )
+    assert (
+        sim.get_node('Creds:notDisclosed')
+        in sim.sim_state.graph_state.pre_enabled_defenses
+    )

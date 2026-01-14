@@ -55,7 +55,9 @@ def get_attack_surface(
             if skip_unnecessary and not node_is_necessary(sim_state, child):
                 continue
 
-            if not node_is_actionable(agent_actionability_rule, global_actionability, child):
+            if not node_is_actionable(
+                agent_actionability_rule, global_actionability, child
+            ):
                 continue
 
             if node_is_traversable(sim_state, performed_nodes, child):
