@@ -13,7 +13,7 @@ from malsim.mal_simulator.agent_state_utils import initial_attacker_state, initi
 from malsim.mal_simulator.rewards import attacker_step_reward, defender_step_reward
 from malsim.mal_simulator.settings import MalSimulatorSettings
 from malsim.mal_simulator.simulator_state import MalSimulatorState
-from malsim.scenario.agent_settings import (
+from malsim.config.agent_settings import (
     AgentSettings,
     AttackerSettings,
     DefenderSettings
@@ -43,11 +43,7 @@ def reset_agents(
         if isinstance(attacker, AttackerSettings):
             # Get any overriding ttc settings from attacker settings
             new_attacker_state = initial_attacker_state(
-                sim_state,
-                agent_settings,
-                sim_settings.ttc_mode,
-                rng,
-                attacker,
+                sim_state, attacker, sim_settings.ttc_mode, rng
             )
             pre_compromised_nodes |= new_attacker_state.step_performed_nodes
             agent_states[attacker.name] = new_attacker_state
@@ -55,10 +51,8 @@ def reset_agents(
                 performed_attacks_func=performed_attacks_func,
                 attacker_state=new_attacker_state,
                 rng=rng,
-                agent_settings=agent_settings,
                 reward_mode=sim_settings.attacker_reward_mode,
                 ttc_mode=sim_settings.ttc_mode,
-                node_rewards=global_rewards,
             )
 
     # Create new defender agent states
@@ -66,11 +60,10 @@ def reset_agents(
         if isinstance(defender, DefenderSettings):
             new_defender_state = initial_defender_state(
                 sim_state,
-                agent_settings,
-                defender.name,
-                rng,
+                agent_settings[defender.name],
                 pre_compromised_nodes,
                 sim_state.graph_state.pre_enabled_defenses,
+                rng,
             )
             agent_states[defender.name] = new_defender_state
             agent_rewards[defender.name] = defender_step_reward(

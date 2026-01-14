@@ -13,7 +13,7 @@ from gymnasium.core import RenderFrame
 import numpy as np
 
 from malsim.scenario import Scenario
-from malsim.scenario.agent_settings import (
+from malsim.config.agent_settings import (
     AgentType,
     AttackerSettings,
     DefenderSettings,
@@ -21,7 +21,7 @@ from malsim.scenario.agent_settings import (
 
 from malsim.mal_simulator import MalSimulator
 from malsim.envs.legacy.malsim_vectorized_obs_env import MalSimVectorizedObsEnv
-from ...agents import DecisionAgent
+from ...policies import DecisionAgent
 
 
 class AttackerEnv(gym.Env[Any, Any]):

@@ -1,7 +1,7 @@
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.language import LanguageGraph
 from malsim.mal_simulator import MalSimulator, MalSimDefenderState
-from malsim.agents import (
+from malsim.policies import (
     DefendCompromisedDefender,
     DefendFutureCompromisedDefender,
     RandomAgent,

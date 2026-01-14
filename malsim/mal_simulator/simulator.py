@@ -34,7 +34,7 @@ from malsim.mal_simulator.false_alerts import (
     node_false_negative_rate,
     node_false_positive_rate,
 )
-from malsim.scenario.agent_settings import AgentSettings
+from malsim.config.agent_settings import AgentSettings
 from malsim.scenario.scenario import (
     AttackerSettings,
     DefenderSettings,
@@ -212,45 +212,75 @@ class MalSimulator:
         return done(self._alive_agents)
 
     def node_ttc_value(
-        self, node: AttackGraphNode | str, agent_name: Optional[str] = None
+        self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> float:
-        return node_ttc_value(
-            self.sim_state,
-            node,
-            self._agent_states[agent_name] if agent_name else None,
-        )
+        if not agent_name:
+            return self.sim_state.graph_state.ttc_values[node]
+        return node_ttc_value(self._agent_states[agent_name], node)
 
     def node_is_actionable(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> bool:
+        agent_actionability = None
+        if agent_name:
+            agent_actionability = self._agent_states[agent_name].actionability_rule
         return node_is_actionable(
-            self._agent_settings, self.sim_state.global_actionability, node, agent_name
+            agent_actionability,
+            self.sim_state.global_actionability,
+            node
         )
 
     def node_reward(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> float:
-        return node_reward(self._agent_settings, self.sim_state.global_rewards, node, agent_name)
+        if not agent_name:
+            return self.sim_state.global_rewards.get(node, 0)
+        else:
+            return node_reward(self._agent_states[agent_name], node)
 
     def node_is_observable(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> bool:
+        agent_observability = None
+        if agent_name:
+            agent = self._agent_states[agent_name]
+            assert isinstance(agent, MalSimDefenderState), (
+                "Observability only apply to defenders"
+            )
+            agent_observability = agent.observability_rule
+
         return node_is_observable(
-            self._agent_settings, self.sim_state.global_observability, node, agent_name
+            agent_observability,
+            self.sim_state.global_observability,
+            node
         )
 
     def node_false_positive_rate(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> float:
+        false_positive_rates_rule = None
+        if agent_name:
+            agent = self._agent_states[agent_name]
+            assert isinstance(agent, MalSimDefenderState), (
+                "False positives only apply to defenders"
+            )
+            false_positive_rates_rule = agent.false_positives_rule
         return node_false_positive_rate(
-            self._agent_settings, self.sim_state.global_false_positive_rates, node, agent_name
+            false_positive_rates_rule, self.sim_state.global_false_positive_rates, node
         )
 
     def node_false_negative_rate(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> float:
+        false_negative_rates_rule = None
+        if agent_name:
+            agent = self._agent_states[agent_name]
+            assert isinstance(agent, MalSimDefenderState), (
+                "False negatives only apply to defenders"
+            )
+            false_negative_rates_rule = agent.false_negatives_rule
         return node_false_negative_rate(
-            self._agent_settings, self.sim_state.global_false_negative_rates, node, agent_name
+            false_negative_rates_rule, self.sim_state.global_false_negative_rates, node
         )
 
     def node_is_viable(self, node: AttackGraphNode | str) -> bool:
@@ -660,7 +690,7 @@ def step(
         # Update attacker state
         updated_attacker_state = create_attacker_state(
             sim_state=sim_state,
-            agent_settings=agent_settings,
+            attacker_settings=agent_settings[attacker_state.name],
             name=attacker_state.name,
             entry_points=attacker_state.entry_points,
             goals=attacker_state.goals,
@@ -676,10 +706,8 @@ def step(
             performed_attacks_func,
             updated_attacker_state,
             rng,
-            agent_settings,
             sim_state.settings.attacker_reward_mode,
             sim_state.settings.ttc_mode,
-            sim_state.global_rewards,
         )
 
     # Update defender states and remove 'dead' agents of any type
@@ -690,8 +718,7 @@ def step(
             # Update defender state
             updated_defender_state = create_defender_state(
                 sim_state=sim_state,
-                agent_settings=agent_settings,
-                name=agent_state.name,
+                defender_settings=agent_settings[agent_name],
                 rng=rng,
                 step_compromised_nodes=set(step_compromised_nodes),
                 step_enabled_defenses=set(step_enabled_defenses),

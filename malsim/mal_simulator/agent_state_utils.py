@@ -24,18 +24,18 @@ from malsim.mal_simulator.ttc_utils import (
     attack_step_ttc_values,
     get_impossible_attack_steps
 )
-from malsim.scenario.agent_settings import AttackerSettings
+from malsim.config.agent_settings import AttackerSettings, DefenderSettings
 from malsim.mal_simulator.settings import TTCMode
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
-    from malsim.scenario.agent_settings import AgentSettings
+    from malsim.config.agent_settings import AgentSettings
     from malsim.mal_simulator.simulator_state import MalSimulatorState
     import numpy as np
 
 def create_attacker_state(
     sim_state: MalSimulatorState,
-    agent_settings: AgentSettings,
+    attacker_settings: AttackerSettings,
     name: str,
     entry_points: Set[AttackGraphNode],
     goals: Set[AttackGraphNode] = frozenset(),
@@ -62,9 +62,8 @@ def create_attacker_state(
         new_action_surface = get_attack_surface(
             sim_state.settings,
             sim_state,
-            agent_settings,
+            attacker_settings.actionable_steps,
             sim_state.global_actionability,
-            name,
             compromised_nodes
         )
         action_surface_removals: set[AttackGraphNode] = set()
@@ -90,9 +89,8 @@ def create_attacker_state(
             get_attack_surface(
                 sim_state.settings,
                 sim_state,
-                agent_settings,
+                attacker_settings.actionable_steps,
                 sim_state.global_actionability,
-                name,
                 compromised_nodes | step_compromised_nodes,
                 from_nodes=step_compromised_nodes,
             )
@@ -129,22 +127,23 @@ def create_attacker_state(
         ttc_value_overrides=MappingProxyType(ttc_value_overrides),
         impossible_step_overrides=frozenset(impossible_step_overrides),
         iteration=(previous_state.iteration + 1) if previous_state else 1,
+        reward_rule=attacker_settings.rewards,
+        actionability_rule=attacker_settings.rewards
     )
 
 
 def initial_attacker_state(
     sim_state: MalSimulatorState,
-    agent_settings: AgentSettings,
+    attacker_settings: AttackerSettings,
     ttc_mode: TTCMode,
     rng: np.random.Generator,
-    attacker_settings: AttackerSettings,
 ) -> MalSimAttackerState:
     """Create an attacker state from attacker settings"""
     ttc_overrides, ttc_value_overrides, impossible_steps = (
         attacker_overriding_ttc_settings(sim_state.attack_graph, attacker_settings, ttc_mode, rng)
     )
     return create_attacker_state(
-        agent_settings=agent_settings,
+        attacker_settings=attacker_settings,
         sim_state=sim_state,
         name=attacker_settings.name,
         entry_points=set(
@@ -159,8 +158,7 @@ def initial_attacker_state(
 
 def create_defender_state(
     sim_state: MalSimulatorState,
-    agent_settings: AgentSettings,
-    name: str,
+    defender_settings: DefenderSettings,
     rng: np.random.Generator,
     step_compromised_nodes: Set[AttackGraphNode] = frozenset(),
     step_enabled_defenses: Set[AttackGraphNode] = frozenset(),
@@ -173,10 +171,7 @@ def create_defender_state(
     """
 
     action_surface = get_defense_surface(
-        agent_settings,
-        sim_state,
-        sim_state.global_actionability,
-        name
+        sim_state, defender_settings.actionable_steps, sim_state.global_actionability
     )
 
     if previous_state is None:
@@ -195,10 +190,15 @@ def create_defender_state(
         action_surface -= previous_state.performed_nodes
 
     step_observed_nodes = defender_observed_nodes(
-        agent_settings, sim_state, rng, name, step_compromised_nodes
+        defender_settings.observable_steps,
+        defender_settings.false_positive_rates,
+        defender_settings.false_negative_rates,
+        sim_state,
+        rng,
+        step_compromised_nodes
     )
     return MalSimDefenderState(
-        name,
+        defender_settings.name,
         sim_state=sim_state,
         performed_nodes=frozenset(previous_enabled_defenses | step_enabled_defenses),
         compromised_nodes=frozenset(
@@ -213,6 +213,11 @@ def create_defender_state(
         step_performed_nodes=frozenset(step_enabled_defenses),
         step_unviable_nodes=frozenset(step_nodes_made_unviable),
         iteration=(previous_state.iteration + 1) if previous_state else 1,
+        reward_rule=defender_settings.rewards,
+        observability_rule=defender_settings.observable_steps,
+        actionability_rule=defender_settings.actionable_steps,
+        false_negatives_rule=defender_settings.false_negative_rates,
+        false_positives_rule=defender_settings.false_positive_rates,
     )
 
 
@@ -262,17 +267,15 @@ def attacker_overriding_ttc_settings(
 
 def initial_defender_state(
     sim_state: MalSimulatorState,
-    agent_settings: AgentSettings,
-    name: str,
-    rng: np.random.Generator,
+    defender_settings: DefenderSettings,
     pre_compromised_nodes: set[AttackGraphNode],
     pre_enabled_defenses: set[AttackGraphNode],
+    rng: np.random.Generator,
 ) -> MalSimDefenderState:
     """Create a defender state from defender settings"""
     return create_defender_state(
         sim_state=sim_state,
-        agent_settings=agent_settings,
-        name=name,
+        defender_settings=defender_settings,
         step_compromised_nodes=pre_compromised_nodes,
         step_enabled_defenses=pre_enabled_defenses,
         rng=rng,

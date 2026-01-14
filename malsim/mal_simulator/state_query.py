@@ -56,13 +56,12 @@ def compromised_nodes(
 
 
 def node_ttc_value(
-    sim_state: MalSimulatorState,
+    agent_state: MalSimAgentState,
     node: AttackGraphNode | str,
-    agent_state: Optional[MalSimAgentState] = None,
 ) -> float:
     """Return ttc value of node if it has been sampled"""
-    node = full_name_or_node_to_node(sim_state.attack_graph, node)
-    assert sim_state.settings.ttc_mode in (
+    node = full_name_or_node_to_node(agent_state.sim_state.attack_graph, node)
+    assert agent_state.sim_state.settings.ttc_mode in (
         TTCMode.PRE_SAMPLE,
         TTCMode.EXPECTED_VALUE,
     ), 'TTC value only when TTCMode is PRE_SAMPLE or EXPECTED_VALUE'
@@ -77,7 +76,7 @@ def node_ttc_value(
         if node in agent_state.ttc_value_overrides:
             return agent_state.ttc_value_overrides[node]
 
-    assert node in sim_state.graph_state.ttc_values, (
+    assert node in agent_state.sim_state.graph_state.ttc_values, (
         f'Node {node.full_name} does not have a ttc value'
     )
-    return sim_state.graph_state.ttc_values[node]
+    return agent_state.sim_state.graph_state.ttc_values[node]

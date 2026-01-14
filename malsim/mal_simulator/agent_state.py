@@ -1,10 +1,11 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional
 from types import MappingProxyType
 
 from maltoolbox.attackgraph import AttackGraphNode
 
+from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.ttc_utils import TTCDist
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
@@ -28,6 +29,7 @@ class MalSimAgentState:
     step_action_surface_removals: frozenset[AttackGraphNode]
     # Contains nodes that became unviable in the last step by defender actions
     step_unviable_nodes: frozenset[AttackGraphNode]
+    # The iteration this state was created in
     iteration: int
 
 
@@ -56,6 +58,10 @@ class MalSimAttackerState(MalSimAgentState):
     impossible_step_overrides: frozenset[AttackGraphNode] = field(
         default_factory=frozenset
     )  # Steps that are impossible to perform
+
+    # Agent specific rules for node properties
+    reward_rule: Optional[NodePropertyRule] = None
+    actionability_rule: Optional[NodePropertyRule] = None
 
     # Picklable
     def __getstate__(self) -> dict[str, Any]:
@@ -97,11 +103,12 @@ class MalSimDefenderState(MalSimAgentState):
     # Contains observed steps made by any attacker in last step
     step_observed_nodes: frozenset[AttackGraphNode]
 
-    @property
-    def step_all_compromised_nodes(self) -> None:
-        raise DeprecationWarning(
-            "Use 'step_compromised_nodes' instead of 'step_all_compromised_nodes'"
-        )
+    # Agent specific rules for node properties
+    reward_rule: Optional[NodePropertyRule] = None
+    actionability_rule: Optional[NodePropertyRule] = None
+    false_positives_rule: Optional[NodePropertyRule] = None
+    false_negatives_rule: Optional[NodePropertyRule] = None
+    observability_rule: Optional[NodePropertyRule] = None
 
 
 AgentStates = dict[str, MalSimAttackerState | MalSimDefenderState]

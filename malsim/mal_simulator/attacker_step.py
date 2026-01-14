@@ -20,7 +20,7 @@ from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 if TYPE_CHECKING:
     from malsim.mal_simulator.agent_state import MalSimAttackerState
-    from malsim.scenario.agent_settings import AgentSettings
+    from malsim.config.agent_settings import AgentSettings
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ def attempt_attacker_step(
     # Compare attempts to ttc expected value in EXPECTED_VALUE mode
     # or presampled ttcs in PRE_SAMPLE mode
     elif ttc_mode in (TTCMode.EXPECTED_VALUE, TTCMode.PRE_SAMPLE):
-        _node_ttc_value = node_ttc_value(sim_state, node, agent)
+        _node_ttc_value = node_ttc_value(agent, node)
         return num_attempts + 1 >= _node_ttc_value
 
     else:
@@ -135,7 +135,7 @@ def attacker_step(
                     'Attacker agent "%s" compromised "%s" (reward: %d).',
                     agent.name,
                     node.full_name,
-                    node_reward(agent_settings, sim_state.global_rewards, node, agent.name),
+                    node_reward(agent, node),
                 )
             else:
                 logger.info(

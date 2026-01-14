@@ -7,7 +7,7 @@ from malsim.mal_simulator.agent_state import MalSimAttackerState, MalSimDefender
 from malsim.mal_simulator.graph_utils import node_reward
 from malsim.mal_simulator.settings import RewardMode, TTCMode
 from malsim.mal_simulator.ttc_utils import TTCDist
-from malsim.scenario.agent_settings import AgentSettings
+from malsim.config.agent_settings import AgentSettings
 
 
 def defender_step_reward(
@@ -31,7 +31,7 @@ def defender_step_reward(
 
     # Defender is penalized for compromised steps and enabled defenses
     step_reward = -sum(
-        node_reward(agent_settings, rewards, n, defender_state.name)
+        node_reward(defender_state, n)
         for n in enabled_defenses | compromised_nodes
     )
 
@@ -42,10 +42,8 @@ def attacker_step_reward(
     performed_attacks_func: Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
     attacker_state: MalSimAttackerState,
     rng: np.random.Generator,
-    agent_settings: AgentSettings,
     reward_mode: RewardMode,
     ttc_mode: TTCMode,
-    node_rewards: dict[AttackGraphNode, float],
 ) -> float:
     """
     Calculate current attacker reward either cumulative or one-off.
@@ -62,7 +60,7 @@ def attacker_step_reward(
 
     # Attacker is rewarded for compromised nodes
     step_reward = sum(
-        node_reward(agent_settings, node_rewards, n, attacker_state.name)
+        node_reward(attacker_state, n)
         for n in performed_steps
     )
 

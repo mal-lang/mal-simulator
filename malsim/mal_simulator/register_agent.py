@@ -16,7 +16,7 @@ from malsim.mal_simulator.agent_state_utils import initial_attacker_state, initi
 from malsim.mal_simulator.reset_agent import reset_agents
 from malsim.mal_simulator.rewards import attacker_step_reward, defender_step_reward
 from malsim.mal_simulator.simulator_state import MalSimulatorState
-from malsim.scenario.agent_settings import AgentSettings, AttackerSettings, DefenderSettings
+from malsim.config.agent_settings import AgentSettings, AttackerSettings, DefenderSettings
 
 
 def register_attacker_settings(
@@ -40,17 +40,15 @@ def register_attacker_settings(
     agent_settings[attacker_settings.name] = attacker_settings
 
     agent_state = initial_attacker_state(
-        sim_state, agent_settings, sim_state.settings.ttc_mode, sim_rng, attacker_settings
+        sim_state, attacker_settings, sim_state.settings.ttc_mode, sim_rng
     )
     agent_states[attacker_settings.name] = agent_state
     agent_rewards[attacker_settings.name] = attacker_step_reward(
         performed_attacks_func,
         agent_state,
         sim_rng,
-        agent_settings,
         sim_state.settings.attacker_reward_mode,
         sim_state.settings.ttc_mode,
-        node_rewards,
     )
 
     if len(get_defender_agents(agent_states, alive_agents)) > 0:
@@ -129,11 +127,10 @@ def register_defender_settings(
 
     agent_state = initial_defender_state(
         sim_state,
-        agent_settings,
-        defender_settings.name,
-        rng,
+        defender_settings,
         compromised_nodes,
         sim_state.graph_state.pre_enabled_defenses,
+        rng,
     )
     agent_states[defender_settings.name] = agent_state
     alive_agents.add(defender_settings.name)

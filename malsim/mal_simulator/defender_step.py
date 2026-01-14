@@ -15,7 +15,7 @@ if TYPE_CHECKING:
         AgentStates,
         MalSimDefenderState,
     )
-    from malsim.scenario.agent_settings import AgentSettings
+    from malsim.config.agent_settings import AgentSettings
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ def defender_step(
                 'Defender agent "%s" enabled "%s" (reward: %d).',
                 agent.name,
                 node.full_name,
-                node_reward(agent_settings, sim_state.global_rewards, node, agent.name),
+                node_reward(agent, node),
             )
 
     return enabled_defenses, attack_steps_made_unviable

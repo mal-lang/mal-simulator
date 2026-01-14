@@ -3,8 +3,8 @@ from typing import Optional
 from venv import logger
 from maltoolbox.attackgraph import AttackGraphNode
 
-from malsim.agents.decision_agent import DecisionAgent
-from malsim.scenario.agent_settings import AgentSettings
+from malsim.policies.decision_agent import DecisionAgent
+from malsim.config.agent_settings import AgentSettings
 from malsim.mal_simulator.simulator import MalSimulator
 
 

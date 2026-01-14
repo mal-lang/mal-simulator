@@ -139,7 +139,7 @@ def get_shortest_paths_for_attacker(
 ) -> dict[AttackGraphNode, list[AttackGraphNode]]:
     """Return shortest path for each of the attackers goals"""
     ttc_values = {
-        n: node_ttc_value(attacker_state.sim_state, n)
+        n: node_ttc_value(attacker_state, n)
         for n in attacker_state.sim_state.attack_graph.nodes.values()
         if n.type in ('or', 'and')
     }

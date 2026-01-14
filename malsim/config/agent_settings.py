@@ -5,10 +5,9 @@ from enum import Enum
 from typing import Any, Optional
 
 from maltoolbox.attackgraph import AttackGraphNode
+from malsim.config.node_property_rule import NodePropertyRule
 
-from malsim.scenario.node_property_rule import NodePropertyRule
-
-from malsim.agents import (
+from malsim.policies import (
     BreadthFirstAttacker,
     DepthFirstAttacker,
     KeyboardAgent,

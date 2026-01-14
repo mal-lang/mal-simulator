@@ -23,12 +23,12 @@ from maltoolbox.model import Model
 from maltoolbox.language import LanguageGraph
 from maltoolbox.attackgraph import create_attack_graph
 
-from malsim.scenario.agent_settings import (
+from malsim.config.agent_settings import (
     DefenderSettings,
     AttackerSettings,
     agent_settings_from_dict,
 )
-from malsim.scenario.node_property_rule import NodePropertyRule
+from malsim.config.node_property_rule import NodePropertyRule
 
 
 logger = logging.getLogger(__name__)

@@ -6,6 +6,8 @@ from __future__ import annotations
 from typing import Any, Optional, TYPE_CHECKING
 import random
 import numpy as np
+
+from malsim.mal_simulator.state_query import node_ttc_value
 # from malsim.mal_simulator.state_query import node_ttc_value
 
 if TYPE_CHECKING:
@@ -31,12 +33,7 @@ class TTCSoftMinAttacker:
             return None
 
         ttcs_left = [
-            node_ttc_value(
-                agent_state.sim_state,
-                agent_state.sim_state.settings.ttc_mode,
-                n,
-                agent_state
-            ) - agent_state.num_attempts[n]
+            node_ttc_value(agent_state, n) - agent_state.num_attempts[n]
             for n in possible_choices
         ]
 

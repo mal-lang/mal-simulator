@@ -18,7 +18,7 @@ from pettingzoo.test import parallel_api_test
 
 from malsim.envs import MalSimVectorizedObsEnv, AttackerEnv, DefenderEnv
 from malsim.envs.legacy.gym_envs import MaskingWrapper
-from malsim.agents.attackers.searchers import BreadthFirstAttacker, DepthFirstAttacker
+from malsim.policies.attackers.searchers import BreadthFirstAttacker, DepthFirstAttacker
 
 logger = logging.getLogger(__name__)
 

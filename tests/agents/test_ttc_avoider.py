@@ -1,6 +1,6 @@
 from malsim import MalSimulator, Scenario, MalSimulatorSettings
 from malsim.mal_simulator import TTCMode, MalSimAttackerState
-from malsim.agents import TTCSoftMinAttacker
+from malsim.policies import TTCSoftMinAttacker
 
 
 def test_ttc_avoider() -> None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 from collections.abc import Set
 
+from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.graph_utils import (
     node_is_actionable,
     node_is_necessary,
@@ -10,7 +11,6 @@ from malsim.mal_simulator.graph_utils import (
 )
 
 if TYPE_CHECKING:
-    from malsim.scenario.agent_settings import AgentSettings
     from maltoolbox.attackgraph import AttackGraphNode
     from malsim.mal_simulator.settings import MalSimulatorSettings
     from malsim.mal_simulator.simulator_state import MalSimulatorState
@@ -19,9 +19,8 @@ if TYPE_CHECKING:
 def get_attack_surface(
     sim_settings: MalSimulatorSettings,
     sim_state: MalSimulatorState,
-    agent_settings: AgentSettings,
-    global_actionabilities: dict[AttackGraphNode, bool],
-    agent_name: str,
+    agent_actionability_rule: Optional[NodePropertyRule],
+    global_actionability: dict[AttackGraphNode, bool],
     performed_nodes: Set[AttackGraphNode],
     from_nodes: Optional[Set[AttackGraphNode]] = None,
 ) -> frozenset[AttackGraphNode]:
@@ -56,9 +55,7 @@ def get_attack_surface(
             if skip_unnecessary and not node_is_necessary(sim_state, child):
                 continue
 
-            if not node_is_actionable(
-                agent_settings, global_actionabilities, child, agent_name
-            ):
+            if not node_is_actionable(agent_actionability_rule, global_actionability, child):
                 continue
 
             if node_is_traversable(sim_state, performed_nodes, child):

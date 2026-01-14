@@ -5,13 +5,13 @@ from collections.abc import Set
 from typing import Optional, TYPE_CHECKING
 
 from maltoolbox.attackgraph import AttackGraphNode
+from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.node_getters import full_name_or_node_to_node
-
-from malsim.scenario.agent_settings import DefenderSettings
 from malsim.mal_simulator.simulator_state import MalSimulatorState
+from malsim.mal_simulator.agent_state import MalSimAttackerState, MalSimDefenderState
 
 if TYPE_CHECKING:
-    from malsim.scenario.agent_settings import AgentSettings
+    from malsim.config.agent_settings import AgentSettings
 
 def node_is_viable(
     sim_state: MalSimulatorState, node: AttackGraphNode | str
@@ -75,32 +75,28 @@ def node_is_traversable(
 
 
 def node_is_actionable(
-    agent_settings: AgentSettings,
-    node_actionabilities: dict[AttackGraphNode, bool],
+    agent_actionability_rule: Optional[NodePropertyRule],
+    global_actionability: dict[AttackGraphNode, bool],
     node: AttackGraphNode,
-    agent_name: Optional[str] = None,
 ) -> bool:
-    _agent_settings = agent_settings[agent_name] if agent_name else None
-    if _agent_settings and _agent_settings.actionable_steps:
+    if agent_actionability_rule:
         # Actionability from agent settings
-        return bool(_agent_settings.actionable_steps.value(node, False))
-    if node_actionabilities:
+        return bool(agent_actionability_rule.value(node, False))
+    if global_actionability:
         # Actionability from global settings
-        return node_actionabilities.get(node, False)
+        return global_actionability.get(node, False)
     return True
 
 
 def node_reward(
-    agent_settings: AgentSettings,
-    global_rewards: dict[AttackGraphNode, float],
+    agent: MalSimDefenderState | MalSimAttackerState,
     node: AttackGraphNode,
-    agent_name: Optional[str] = None,
 ) -> float:
-    _agent_settings = agent_settings[agent_name] if agent_name else None
-    if _agent_settings and _agent_settings.rewards:
+
+    if agent.reward_rule:
         # Node reward from agent settings
-        return float(_agent_settings.rewards.value(node, 0.0))
-    if global_rewards:
+        return float(agent.reward_rule.value(node, 0.0))
+    if agent.sim_state.global_rewards:
         # Node reward from global settings
-        return global_rewards.get(node, 0.0)
+        return agent.sim_state.global_rewards.get(node, 0.0)
     return 0.0
