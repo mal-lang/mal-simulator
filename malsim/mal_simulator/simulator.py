@@ -38,7 +38,12 @@ from malsim.mal_simulator.false_alerts import (
     node_false_positive_rate,
 )
 from malsim.config.agent_settings import AttackerSettings, DefenderSettings
-from malsim.mal_simulator.types import AgentRewards, AgentStates, AgentSettings, Recording
+from malsim.mal_simulator.types import (
+    AgentRewards,
+    AgentStates,
+    AgentSettings,
+    Recording,
+)
 from malsim.scenario.scenario import Scenario
 from malsim.mal_simulator.attacker_state_factories import create_attacker_state
 from malsim.mal_simulator.defender_state_factories import create_defender_state
@@ -92,6 +97,7 @@ ENABLED_ATTACKS_FUNCS: Mapping[
     # only newly performed attacks
     RewardMode.ONE_OFF: lambda ds: ds.step_compromised_nodes,
 }
+
 
 class MalSimulator:
     """A MAL Simulator that works on the AttackGraph
