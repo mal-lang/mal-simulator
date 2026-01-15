@@ -1,6 +1,6 @@
 from malsim.mal_simulator import MalSimulator, MalSimulatorSettings, TTCMode
-from malsim.agents import get_shortest_path_to
-from malsim.scenario import Scenario
+from malsim.policies import get_shortest_path_to
+from malsim.scenario.scenario import Scenario
 
 import numpy as np
 
@@ -17,10 +17,10 @@ def test_path_finding() -> None:
     agent_state = sim.agent_states['path_finder']
 
     path = get_shortest_path_to(
-        sim.attack_graph,
+        sim.sim_state.attack_graph,
         list(agent_state.performed_nodes),
         data_2_read,
-        ttc_values={n: 1.0 for n in sim.attack_graph.nodes.values()},
+        ttc_values={n: 1.0 for n in sim.sim_state.attack_graph.nodes.values()},
     )
     assert [n.full_name for n in path] == ['Host:0:access', 'Data:2:read']
 
@@ -38,7 +38,7 @@ def test_path_finding_ttc_lang() -> None:
     goal = sim.get_node('DataD:read')
     ttc_values = {
         n: sim.node_ttc_value(n)
-        for n in sim.attack_graph.nodes.values()
+        for n in sim.sim_state.attack_graph.nodes.values()
         if n.type in ('or', 'and')
     }
 
@@ -46,7 +46,7 @@ def test_path_finding_ttc_lang() -> None:
     sim.register_attacker('path_finder', {entry_point}, {goal})
 
     path = get_shortest_path_to(
-        sim.attack_graph, [entry_point], goal, ttc_values=ttc_values
+        sim.sim_state.attack_graph, [entry_point], goal, ttc_values=ttc_values
     )
 
     assert path

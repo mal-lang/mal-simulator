@@ -19,7 +19,7 @@ from malsim.envs.graph.mal_spaces import (
     MALObsAttackStepSpace,
     MALObsInstance,
 )
-from malsim.scenario import Scenario
+from malsim.scenario.scenario import Scenario
 from typing import Any
 from malsim.mal_simulator import (
     MalSimulatorSettings,
@@ -108,7 +108,7 @@ def test_attacker_episode() -> None:
         }
         visible_steps = {
             node
-            for node in state.sim.attack_graph.nodes.values()
+            for node in state.sim_state.attack_graph.nodes.values()
             if node.model_asset in visible_assets and node.type in ('and', 'or')
         }
         for node in visible_steps:
@@ -128,7 +128,8 @@ def test_attacker_episode() -> None:
                 == obs.steps.tags[node_idx]
             )
             assert (
-                state.sim.node_is_compromised(node) == obs.steps.compromised[node_idx]
+                attacker_env.sim.node_is_compromised(node)
+                == obs.steps.compromised[node_idx]
             )
             assert (
                 obs.steps.attempts is not None
@@ -155,7 +156,7 @@ def test_attacker_episode() -> None:
         }
         visible_steps = {
             node
-            for node in state.sim.attack_graph.nodes.values()
+            for node in state.sim_state.attack_graph.nodes.values()
             if node.model_asset in visible_assets and node.type in ('and', 'or')
         }
         for node in visible_steps:
@@ -175,7 +176,8 @@ def test_attacker_episode() -> None:
                 == obs.steps.tags[node_idx]
             )
             assert (
-                state.sim.node_is_compromised(node) == obs.steps.compromised[node_idx]
+                attacker_env.sim.node_is_compromised(node)
+                == obs.steps.compromised[node_idx]
             )
             assert (
                 obs.steps.attempts is not None

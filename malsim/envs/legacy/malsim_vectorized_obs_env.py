@@ -38,7 +38,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
 
     def __init__(self, sim: MalSimulator):
         self.sim = sim
-        self.attack_graph = sim.attack_graph
+        self.attack_graph = sim.sim_state.attack_graph
         assert self.attack_graph.model, (
             'Attack graph in simulator needs to have a model attached to it'
         )
@@ -106,7 +106,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
     def _create_blank_observation(self, default_obs_state: int = -1) -> dict[str, Any]:
         """Create the initial observation"""
         # For now, an `object` is an attack step
-        num_steps = len(self.sim.attack_graph.nodes)
+        num_steps = len(self.sim.sim_state.attack_graph.nodes)
 
         observation: dict[str, Any] = {
             # If no observability set for node, assume observable.
@@ -223,7 +223,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
             A dictionary with the action mask for the agent.
         """
 
-        available_actions = [0] * len(self.sim.attack_graph.nodes)
+        available_actions = [0] * len(self.sim.sim_state.attack_graph.nodes)
         can_wait = 1 if isinstance(agent_state, MalSimDefenderState) else 0
         can_act = 0
 
@@ -257,7 +257,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
     def action_space(self, agent: Optional[str] = None) -> MultiDiscrete:
         num_actions = 2  # two actions: wait or use
         # For now, an `object` is an attack step
-        num_steps = len(self.sim.attack_graph.nodes)
+        num_steps = len(self.sim.sim_state.attack_graph.nodes)
         return MultiDiscrete([num_actions, num_steps], dtype=np.int64)
 
     @functools.lru_cache(maxsize=None)
@@ -268,15 +268,15 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         )
         num_assets = len(self.attack_graph.model.assets)
         num_steps = len(self.attack_graph.nodes)
-        num_lang_asset_types = len(self.sim.attack_graph.lang_graph.assets)
+        num_lang_asset_types = len(self.sim.sim_state.attack_graph.lang_graph.assets)
 
         unique_step_types = set()
-        for asset_type in self.sim.attack_graph.lang_graph.assets.values():
+        for asset_type in self.sim.sim_state.attack_graph.lang_graph.assets.values():
             unique_step_types |= set(asset_type.attack_steps.values())
         num_lang_attack_steps = len(unique_step_types)
 
         unique_assoc_type_names = set()
-        for asset_type in self.sim.attack_graph.lang_graph.assets.values():
+        for asset_type in self.sim.sim_state.attack_graph.lang_graph.assets.values():
             for assoc_type in asset_type.associations.values():
                 unique_assoc_type_names.add(assoc_type.full_name)
         num_lang_association_types = len(unique_assoc_type_names)
@@ -370,7 +370,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
             )
 
         node_id = self._index_to_id[index]
-        node = self.sim.attack_graph.nodes[node_id]
+        node = self.sim.sim_state.attack_graph.nodes[node_id]
         if not node:
             raise LookupError(f'Index {index} (id: {node_id}), does not map to a node')
         return node
@@ -492,7 +492,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         if seed is not None:
             self.sim.sim_settings.seed = seed
         self.sim.reset()
-        self.attack_graph = self.sim.attack_graph  # new ref
+        self.attack_graph = self.sim.sim_state.attack_graph  # new ref
         assert self.attack_graph.model, (
             'Attack graph in simulator needs to have a model attached to it'
         )

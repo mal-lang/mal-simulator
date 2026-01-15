@@ -4,7 +4,7 @@ Script that takes a scenario file and converts the rewards from the old format
 """
 
 from malsim.mal_simulator import MalSimulator, run_simulation
-from malsim.scenario import Scenario, path_relative_to_file_dir
+from malsim.scenario.scenario import Scenario, path_relative_to_file_dir
 import yaml
 
 

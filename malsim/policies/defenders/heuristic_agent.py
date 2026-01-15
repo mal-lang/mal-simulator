@@ -5,6 +5,8 @@ import math
 
 import numpy as np
 
+from malsim.mal_simulator.graph_utils import node_reward
+
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
     from ...mal_simulator import MalSimDefenderState
@@ -45,7 +47,7 @@ class DefendCompromisedDefender:
             if node in self.compromised_nodes:
                 continue
 
-            node_cost = agent_state.sim.node_reward(node, agent_name=agent_state.name)
+            node_cost = node_reward(agent_state, node)
 
             # Strategy:
             # - Enabled the cheapest defense node
@@ -95,7 +97,7 @@ class DefendFutureCompromisedDefender:
             if node in self.compromised_nodes:
                 continue
 
-            node_cost = agent_state.sim.node_reward(node, agent_name=agent_state.name)
+            node_cost = node_reward(agent_state, node)
 
             # Strategy:
             # - Enabled the cheapest defense node

@@ -9,14 +9,14 @@ from malsim.mal_simulator import (
     run_simulation,
     TTCMode,
 )
-from malsim.scenario import (
+from malsim.scenario.scenario import (
     Scenario,
     AttackerSettings,
     DefenderSettings,
-    TTCSoftMinAttacker,
-    PassiveAgent,
     NodePropertyRule,
 )
+
+from malsim.policies import TTCSoftMinAttacker, PassiveAgent
 
 
 def test_run_scenario_ttc_soft_min_attacker() -> None:

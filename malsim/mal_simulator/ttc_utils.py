@@ -9,7 +9,7 @@ from typing import Any, Iterable, Optional, TYPE_CHECKING
 
 import numpy as np
 from scipy.stats import expon, gamma, binom, lognorm, uniform, bernoulli
-from malsim.mal_simulator.settings import TTCMode
+from malsim.config.sim_settings import TTCMode
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode

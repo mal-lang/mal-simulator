@@ -6,8 +6,8 @@ from maltoolbox.model import Model
 from maltoolbox.language import LanguageGraph
 
 from malsim import MalSimulator, run_simulation
-from malsim.scenario import Scenario, AttackerSettings, DefenderSettings
-from malsim.agents import BreadthFirstAttacker, PassiveAgent
+from malsim.scenario.scenario import Scenario, AttackerSettings, DefenderSettings
+from malsim.policies import BreadthFirstAttacker, PassiveAgent
 
 
 def test_scenario_obj_files() -> None:

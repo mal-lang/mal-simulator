@@ -1,3 +1,5 @@
+"""Dataclass and function to store and create graph state used in the simulator"""
+
 from __future__ import annotations
 from typing import TYPE_CHECKING
 from dataclasses import dataclass
@@ -14,11 +16,13 @@ from malsim.mal_simulator.graph_processing import (
 )
 
 if TYPE_CHECKING:
-    from malsim.mal_simulator.settings import MalSimulatorSettings
+    from malsim.config.sim_settings import MalSimulatorSettings
 
 
 @dataclass
 class GraphState:
+    """Dataclass containing simulator specific graph state"""
+
     ttc_values: dict[AttackGraphNode, float]
     pre_enabled_defenses: set[AttackGraphNode]
     impossible_attack_steps: set[AttackGraphNode]

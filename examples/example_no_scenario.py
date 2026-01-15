@@ -11,7 +11,7 @@ from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.model import Model
 
 from malsim.mal_simulator import MalSimulator, MalSimDefenderState, MalSimAttackerState
-from malsim.agents import BreadthFirstAttacker, DefendFutureCompromisedDefender
+from malsim.policies import BreadthFirstAttacker, DefendFutureCompromisedDefender
 
 
 def test_example_no_scenario() -> None:

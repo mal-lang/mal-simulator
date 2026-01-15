@@ -11,7 +11,10 @@ from .mal_spaces import (
 )
 from .utils import create_full_obs, full_obs2attacker_obs, full_obs2defender_obs
 from os import PathLike
-from malsim.scenario import AgentType, Scenario
+
+from malsim.scenario.scenario import Scenario
+from malsim.config.agent_settings import AgentType
+
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
@@ -206,7 +209,7 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
     ):
         self.see_def_steps = attacker_visible_defense_steps
         self.sim = simulator
-        self.attack_graph = self.sim.attack_graph
+        self.attack_graph = self.sim.sim_state.attack_graph
         self.lang_serializer = LangSerializer(
             self.attack_graph.lang_graph, split_assoc_types=False, split_step_types=True
         )

@@ -138,7 +138,7 @@ env = AttackerGraphEnv(scenario, sim_settings)
 # Wrap to use asset-action tuple space
 wrapped_env = AssetThenActionWrapper(
     env,
-    model=env.sim.attack_graph.model,
+    model=env.sim.sim_state.attack_graph.model,
     lang_serializer=env.multi_env.lang_serializer
 )
 

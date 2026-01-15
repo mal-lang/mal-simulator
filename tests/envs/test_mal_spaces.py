@@ -15,7 +15,8 @@ from malsim.envs.graph.utils import (
     full_obs2attacker_obs,
     full_obs2defender_obs,
 )
-from malsim.scenario import Scenario, AgentType
+from malsim.config.agent_settings import AgentType
+from malsim.scenario.scenario import Scenario
 from malsim.mal_simulator import MalSimulator, MalSimAttackerState, MalSimDefenderState
 
 
@@ -204,7 +205,7 @@ def test_asset_then_attacker_action() -> None:
         scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
-    model = sim.attack_graph.model
+    model = sim.sim_state.attack_graph.model
     assert model is not None, 'Attack graph needs to have a model attached to it'
     full_obs = create_full_obs(sim, serializer)
 
@@ -248,7 +249,7 @@ def test_asset_then_defender_action() -> None:
         scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
-    model = sim.attack_graph.model
+    model = sim.sim_state.attack_graph.model
     assert model is not None, 'Attack graph needs to have a model attached to it'
     full_obs = create_full_obs(sim, serializer)
 
@@ -292,7 +293,7 @@ def test_attacker_action_then_asset() -> None:
         scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
-    model = sim.attack_graph.model
+    model = sim.sim_state.attack_graph.model
     assert model is not None, 'Attack graph needs to have a model attached to it'
     full_obs = create_full_obs(sim, serializer)
 
@@ -336,7 +337,7 @@ def test_defender_action_then_asset() -> None:
         scenario.lang_graph, split_assoc_types=False, split_step_types=True
     )
     sim = MalSimulator.from_scenario(scenario)
-    model = sim.attack_graph.model
+    model = sim.sim_state.attack_graph.model
     assert model is not None, 'Attack graph needs to have a model attached to it'
     full_obs = create_full_obs(sim, serializer)
 

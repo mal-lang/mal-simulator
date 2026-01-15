@@ -1,7 +1,7 @@
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.language import LanguageGraph
 from malsim.mal_simulator import MalSimulator
-from malsim.agents import BreadthFirstAttacker, DepthFirstAttacker
+from malsim.policies import BreadthFirstAttacker, DepthFirstAttacker
 
 
 def test_breadth_first_traversal_simple(dummy_lang_graph: LanguageGraph) -> None:

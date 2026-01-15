@@ -5,7 +5,7 @@ import argparse
 import logging
 
 from .mal_simulator import MalSimulator, MalSimulatorSettings, run_simulation, TTCMode
-from .scenario import Scenario
+from .scenario.scenario import Scenario
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ def main() -> None:
     )
 
     if args.output_attack_graph:
-        sim.attack_graph.save_to_file(args.output_attack_graph)
+        sim.sim_state.attack_graph.save_to_file(args.output_attack_graph)
 
     run_simulation(sim, scenario.agent_settings)
 
