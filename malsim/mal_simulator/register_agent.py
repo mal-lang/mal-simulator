@@ -51,14 +51,12 @@ def register_attacker_settings(
         # Need to reset defender agents when attacker agent is added
         # Since the defender stores attackers performed steps/entrypoints
         agent_states, alive_agents, agent_rewards = reset_agents(
-            sim_rng,
             sim_state,
             agent_settings,
-            sim_state.settings,
             performed_attacks_func,
             enabled_defenses_func,
             enabled_attacks_func,
-            node_rewards,
+            sim_rng,
         )
     return agent_states, alive_agents, agent_rewards, agent_settings
 

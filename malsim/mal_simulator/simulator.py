@@ -554,14 +554,12 @@ def reset(
 
     recording: Recording = defaultdict(dict)
     agent_states, alive_agents, agent_rewards = reset_agents(
-        rng,
         sim_state,
         agent_settings,
-        sim_settings,
         performed_attacks_func,
         enabled_defenses_func,
         enabled_attacks_func,
-        node_rewards,
+        rng,
     )
     # Upload initial state to the REST API
     if rest_api_client:
