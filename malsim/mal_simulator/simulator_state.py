@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
-from malsim.mal_simulator.settings import MalSimulatorSettings
+from malsim.config.sim_settings import MalSimulatorSettings
 from malsim.mal_simulator.graph_state import GraphState
 
 

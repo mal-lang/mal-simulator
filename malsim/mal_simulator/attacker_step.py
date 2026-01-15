@@ -12,7 +12,7 @@ from malsim.mal_simulator.graph_utils import (
     node_reward,
 )
 from malsim.mal_simulator.state_query import node_ttc_value
-from malsim.mal_simulator.settings import TTCMode
+from malsim.config.sim_settings import TTCMode
 from malsim.mal_simulator.ttc_utils import (
     TTCDist,
 )

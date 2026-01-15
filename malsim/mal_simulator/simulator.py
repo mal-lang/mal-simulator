@@ -48,7 +48,7 @@ from malsim.scenario.scenario import Scenario
 from malsim.mal_simulator.attacker_state_factories import create_attacker_state
 from malsim.mal_simulator.defender_state_factories import create_defender_state
 from malsim.mal_simulator.simulator_state import MalSimulatorState
-from malsim.mal_simulator.settings import MalSimulatorSettings, RewardMode
+from malsim.config.sim_settings import MalSimulatorSettings, RewardMode
 from malsim.mal_simulator.graph_state import GraphState, compute_initial_graph_state
 from malsim.mal_simulator.graph_utils import (
     node_is_actionable,

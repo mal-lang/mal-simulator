@@ -19,7 +19,7 @@ from malsim.mal_simulator.ttc_utils import (
     get_impossible_attack_steps,
 )
 from malsim.config.agent_settings import AttackerSettings
-from malsim.mal_simulator.settings import TTCMode
+from malsim.config.sim_settings import TTCMode
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraph, AttackGraphNode

@@ -6,7 +6,7 @@ import numpy as np
 from malsim.mal_simulator.defender_state import MalSimDefenderState
 from malsim.mal_simulator.attacker_state import MalSimAttackerState
 from malsim.mal_simulator.graph_utils import node_reward
-from malsim.mal_simulator.settings import RewardMode, TTCMode
+from malsim.config.sim_settings import RewardMode, TTCMode
 from malsim.mal_simulator.ttc_utils import TTCDist
 
 

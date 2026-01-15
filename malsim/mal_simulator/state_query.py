@@ -1,4 +1,4 @@
-"""Utilities to convert full names to nodes"""
+"""Query node properties affected by agent states"""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from maltoolbox.attackgraph import AttackGraph
 from malsim.mal_simulator.attacker_state import MalSimAttackerState, get_attacker_agents
 from malsim.mal_simulator.defender_state import get_defender_agents
 from malsim.mal_simulator.node_getters import full_name_or_node_to_node
-from malsim.mal_simulator.settings import TTCMode
+from malsim.config.sim_settings import TTCMode
 from malsim.mal_simulator.types import AgentStates
 
 

@@ -12,7 +12,7 @@ from malsim.mal_simulator.graph_utils import (
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
-    from malsim.mal_simulator.settings import MalSimulatorSettings
+    from malsim.config.sim_settings import MalSimulatorSettings
     from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 

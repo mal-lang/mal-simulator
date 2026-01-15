@@ -16,7 +16,7 @@ from malsim.mal_simulator.graph_processing import (
 )
 
 if TYPE_CHECKING:
-    from malsim.mal_simulator.settings import MalSimulatorSettings
+    from malsim.config.sim_settings import MalSimulatorSettings
 
 
 @dataclass
