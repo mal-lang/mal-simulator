@@ -33,7 +33,6 @@ def create_defender_state(
     were enabled/compromised during last step
     """
 
-
     if previous_state is None:
         # Initialize
         action_surface = get_defense_surface(
@@ -53,9 +52,12 @@ def create_defender_state(
         false_negative_rates_rule = previous_state.false_negative_rates_rule
 
         # Initialize
-        action_surface = get_defense_surface(
-            sim_state, actionability_rule, sim_state.global_actionability
-        ) - previous_state.performed_nodes
+        action_surface = (
+            get_defense_surface(
+                sim_state, actionability_rule, sim_state.global_actionability
+            )
+            - previous_state.performed_nodes
+        )
 
         previous_enabled_defenses = previous_state.performed_nodes
         previous_compromised_nodes = previous_state.compromised_nodes
