@@ -204,9 +204,14 @@ class MalSimulator:
     def node_ttc_value(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> float:
-        if not agent_name:
+        if agent_name:
+            agent = self._agent_states[agent_name]
+            assert isinstance(agent, MalSimAttackerState), (
+                'TTC values only apply to attackers'
+            )
+            return node_ttc_value(agent, node)
+        else:
             return self.sim_state.graph_state.ttc_values[node]
-        return node_ttc_value(self._agent_states[agent_name], node)
 
     def node_is_actionable(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
@@ -388,7 +393,6 @@ class MalSimulator:
             self._alive_agents,
             self._agent_rewards,
             self._agent_settings,
-            self.sim_state.global_rewards,
             self.compromised_nodes,
             name,
             self.rng,
@@ -409,7 +413,6 @@ class MalSimulator:
                 self._agent_rewards,
                 self._agent_settings,
                 defender_settings,
-                self.sim_state.global_rewards,
                 self.compromised_nodes,
                 self.rng,
             )

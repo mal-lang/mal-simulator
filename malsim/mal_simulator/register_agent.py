@@ -101,7 +101,6 @@ def register_defender_settings(
     agent_rewards: AgentRewards,
     agent_settings: AgentSettings,
     defender_settings: DefenderSettings,
-    rewards: dict[AttackGraphNode, float],
     compromised_nodes: set[AttackGraphNode],
     rng: np.random.Generator,
 ) -> tuple[AgentStates, set[str], AgentRewards, AgentSettings]:
@@ -144,7 +143,6 @@ def register_defender(
     alive_agents: set[str],
     agent_rewards: AgentRewards,
     agent_settings: AgentSettings,
-    rewards: dict[AttackGraphNode, float],
     _compromised_nodes: set[AttackGraphNode],
     name: str,
     rng: np.random.Generator,
@@ -160,7 +158,6 @@ def register_defender(
         agent_rewards,
         agent_settings,
         defender_settings,
-        rewards,
         _compromised_nodes,
         rng,
     )
