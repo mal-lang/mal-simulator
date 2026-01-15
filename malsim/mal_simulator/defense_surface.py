@@ -20,6 +20,7 @@ def get_defense_surface(
     Arguments:
     graph       - the attack graph
     """
+
     return {
         node
         for node in sim_state.attack_graph.defense_steps

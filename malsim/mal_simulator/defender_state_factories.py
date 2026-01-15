@@ -33,12 +33,12 @@ def create_defender_state(
     were enabled/compromised during last step
     """
 
-    action_surface = get_defense_surface(
-        sim_state, actionability_rule, sim_state.global_actionability
-    )
 
     if previous_state is None:
         # Initialize
+        action_surface = get_defense_surface(
+            sim_state, actionability_rule, sim_state.global_actionability
+        )
         previous_enabled_defenses: Set[AttackGraphNode] = frozenset()
         previous_compromised_nodes: Set[AttackGraphNode] = frozenset()
         previous_observed_nodes: Set[AttackGraphNode] = frozenset()
@@ -52,12 +52,16 @@ def create_defender_state(
         false_positive_rates_rule = previous_state.false_positive_rates_rule
         false_negative_rates_rule = previous_state.false_negative_rates_rule
 
+        # Initialize
+        action_surface = get_defense_surface(
+            sim_state, actionability_rule, sim_state.global_actionability
+        ) - previous_state.performed_nodes
+
         previous_enabled_defenses = previous_state.performed_nodes
         previous_compromised_nodes = previous_state.compromised_nodes
         previous_observed_nodes = previous_state.observed_nodes
         action_surface_additions = frozenset()
         action_surface_removals = step_enabled_defenses
-        action_surface -= previous_state.performed_nodes
 
     step_observed_nodes = defender_observed_nodes(
         observability_rule,
