@@ -21,8 +21,8 @@ def reset_attackers(
 ) -> tuple[AgentStates, set[str], AgentRewards, set[AttackGraphNode]]:
     """Recreate all attacker agent states"""
 
-    attacker_states = {}
-    alive_attackers = set()
+    attacker_states: AgentStates = {}
+    alive_attackers: set[str] = set()
     attacker_rewards: AgentRewards = {}
     pre_compromised_nodes: set[AttackGraphNode] = set()
 
@@ -52,11 +52,11 @@ def reset_defenders(
     enabled_defenses_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
     enabled_attacks_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
     rng: np.random.Generator,
-):
+) -> tuple[AgentStates, set[str], AgentRewards]:
     """Recreate all defender agent states"""
-    defender_states = {}
-    alive_defenders = set()
-    defender_rewards = {}
+    defender_states: AgentStates = {}
+    alive_defenders: set[str] = set()
+    defender_rewards: AgentRewards = {}
 
     for defender_settings in get_defender_settings(agent_settings).values():
         new_defender_state = initial_defender_state(

@@ -6,17 +6,12 @@ import numpy as np
 
 from maltoolbox.attackgraph import AttackGraphNode
 
-from malsim.config.agent_settings import DefenderSettings
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.simulator_state import MalSimulatorState
-
 from malsim.mal_simulator.false_alerts import (
     generate_false_negatives,
     generate_false_positives,
 )
-
-if TYPE_CHECKING:
-    from malsim.config.agent_settings import AgentSettings
 
 
 def node_is_observable(

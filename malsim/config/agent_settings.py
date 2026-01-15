@@ -192,13 +192,13 @@ def agent_settings_from_dict(
 
 def get_defender_settings(
     agent_settings: dict[str, DefenderSettings | AttackerSettings],
-):
+) -> dict[str, DefenderSettings]:
     """Return the defender settings from agent_settings dict"""
     return {k: v for k, v in agent_settings.items() if isinstance(v, DefenderSettings)}
 
 
 def get_attacker_settings(
     agent_settings: dict[str, DefenderSettings | AttackerSettings],
-):
+) -> dict[str, AttackerSettings]:
     """Return the attacker settings from agent_settings dict"""
     return {k: v for k, v in agent_settings.items() if isinstance(v, AttackerSettings)}
