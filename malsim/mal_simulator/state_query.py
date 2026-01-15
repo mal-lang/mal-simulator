@@ -1,19 +1,15 @@
 """Utilities to convert full names to nodes"""
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
 
 from maltoolbox.attackgraph import AttackGraphNode
 from maltoolbox.attackgraph import AttackGraph
 
-from malsim.mal_simulator.agent_state import get_attacker_agents, get_defender_agents
+from malsim.mal_simulator.attacker_state import MalSimAttackerState, get_attacker_agents
+from malsim.mal_simulator.defender_state import get_defender_agents
 from malsim.mal_simulator.node_getters import full_name_or_node_to_node
 from malsim.mal_simulator.settings import TTCMode
-from malsim.mal_simulator.agent_state import MalSimAttackerState
-
-if TYPE_CHECKING:
-    from malsim.mal_simulator.agent_state import MalSimAgentState
-    from malsim.mal_simulator.agent_state import AgentStates
+from malsim.mal_simulator.types import AgentStates
 
 
 def node_is_enabled_defense(
@@ -55,27 +51,22 @@ def compromised_nodes(
 
 
 def node_ttc_value(
-    agent_state: MalSimAgentState,
+    attacker_state: MalSimAttackerState,
     node: AttackGraphNode | str,
 ) -> float:
     """Return ttc value of node if it has been sampled"""
-    node = full_name_or_node_to_node(agent_state.sim_state.attack_graph, node)
-    assert agent_state.sim_state.settings.ttc_mode in (
+    node = full_name_or_node_to_node(attacker_state.sim_state.attack_graph, node)
+    assert attacker_state.sim_state.settings.ttc_mode in (
         TTCMode.PRE_SAMPLE,
         TTCMode.EXPECTED_VALUE,
     ), 'TTC value only when TTCMode is PRE_SAMPLE or EXPECTED_VALUE'
 
-    if agent_state:
-        # If agent name is given and it overrides the global TTC values
-        # Return that value instead of the global ttc value
-        if not isinstance(agent_state, MalSimAttackerState):
-            raise ValueError(
-                f'Agent {agent_state.name} is not an attacker and has no TTC values'
-            )
-        if node in agent_state.ttc_value_overrides:
-            return agent_state.ttc_value_overrides[node]
+    # If agent overrides the global TTC values
+    # return that value instead of the global
+    if node in attacker_state.ttc_value_overrides:
+        return attacker_state.ttc_value_overrides[node]
 
-    assert node in agent_state.sim_state.graph_state.ttc_values, (
+    assert node in attacker_state.sim_state.graph_state.ttc_values, (
         f'Node {node.full_name} does not have a ttc value'
     )
-    return agent_state.sim_state.graph_state.ttc_values[node]
+    return attacker_state.sim_state.graph_state.ttc_values[node]

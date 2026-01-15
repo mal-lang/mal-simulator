@@ -19,8 +19,7 @@ from malsim.mal_simulator.ttc_utils import (
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 if TYPE_CHECKING:
-    from malsim.mal_simulator.agent_state import MalSimAttackerState
-    from malsim.config.agent_settings import AgentSettings
+    from malsim.mal_simulator.attacker_state import MalSimAttackerState
 
 logger = logging.getLogger(__name__)
 

@@ -3,24 +3,15 @@ import numpy as np
 
 from maltoolbox.attackgraph import AttackGraphNode
 
-from malsim.mal_simulator.agent_state import (
-    AgentRewards,
-    AgentStates,
-    MalSimAttackerState,
-    MalSimDefenderState,
-)
-from malsim.mal_simulator.agent_state_factories import (
-    initial_attacker_state,
-    initial_defender_state,
-)
+from malsim.mal_simulator.attacker_state import MalSimAttackerState
+from malsim.mal_simulator.attacker_state_factories import initial_attacker_state
+from malsim.mal_simulator.defender_state import MalSimDefenderState
+from malsim.mal_simulator.defender_state_factories import initial_defender_state
 from malsim.mal_simulator.rewards import attacker_step_reward, defender_step_reward
 from malsim.mal_simulator.settings import MalSimulatorSettings
 from malsim.mal_simulator.simulator_state import MalSimulatorState
-from malsim.config.agent_settings import (
-    AgentSettings,
-    AttackerSettings,
-    DefenderSettings,
-)
+from malsim.config.agent_settings import AttackerSettings, DefenderSettings
+from malsim.mal_simulator.types import AgentRewards, AgentStates, AgentSettings
 
 
 def reset_agents(

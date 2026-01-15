@@ -12,13 +12,14 @@ from malsim.mal_simulator import (
     TTCMode,
     RewardMode,
 )
+from malsim.mal_simulator.attacker_state import get_attacker_agents
 from malsim.mal_simulator.attacker_step import attacker_is_terminated, attacker_step
+from malsim.mal_simulator.defender_state import get_defender_agents
 from malsim.mal_simulator.defender_step import defender_is_terminated, defender_step
 from malsim.mal_simulator import TTCDist
 from malsim import Scenario, run_simulation
 
 from malsim.config.agent_settings import AttackerSettings, DefenderSettings
-from malsim.mal_simulator.agent_state import get_attacker_agents, get_defender_agents
 
 from dataclasses import asdict
 import numpy as np

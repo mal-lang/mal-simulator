@@ -9,10 +9,12 @@ from numpy.random import default_rng
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
+from malsim.mal_simulator.attacker_state import MalSimAttackerState, get_attacker_agents
 from malsim.mal_simulator.attacker_step import (
     attacker_is_terminated,
     attacker_step,
 )
+from malsim.mal_simulator.defender_state import MalSimDefenderState, get_defender_agents
 from malsim.mal_simulator.defender_step import (
     defender_is_terminated,
     defender_step,
@@ -35,24 +37,11 @@ from malsim.mal_simulator.false_alerts import (
     node_false_negative_rate,
     node_false_positive_rate,
 )
-from malsim.config.agent_settings import (
-    AgentSettings,
-    AttackerSettings,
-    DefenderSettings,
-)
+from malsim.config.agent_settings import AttackerSettings, DefenderSettings
+from malsim.mal_simulator.types import AgentRewards, AgentStates, AgentSettings, Recording
 from malsim.scenario.scenario import Scenario
-from malsim.mal_simulator.agent_state import (
-    AgentRewards,
-    AgentStates,
-    MalSimAttackerState,
-    MalSimDefenderState,
-    get_attacker_agents,
-    get_defender_agents,
-)
-from malsim.mal_simulator.agent_state_factories import (
-    create_attacker_state,
-    create_defender_state,
-)
+from malsim.mal_simulator.attacker_state_factories import create_attacker_state
+from malsim.mal_simulator.defender_state_factories import create_defender_state
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 from malsim.mal_simulator.settings import MalSimulatorSettings, RewardMode
 from malsim.mal_simulator.graph_state import GraphState, compute_initial_graph_state
@@ -103,9 +92,6 @@ ENABLED_ATTACKS_FUNCS: Mapping[
     # only newly performed attacks
     RewardMode.ONE_OFF: lambda ds: ds.step_compromised_nodes,
 }
-
-Recording = dict[int, dict[str, list[AttackGraphNode]]]
-
 
 class MalSimulator:
     """A MAL Simulator that works on the AttackGraph

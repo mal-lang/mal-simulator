@@ -3,8 +3,8 @@ from venv import logger
 from maltoolbox.attackgraph import AttackGraphNode
 
 from malsim.policies.decision_agent import DecisionAgent
-from malsim.config.agent_settings import AgentSettings
 from malsim.mal_simulator.simulator import MalSimulator
+from malsim.mal_simulator.types import AgentSettings
 
 
 def run_simulation(

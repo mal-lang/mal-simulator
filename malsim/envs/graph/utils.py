@@ -1,6 +1,8 @@
 from maltoolbox.language import LanguageGraphAssociation
 import numpy as np
 
+from malsim.mal_simulator.attacker_state import get_attacker_agents
+
 from .mal_spaces import (
     Assets,
     Steps,
@@ -12,7 +14,6 @@ from .serialization import LangSerializer
 from malsim.mal_simulator import MalSimAttackerState, MalSimDefenderState, MalSimulator
 from maltoolbox.attackgraph import AttackGraphNode
 from maltoolbox.model import ModelAsset
-from malsim.mal_simulator.agent_state import get_attacker_agents
 
 
 def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInstance:

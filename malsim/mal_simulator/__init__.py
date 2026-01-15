@@ -3,7 +3,9 @@
 from .simulator import MalSimulator
 from .run_simulation import run_simulation
 from .settings import MalSimulatorSettings, TTCMode, RewardMode
-from .agent_state import MalSimAgentState, MalSimAttackerState, MalSimDefenderState
+from .agent_state import MalSimAgentState
+from .attacker_state import MalSimAttackerState
+from .defender_state import MalSimDefenderState
 from .ttc_utils import TTCDist
 
 

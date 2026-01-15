@@ -1,21 +1,17 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+from maltoolbox.attackgraph import AttackGraphNode
 import logging
 
-from malsim.mal_simulator.agent_state import get_attacker_agents
+from malsim.mal_simulator.attacker_state import get_attacker_agents
 from malsim.mal_simulator.attacker_step import attacker_is_terminated
 from malsim.mal_simulator.graph_processing import make_node_unviable
-from malsim.mal_simulator.graph_state import GraphState
 from malsim.mal_simulator.graph_utils import node_reward
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 if TYPE_CHECKING:
-    from malsim.mal_simulator.agent_state import (
-        AgentStates,
-        MalSimDefenderState,
-    )
-    from malsim.config.agent_settings import AgentSettings
+    from malsim.mal_simulator.types import AgentStates
+    from malsim.mal_simulator.defender_state import MalSimDefenderState
 
 logger = logging.getLogger(__name__)
 

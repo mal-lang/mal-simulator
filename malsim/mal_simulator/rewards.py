@@ -3,7 +3,8 @@ from collections.abc import Callable
 from maltoolbox.attackgraph import AttackGraphNode
 import numpy as np
 
-from malsim.mal_simulator.agent_state import MalSimAttackerState, MalSimDefenderState
+from malsim.mal_simulator.defender_state import MalSimDefenderState
+from malsim.mal_simulator.attacker_state import MalSimAttackerState
 from malsim.mal_simulator.graph_utils import node_reward
 from malsim.mal_simulator.settings import RewardMode, TTCMode
 from malsim.mal_simulator.ttc_utils import TTCDist
