@@ -301,86 +301,82 @@ class MALObs(Space[MALObsInstance]):
                 and isinstance(x.logic2step, np.ndarray)
                 and isinstance(x.step2logic, np.ndarray)
                 and isinstance(x.asset2asset, np.ndarray)
+                and np.issubdtype(x.step2asset.dtype, np.integer)
+                and (
+                    x.assoc2asset is None
+                    or np.issubdtype(x.assoc2asset.dtype, np.integer)
+                )
+                and np.issubdtype(x.step2step.dtype, np.integer)
+                and np.issubdtype(x.logic2step.dtype, np.integer)
+                and np.issubdtype(x.step2logic.dtype, np.integer)
+                and np.issubdtype(x.asset2asset.dtype, np.integer)
             ):
-                if (
-                    np.issubdtype(x.step2asset.dtype, np.integer)
-                    and (
-                        x.assoc2asset is None
-                        or np.issubdtype(x.assoc2asset.dtype, np.integer)
-                    )
-                    and np.issubdtype(x.step2step.dtype, np.integer)
-                    and np.issubdtype(x.logic2step.dtype, np.integer)
-                    and np.issubdtype(x.step2logic.dtype, np.integer)
-                    and np.issubdtype(x.asset2asset.dtype, np.integer)
+                step2asset_valid = (
+                    (x.step2asset[0] >= 0) & (x.step2asset[0] < x.steps.type.shape[0])
+                ).all() and (
+                    (x.step2asset[1] >= 0) & (x.step2asset[1] < x.assets.type.shape[0])
+                ).all()
+                if x.assoc2asset is not None and isinstance(
+                    x.associations, Associations
                 ):
-                    step2asset_valid = (
-                        (x.step2asset[0] >= 0)
-                        & (x.step2asset[0] < x.steps.type.shape[0])
+                    assoc2asset_valid = (
+                        (x.assoc2asset[0] >= 0)
+                        & (x.assoc2asset[0] < x.associations.type.shape[0])
                     ).all() and (
-                        (x.step2asset[1] >= 0)
-                        & (x.step2asset[1] < x.assets.type.shape[0])
+                        (x.assoc2asset[1] >= 0)
+                        & (x.assoc2asset[1] < x.assets.type.shape[0])
                     ).all()
-                    if x.assoc2asset is not None and isinstance(
-                        x.associations, Associations
-                    ):
-                        assoc2asset_valid = (
-                            (x.assoc2asset[0] >= 0)
-                            & (x.assoc2asset[0] < x.associations.type.shape[0])
-                        ).all() and (
-                            (x.assoc2asset[1] >= 0)
-                            & (x.assoc2asset[1] < x.assets.type.shape[0])
-                        ).all()
-                    else:
-                        assoc2asset_valid = True
-                    step2step_valid = (
-                        (x.step2step[0] >= 0) & (x.step2step[0] < x.steps.type.shape[0])
+                else:
+                    assoc2asset_valid = True
+                step2step_valid = (
+                    (x.step2step[0] >= 0) & (x.step2step[0] < x.steps.type.shape[0])
+                ).all() and (
+                    (x.step2step[1] >= 0) & (x.step2step[1] < x.steps.type.shape[0])
+                ).all()
+                if (
+                    isinstance(x.logic_gates, LogicGates)
+                    and x.logic2step.shape[1] > 0
+                    and x.step2logic.shape[1] > 0
+                ):
+                    logic2step_valid = (
+                        (x.logic2step[0] >= 0)
+                        & (x.logic2step[0] < x.logic_gates.type.shape[0])
                     ).all() and (
-                        (x.step2step[1] >= 0) & (x.step2step[1] < x.steps.type.shape[0])
+                        (x.logic2step[1] >= 0)
+                        & (x.logic2step[1] < x.steps.type.shape[0])
                     ).all()
-                    if (
-                        isinstance(x.logic_gates, LogicGates)
-                        and x.logic2step.shape[1] > 0
-                        and x.step2logic.shape[1] > 0
-                    ):
-                        logic2step_valid = (
-                            (x.logic2step[0] >= 0)
-                            & (x.logic2step[0] < x.logic_gates.type.shape[0])
-                        ).all() and (
-                            (x.logic2step[1] >= 0)
-                            & (x.logic2step[1] < x.steps.type.shape[0])
-                        ).all()
-                        step2logic_valid = (
-                            (x.step2logic[0] >= 0)
-                            & (x.step2logic[0] < x.steps.type.shape[0])
-                        ).all() and (
-                            (x.step2logic[1] >= 0)
-                            & (x.step2logic[1] < x.logic_gates.type.shape[0])
-                        ).all()
-                    else:
-                        logic2step_valid = True
-                        step2logic_valid = True
+                    step2logic_valid = (
+                        (x.step2logic[0] >= 0)
+                        & (x.step2logic[0] < x.steps.type.shape[0])
+                    ).all() and (
+                        (x.step2logic[1] >= 0)
+                        & (x.step2logic[1] < x.logic_gates.type.shape[0])
+                    ).all()
+                else:
+                    logic2step_valid = True
+                    step2logic_valid = True
 
-                    if x.asset2asset.shape[1] > 0:
-                        asset2asset_valid = (
-                            (x.asset2asset[0] >= 0)
-                            & (x.asset2asset[0] < x.assets.type.shape[0])
-                        ).all() and (
-                            (x.asset2asset[1] >= 0)
-                            & (x.asset2asset[1] < x.assets.type.shape[0])
-                        ).all()
-                    else:
-                        asset2asset_valid = True
+                if x.asset2asset.shape[1] > 0:
+                    asset2asset_valid = (
+                        (x.asset2asset[0] >= 0)
+                        & (x.asset2asset[0] < x.assets.type.shape[0])
+                    ).all() and (
+                        (x.asset2asset[1] >= 0)
+                        & (x.asset2asset[1] < x.assets.type.shape[0])
+                    ).all()
+                else:
+                    asset2asset_valid = True
 
-                    edge_valid = (
-                        step2asset_valid
-                        and assoc2asset_valid
-                        and step2step_valid
-                        and logic2step_valid
-                        and step2logic_valid
-                        and asset2asset_valid
-                    )
+                edge_valid = (
+                    step2asset_valid
+                    and assoc2asset_valid
+                    and step2step_valid
+                    and logic2step_valid
+                    and step2logic_valid
+                    and asset2asset_valid
+                )
 
-                    return feature_valid and edge_valid
+                return feature_valid and edge_valid
 
         return False
 
@@ -583,15 +579,13 @@ class MALObsAttackStepSpace(Discrete):
     ):
         # NOTE: The corresponding MALObsInstance should have the same sorting
         # of the actionable steps as the action space
-        actionable_attack_steps = list(
-            sorted(
-                {
-                    node
-                    for node in sim.sim_state.attack_graph.nodes.values()
-                    if node.type in ('and', 'or')
-                },
-                key=lambda step: step.id,
-            )
+        actionable_attack_steps = sorted(
+            {
+                node
+                for node in sim.sim_state.attack_graph.nodes.values()
+                if node.type in ('and', 'or')
+            },
+            key=lambda step: step.id,
         )
         super().__init__(n=len(actionable_attack_steps), seed=seed)
 
@@ -626,15 +620,13 @@ class MALObsDefenseStepSpace(Discrete):
     ):
         # NOTE: The corresponding MALObsInstance should have the same sorting
         # of the actionable steps as the action space
-        actionable_defense_steps = list(
-            sorted(
-                {
-                    node
-                    for node in sim.sim_state.attack_graph.nodes.values()
-                    if node.type == 'defense'
-                },
-                key=lambda step: step.id,
-            )
+        actionable_defense_steps = sorted(
+            {
+                node
+                for node in sim.sim_state.attack_graph.nodes.values()
+                if node.type == 'defense'
+            },
+            key=lambda step: step.id,
         )
         super().__init__(n=len(actionable_defense_steps), seed=seed)
 

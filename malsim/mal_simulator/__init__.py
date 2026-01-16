@@ -10,13 +10,13 @@ from .ttc_utils import TTCDist
 
 
 __all__ = [
-    'MalSimulator',
-    'MalSimulatorSettings',
-    'run_simulation',
-    'TTCMode',
-    'RewardMode',
     'MalSimAgentState',
     'MalSimAttackerState',
     'MalSimDefenderState',
+    'MalSimulator',
+    'MalSimulatorSettings',
+    'RewardMode',
     'TTCDist',
+    'TTCMode',
+    'run_simulation',
 ]

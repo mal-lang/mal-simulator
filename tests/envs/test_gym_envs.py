@@ -32,7 +32,7 @@ scenario_file_no_defender = 'tests/testdata/scenarios/no_defender_agent_scenario
 
 
 def register_gym_agent(agent_id: str, entry_point: gym.Env) -> None:
-    if agent_id not in gym.envs.registry.keys():
+    if agent_id not in gym.envs.registry:
         gym.register(agent_id, entry_point=entry_point)
 
 
@@ -74,11 +74,12 @@ def test_random_defender_actions() -> None:
     done = False
     _, info = env.reset()
 
+    rng = np.random.default_rng(22)
     while not done:
         available_s = available_steps(info)
-        defense = np.random.choice(1, available_s)
+        defense = rng.choice(1, available_s)
         available_a = available_actions(info)
-        action = np.random.choice(1, available_a)
+        action = rng.choice(1, available_a)
 
         _, _, term, trunc, info = env.step((action, defense))
         done = term or trunc
@@ -118,7 +119,7 @@ def test_mask() -> None:
 
     env = MaskingWrapper(env)
 
-    obs, info = env.reset()
+    obs, _ = env.reset()
 
     print(obs)
 
@@ -132,8 +133,9 @@ def test_defender_penalty() -> None:
 
     _, info = env.reset()
     possible_defense_steps = np.flatnonzero(info['action_mask'][1])
-    step = np.random.choice(possible_defense_steps)
-    _, reward, _, _, info = env.step((1, step))
+    rng = np.random.default_rng(22)
+    step = rng.choice(possible_defense_steps)
+    _, _, _, _, info = env.step((1, step))
     # assert reward < 0 # All defense steps cost something
 
 
@@ -152,22 +154,21 @@ def test_action_mask() -> None:
     terminated = False
     while num_defenses > 1 and not terminated:
         action = env.action_space.sample(info['action_mask'])
-        p, o = action
+        _, o = action
         _, _, terminated, _, info = env.step((1, o))
         new_num_defenses = len(np.flatnonzero(info['action_mask'][1]))
         assert new_num_defenses == num_defenses - 1
         num_defenses = new_num_defenses
 
-    pass
     # assert reward < 0 # All defense steps cost something
 
 
 def test_env_step(env: MalSimVectorizedObsEnv) -> None:
-    obs, info = env.reset()
+    obs, _info = env.reset()
     attacker_action = env.action_space('attacker').sample()
     defender_action = env.action_space('defender').sample()
     action = {AGENT_ATTACKER: attacker_action, AGENT_DEFENDER: defender_action}
-    obs, reward, terminated, truncated, info = env.step(action)
+    obs, _reward, _terminated, _truncated, _info = env.step(action)
 
     assert 'attacker' in obs
     assert 'defender' in obs
@@ -209,11 +210,11 @@ def test_check_space_env(env: MalSimVectorizedObsEnv) -> None:
     ],
 )
 def test_attacker(env: MalSimVectorizedObsEnv, attacker_class) -> None:
-    obs, info = env.reset()
+    _, _ = env.reset()
     attacker = attacker_class(
-        dict(
-            seed=16,
-        )
+        {
+            'seed': 16,
+        }
     )
 
     steps, sum_rewards = 0, 0
@@ -226,7 +227,7 @@ def test_attacker(env: MalSimVectorizedObsEnv, attacker_class) -> None:
             action = (1, env.node_to_index(action_node))
         assert action != ACTION_TERMINATE
         assert action != ACTION_WAIT
-        obs, rewards, terminated, truncated, info = env.step(
+        _, rewards, terminated, truncated, _ = env.step(
             {AGENT_ATTACKER: action, AGENT_DEFENDER: (0, None)}
         )
         sum_rewards += rewards[AGENT_ATTACKER]
@@ -237,11 +238,11 @@ def test_attacker(env: MalSimVectorizedObsEnv, attacker_class) -> None:
 
 
 def test_env_multiple_steps(env: MalSimVectorizedObsEnv) -> None:
-    obs, info = env.reset()
+    obs, _ = env.reset()
     for _ in range(100):
         attacker_action = env.action_space('attacker').sample()
         defender_action = env.action_space('defender').sample()
         action = {AGENT_ATTACKER: attacker_action, AGENT_DEFENDER: defender_action}
-        obs, reward, terminated, truncated, info = env.step(action)
+        obs, _, _, _, _ = env.step(action)
         assert 'attacker' in obs
         assert 'defender' in obs

@@ -56,7 +56,7 @@ def attacker_step_effects(
     Return the effects that descend from `action` and can be compromised.
     """
     # Find effects based on each action
-    performed_effects = list()
+    performed_effects = []
     effects_by_action = get_effects_of_attack_step(
         sim_state, action, agent.performed_nodes
     )
@@ -130,8 +130,8 @@ def attacker_step(
     """
 
     logger.info('Stepping with agent %s', agent.name)
-    successful_compromises: list[AttackGraphNode] = list()
-    attempted_compromises: list[AttackGraphNode] = list()
+    successful_compromises: list[AttackGraphNode] = []
+    attempted_compromises: list[AttackGraphNode] = []
 
     for node in nodes:
         assert node == sim_state.attack_graph.nodes[node.id], (

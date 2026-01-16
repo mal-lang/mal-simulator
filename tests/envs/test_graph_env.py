@@ -1,7 +1,6 @@
-from typing import Any, Tuple
+from typing import Any
 
-from gymnasium.vector import AsyncVectorEnv, SyncVectorEnv
-from gymnasium import spaces
+from gymnasium.vector import AsyncVectorEnv
 from gymnasium.utils.env_checker import check_env
 
 from malsim import MalSimulator
@@ -16,18 +15,15 @@ from malsim.envs.graph.mal_spaces import (
     AssetThenDefenderAction,
     AttackerActionThenAsset,
     DefenderActionThenAsset,
-    MALObsAttackStepSpace,
     MALObsInstance,
 )
 from malsim.scenario.scenario import Scenario
-from typing import Any
 from malsim.mal_simulator import (
     MalSimulatorSettings,
     TTCMode,
     RewardMode,
     MalSimAttackerState,
 )
-import numpy as np
 import numpy as np
 from numpy.typing import NDArray
 import pytest
@@ -98,7 +94,7 @@ def test_attacker_episode() -> None:
     obs, info = attacker_env.reset()
     steps = 0
     while not done:
-        obs, reward, terminated, truncated, info = attacker_env.step(
+        obs, _, terminated, truncated, info = attacker_env.step(
             attacker_env.action_space.sample(obs.steps.action_mask)
         )
         state = info['state']
@@ -146,7 +142,7 @@ def test_attacker_episode() -> None:
     obs, info = attacker_env.reset()
     steps = 0
     while not done:
-        obs, reward, terminated, truncated, info = attacker_env.step(
+        obs, _, terminated, truncated, info = attacker_env.step(
             attacker_env.action_space.sample(obs.steps.action_mask)
         )
         state = info['state']
@@ -204,20 +200,20 @@ def test_defender_episode() -> None:
     )
 
     done = False
-    obs, info = defender_env.reset()
+    obs, _ = defender_env.reset()
     steps = 0
     while not done:
-        obs, reward, terminated, truncated, info = defender_env.step(
+        obs, _, terminated, truncated, _ = defender_env.step(
             defender_env.action_space.sample(obs.steps.action_mask)
         )
         steps += 1
         done = terminated or truncated or (steps > 10_000)
 
     done = False
-    obs, info = defender_env.reset()
+    obs, _ = defender_env.reset()
     steps = 0
     while not done:
-        obs, reward, terminated, truncated, info = defender_env.step(
+        obs, _, terminated, truncated, _ = defender_env.step(
             defender_env.action_space.sample(obs.steps.action_mask)
         )
         steps += 1
@@ -257,11 +253,11 @@ def test_asset_then_action_wrapper() -> None:
 
     i = 0
     done = False
-    obs, info = wrapped_env.reset()
+    _, info = wrapped_env.reset()
     while not done and i < 100:
         asset_mask, action_mask = info['asset_mask'], info['action_mask']
         action = wrapped_env.action_space.sample(mask=(asset_mask, action_mask))
-        obs, reward, terminated, truncated, info = wrapped_env.step(action)
+        _, _, terminated, truncated, info = wrapped_env.step(action)
         i += 1
         done = terminated or truncated
 
@@ -286,11 +282,11 @@ def test_asset_then_action_wrapper() -> None:
     assert isinstance(wrapped_env.action_space, AssetThenDefenderAction)
     i = 0
     done = False
-    obs, info = wrapped_env.reset()
+    _, info = wrapped_env.reset()
     while not done and i < 100:
         action_mask, asset_mask = info['action_mask'], info['asset_mask']
         action = wrapped_env.action_space.sample(mask=(asset_mask, action_mask))
-        obs, reward, terminated, truncated, info = wrapped_env.step(action)
+        _, _, terminated, truncated, info = wrapped_env.step(action)
         i += 1
         done = terminated or truncated
 
@@ -319,11 +315,11 @@ def test_action_then_asset_wrapper() -> None:
     assert isinstance(wrapped_env.action_space, AttackerActionThenAsset)
     i = 0
     done = False
-    obs, info = wrapped_env.reset()
+    _, info = wrapped_env.reset()
     while not done and i < 100:
         action_mask, asset_mask = info['action_mask'], info['asset_mask']
         action = wrapped_env.action_space.sample(mask=(action_mask, asset_mask))
-        obs, reward, terminated, truncated, info = wrapped_env.step(action)
+        _, _, terminated, truncated, info = wrapped_env.step(action)
         i += 1
         done = terminated or truncated
 
@@ -345,11 +341,11 @@ def test_action_then_asset_wrapper() -> None:
     assert isinstance(wrapped_env.action_space, DefenderActionThenAsset)
     i = 0
     done = False
-    obs, info = wrapped_env.reset()
+    _, info = wrapped_env.reset()
     while not done and i < 100:
         action_mask, asset_mask = info['action_mask'], info['asset_mask']
         action = wrapped_env.action_space.sample(mask=(action_mask, asset_mask))
-        obs, reward, terminated, truncated, info = wrapped_env.step(action)
+        _, _, terminated, truncated, info = wrapped_env.step(action)
         i += 1
         done = terminated or truncated
 
@@ -374,11 +370,11 @@ def test_async_vector_env() -> None:
 
     done = np.zeros((env.num_envs,), dtype=bool)
     vec_obs: tuple[MALObsInstance, ...]
-    reward: NDArray[np.float32]
+    _reward: NDArray[np.float32]
     terminated: NDArray[np.bool_]
     truncated: NDArray[np.bool_]
-    info: dict[str, NDArray[Any]]
-    vec_obs, info = env.reset()
+    _info: dict[str, NDArray[Any]]
+    vec_obs, _info = env.reset()
     while not done.all():
         vec_action_mask: tuple[NDArray[np.int8], ...] = tuple(
             obs.steps.action_mask.astype(np.int8) for obs in vec_obs
@@ -393,5 +389,5 @@ def test_async_vector_env() -> None:
             for i in range(env.num_envs)
         )
         actions = env.action_space.sample(padded_vec_action_mask)
-        vec_obs, reward, terminated, truncated, info = env.step(actions)
+        vec_obs, _reward, terminated, truncated, _info = env.step(actions)
         done |= terminated | truncated

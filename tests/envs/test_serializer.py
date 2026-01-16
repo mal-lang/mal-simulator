@@ -16,7 +16,7 @@ def test_serializer() -> None:
         'Not all asset types map to integers'
     )
 
-    assoc_names = set((assoc.name,) for assoc in lang.associations)
+    assoc_names = {(assoc.name,) for assoc in lang.associations}
     assert set(serializer.association_type.keys()) == assoc_names, (
         'association_type key mismatch'
     )
@@ -36,7 +36,7 @@ def test_serializer() -> None:
         ],
         key=lambda x: x.name,
     )
-    attack_step_names = set((a.name,) for a in all_attack_steps)
+    attack_step_names = {(a.name,) for a in all_attack_steps}
 
     assert set(serializer.step_type.keys()) == attack_step_names, (
         'attack_step_type key mismatch'
@@ -49,7 +49,7 @@ def test_serializer() -> None:
         'Not all attack step types map to integers'
     )
 
-    attack_step_types = set(a.type for a in all_attack_steps)
+    attack_step_types = {a.type for a in all_attack_steps}
     assert set(serializer.step_class.keys()) == attack_step_types, (
         'attack_step_class key mismatch'
     )
@@ -61,9 +61,9 @@ def test_serializer() -> None:
         'Not all attack step classes map to integers'
     )
 
-    attack_step_tags = set(
+    attack_step_tags = {
         tag for attack_step in all_attack_steps for tag in attack_step.tags
-    ).union({None})
+    }.union({None})
     assert set(serializer.step_tag.keys()) == attack_step_tags, (
         'attack_step_tag key mismatch'
     )

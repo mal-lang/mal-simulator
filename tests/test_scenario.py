@@ -176,11 +176,12 @@ def test_load_scenario_agent_class_error() -> None:
 
     # Load the scenario
     with pytest.raises(LookupError):
-        Scenario.load_from_file(
+        x = Scenario.load_from_file(
             path_relative_to_tests(
                 './testdata/scenarios/wrong_agent_classes_scenario.yml'
             )
         ).agent_settings
+        assert x  # to avoid unused variable warning
 
 
 def test_load_scenario_observability_given() -> None:
@@ -201,19 +202,19 @@ def test_load_scenario_observability_given() -> None:
 
     for node in scenario.attack_graph.nodes.values():
         if (
-            node.lg_attack_step.asset.name == 'Application'
-            and node.name == 'fullAccess'
-        ):
-            assert is_observable_per_node[node.full_name]
-        elif (
-            node.lg_attack_step.asset.name == 'Application'
-            and node.name == 'supplyChainAuditing'
-        ):
-            assert is_observable_per_node[node.full_name]
-        elif (
-            node.model_asset
-            and node.model_asset.name == 'Identity:8'
-            and node.name == 'assume'
+            (
+                node.lg_attack_step.asset.name == 'Application'
+                and node.name == 'fullAccess'
+            )
+            or (
+                node.lg_attack_step.asset.name == 'Application'
+                and node.name == 'supplyChainAuditing'
+            )
+            or (
+                node.model_asset
+                and node.model_asset.name == 'Identity:8'
+                and node.name == 'assume'
+            )
         ):
             assert is_observable_per_node[node.full_name]
         else:
@@ -255,21 +256,29 @@ def test_apply_scenario_observability() -> None:
     # Make sure all attack steps are observable
     # if no observability settings are given
     for node in scenario.attack_graph.nodes.values():
-        if node.lg_attack_step.asset.name == 'Data' and node.name in (
-            'read',
-            'write',
-            'delete',
-        ):
-            assert observable_per_node[node.full_name]
-        elif node.lg_attack_step.asset.name == 'Application' and node.name in (
-            'fullAccess',
-            'notPresent',
-        ):
-            assert observable_per_node[node.full_name]
-        elif (
-            node.model_asset
-            and node.model_asset.name == 'OS App'
-            and node.name in ('read')
+        if (
+            (
+                node.lg_attack_step.asset.name == 'Data'
+                and node.name
+                in (
+                    'read',
+                    'write',
+                    'delete',
+                )
+            )
+            or (
+                node.lg_attack_step.asset.name == 'Application'
+                and node.name
+                in (
+                    'fullAccess',
+                    'notPresent',
+                )
+            )
+            or (
+                node.model_asset
+                and node.model_asset.name == 'OS App'
+                and node.name in ('read')
+            )
         ):
             assert observable_per_node[node.full_name]
         else:
@@ -280,9 +289,9 @@ def test_apply_scenario_observability_faulty() -> None:
     """Try different failing cases for observability settings"""
 
     # Load scenario with no observability specified
-    scenario = Scenario.load_from_file(
-        path_relative_to_tests('testdata/scenarios/simple_scenario.yml')
-    )
+    # scenario = Scenario.load_from_file(
+    #     path_relative_to_tests('testdata/scenarios/simple_scenario.yml')
+    # )
 
     # Wrong key in rule dict
     with pytest.raises(ValueError):

@@ -105,7 +105,7 @@ def calculate_necessity(
     Returns necessity per node in a dict
     """
 
-    necessity_per_node = {n: True for n in graph.nodes.values()}
+    necessity_per_node = dict.fromkeys(graph.nodes.values(), True)
     for node in graph.nodes.values():
         if node.type in ['exist', 'notExist', 'defense']:
             necessity_per_node[node] = evaluate_necessity(
@@ -209,7 +209,7 @@ def calculate_viability(
 
     Returns viability per node in a dict
     """
-    viability_per_node = {n: True for n in graph.nodes.values()}
+    viability_per_node = dict.fromkeys(graph.nodes.values(), True)
     for node in graph.nodes.values():
         viability_per_node[node] = evaluate_viability(
             node, viability_per_node, enabled_defenses, impossible_attack_steps

@@ -35,7 +35,8 @@ def test_probs_utils(model: Model) -> None:
     for node in attack_graph.nodes.values():
         # TODO: Actually check some of the results
         if node.type not in ('exist', 'notExist'):
-            TTCDist.from_node(node).expected_value
+            x = TTCDist.from_node(node).expected_value
+            assert x  # to avoid unused variable warning
 
 
 def test_bernoulli(model: Model) -> None:
@@ -123,12 +124,12 @@ def test_get_ttc_dict_attacksteps(corelang_lang_graph: LanguageGraph) -> None:
     )
     attack_graph = AttackGraph(lang_graph=corelang_lang_graph, model=model)
 
-    instant_steps = set(
+    instant_steps = {
         n
         for n in attack_graph.nodes.values()
         if n.type in ('or', 'and')
         and TTCDist.from_node(n) == named_ttc_dists['Instant']
-    )
+    }
     assert len(instant_steps) == 454
 
     # Check some nodes that have diferent TTC

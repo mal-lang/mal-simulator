@@ -20,7 +20,7 @@ def test_path_finding() -> None:
         sim.sim_state.attack_graph,
         list(agent_state.performed_nodes),
         data_2_read,
-        ttc_values={n: 1.0 for n in sim.sim_state.attack_graph.nodes.values()},
+        ttc_values=dict.fromkeys(sim.sim_state.attack_graph.nodes.values(), 1.0),
     )
     assert [n.full_name for n in path] == ['Host:0:access', 'Data:2:read']
 

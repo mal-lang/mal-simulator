@@ -341,10 +341,7 @@ def get_impossible_attack_steps(
     ttc_dists = ttc_dists or {}
 
     for node in nodes:
-        if node in ttc_dists:
-            ttc_dist = ttc_dists[node]
-        else:
-            ttc_dist = TTCDist.from_node(node)
+        ttc_dist = ttc_dists[node] if node in ttc_dists else TTCDist.from_node(node)
 
         if not ttc_dist.attempt_bernoulli(rng or np.random.default_rng()):
             impossible_attack_steps.add(node)

@@ -234,13 +234,14 @@ class MalSimVectorizedObsEnv(ParallelEnv):
                 available_actions[index] = 1
                 can_act = 1
 
-            if isinstance(agent_state, MalSimAttackerState):
+            if (
+                isinstance(agent_state, MalSimAttackerState)
+                and node not in agent_state.performed_nodes
+            ):
                 # Attacker can only act on nodes that are not compromised
-
-                if node not in agent_state.performed_nodes:
-                    index = self._id_to_index[node.id]
-                    available_actions[index] = 1
-                    can_act = 1
+                index = self._id_to_index[node.id]
+                available_actions[index] = 1
+                can_act = 1
 
         return {
             'action_mask': (
@@ -550,9 +551,9 @@ class MalSimVectorizedObsEnv(ParallelEnv):
 
         states = self.sim.step(malsim_actions)
 
-        all_actioned = set(
+        all_actioned = {
             n for state in states.values() for n in state.step_performed_nodes
-        )
+        }
         disabled_nodes = next(iter(states.values())).step_unviable_nodes
 
         self._update_agent_infos()  # Update action masks

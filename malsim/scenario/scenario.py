@@ -48,7 +48,8 @@ required_fields: list[str | tuple[str, str]] = [
 ]
 
 # All allowed fields in scenario yml fild
-allowed_fields = required_fields + [
+allowed_fields = [
+    *required_fields,
     'rewards',
     'observable_steps',
     'actionable_steps',
@@ -175,11 +176,10 @@ def _validate_scenario_dict(scenario_dict: dict[str, Any]) -> None:
         if isinstance(f, str):
             allowed_fields_flattened.append(f)
         elif isinstance(f, tuple):
-            for sf in f:
-                allowed_fields_flattened.append(sf)
+            allowed_fields_flattened.extend(f)
 
     # Verify that all keys in dict are supported
-    for key in scenario_dict.keys():
+    for key in scenario_dict:
         if key in deprecated_fields:
             raise SyntaxError(
                 f"Scenario setting '{key}' is deprecated, see "

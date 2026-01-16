@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 from collections.abc import Set
 
 import numpy as np
@@ -40,11 +40,11 @@ def defender_observed_nodes(
     From set of compromised nodes, generate observed nodes for a defender
     in regards to observability, false negatives and false positives.
     """
-    observable_steps = set(
+    observable_steps = {
         n
         for n in compromised_nodes
         if node_is_observable(observability_rule, sim_state.global_observability, n)
-    )
+    }
     false_negatives = generate_false_negatives(
         false_negative_rates_rule,
         sim_state.global_false_negative_rates,

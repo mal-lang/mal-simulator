@@ -3,7 +3,7 @@ import logging
 import random
 
 from collections import deque
-from typing import Optional, TYPE_CHECKING, Any
+from typing import ClassVar, Optional, TYPE_CHECKING, Any
 
 from ..decision_agent import DecisionAgent
 
@@ -24,7 +24,7 @@ class BreadthFirstAttacker(DecisionAgent):
     # available actions. Differentiates between BFS and DFS agents.
     _extend_method = 'extendleft'
 
-    _default_settings: dict[str, Any] = {
+    _default_settings: ClassVar[dict[str, Any]] = {
         # Whether to randomize next target selection, still respecting the
         # policy of the agent (BFS or DFS).
         'randomize': False,

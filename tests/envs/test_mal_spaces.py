@@ -8,7 +8,6 @@ from malsim.envs.graph.mal_spaces import (
     MALObsAttackStepSpace,
     MALAttackerObs,
     MALDefenderObs,
-    AssetThenAction,
 )
 from malsim.envs.graph.utils import (
     create_full_obs,
@@ -36,7 +35,7 @@ def test_mal_obs() -> None:
         actions = {}
         for agent_name, state in states.items():
             if len(state.action_surface) > 0:
-                actions[agent_name] = [list(state.action_surface)[0]]
+                actions[agent_name] = [next(iter(state.action_surface))]
             else:
                 actions[agent_name] = []
         states = sim.step(actions)
@@ -66,7 +65,7 @@ def test_attacker_obs() -> None:
 
     while not sim.agent_is_terminated(attacker_name):
         attacker_state = sim.step(
-            {attacker_name: [list(attacker_state.action_surface)[0]]}
+            {attacker_name: [next(iter(attacker_state.action_surface))]}
         )[attacker_name]
         assert isinstance(attacker_state, MalSimAttackerState)
         attacker_obs = full_obs2attacker_obs(full_obs, attacker_state, serializer)
@@ -154,7 +153,7 @@ def test_defender_obs() -> None:
 
     while len(defender_state.action_surface) > 0:
         defender_state = sim.step(
-            {defender_name: [list(defender_state.action_surface)[0]]}
+            {defender_name: [next(iter(defender_state.action_surface))]}
         )[defender_name]
         assert isinstance(defender_state, MalSimDefenderState)
         defender_obs = full_obs2defender_obs(full_obs, defender_state, serializer)
