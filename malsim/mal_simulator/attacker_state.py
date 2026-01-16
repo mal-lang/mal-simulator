@@ -60,7 +60,9 @@ class MalSimAttackerState(MalSimAgentState):
             self, 'ttc_value_overrides', MappingProxyType(state['ttc_value_overrides'])
         )
         object.__setattr__(
-            self, 'performed_nodes_order', MappingProxyType(state['performed_nodes_order']),
+            self,
+            'performed_nodes_order',
+            MappingProxyType(state['performed_nodes_order']),
         )
         # set other frozen attributes
         for key, value in state.items():
