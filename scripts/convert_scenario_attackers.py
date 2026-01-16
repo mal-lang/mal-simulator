@@ -14,12 +14,13 @@ def _get_model_attackers(model_file: str) -> dict:
         model_dict = yaml.safe_load(file)
         model_attackers = model_dict.get('attackers', {})
 
-        for _, attacker_info in model_attackers.items():
+        for attacker_info in model_attackers.values():
             attacker_name = attacker_info['name']
-            entry_points = []
-            for ep_asset, ep_info in attacker_info['entry_points'].items():
-                for ep_attack_step in ep_info['attack_steps']:
-                    entry_points.append(ep_asset + ':' + ep_attack_step)
+            entry_points = [
+                ep_asset + ':' + ep_attack_step
+                for ep_asset, ep_info in attacker_info['entry_points'].items()
+                for ep_attack_step in ep_info['attack_steps']
+            ]
             attackers[attacker_name] = {
                 'type': 'attacker',
                 'name': attacker_name,

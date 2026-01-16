@@ -200,7 +200,7 @@ class DefenderEnv(gym.Env[Any, Any]):
         # Add reverse edges from the defense steps children to the defense steps
         # themselves
         if defense_steps is not None:
-            for p, c in zip(edges[0, :], edges[1, :]):
+            for p, c in zip(edges[0, :], edges[1, :], strict=True):
                 if p in defense_steps:
                     new_edge = np.array([c, p]).reshape((2, 1))
                     edges = np.concatenate((edges, new_edge), axis=1)
@@ -288,7 +288,6 @@ class LabeledGraphWrapper(Wrapper):
                 'mask_1': spaces.Box(0, 1, shape=(num_nodes,), dtype=np.int8),
             }
         )
-        pass
 
     def render(self) -> RenderFrame | list[RenderFrame] | None:
         return self.env.render()

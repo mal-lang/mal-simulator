@@ -1,7 +1,6 @@
-from typing import Any, Tuple
+from typing import Any
 
-from gymnasium.vector import AsyncVectorEnv, SyncVectorEnv
-from gymnasium import spaces
+from gymnasium.vector import AsyncVectorEnv
 from gymnasium.utils.env_checker import check_env
 
 from malsim import MalSimulator
@@ -16,18 +15,15 @@ from malsim.envs.graph.mal_spaces import (
     AssetThenDefenderAction,
     AttackerActionThenAsset,
     DefenderActionThenAsset,
-    MALObsAttackStepSpace,
     MALObsInstance,
 )
 from malsim.scenario.scenario import Scenario
-from typing import Any
 from malsim.mal_simulator import (
     MalSimulatorSettings,
     TTCMode,
     RewardMode,
     MalSimAttackerState,
 )
-import numpy as np
 import numpy as np
 from numpy.typing import NDArray
 import pytest

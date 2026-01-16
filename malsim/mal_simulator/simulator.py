@@ -100,6 +100,7 @@ ENABLED_ATTACKS_FUNCS: Mapping[
     RewardMode.ONE_OFF: lambda ds: ds.step_compromised_nodes,
 }
 
+BASE_SETTINGS = MalSimulatorSettings()
 
 class MalSimulator:
     """A MAL Simulator that works on the AttackGraph
@@ -112,7 +113,7 @@ class MalSimulator:
     def __init__(
         self,
         attack_graph: AttackGraph,
-        sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
+        sim_settings: MalSimulatorSettings = BASE_SETTINGS,
         rewards: Optional[dict[str, float] | dict[AttackGraphNode, float]] = None,
         false_positive_rates: Optional[
             dict[str, float] | dict[AttackGraphNode, float]
@@ -183,7 +184,7 @@ class MalSimulator:
     def from_scenario(
         cls,
         scenario: Scenario | str,
-        sim_settings: MalSimulatorSettings = MalSimulatorSettings(),
+        sim_settings: MalSimulatorSettings = BASE_SETTINGS,
         register_agents: bool = True,
         send_to_api: bool = False,
         **kwargs: Any,
@@ -630,8 +631,8 @@ def step(
     _pre_step_check(agent_states, live_agents, actions)
 
     # Populate these from the results for all agents' actions.
-    step_compromised_nodes: list[AttackGraphNode] = list()
-    step_enabled_defenses: list[AttackGraphNode] = list()
+    step_compromised_nodes: list[AttackGraphNode] = []
+    step_enabled_defenses: list[AttackGraphNode] = []
     step_nodes_made_unviable: set[AttackGraphNode] = set()
     current_iteration = 0
 

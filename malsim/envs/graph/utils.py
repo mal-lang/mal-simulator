@@ -97,7 +97,7 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         for node in sorted_steps
         if node.model_asset in sorted_assets
     }
-    step2asset_links = np.array(list(zip(*step2asset)), dtype=np.int64)
+    step2asset_links = np.array(list(zip(*step2asset, strict=True)), dtype=np.int64)
     # Compute action_mask for each asset: True if any connected step
     # has action_mask == True
     asset_action_mask = np.zeros(len(sorted_assets), dtype=np.bool_)
@@ -137,12 +137,12 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         )
     )
     assoc2asset: set[tuple[int, int]] = set()
-    for i, (assoc, asset1, asset2) in enumerate(sorted_associations):
+    for i, (_, asset1, asset2) in enumerate(sorted_associations):
         assoc2asset.add((i, sorted_assets.index(asset1)))
         assoc2asset.add((i, sorted_assets.index(asset2)))
 
     asset2asset: set[tuple[int, int]] = set()
-    for assoc, asset1, asset2 in sorted_associations:
+    for _, asset1, asset2 in sorted_associations:
         asset1_idx = sorted_assets.index(asset1)
         asset2_idx = sorted_assets.index(asset2)
         # NOTE: Unidirectional links between assets
@@ -167,16 +167,18 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         for child in node.children:
             step2logic.add((child.id, logic_gate_id))
     if logic2step:
-        logic2step_links = np.array(list(zip(*logic2step)), dtype=np.int64)
+        logic2step_links = np.array(list(zip(*logic2step, strict=True)), dtype=np.int64)
     else:
         logic2step_links = np.empty((2, 0), dtype=np.int64)
     if step2logic:
-        step2logic_links = np.array(list(zip(*step2logic)), dtype=np.int64)
+        step2logic_links = np.array(list(zip(*step2logic, strict=True)), dtype=np.int64)
     else:
         step2logic_links = np.empty((2, 0), dtype=np.int64)
 
     if asset2asset:
-        asset2asset_links = np.array(list(zip(*asset2asset)), dtype=np.int64)
+        asset2asset_links = np.array(
+            list(zip(*asset2asset, strict=True)), dtype=np.int64
+        )
     else:
         asset2asset_links = np.empty((2, 0), dtype=np.int64)
 
@@ -186,9 +188,9 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         steps=steps,
         associations=association,
         logic_gates=logic_gates,
-        step2asset=np.array(list(zip(*step2asset))),
-        step2step=np.array(list(zip(*step2step))),
-        assoc2asset=np.array(list(zip(*assoc2asset))),
+        step2asset=np.array(list(zip(*step2asset, strict=True)), dtype=np.int64),
+        step2step=np.array(list(zip(*step2step, strict=True)), dtype=np.int64),
+        assoc2asset=np.array(list(zip(*assoc2asset, strict=True)), dtype=np.int64),
         logic2step=logic2step_links,
         step2logic=step2logic_links,
         asset2asset=asset2asset_links,

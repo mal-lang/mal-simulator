@@ -45,7 +45,7 @@ class NodePropertyRule:
 
     def per_node(self, attack_graph: AttackGraph) -> dict[str, Any]:
         """Return a dict mapping from each step full name to value given by config"""
-        per_node_dict = dict()
+        per_node_dict = {}
         for n in attack_graph.nodes.values():
             value = self.value(n)
             if value is not None:

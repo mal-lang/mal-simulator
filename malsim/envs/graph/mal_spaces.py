@@ -301,18 +301,16 @@ class MALObs(Space[MALObsInstance]):
                 and isinstance(x.logic2step, np.ndarray)
                 and isinstance(x.step2logic, np.ndarray)
                 and isinstance(x.asset2asset, np.ndarray)
+                and np.issubdtype(x.step2asset.dtype, np.integer)
+                and (
+                    x.assoc2asset is None
+                    or np.issubdtype(x.assoc2asset.dtype, np.integer)
+                )
+                and np.issubdtype(x.step2step.dtype, np.integer)
+                and np.issubdtype(x.logic2step.dtype, np.integer)
+                and np.issubdtype(x.step2logic.dtype, np.integer)
+                and np.issubdtype(x.asset2asset.dtype, np.integer)
             ):
-                if (
-                    np.issubdtype(x.step2asset.dtype, np.integer)
-                    and (
-                        x.assoc2asset is None
-                        or np.issubdtype(x.assoc2asset.dtype, np.integer)
-                    )
-                    and np.issubdtype(x.step2step.dtype, np.integer)
-                    and np.issubdtype(x.logic2step.dtype, np.integer)
-                    and np.issubdtype(x.step2logic.dtype, np.integer)
-                    and np.issubdtype(x.asset2asset.dtype, np.integer)
-                ):
                     step2asset_valid = (
                         (x.step2asset[0] >= 0)
                         & (x.step2asset[0] < x.steps.type.shape[0])
@@ -583,8 +581,7 @@ class MALObsAttackStepSpace(Discrete):
     ):
         # NOTE: The corresponding MALObsInstance should have the same sorting
         # of the actionable steps as the action space
-        actionable_attack_steps = list(
-            sorted(
+        actionable_attack_steps = sorted(
                 {
                     node
                     for node in sim.sim_state.attack_graph.nodes.values()
@@ -592,7 +589,6 @@ class MALObsAttackStepSpace(Discrete):
                 },
                 key=lambda step: step.id,
             )
-        )
         super().__init__(n=len(actionable_attack_steps), seed=seed)
 
         self.actionability = np.array(
@@ -626,8 +622,7 @@ class MALObsDefenseStepSpace(Discrete):
     ):
         # NOTE: The corresponding MALObsInstance should have the same sorting
         # of the actionable steps as the action space
-        actionable_defense_steps = list(
-            sorted(
+        actionable_defense_steps = sorted(
                 {
                     node
                     for node in sim.sim_state.attack_graph.nodes.values()
@@ -635,7 +630,6 @@ class MALObsDefenseStepSpace(Discrete):
                 },
                 key=lambda step: step.id,
             )
-        )
         super().__init__(n=len(actionable_defense_steps), seed=seed)
 
         self.actionability = np.array(

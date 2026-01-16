@@ -192,13 +192,14 @@ def test_create_blank_observation_observability_given(
 
         # Below are the rules from the traininglang observability scenario
         # made into if statements
-        if node.lg_attack_step.asset.name == 'Host' and node.name in ('access'):
-            assert observable
-        elif node.lg_attack_step.asset.name == 'Host' and node.name in ('authenticate'):
-            assert observable
-        elif node.lg_attack_step.asset.name == 'Data' and node.name in ('read'):
-            assert observable
-        elif (
+        if (
+            (node.lg_attack_step.asset.name == 'Host' and node.name in ('access'))
+            or (
+                node.lg_attack_step.asset.name == 'Host'
+                and node.name in ('authenticate')
+            )
+            or (node.lg_attack_step.asset.name == 'Data' and node.name in ('read'))
+        ) or (
             node.model_asset
             and node.model_asset.name == 'User:3'
             and node.name in ('phishing')
@@ -229,11 +230,13 @@ def test_create_blank_observation_actionability_given(
 
         # Below are the rules from the traininglang observability scenario
         # made into if statements
-        if node.lg_attack_step.asset.name == 'Host' and node.name in ('notPresent'):
-            assert actionable
-        elif node.lg_attack_step.asset.name == 'Data' and node.name in ('notPresent'):
-            assert actionable
-        elif (
+        if (
+            node.lg_attack_step.asset.name == 'Host'
+            and node.name in ('notPresent')
+            or (
+                node.lg_attack_step.asset.name == 'Data' and node.name in ('notPresent')
+            )
+        ) or (
             node.model_asset
             and node.model_asset.name == 'User:3'
             and node.name in ('notPresent')
@@ -268,12 +271,13 @@ def test_malsimulator_observe_attacker() -> None:
     reached_step = next(iter(attacker_state.performed_nodes))
 
     # Select actions for the attacker
-    actions_to_take = []
-    for child_node in reached_step.children:
-        if child_node.type in ('and', 'or'):
-            # In the end the attacker will have three reached steps
-            # where two are children of the first one
-            actions_to_take.append(child_node)
+    # In the end the attacker will have three reached steps
+    # where two are children of the first one
+    actions_to_take = [
+        child_node
+        for child_node in reached_step.children
+        if child_node.type in ('and', 'or')
+    ]
 
     num_reached_steps_before = len(attacker_state.performed_nodes)
 

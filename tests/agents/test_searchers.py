@@ -193,7 +193,7 @@ def test_depth_first_traversal_complicated(dummy_lang_graph: LanguageGraph) -> N
     attacker_ai = DepthFirstAttacker(agent_config)
 
     actual_order = []
-    for _ in range(0, 7):
+    for _ in range(7):
         # Get next action
         action_node = attacker_ai.get_next_action(agent_state)
         assert action_node
