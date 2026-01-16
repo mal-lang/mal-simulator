@@ -50,9 +50,7 @@ def attacker_is_terminated(attacker_state: MalSimAttackerState) -> bool:
 
 
 def attacker_step_effects(
-    sim_state: MalSimulatorState,
-    agent: MalSimAttackerState,
-    action: AttackGraphNode
+    sim_state: MalSimulatorState, agent: MalSimAttackerState, action: AttackGraphNode
 ) -> list[AttackGraphNode]:
     """Perform the effects of an action performed by attacker.
     Return the effects that descend from `action` and can be compromised.

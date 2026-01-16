@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 def get_effects_of_attack_step(
     sim_state: MalSimulatorState,
     attack_step: AttackGraphNode,
-    performed_nodes: Set[AttackGraphNode]
+    performed_nodes: Set[AttackGraphNode],
 ) -> set[AttackGraphNode]:
     """Get nodes performed as a consequence of `attack_step` being compromised"""
     performed = set(performed_nodes) | {attack_step}
