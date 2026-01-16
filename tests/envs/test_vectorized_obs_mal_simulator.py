@@ -341,9 +341,9 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
             if state == 1:
                 assert index in expected_enabled_nodes
             elif state == 0:
-                assert index not in expected_enabled_nodes, (
-                    f'{index} not correct state {state}'
-                )
+                assert (
+                    index not in expected_enabled_nodes
+                ), f'{index} not correct state {state}'
             else:
                 assert state == -1
 

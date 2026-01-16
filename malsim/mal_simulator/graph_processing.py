@@ -62,14 +62,14 @@ def evaluate_necessity(
 
     match node.type:
         case 'exist':
-            assert isinstance(node.existence_status, bool), (
-                f'Existence status not defined for {node.full_name}.'
-            )
+            assert isinstance(
+                node.existence_status, bool
+            ), f'Existence status not defined for {node.full_name}.'
             return not node.existence_status
         case 'notExist':
-            assert isinstance(node.existence_status, bool), (
-                f'Existence status not defined for {node.full_name}.'
-            )
+            assert isinstance(
+                node.existence_status, bool
+            ), f'Existence status not defined for {node.full_name}.'
             return bool(node.existence_status)
         case 'defense':
             return node in enabled_defenses
@@ -166,14 +166,14 @@ def evaluate_viability(
 
     match node.type:
         case 'exist':
-            assert isinstance(node.existence_status, bool), (
-                f'Existence status not defined for {node.full_name}.'
-            )
+            assert isinstance(
+                node.existence_status, bool
+            ), f'Existence status not defined for {node.full_name}.'
             return node.existence_status
         case 'notExist':
-            assert isinstance(node.existence_status, bool), (
-                f'Existence status not defined for {node.full_name}.'
-            )
+            assert isinstance(
+                node.existence_status, bool
+            ), f'Existence status not defined for {node.full_name}.'
             return not node.existence_status
         case 'defense':
             return node not in enabled_defenses

@@ -102,6 +102,7 @@ ENABLED_ATTACKS_FUNCS: Mapping[
 
 BASE_SETTINGS = MalSimulatorSettings()
 
+
 class MalSimulator:
     """A MAL Simulator that works on the AttackGraph
 
@@ -209,9 +210,9 @@ class MalSimulator:
     ) -> float:
         if agent_name:
             agent = self._agent_states[agent_name]
-            assert isinstance(agent, MalSimAttackerState), (
-                'TTC values only apply to attackers'
-            )
+            assert isinstance(
+                agent, MalSimAttackerState
+            ), 'TTC values only apply to attackers'
             return node_ttc_value(agent, node)
         else:
             return self.sim_state.graph_state.ttc_values[node]
@@ -240,9 +241,9 @@ class MalSimulator:
         agent_observability = None
         if agent_name:
             agent = self._agent_states[agent_name]
-            assert isinstance(agent, MalSimDefenderState), (
-                'Observability only apply to defenders'
-            )
+            assert isinstance(
+                agent, MalSimDefenderState
+            ), 'Observability only apply to defenders'
             agent_observability = agent.observability_rule
 
         return node_is_observable(
@@ -255,9 +256,9 @@ class MalSimulator:
         false_positive_rates_rule = None
         if agent_name:
             agent = self._agent_states[agent_name]
-            assert isinstance(agent, MalSimDefenderState), (
-                'False positives only apply to defenders'
-            )
+            assert isinstance(
+                agent, MalSimDefenderState
+            ), 'False positives only apply to defenders'
             false_positive_rates_rule = agent.false_positive_rates_rule
         return node_false_positive_rate(
             false_positive_rates_rule, self.sim_state.global_false_positive_rates, node
@@ -269,9 +270,9 @@ class MalSimulator:
         false_negative_rates_rule = None
         if agent_name:
             agent = self._agent_states[agent_name]
-            assert isinstance(agent, MalSimDefenderState), (
-                'False negatives only apply to defenders'
-            )
+            assert isinstance(
+                agent, MalSimDefenderState
+            ), 'False negatives only apply to defenders'
             false_negative_rates_rule = agent.false_negative_rates_rule
         return node_false_negative_rate(
             false_negative_rates_rule, self.sim_state.global_false_negative_rates, node
