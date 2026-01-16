@@ -24,7 +24,7 @@ def get_effects_of_attack_step(
 ) -> set[AttackGraphNode]:
     """Get nodes performed as a consequence of `attack_step` being compromised"""
     performed = set(performed_nodes) | {attack_step}
-    effects = set()
+    effects: set[AttackGraphNode] = set()
     potential_effects = deque(
         n for n in attack_step.children if n.causal_mode == 'effect'
     )
