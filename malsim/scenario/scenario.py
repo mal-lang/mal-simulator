@@ -41,7 +41,7 @@ deprecated_fields = [
 
 # All required fields in scenario yml file
 # Tuple indicates one of the fields in the tuple is required
-required_fields: list[str, tuple[str, str]] = [
+required_fields: list[str | tuple[str, str]] = [
     ('agents', 'agent_settings'),
     'lang_file',
     ('model_file', 'model'),
