@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Optional
+from types import MappingProxyType
+from typing import Any, Optional
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.agent_state import MalSimAgentState
@@ -26,6 +27,22 @@ class MalSimDefenderState(MalSimAgentState):
     false_positive_rates_rule: Optional[NodePropertyRule] = None
     false_negative_rates_rule: Optional[NodePropertyRule] = None
     observability_rule: Optional[NodePropertyRule] = None
+
+    # Pickling
+    def __getstate__(self) -> dict[str, Any]:
+        state = self.__dict__.copy()
+        state['performed_nodes_order'] = dict(state['performed_nodes_order'])
+        return state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        object.__setattr__(
+            self,
+            'performed_nodes_order',
+            MappingProxyType(state['performed_nodes_order']),
+        )
+        for key, value in state.items():
+            if key not in ('performed_nodes_order'):
+                object.__setattr__(self, key, value)
 
 
 def get_defender_agents(

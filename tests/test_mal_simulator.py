@@ -1,6 +1,7 @@
 """Test MalSimulator class"""
 
 from __future__ import annotations
+import random
 from typing import TYPE_CHECKING
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
@@ -1434,3 +1435,79 @@ def test_active_defenses() -> None:
         sim.get_node('Creds:notDisclosed')
         in sim.sim_state.graph_state.pre_enabled_defenses
     )
+
+
+def test_compromise_order() -> None:
+    """Verify that the compromise order is correctly recorded"""
+
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/socialEngineering_scenario.yml'
+    )
+    sim = MalSimulator.from_scenario(scenario)
+    sim.register_defender('Defender1')
+    states = sim.reset()
+
+    attacker_record = (
+        {0: set(states['Attacker1'].performed_nodes_order[0])}
+        if len(states['Attacker1'].performed_nodes_order) > 0
+        else {}
+    )
+    defender_record = (
+        {0: set(states['Defender1'].performed_nodes_order[0])}
+        if len(states['Defender1'].performed_nodes_order) > 0
+        else {}
+    )
+
+    for i in range(1, 101):
+        actions: dict[str, list[AttackGraphNode]] = {}
+        if len(states['Attacker1'].action_surface) == 0 or random.random() < 0.5:
+            actions['Attacker1'] = []
+        else:
+            actions['Attacker1'] = [
+                random.choice(list(states['Attacker1'].action_surface))
+            ]
+
+        if len(states['Defender1'].action_surface) == 0 or random.random() < 0.3:
+            actions['Defender1'] = []
+        else:
+            actions['Defender1'] = [
+                random.choice(list(states['Defender1'].action_surface))
+            ]
+        states = sim.step(actions)
+        if len(sim.recording[i]['Attacker1']) > 0:
+            attacker_record[i] = set(sim.recording[i]['Attacker1'])
+        if len(sim.recording[i]['Defender1']) > 0:
+            defender_record[i] = set(sim.recording[i]['Defender1'])
+        if sim.done():
+            break
+
+    for i in range(max(max(attacker_record.keys()), max(defender_record.keys())) + 1):
+        if i in attacker_record and i in states['Attacker1'].performed_nodes_order:
+            assert attacker_record[i] == states['Attacker1'].performed_nodes_order[i], (
+                f'Attacker record does not match simulator at time {i}'
+            )
+        elif i in attacker_record:
+            assert False, (
+                f'Attacker record has steps for time {i} but simulator does not'
+            )
+        elif i in states['Attacker1'].performed_nodes_order:
+            assert False, (
+                f'Simulator has steps for time {i} but attacker record does not'
+            )
+
+    for i in range(100):
+        if i in defender_record and i in states['Defender1'].performed_nodes_order:
+            assert defender_record[i] == states['Defender1'].performed_nodes_order[i], (
+                f'Defender record does not match simulator at time {i}'
+            )
+        elif i in defender_record:
+            assert False, (
+                f'Defender record has steps for time {i} but simulator does not'
+            )
+        elif i in states['Defender1'].performed_nodes_order:
+            assert False, (
+                f'Simulator has steps for time {i} but defender record does not'
+            )
+
+    assert states['Attacker1'].performed_nodes_order == attacker_record
+    assert states['Defender1'].performed_nodes_order == defender_record
