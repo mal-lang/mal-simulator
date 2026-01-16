@@ -142,7 +142,7 @@ def test_attacker_episode() -> None:
     obs, info = attacker_env.reset()
     steps = 0
     while not done:
-        obs, reward, terminated, truncated, info = attacker_env.step(
+        obs, _, terminated, truncated, info = attacker_env.step(
             attacker_env.action_space.sample(obs.steps.action_mask)
         )
         state = info['state']

@@ -231,8 +231,7 @@ def test_create_blank_observation_actionability_given(
         # Below are the rules from the traininglang observability scenario
         # made into if statements
         if (
-            (node.lg_attack_step.asset.name == 'Host'
-            and node.name in ('notPresent'))
+            (node.lg_attack_step.asset.name == 'Host' and node.name in ('notPresent'))
             or (
                 node.lg_attack_step.asset.name == 'Data' and node.name in ('notPresent')
             )
