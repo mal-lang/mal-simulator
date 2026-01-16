@@ -8,11 +8,11 @@ from .graph.graph_env import (
 
 # not needed, used to silence ruff F401
 __all__ = [
-    'MalSimVectorizedObsEnv',
     'AttackerEnv',
-    'DefenderEnv',
-    'register_envs',
     'AttackerGraphEnv',
+    'DefenderEnv',
     'DefenderGraphEnv',
+    'MalSimVectorizedObsEnv',
+    'register_envs',
     'register_graph_envs',
 ]

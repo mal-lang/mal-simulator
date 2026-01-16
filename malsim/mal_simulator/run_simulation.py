@@ -15,7 +15,7 @@ def run_simulation(
     Return selected actions by each agent in each step
     """
     agent_actions: dict[str, list[AttackGraphNode]] = {}
-    total_rewards = {agent_name: 0.0 for agent_name in agents}
+    total_rewards = dict.fromkeys(agents, 0.0)
 
     logger.info('Starting CLI env simulator.')
     states = sim.reset()

@@ -73,9 +73,7 @@ def create_attacker_state(
             new_action_surface |= entry_points
             action_surface_additions |= entry_points
 
-        previous_num_attempts: Mapping[AttackGraphNode, int] = {
-            n: 0 for n in sim_state.attack_graph.attack_steps
-        }
+        previous_num_attempts: Mapping[AttackGraphNode, int] = dict.fromkeys(sim_state.attack_graph.attack_steps, 0)
 
     else:
         # Previous state rules will be used if previous state is given
