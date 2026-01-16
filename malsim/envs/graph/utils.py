@@ -85,9 +85,9 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         if child in sorted_steps
     }
 
-    assert (
-        sim.sim_state.attack_graph.model
-    ), 'Attack graph needs to have a model attached to it'
+    assert sim.sim_state.attack_graph.model, (
+        'Attack graph needs to have a model attached to it'
+    )
     sorted_assets = [
         sim.sim_state.attack_graph.model.assets[asset_id]
         for asset_id in sorted(sim.sim_state.attack_graph.model.assets.keys())

@@ -1483,31 +1483,31 @@ def test_compromise_order() -> None:
 
     for i in range(max(max(attacker_record.keys()), max(defender_record.keys())) + 1):
         if i in attacker_record and i in states['Attacker1'].performed_nodes_order:
-            assert (
-                attacker_record[i] == states['Attacker1'].performed_nodes_order[i]
-            ), f'Attacker record does not match simulator at time {i}'
+            assert attacker_record[i] == states['Attacker1'].performed_nodes_order[i], (
+                f'Attacker record does not match simulator at time {i}'
+            )
         elif i in attacker_record:
-            assert (
-                False
-            ), f'Attacker record has steps for time {i} but simulator does not'
+            assert False, (
+                f'Attacker record has steps for time {i} but simulator does not'
+            )
         elif i in states['Attacker1'].performed_nodes_order:
-            assert (
-                False
-            ), f'Simulator has steps for time {i} but attacker record does not'
+            assert False, (
+                f'Simulator has steps for time {i} but attacker record does not'
+            )
 
     for i in range(100):
         if i in defender_record and i in states['Defender1'].performed_nodes_order:
-            assert (
-                defender_record[i] == states['Defender1'].performed_nodes_order[i]
-            ), f'Defender record does not match simulator at time {i}'
+            assert defender_record[i] == states['Defender1'].performed_nodes_order[i], (
+                f'Defender record does not match simulator at time {i}'
+            )
         elif i in defender_record:
-            assert (
-                False
-            ), f'Defender record has steps for time {i} but simulator does not'
+            assert False, (
+                f'Defender record has steps for time {i} but simulator does not'
+            )
         elif i in states['Defender1'].performed_nodes_order:
-            assert (
-                False
-            ), f'Simulator has steps for time {i} but defender record does not'
+            assert False, (
+                f'Simulator has steps for time {i} but defender record does not'
+            )
 
     assert states['Attacker1'].performed_nodes_order == attacker_record
     assert states['Defender1'].performed_nodes_order == defender_record

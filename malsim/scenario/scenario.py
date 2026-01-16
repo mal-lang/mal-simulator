@@ -103,9 +103,9 @@ class Scenario:
         self.is_actionable = NodePropertyRule.from_optional_dict(actionable_steps)
 
     def to_dict(self) -> dict[str, Any]:
-        assert (
-            self._lang_file
-        ), 'Can not save scenario to file if lang file was not given'
+        assert self._lang_file, (
+            'Can not save scenario to file if lang file was not given'
+        )
         scenario_dict = {
             # 'version': ?
             'lang_file': self._lang_file,

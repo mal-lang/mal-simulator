@@ -29,9 +29,9 @@ def register_attacker_settings(
     enabled_attacks_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
 ) -> tuple[AgentStates, set[str], AgentRewards, AgentSettings]:
     """Register a mal sim attacker agent"""
-    assert (
-        attacker_settings.name not in agent_settings
-    ), f'Duplicate agent named {attacker_settings.name} not allowed'
+    assert attacker_settings.name not in agent_settings, (
+        f'Duplicate agent named {attacker_settings.name} not allowed'
+    )
     alive_agents.add(attacker_settings.name)
     agent_settings[attacker_settings.name] = attacker_settings
 
@@ -112,9 +112,9 @@ def register_defender_settings(
             'It does not make sense to have more than one, '
             'since all defender agents have the same state.'
         )
-    assert (
-        defender_settings.name not in agent_settings
-    ), f'Duplicate agent named {defender_settings.name} not allowed'
+    assert defender_settings.name not in agent_settings, (
+        f'Duplicate agent named {defender_settings.name} not allowed'
+    )
 
     agent_settings[defender_settings.name] = defender_settings
 
