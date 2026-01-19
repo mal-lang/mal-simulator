@@ -38,7 +38,7 @@ from malsim.mal_simulator.false_alerts import (
     node_false_positive_rate,
 )
 from malsim.config.agent_settings import AttackerSettings, DefenderSettings
-from malsim.mal_simulator.types import (
+from malsim.types import (
     AgentRewards,
     AgentStates,
     AgentSettings,

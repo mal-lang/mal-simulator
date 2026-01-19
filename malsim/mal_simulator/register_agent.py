@@ -12,7 +12,7 @@ from malsim.mal_simulator.reset_agent import reset_agents
 from malsim.mal_simulator.rewards import attacker_step_reward, defender_step_reward
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 from malsim.config.agent_settings import AttackerSettings, DefenderSettings
-from malsim.mal_simulator.types import AgentRewards, AgentStates, AgentSettings
+from malsim.types import AgentRewards, AgentStates, AgentSettings
 
 
 def register_attacker_settings(

@@ -23,8 +23,8 @@ from malsim.mal_simulator import (
     run_simulation,
 )
 
-from malsim.scenario.scenario import Scenario
-from malsim.config.agent_settings import AttackerSettings, DefenderSettings
+from malsim.scenario import Scenario
+from malsim.config import AttackerSettings, DefenderSettings
 
 __title__ = 'malsim'
 __version__ = '2.0.0'

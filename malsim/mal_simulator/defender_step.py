@@ -10,7 +10,7 @@ from malsim.mal_simulator.graph_utils import node_reward
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 if TYPE_CHECKING:
-    from malsim.mal_simulator.types import AgentStates
+    from malsim.types import AgentStates
     from malsim.mal_simulator.defender_state import MalSimDefenderState
 
 logger = logging.getLogger(__name__)

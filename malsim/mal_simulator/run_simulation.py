@@ -4,7 +4,7 @@ from maltoolbox.attackgraph import AttackGraphNode
 
 from malsim.policies.decision_agent import DecisionAgent
 from malsim.mal_simulator.simulator import MalSimulator
-from malsim.mal_simulator.types import AgentSettings
+from malsim.types import AgentSettings
 
 
 def run_simulation(

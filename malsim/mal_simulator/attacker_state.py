@@ -5,7 +5,7 @@ from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.agent_state import MalSimAgentState
 from malsim.mal_simulator.ttc_utils import TTCDist
-from malsim.mal_simulator.types import AgentStates
+from malsim.types import AgentStates
 
 
 @dataclass(frozen=True)
