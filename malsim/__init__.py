@@ -33,12 +33,12 @@ __license__ = 'Apache 2.0'
 __docformat__ = 'restructuredtext en'
 
 __all__ = [
-    'MalSimulator',
-    'MalSimulatorSettings',
-    'run_simulation',
-    'Scenario',
     'AttackerSettings',
     'DefenderSettings',
+    'MalSimulator',
+    'MalSimulatorSettings',
+    'Scenario',
+    'run_simulation',
 ]
 
 

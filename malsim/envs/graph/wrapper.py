@@ -5,13 +5,10 @@ passing them to the base environment, following the pattern of Gymnasium's
 ActionWrapper (https://gymnasium.farama.org/api/wrappers/action_wrappers/).
 """
 
-from typing import Any, Callable, SupportsFloat
+from typing import Any, SupportsFloat
 import numpy as np
-from numpy.typing import NDArray
-import gymnasium as gym
 from gymnasium import Wrapper
-from gymnasium.core import ActType, ObsType, Env, WrapperActType
-from gymnasium.spaces import Space
+from gymnasium.core import Env
 from malsim.envs.graph.mal_spaces import (
     AssetThenDefenderAction,
     AttackerActionThenAsset,

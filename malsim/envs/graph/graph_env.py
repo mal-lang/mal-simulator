@@ -31,16 +31,18 @@ from pettingzoo import ParallelEnv
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_SIM_SETTINGS = MalSimulatorSettings(
+    ttc_mode=TTCMode.PER_STEP_SAMPLE,
+    run_defense_step_bernoullis=False,
+    run_attack_step_bernoullis=False,
+    attack_surface_skip_unnecessary=False,
+    attacker_reward_mode=RewardMode.ONE_OFF,
+)
+
 
 def register_graph_envs(
     scenario: Scenario | PathLike[str],
-    sim_settings: MalSimulatorSettings = MalSimulatorSettings(
-        ttc_mode=TTCMode.PER_STEP_SAMPLE,
-        run_defense_step_bernoullis=False,
-        run_attack_step_bernoullis=False,
-        attack_surface_skip_unnecessary=False,
-        attacker_reward_mode=RewardMode.ONE_OFF,
-    ),
+    sim_settings: MalSimulatorSettings = DEFAULT_SIM_SETTINGS,
 ) -> None:
     gym.register(
         id='GraphAttackerEnv-v0',
@@ -189,12 +191,15 @@ class DefenderGraphEnv(gym.Env[MALObsInstance, np.int64]):
         return self.multi_env.close()
 
 
-def get_agent_name(scenario: Scenario, type: AgentType) -> str:
+def get_agent_name(scenario: Scenario, agent_type: AgentType) -> str:
     agent_names = [
-        name for name, agent in scenario.agent_settings.items() if agent.type == type
+        name
+        for name, agent in scenario.agent_settings.items()
+        if agent.type == agent_type
     ]
     assert len(agent_names) == 1, (
-        f'Expected exactly one agent of type {type}, got {len(agent_names)} agents'
+        f'Expected exactly one agent of type {agent_type},'
+        f' got {len(agent_names)} agents'
     )
     return str(agent_names[0])
 
@@ -224,7 +229,7 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
             'defender': MALObsDefenseStepSpace(self.sim),
         }
         self._full_obs = create_full_obs(self.sim, self.lang_serializer)
-        self.possible_agents = [name for name in self.sim.agent_states.keys()]
+        self.possible_agents = list(self.sim.agent_states)
         self.agents = list(self.sim._alive_agents)
 
     def reset(
@@ -294,14 +299,13 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
         for agent_name, obs in self._obs.items():
             self.action_space(agent_name)._mask = obs.steps.action_mask
         rewards = {
-            agent_name: self.sim.agent_reward(agent_name)
-            for agent_name in states.keys()
+            agent_name: self.sim.agent_reward(agent_name) for agent_name in states
         }
         terminations = {
             agent_name: self.sim.agent_is_terminated(agent_name)
-            for agent_name in states.keys()
+            for agent_name in states
         }
-        truncations = {agent_name: self.sim.done() for agent_name in states.keys()}
+        truncations = {agent_name: self.sim.done() for agent_name in states}
         return (
             self._obs,
             rewards,

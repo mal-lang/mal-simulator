@@ -1,6 +1,5 @@
-from typing import Any, cast
-from maltoolbox.attackgraph import AttackGraphNode
-from maltoolbox.language import LanguageGraph, LanguageGraphAttackStep
+from typing import Any
+from maltoolbox.language import LanguageGraph
 import numpy as np
 from numpy.typing import NDArray
 
@@ -103,7 +102,7 @@ class LangSerializer:
                 self.defender_step_type[step_key] = idx
         else:
             # Map from (step_name) to idx
-            all_step_names: set[str] = set(step.name for step in all_steps)
+            all_step_names: set[str] = {step.name for step in all_steps}
             self.step_type = {
                 (step_name,): i for i, step_name in enumerate(all_step_names)
             }
@@ -141,16 +140,17 @@ class LangSerializer:
             ]
 
         # NOTE: The actual logic-class of the step
-        all_step_classes = set(step.type for step in all_steps)
+        all_step_classes = {step.type for step in all_steps}
         # Map from step class name to idx
         self.step_class = {
             class_name: i for i, class_name in enumerate(all_step_classes)
         }
 
         # NOTE: Add None tag for steps without tags
-        all_step_tags: list[Any] = [None] + list(
-            sorted(set(tag for step in all_steps for tag in step.tags))
-        )
+        all_step_tags: list[Any] = [
+            None,
+            *(sorted({tag for step in all_steps for tag in step.tags})),
+        ]
         self.step_tag: dict[str | None, int] = {
             tag: i for i, tag in enumerate(all_step_tags)
         }

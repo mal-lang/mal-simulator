@@ -31,14 +31,14 @@ def generate_false_negatives(
 ) -> set[AttackGraphNode]:
     """Return a set of false negative attack steps from observed nodes"""
     if false_negative_rate_rule or global_false_negative_rates:
-        return set(
+        return {
             node
             for node in observed_nodes
             if rng.random()
             < node_false_negative_rate(
                 false_negative_rate_rule, global_false_negative_rates, node
             )
-        )
+        }
     else:
         return set()
 
@@ -65,13 +65,13 @@ def generate_false_positives(
 ) -> set[AttackGraphNode]:
     """Return a set of false positive attack steps from attack graph"""
     if false_positive_rates_rule or global_false_positive_rates:
-        return set(
+        return {
             node
             for node in attack_graph.attack_steps
             if rng.random()
             < node_false_positive_rate(
                 false_positive_rates_rule, global_false_positive_rates, node
             )
-        )
+        }
     else:
         return set()

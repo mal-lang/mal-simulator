@@ -13,15 +13,15 @@ from .attackers.shortest_path import ShortestPathAttacker
 from .utils.path_finding import get_shortest_path_to
 
 __all__ = [
-    'PassiveAgent',
-    'DecisionAgent',
-    'KeyboardAgent',
     'BreadthFirstAttacker',
-    'DepthFirstAttacker',
-    'TTCSoftMinAttacker',
-    'RandomAgent',
+    'DecisionAgent',
     'DefendCompromisedDefender',
     'DefendFutureCompromisedDefender',
+    'DepthFirstAttacker',
+    'KeyboardAgent',
+    'PassiveAgent',
+    'RandomAgent',
     'ShortestPathAttacker',
+    'TTCSoftMinAttacker',
     'get_shortest_path_to',
 ]

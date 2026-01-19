@@ -30,5 +30,6 @@ class MalSimEnv(ABC):
     def get_agent_state(self, agent_name: str) -> MalSimAgentState:
         return self.sim.agent_states[agent_name]
 
+    @abstractmethod
     def render(self) -> None:
         pass

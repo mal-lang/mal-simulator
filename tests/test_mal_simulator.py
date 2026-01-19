@@ -382,16 +382,18 @@ def test_is_traversable(corelang_lang_graph: LanguageGraph, model: Model) -> Non
             continue
 
         if node in children_of_reached_nodes:
-            if node.type == 'and':
-                if not sim.node_is_traversable(attacker_state.performed_nodes, node):
-                    assert not all(
-                        p in attacker_state.performed_nodes
-                        for p in node.parents
-                        if p.type in ('or', 'and')
-                    ) or not sim.node_is_viable(node)
-            if node.type == 'or':
-                if not sim.node_is_traversable(attacker_state.performed_nodes, node):
-                    assert not sim.node_is_viable(node)
+            if node.type == 'and' and not sim.node_is_traversable(
+                attacker_state.performed_nodes, node
+            ):
+                assert not all(
+                    p in attacker_state.performed_nodes
+                    for p in node.parents
+                    if p.type in ('or', 'and')
+                ) or not sim.node_is_viable(node)
+            if node.type == 'or' and not sim.node_is_traversable(
+                attacker_state.performed_nodes, node
+            ):
+                assert not sim.node_is_viable(node)
         else:
             assert not sim.node_is_traversable(attacker_state.performed_nodes, node)
 
@@ -416,7 +418,7 @@ def test_not_initial_compromise_entrypoints(
     # Step through entrypoint adds it to performed nodes and extends the action surface
     attacker_state = sim.step({attacker_name: [entry_point]})[attacker_name]
     assert attacker_state.performed_nodes == {entry_point}
-    assert attacker_state.action_surface == {n for n in entry_point.children}
+    assert attacker_state.action_surface == set(entry_point.children)
 
 
 def test_not_initial_compromise_entrypoints_unviable_step(
@@ -584,7 +586,8 @@ def test_attacker_step_rewards_expected_ttc(
     entry_point = get_node(attack_graph, 'OS App:fullAccess')
 
     # Set some random rewards for each node
-    rewards = {n.full_name: np.random.random() * 100 for n in attack_graph.attack_steps}
+    rng = np.random.default_rng(22)
+    rewards = {n.full_name: rng.random() * 100 for n in attack_graph.attack_steps}
     sim = MalSimulator(
         attack_graph,
         rewards=rewards,
@@ -722,7 +725,7 @@ def test_agent_state_views_simple(
     assert dsv.performed_nodes == pre_enabled_defenses
 
     assert len(asv.action_surface) == 6
-    assert set(n.full_name for n in dsv.action_surface) == {
+    assert {n.full_name for n in dsv.action_surface} == {
         'Credentials:10:notPhishable',  # Disabled in lang
         'Data:5:notPresent',  # Disabled in lang
         'Credentials:9:unique',  # Enabled in lang, Disabled in model
@@ -1095,10 +1098,10 @@ def test_simulator_multiple_attackers() -> None:
         states = sim.step(
             {
                 'Attacker1': sorted(
-                    list(states['Attacker1'].action_surface), key=lambda n: n.id
+                    states['Attacker1'].action_surface, key=lambda n: n.id
                 ),
                 'Attacker2': sorted(
-                    list(states['Attacker2'].action_surface), key=lambda n: n.id
+                    states['Attacker2'].action_surface, key=lambda n: n.id
                 ),
                 'Defender1': [],
             }
@@ -1154,10 +1157,10 @@ def test_simulator_multiple_defenders() -> None:
         states = sim.step(
             {
                 'Defender1': sorted(
-                    list(states['Defender1'].action_surface), key=lambda n: n.id
+                    states['Defender1'].action_surface, key=lambda n: n.id
                 ),
                 'Defender2': sorted(
-                    list(states['Defender2'].action_surface), key=lambda n: n.id
+                    states['Defender2'].action_surface, key=lambda n: n.id
                 ),
             }
         )
@@ -1202,12 +1205,9 @@ def test_simulator_attacker_override_ttcs_state() -> None:
     bad_attacker_state = states['BadAttacker']
     assert isinstance(bad_attacker_state, MalSimAttackerState)
 
-    assert {
-        fn
-        for fn in bad_attacker_settings.ttc_overrides.per_node(
-            sim.sim_state.attack_graph
-        )
-    } == {
+    assert set(
+        bad_attacker_settings.ttc_overrides.per_node(sim.sim_state.attack_graph)
+    ) == {
         'ComputerC:easyConnect',
         'ComputerA:easyConnect',
         'ComputerD:easyConnect',
