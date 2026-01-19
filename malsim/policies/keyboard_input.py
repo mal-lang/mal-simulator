@@ -16,7 +16,6 @@ class KeyboardAgent(DecisionAgent):
 
     def __init__(self, _: Any, **kwargs: Any):
         super().__init__(**kwargs)
-        logger.info('Creating KeyboardAgent')
 
     def get_next_action(
         self, agent_state: MalSimAgentState, **kwargs: Any

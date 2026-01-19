@@ -42,7 +42,7 @@ def defender_step(
     and `attack_steps_made_unviable`.
     """
 
-    logger.info('Stepping with %s', agent.name)
+    logger.debug('Stepping with %s', agent.name)
     enabled_defenses: list[AttackGraphNode] = []
     attack_steps_made_unviable: set[AttackGraphNode] = set()
 
