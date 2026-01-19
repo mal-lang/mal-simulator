@@ -23,11 +23,11 @@ from maltoolbox.model import Model
 from maltoolbox.language import LanguageGraph
 from maltoolbox.attackgraph import create_attack_graph
 
-from malsim.config.agent_settings import (
+from malsim.config import (
     DefenderSettings,
     AttackerSettings,
-    agent_settings_from_dict,
 )
+from malsim.config.agent_settings_factories import agent_settings_from_dict
 from malsim.config.node_property_rule import NodePropertyRule
 
 

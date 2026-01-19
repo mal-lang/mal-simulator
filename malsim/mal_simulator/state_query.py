@@ -9,7 +9,7 @@ from malsim.mal_simulator.attacker_state import MalSimAttackerState, get_attacke
 from malsim.mal_simulator.defender_state import get_defender_agents
 from malsim.mal_simulator.node_getters import full_name_or_node_to_node
 from malsim.config.sim_settings import TTCMode
-from malsim.mal_simulator.types import AgentStates
+from malsim.types import AgentStates
 
 
 def node_is_enabled_defense(
