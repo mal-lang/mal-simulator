@@ -28,7 +28,13 @@ from malsim.config import AttackerSettings, DefenderSettings
 
 __title__ = 'malsim'
 __version__ = '2.0.1'
-__authors__ = ['Andrei Buhaiu', 'Joakim Loxdal', 'Jakob Nyberg', 'Nikolaos Kakouros', 'Sandor Berglund']
+__authors__ = [
+    'Andrei Buhaiu',
+    'Joakim Loxdal',
+    'Jakob Nyberg',
+    'Nikolaos Kakouros',
+    'Sandor Berglund',
+]
 __license__ = 'Apache 2.0'
 __docformat__ = 'restructuredtext en'
 
