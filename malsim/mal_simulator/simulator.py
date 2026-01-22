@@ -115,6 +115,7 @@ class MalSimulator:
         self,
         attack_graph: AttackGraph,
         sim_settings: MalSimulatorSettings = BASE_SETTINGS,
+        agent_settings: Optional[AgentSettings] = None,
         rewards: Optional[dict[str, float] | dict[AttackGraphNode, float]] = None,
         false_positive_rates: Optional[
             dict[str, float] | dict[AttackGraphNode, float]
@@ -132,8 +133,15 @@ class MalSimulator:
     ):
         """
         Args:
-            attack_graph                -   The attack graph to use
-            sim_settings                -   Settings for simulator
+            attack_graph           - The attack graph to use
+            sim_settings           - Settings for simulator
+            agent_settings         - The agents to pre-register
+            rewards                - Global rewards per node
+            false_positive_rates   - global fpr per node
+            false_negative_rates   - global fnr per node
+            node_actionabilities   - global actionabilities per node
+            node_observabilities   - global obserabilities per node
+            send_to_api            - Enable to send data to malsim-gui rest api
         """
         logger.info('Creating Base MAL Simulator.')
         self.sim_settings = sim_settings
@@ -144,13 +152,7 @@ class MalSimulator:
         if send_to_api:
             self.rest_api_client = MalSimGUIClient()
 
-        # Initialize all values
         self.recording: Recording = defaultdict(dict)
-        self._agent_settings: dict[str, AttackerSettings | DefenderSettings] = {}
-        self._agent_states: AgentStates = {}
-        self._alive_agents: set[str] = set()
-        self._agent_rewards: AgentRewards = {}
-
         self.sim_state = create_simulator_state(
             attack_graph,
             sim_settings,
@@ -171,6 +173,22 @@ class MalSimulator:
         self.enabled_attacks_func = ENABLED_ATTACKS_FUNCS[
             sim_settings.defender_reward_mode
         ]
+
+        self._agent_settings: dict[str, AttackerSettings | DefenderSettings] = agent_settings or {}
+        self._agent_states: AgentStates = {}
+        self._alive_agents: set[str] = set()
+        self._agent_rewards: AgentRewards = {}
+
+        if self._agent_settings:
+            # register agents if they were given
+            self._agent_states, self._alive_agents, self._agent_rewards = reset_agents(
+                self.sim_state,
+                self._agent_settings,
+                self.performed_attacks_func,
+                self.enabled_defenses_func,
+                self.enabled_attacks_func,
+                self.rng,
+            )
 
     def __getstate__(self) -> dict[str, Any]:
         """This just ensures a pickled simulator doesn't contain some data structures"""
