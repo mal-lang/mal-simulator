@@ -20,7 +20,7 @@ from malsim.mal_simulator.defender_step import (
     defender_is_terminated,
     defender_step,
 )
-from malsim.mal_simulator.graph_state import GraphState, compute_initial_graph_state
+from malsim.mal_simulator.graph_state import compute_initial_graph_state
 from malsim.mal_simulator.node_getters import (
     full_names_or_nodes_to_nodes,
     get_node,
