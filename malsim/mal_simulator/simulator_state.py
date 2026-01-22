@@ -5,7 +5,7 @@ from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 import numpy as np
 
 from malsim.config.sim_settings import MalSimulatorSettings
-from malsim.mal_simulator.graph_state import GraphState, compute_initial_graph_state
+from malsim.mal_simulator.graph_state import GraphState
 from malsim.mal_simulator.node_getters import full_name_dict_to_node_dict
 
 
@@ -23,6 +23,7 @@ class MalSimulatorState:
 
 def create_simulator_state(
     attack_graph: AttackGraph,
+    graph_state: GraphState,
     sim_settings: MalSimulatorSettings,
     rng: np.random.Generator,
     rewards: Optional[dict[str, float] | dict[AttackGraphNode, float]] = None,
@@ -42,7 +43,7 @@ def create_simulator_state(
     return MalSimulatorState(
         attack_graph,
         sim_settings,
-        compute_initial_graph_state(attack_graph, sim_settings, rng),
+        graph_state,
         full_name_dict_to_node_dict(attack_graph, rewards or {}),
         full_name_dict_to_node_dict(attack_graph, false_positive_rates or {}),
         full_name_dict_to_node_dict(attack_graph, false_negative_rates or {}),
