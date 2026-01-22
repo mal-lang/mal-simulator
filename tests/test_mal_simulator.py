@@ -25,6 +25,9 @@ from malsim.config.agent_settings import AttackerSettings, DefenderSettings
 from dataclasses import asdict
 import numpy as np
 import pytest
+
+from malsim.policies.random_agent import RandomAgent
+from malsim.types import AgentSettings
 from .conftest import get_node
 
 if TYPE_CHECKING:
@@ -36,6 +39,35 @@ def test_init(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
     MalSimulator(attack_graph)
 
+
+def test_init_with_agent_settings(
+    corelang_lang_graph: LanguageGraph, model: Model
+) -> None:
+
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    entry_points = {'OS App:localConnect'}
+    goals = {'OS App:fullAccess'}
+
+    agent_settings: AgentSettings = {
+        'Attacker1': AttackerSettings(
+            name='Attacker1',
+            entry_points=entry_points,
+            goals=goals,
+            policy=RandomAgent
+        ),
+        'Defender1': DefenderSettings(
+            name='Defender1',
+            policy=RandomAgent
+        )
+    }
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+    sim = MalSimulator(attack_graph, agent_settings=agent_settings)
+
+    # Make sure the agents were registered
+    assert sim.agent_states.keys() == {'Attacker1', 'Defender1'}
+    assert sim.agent_reward('Attacker1') == 0.0
+    assert sim.agent_reward('Defender1') == 0.0
+    assert sim._alive_agents == {'Attacker1', 'Defender1'}
 
 def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     """Make sure attack graph is reset"""
