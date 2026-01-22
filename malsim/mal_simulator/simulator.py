@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 import logging
-from typing import Any, Optional
+from typing import Any, NamedTuple, Optional
 from collections.abc import Callable, Mapping, Set
 
 import numpy as np
@@ -20,6 +20,7 @@ from malsim.mal_simulator.defender_step import (
     defender_is_terminated,
     defender_step,
 )
+from malsim.mal_simulator.graph_state import GraphState, compute_initial_graph_state
 from malsim.mal_simulator.node_getters import (
     full_names_or_nodes_to_nodes,
     get_node,
@@ -103,6 +104,20 @@ ENABLED_ATTACKS_FUNCS: Mapping[
 BASE_SETTINGS = MalSimulatorSettings()
 
 
+class MALSimulatorStaticData(NamedTuple):
+    attack_graph: AttackGraph
+    sim_settings: MalSimulatorSettings
+    rewards: Optional[dict[str, float] | dict[AttackGraphNode, float]] = None
+    false_positive_rates: Optional[dict[str, float] | dict[AttackGraphNode, float]] = (
+        None
+    )
+    false_negative_rates: Optional[dict[str, float] | dict[AttackGraphNode, float]] = (
+        None
+    )
+    node_actionabilities: Optional[dict[str, bool] | dict[AttackGraphNode, bool]] = None
+    node_observabilities: Optional[dict[str, bool] | dict[AttackGraphNode, bool]] = None
+
+
 class MalSimulator:
     """A MAL Simulator that works on the AttackGraph
 
@@ -144,19 +159,15 @@ class MalSimulator:
             send_to_api            - Enable to send data to malsim-gui rest api
         """
         logger.info('Creating Base MAL Simulator.')
-        self.sim_settings = sim_settings
-        self.rng = default_rng(self.sim_settings.seed)
+        sim_settings = sim_settings
+        rng = default_rng(sim_settings.seed)
 
         # Initialize the REST API client
-        self.rest_api_client = None
-        if send_to_api:
-            self.rest_api_client = MalSimGUIClient()
+        rest_api_client = MalSimGUIClient() if send_to_api else None
 
-        self.recording: Recording = defaultdict(dict)
-        self.sim_state = create_simulator_state(
+        sim_data = MALSimulatorStaticData(
             attack_graph,
             sim_settings,
-            self.rng,
             rewards,
             false_positive_rates,
             false_negative_rates,
@@ -164,33 +175,38 @@ class MalSimulator:
             node_observabilities,
         )
 
-        self.performed_attacks_func = PERFORMED_ATTACKS_FUNCS[
+        performed_attacks_func = PERFORMED_ATTACKS_FUNCS[
             sim_settings.attacker_reward_mode
         ]
-        self.enabled_defenses_func = ENABLED_DEFENSES_FUNCS[
+        enabled_defenses_func = ENABLED_DEFENSES_FUNCS[
             sim_settings.defender_reward_mode
         ]
-        self.enabled_attacks_func = ENABLED_ATTACKS_FUNCS[
-            sim_settings.defender_reward_mode
-        ]
+        enabled_attacks_func = ENABLED_ATTACKS_FUNCS[sim_settings.defender_reward_mode]
+        agent_settings = agent_settings or {}
 
-        self._agent_settings: dict[str, AttackerSettings | DefenderSettings] = (
-            agent_settings or {}
+        (
+            self._agent_states,
+            self._alive_agents,
+            self.sim_state,
+            self._agent_rewards,
+            self.recording,
+        ) = reset(
+            sim_data,
+            agent_settings,
+            rng,
+            rest_api_client,
+            performed_attacks_func,
+            enabled_defenses_func,
+            enabled_attacks_func,
         )
-        self._agent_states: AgentStates = {}
-        self._alive_agents: set[str] = set()
-        self._agent_rewards: AgentRewards = {}
-
-        if self._agent_settings:
-            # register agents if they were given
-            self._agent_states, self._alive_agents, self._agent_rewards = reset_agents(
-                self.sim_state,
-                self._agent_settings,
-                self.performed_attacks_func,
-                self.enabled_defenses_func,
-                self.enabled_attacks_func,
-                self.rng,
-            )
+        self.enabled_attacks_func = enabled_attacks_func
+        self.enabled_defenses_func = enabled_defenses_func
+        self.performed_attacks_func = performed_attacks_func
+        self.rng = rng
+        self.sim_settings = sim_settings
+        self._agent_settings = agent_settings
+        self.rest_api_client = rest_api_client
+        self._static_data = sim_data
 
     def __getstate__(self) -> dict[str, Any]:
         """This just ensures a pickled simulator doesn't contain some data structures"""
@@ -344,8 +360,14 @@ class MalSimulator:
         return agent_is_terminated(self._agent_states, self._alive_agents, agent_name)
 
     def reset(self) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
-        agent_states, alive_agents, sim_state, agent_rewards, recording = reset(
+        (
+            self._agent_states,
+            self._alive_agents,
             self.sim_state,
+            self._agent_rewards,
+            self.recording,
+        ) = reset(
+            self._static_data,
             self._agent_settings,
             self.rng,
             self.rest_api_client,
@@ -353,11 +375,6 @@ class MalSimulator:
             self.enabled_defenses_func,
             self.enabled_attacks_func,
         )
-        self._agent_states = agent_states
-        self._alive_agents = alive_agents
-        self._agent_rewards = agent_rewards
-        self.recording = recording
-        self.sim_state = sim_state
         return self._agent_states
 
     def register_attacker(
@@ -553,7 +570,7 @@ def agent_is_terminated(
 
 
 def reset(
-    sim_state: MalSimulatorState,
+    static_data: MALSimulatorStaticData,
     agent_settings: AgentSettings,
     rng: np.random.Generator,
     rest_api_client: Optional[MalSimGUIClient],
@@ -564,27 +581,27 @@ def reset(
     AgentStates,
     set[str],
     MalSimulatorState,
-    dict[str, float],
+    AgentRewards,
     Recording,
 ]:
     """Reset attack graph and reinitialize agents"""
     logger.info('Resetting MAL Simulator.')
+    attack_graph = static_data.attack_graph
+    settings = static_data.sim_settings
 
     # Re-calculate initial simulator state
+    graph_state = compute_initial_graph_state(attack_graph, settings, rng)
     sim_state = create_simulator_state(
-        sim_state.attack_graph,
-        sim_state.settings,
+        attack_graph,
+        graph_state,
+        settings,
         rng,
-        sim_state.global_rewards,
-        sim_state.global_false_positive_rates,
-        sim_state.global_false_negative_rates,
-        sim_state.global_actionability,
-        sim_state.global_observability,
+        static_data.rewards,
+        static_data.false_positive_rates,
+        static_data.false_negative_rates,
+        static_data.node_actionabilities,
+        static_data.node_observabilities,
     )
-
-    # Reset rewards and recording
-    agent_rewards: dict[str, float] = {}
-    recording: Recording = defaultdict(dict)
 
     agent_states, alive_agents, agent_rewards = reset_agents(
         sim_state,
@@ -596,9 +613,9 @@ def reset(
     )
     # Upload initial state to the REST API
     if rest_api_client:
-        rest_api_client.upload_initial_state(sim_state.attack_graph)
+        rest_api_client.upload_initial_state(attack_graph)
 
-    return agent_states, alive_agents, sim_state, agent_rewards, recording
+    return agent_states, alive_agents, sim_state, agent_rewards, defaultdict(dict)
 
 
 def _pre_step_check(
