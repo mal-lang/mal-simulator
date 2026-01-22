@@ -129,7 +129,7 @@ def attacker_step(
     Returns: two lists with compromised, attempted nodes
     """
 
-    logger.info('Stepping with agent %s', agent.name)
+    logger.debug('Stepping with agent %s', agent.name)
     successful_compromises: list[AttackGraphNode] = []
     attempted_compromises: list[AttackGraphNode] = []
 

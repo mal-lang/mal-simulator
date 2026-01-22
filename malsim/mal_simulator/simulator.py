@@ -135,7 +135,7 @@ class MalSimulator:
             attack_graph                -   The attack graph to use
             sim_settings                -   Settings for simulator
         """
-        logger.info('Creating Base MAL Simulator.')
+
         self.sim_settings = sim_settings
         self.rng = default_rng(self.sim_settings.seed)
 

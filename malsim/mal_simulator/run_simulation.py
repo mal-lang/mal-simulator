@@ -39,7 +39,6 @@ def run_simulation(
 
             if agent_action:
                 actions[agent_name] = [agent_action]
-                print(f'Agent {agent_name} chose action: {agent_action.full_name}')
 
                 # Store agent action
                 agent_actions.setdefault(agent_name, []).append(agent_action)
