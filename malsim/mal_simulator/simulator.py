@@ -174,7 +174,9 @@ class MalSimulator:
             sim_settings.defender_reward_mode
         ]
 
-        self._agent_settings: dict[str, AttackerSettings | DefenderSettings] = agent_settings or {}
+        self._agent_settings: dict[str, AttackerSettings | DefenderSettings] = (
+            agent_settings or {}
+        )
         self._agent_states: AgentStates = {}
         self._alive_agents: set[str] = set()
         self._agent_rewards: AgentRewards = {}

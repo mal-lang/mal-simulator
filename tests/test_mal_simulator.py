@@ -43,22 +43,15 @@ def test_init(corelang_lang_graph: LanguageGraph, model: Model) -> None:
 def test_init_with_agent_settings(
     corelang_lang_graph: LanguageGraph, model: Model
 ) -> None:
-
     attack_graph = AttackGraph(corelang_lang_graph, model)
     entry_points = {'OS App:localConnect'}
     goals = {'OS App:fullAccess'}
 
     agent_settings: AgentSettings = {
         'Attacker1': AttackerSettings(
-            name='Attacker1',
-            entry_points=entry_points,
-            goals=goals,
-            policy=RandomAgent
+            name='Attacker1', entry_points=entry_points, goals=goals, policy=RandomAgent
         ),
-        'Defender1': DefenderSettings(
-            name='Defender1',
-            policy=RandomAgent
-        )
+        'Defender1': DefenderSettings(name='Defender1', policy=RandomAgent),
     }
     attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(attack_graph, agent_settings=agent_settings)
@@ -68,6 +61,7 @@ def test_init_with_agent_settings(
     assert sim.agent_reward('Attacker1') == 0.0
     assert sim.agent_reward('Defender1') == 0.0
     assert sim._alive_agents == {'Attacker1', 'Defender1'}
+
 
 def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     """Make sure attack graph is reset"""
