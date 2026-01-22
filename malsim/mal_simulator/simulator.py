@@ -158,14 +158,10 @@ class MalSimulator:
             node_observabilities   - global obserabilities per node
             send_to_api            - Enable to send data to malsim-gui rest api
         """
-        logger.info('Creating Base MAL Simulator.')
-        sim_settings = sim_settings
         rng = default_rng(sim_settings.seed)
-
-        # Initialize the REST API client
         rest_api_client = MalSimGUIClient() if send_to_api else None
 
-        sim_data = MALSimulatorStaticData(
+        static_sim_data = MALSimulatorStaticData(
             attack_graph,
             sim_settings,
             rewards,
@@ -174,7 +170,6 @@ class MalSimulator:
             node_actionabilities,
             node_observabilities,
         )
-
         performed_attacks_func = PERFORMED_ATTACKS_FUNCS[
             sim_settings.attacker_reward_mode
         ]
@@ -184,14 +179,8 @@ class MalSimulator:
         enabled_attacks_func = ENABLED_ATTACKS_FUNCS[sim_settings.defender_reward_mode]
         agent_settings = agent_settings or {}
 
-        (
-            self._agent_states,
-            self._alive_agents,
-            self.sim_state,
-            self._agent_rewards,
-            self.recording,
-        ) = reset(
-            sim_data,
+        agent_states, alive_agents, sim_state, agent_rewards, recording = reset(
+            static_sim_data,
             agent_settings,
             rng,
             rest_api_client,
@@ -199,14 +188,21 @@ class MalSimulator:
             enabled_defenses_func,
             enabled_attacks_func,
         )
+
+        # Set all instance variables
+        self.rng = rng
+        self._agent_states = agent_states
+        self._alive_agents = alive_agents
+        self._agent_rewards = agent_rewards
+        self.sim_state = sim_state
+        self.recording = recording
         self.enabled_attacks_func = enabled_attacks_func
         self.enabled_defenses_func = enabled_defenses_func
         self.performed_attacks_func = performed_attacks_func
-        self.rng = rng
         self.sim_settings = sim_settings
         self._agent_settings = agent_settings
         self.rest_api_client = rest_api_client
-        self._static_data = sim_data
+        self._static_data = static_sim_data
 
     def __getstate__(self) -> dict[str, Any]:
         """This just ensures a pickled simulator doesn't contain some data structures"""
