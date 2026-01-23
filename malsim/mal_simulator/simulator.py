@@ -474,7 +474,6 @@ class MalSimulator:
             self._agent_states,
             self._alive_agents,
             self.rng,
-            self._alive_agents,
             self._agent_rewards,
             self.performed_attacks_func,
             self.enabled_defenses_func,
@@ -629,7 +628,7 @@ def _pre_step_check(
         print(msg)
 
     if done(alive_agents):
-        msg = 'Simulation is done, step has no effect'
+        msg = 'Simulation is done but you can still step'
         logger.warning(msg)
         print(msg)
 
@@ -644,7 +643,6 @@ def step(
     agent_states: AgentStates,
     alive_agents: set[str],
     rng: np.random.Generator,
-    live_agents: set[str],
     agent_rewards: dict[str, float],
     performed_attacks_func: Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
     enabled_defenses_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
@@ -662,7 +660,7 @@ def step(
     - A dictionary containing the agent state views keyed by agent names
     """
 
-    _pre_step_check(agent_states, live_agents, actions)
+    _pre_step_check(agent_states, alive_agents, actions)
 
     # Populate these from the results for all agents' actions.
     step_compromised_nodes: list[AttackGraphNode] = []
@@ -671,9 +669,7 @@ def step(
     current_iteration = 0
 
     # Perform defender actions first
-    for defender_state in get_defender_agents(
-        agent_states, live_agents, only_alive=True
-    ):
+    for defender_state in get_defender_agents(agent_states, alive_agents):
         agent_actions = list(
             full_names_or_nodes_to_nodes(
                 sim_state.attack_graph, actions.get(defender_state.name, [])
@@ -687,9 +683,7 @@ def step(
         step_nodes_made_unviable |= unviable
 
     # Perform attacker actions afterwards
-    for attacker_state in get_attacker_agents(
-        agent_states, live_agents, only_alive=True
-    ):
+    for attacker_state in get_attacker_agents(agent_states, alive_agents):
         agent_actions = list(
             full_names_or_nodes_to_nodes(
                 sim_state.attack_graph, actions.get(attacker_state.name, [])
@@ -724,35 +718,34 @@ def step(
             sim_state.settings.ttc_mode,
         )
 
-    # Update defender states and remove 'dead' agents of any type
-    for agent_name in live_agents.copy():
-        agent_state = agent_states[agent_name]
+    # Update defender states and rewards
+    for defender_state in get_defender_agents(agent_states, alive_agents):
+        current_iteration = defender_state.iteration
+        # Update defender state
+        updated_defender_state = create_defender_state(
+            sim_state=sim_state,
+            name=defender_state.name,
+            step_compromised_nodes=set(step_compromised_nodes),
+            step_enabled_defenses=set(step_enabled_defenses),
+            step_nodes_made_unviable=step_nodes_made_unviable,
+            previous_state=defender_state,
+            rng=rng,
+        )
+        agent_states[defender_state.name] = updated_defender_state
 
-        if isinstance(agent_state, MalSimDefenderState):
-            current_iteration = agent_state.iteration
-            # Update defender state
-            updated_defender_state = create_defender_state(
-                sim_state=sim_state,
-                name=agent_name,
-                step_compromised_nodes=set(step_compromised_nodes),
-                step_enabled_defenses=set(step_enabled_defenses),
-                step_nodes_made_unviable=step_nodes_made_unviable,
-                previous_state=agent_state,
-                rng=rng,
-            )
-            agent_states[agent_name] = updated_defender_state
+        # Update defender reward
+        agent_rewards[defender_state.name] = defender_step_reward(
+            enabled_defenses_func,
+            enabled_attacks_func,
+            updated_defender_state,
+        )
 
-            # Update defender reward
-            agent_rewards[agent_state.name] = defender_step_reward(
-                enabled_defenses_func,
-                enabled_attacks_func,
-                updated_defender_state,
-            )
-
+    # Mark terminated agents as dead
+    for agent_name in alive_agents.copy():
         # Remove agents that are terminated
-        if agent_is_terminated(agent_states, alive_agents, agent_state.name):
-            logger.info('Agent %s terminated', agent_state.name)
-            live_agents.remove(agent_state.name)
+        if agent_is_terminated(agent_states, alive_agents, agent_name):
+            logger.info('Agent %s terminated', agent_name)
+            alive_agents.remove(agent_name)
 
     # the way current_iteration is used here is flawed.
     if rest_api_client:
@@ -761,4 +754,4 @@ def step(
             current_iteration,
         )
 
-    return agent_states, recording, sim_state, agent_rewards, live_agents
+    return agent_states, recording, sim_state, agent_rewards, alive_agents

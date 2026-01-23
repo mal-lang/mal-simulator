@@ -985,6 +985,29 @@ def test_simulator_false_positives() -> None:
     assert len(defender_state.observed_nodes) > len(defender_state.compromised_nodes)
 
 
+def test_simulator_false_positives_after_done() -> None:
+    """Create a simulator with false positives"""
+
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml'
+    )
+
+    scenario.false_negative_rates = None
+    sim = MalSimulator.from_scenario(scenario, MalSimulatorSettings(seed=100))
+    run_simulation(sim, scenario.agent_settings)
+    assert sim.done()
+
+    # Simulation is done, but we can still observe false positives
+    false_positives: set[AttackGraphNode] = set()
+    for _ in range(100):
+        states = sim.step({})
+        defender_state = states['defender']
+        assert isinstance(defender_state, MalSimDefenderState)
+        false_positives |= defender_state.observed_nodes
+
+    assert false_positives
+
+
 def test_simulator_false_positives_reset() -> None:
     """Create a simulator with false positives"""
 
@@ -1144,8 +1167,16 @@ def test_simulator_multiple_attackers() -> None:
                 sim.get_node('Host:1:connect'),
             ],
         },
-        2: {'Defender1': [], 'Attacker1': [sim.get_node('Host:0:authenticate')]},
-        3: {'Defender1': [], 'Attacker1': [sim.get_node('Host:0:access')]},
+        2: {
+            'Defender1': [],
+            'Attacker1': [sim.get_node('Host:0:authenticate')],
+            'Attacker2': [],
+        },
+        3: {
+            'Defender1': [],
+            'Attacker1': [sim.get_node('Host:0:access')],
+            'Attacker2': [],
+        },
         4: {
             'Defender1': [],
             'Attacker1': [
@@ -1153,8 +1184,13 @@ def test_simulator_multiple_attackers() -> None:
                 sim.get_node('Data:2:modify'),
                 sim.get_node('Network:3:access'),
             ],
+            'Attacker2': [],
         },
-        5: {'Defender1': [], 'Attacker1': [sim.get_node('Host:1:connect')]},
+        5: {
+            'Defender1': [],
+            'Attacker1': [sim.get_node('Host:1:connect')],
+            'Attacker2': [],
+        },
     }
 
 
