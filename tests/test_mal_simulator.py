@@ -5,6 +5,7 @@ import random
 from typing import TYPE_CHECKING
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
@@ -175,8 +176,8 @@ def test_simulator_actionable_action_surface(model: Model) -> None:
             ),
             'Defender': DefenderSettings(
                 'Defender',
-                actionable_steps={  # TODO make this a nodepropertyrule somehow
-                    'by_asset_type': {
+                actionable_steps=NodePropertyRule(
+                    by_asset_type={
                         'Application': [
                             'attemptRead',
                             'successfulRead',
@@ -184,7 +185,7 @@ def test_simulator_actionable_action_surface(model: Model) -> None:
                             'notPresent',
                         ]
                     }
-                },
+                ),
             ),
         },
     )
