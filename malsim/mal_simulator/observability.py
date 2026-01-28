@@ -15,16 +15,15 @@ from malsim.mal_simulator.false_alerts import (
 
 
 def node_is_observable(
-    agent_observability_rule: Optional[NodePropertyRule],
-    global_observability: dict[AttackGraphNode, bool],
+    agent_observability_rule: NodePropertyRule | dict[AttackGraphNode, bool] | None,
     node: AttackGraphNode,
 ) -> bool:
     if agent_observability_rule:
+        if isinstance(agent_observability_rule, dict):
+            # Observability from global settings
+            return agent_observability_rule.get(node, False)
         # Observability from agent settings
         return bool(agent_observability_rule.value(node, False))
-    if global_observability:
-        # Observability from global settings
-        return global_observability.get(node, False)
     return True
 
 
@@ -41,9 +40,7 @@ def defender_observed_nodes(
     in regards to observability, false negatives and false positives.
     """
     observable_steps = {
-        n
-        for n in compromised_nodes
-        if node_is_observable(observability_rule, sim_state.global_observability, n)
+        n for n in compromised_nodes if node_is_observable(observability_rule, n)
     }
     false_negatives = generate_false_negatives(
         false_negative_rates_rule,

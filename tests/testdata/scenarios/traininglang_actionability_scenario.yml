@@ -27,15 +27,15 @@ agents:
     type: 'defender'
     agent_class: KeyboardAgent
 
-# Optional way to make only certain steps actionable
-# If actionable_steps are set, all steps not
-# matching these rules will have actionability set to False.
-actionable_steps:
-  by_asset_type:
-    Host:
-      - notPresent
-    Data:
-      - notPresent
-  by_asset_name:
-    User:3:
-      - notPresent
+    # Optional way to make only certain steps actionable
+    # If actionable_steps are set, all steps not
+    # matching these rules will have actionability set to False.
+    actionable_steps:
+      by_asset_type:
+        Host:
+          - notPresent
+        Data:
+          - notPresent
+      by_asset_name:
+        User:3:
+          - notPresent

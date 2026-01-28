@@ -59,7 +59,6 @@ def create_attacker_state(
             sim_state.settings,
             sim_state,
             actionability_rule,
-            sim_state.global_actionability,
             compromised_nodes,
         )
         action_surface_removals: set[AttackGraphNode] = set()
@@ -99,7 +98,6 @@ def create_attacker_state(
                 sim_state.settings,
                 sim_state,
                 actionability_rule,
-                sim_state.global_actionability,
                 compromised_nodes | step_compromised_nodes,
                 from_nodes=step_compromised_nodes,
             )
