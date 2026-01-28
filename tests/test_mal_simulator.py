@@ -168,17 +168,24 @@ def test_simulator_actionable_action_surface(model: Model) -> None:
     scenario = Scenario(
         lang_file='tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar',
         model=model,
-        actionable_steps={
-            'by_asset_type': {
-                'Application': ['attemptRead', 'successfulRead', 'read', 'notPresent']
-            }
-        },
         agent_settings={
             'Attacker1': AttackerSettings(
                 name='Attacker1',
                 entry_points={'OS App:fullAccess'},
             ),
-            'Defender': DefenderSettings('Defender'),
+            'Defender': DefenderSettings(
+                'Defender',
+                actionable_steps={  # TODO make this a nodepropertyrule somehow
+                    'by_asset_type': {
+                        'Application': [
+                            'attemptRead',
+                            'successfulRead',
+                            'read',
+                            'notPresent',
+                        ]
+                    }
+                },
+            ),
         },
     )
     sim = MalSimulator.from_scenario(scenario)
@@ -305,17 +312,21 @@ def test_node_full_names_to_simulator(
         attempt_read: False,
         access_network_and_conn: True,
     }
+    defender_name = 'Test Defender'
     sim = MalSimulator(
         attack_graph,
         rewards=rewards,
-        node_observabilities=observability_per_node,
+        agent_settings={
+            defender_name: DefenderSettings(
+                name=defender_name,
+                observable_steps=observability_per_node,  # TODO nodepropertyrule
+            ),
+        },
     )
 
     attacker_name = 'Test Attacker'
     sim.register_attacker(attacker_name, {entry_point})
 
-    defender_name = 'Test Defender'
-    sim.register_defender(defender_name)
 
     states = sim.reset()
 

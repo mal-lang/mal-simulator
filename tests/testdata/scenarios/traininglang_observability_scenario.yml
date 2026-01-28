@@ -27,17 +27,17 @@ agents:
     type: 'defender'
     agent_class: KeyboardAgent
 
-# Optional way to make only certain steps observable
-# If observable_steps are set, all steps not
-# matching these rules will have observability set to False.
-observable_steps:
-  by_asset_type:
-    Host:
-      - access
-      - authenticate
-    Data:
-      - read
+    # Optional way to make only certain steps observable
+    # If observable_steps are set, all steps not
+    # matching these rules will have observability set to False.
+    observable_steps:
+      by_asset_type:
+        Host:
+          - access
+          - authenticate
+        Data:
+          - read
 
-  by_asset_name:
-    User:3:
-      - phishing
+      by_asset_name:
+        User:3:
+          - phishing

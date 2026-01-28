@@ -103,7 +103,9 @@ class MalSimVectorizedObsEnv(ParallelEnv):
     def get_agent_state(self, agent_name: str) -> MalSimAgentState:
         return self.sim.agent_states[agent_name]
 
-    def _create_blank_observation(self, default_obs_state: int = -1) -> dict[str, Any]:
+    def _create_blank_observation(
+        self, default_obs_state: int = -1, agent_name: str | None = None
+    ) -> dict[str, Any]:
         """Create the initial observation"""
         # For now, an `object` is an attack step
         num_steps = len(self.sim.sim_state.attack_graph.nodes)
@@ -111,12 +113,12 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         observation: dict[str, Any] = {
             # If no observability set for node, assume observable.
             'is_observable': [
-                self.sim.node_is_observable(step)
+                self.sim.node_is_observable(step, agent_name)
                 for step in self.attack_graph.nodes.values()
             ],
             # Same goes for actionable.
             'is_actionable': [
-                self.sim.node_is_actionable(step)
+                self.sim.node_is_actionable(step, agent_name)
                 for step in self.attack_graph.nodes.values()
             ],
             'observed_state': num_steps * [default_obs_state],
