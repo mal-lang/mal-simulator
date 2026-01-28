@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 from collections.abc import Set
-from typing import Optional
 
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
