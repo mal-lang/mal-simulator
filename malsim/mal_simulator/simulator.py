@@ -114,8 +114,6 @@ class MALSimulatorStaticData(NamedTuple):
     false_negative_rates: Optional[dict[str, float] | dict[AttackGraphNode, float]] = (
         None
     )
-    node_actionabilities: Optional[dict[str, bool] | dict[AttackGraphNode, bool]] = None
-    node_observabilities: Optional[dict[str, bool] | dict[AttackGraphNode, bool]] = None
 
 
 class MalSimulator:
@@ -137,12 +135,6 @@ class MalSimulator:
         ] = None,
         false_negative_rates: Optional[
             dict[str, float] | dict[AttackGraphNode, float]
-        ] = None,
-        node_actionabilities: Optional[
-            dict[str, bool] | dict[AttackGraphNode, bool]
-        ] = None,
-        node_observabilities: Optional[
-            dict[str, bool] | dict[AttackGraphNode, bool]
         ] = None,
         send_to_api: bool = False,
     ):
@@ -167,8 +159,6 @@ class MalSimulator:
             rewards,
             false_positive_rates,
             false_negative_rates,
-            node_actionabilities,
-            node_observabilities,
         )
         performed_attacks_func = PERFORMED_ATTACKS_FUNCS[
             sim_settings.attacker_reward_mode
@@ -252,12 +242,10 @@ class MalSimulator:
     def node_is_actionable(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
     ) -> bool:
-        agent_actionability = None
-        if agent_name:
-            agent_actionability = self._agent_states[agent_name].actionability_rule
-        return node_is_actionable(
-            agent_actionability, self.sim_state.global_actionability, node
+        agent_actionability = (
+            self._agent_states[agent_name].actionability_rule if agent_name else None
         )
+        return node_is_actionable(agent_actionability, node)
 
     def node_reward(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
@@ -278,9 +266,7 @@ class MalSimulator:
             )
             agent_observability = agent.observability_rule
 
-        return node_is_observable(
-            agent_observability, self.sim_state.global_observability, node
-        )
+        return node_is_observable(agent_observability, node)
 
     def node_false_positive_rate(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
@@ -519,16 +505,6 @@ def create_simulator_from_scenario(
             if scenario.false_negative_rates
             else None
         ),
-        node_actionabilities=(
-            scenario.is_actionable.per_node(scenario.attack_graph)
-            if scenario.is_actionable
-            else None
-        ),
-        node_observabilities=(
-            scenario.is_observable.per_node(scenario.attack_graph)
-            if scenario.is_observable
-            else None
-        ),
         **kwargs,
     )
 
@@ -594,8 +570,6 @@ def reset(
         static_data.rewards,
         static_data.false_positive_rates,
         static_data.false_negative_rates,
-        static_data.node_actionabilities,
-        static_data.node_observabilities,
     )
 
     agent_states, alive_agents, agent_rewards = reset_agents(
@@ -728,6 +702,8 @@ def step(
             step_compromised_nodes=set(step_compromised_nodes),
             step_enabled_defenses=set(step_enabled_defenses),
             step_nodes_made_unviable=step_nodes_made_unviable,
+            observability_rule=defender_state.observability_rule,
+            actionability_rule=defender_state.actionability_rule,
             previous_state=defender_state,
             rng=rng,
         )

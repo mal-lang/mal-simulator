@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 from collections.abc import Set
-from typing import Optional
 
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
@@ -71,16 +70,14 @@ def node_is_traversable(
 
 
 def node_is_actionable(
-    agent_actionability_rule: Optional[NodePropertyRule],
-    global_actionability: dict[AttackGraphNode, bool],
+    agent_actionability: dict[AttackGraphNode, bool] | NodePropertyRule | None,
     node: AttackGraphNode,
 ) -> bool:
-    if agent_actionability_rule:
-        # Actionability from agent settings
-        return bool(agent_actionability_rule.value(node, False))
-    if global_actionability:
+    if agent_actionability:
         # Actionability from global settings
-        return global_actionability.get(node, False)
+        if isinstance(agent_actionability, NodePropertyRule):
+            return bool(agent_actionability.value(node, False))
+        return agent_actionability.get(node, False)
     return True
 
 

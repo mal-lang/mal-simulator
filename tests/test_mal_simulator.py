@@ -5,6 +5,7 @@ import random
 from typing import TYPE_CHECKING
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
@@ -168,17 +169,34 @@ def test_simulator_actionable_action_surface(model: Model) -> None:
     scenario = Scenario(
         lang_file='tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar',
         model=model,
-        actionable_steps={
-            'by_asset_type': {
-                'Application': ['attemptRead', 'successfulRead', 'read', 'notPresent']
-            }
-        },
         agent_settings={
             'Attacker1': AttackerSettings(
                 name='Attacker1',
                 entry_points={'OS App:fullAccess'},
+                actionable_steps=NodePropertyRule(
+                    by_asset_type={
+                        'Application': [
+                            'attemptRead',
+                            'successfulRead',
+                            'read',
+                            'notPresent',
+                        ]
+                    }
+                ),
             ),
-            'Defender': DefenderSettings('Defender'),
+            'Defender': DefenderSettings(
+                'Defender',
+                actionable_steps=NodePropertyRule(
+                    by_asset_type={
+                        'Application': [
+                            'attemptRead',
+                            'successfulRead',
+                            'read',
+                            'notPresent',
+                        ]
+                    }
+                ),
+            ),
         },
     )
     sim = MalSimulator.from_scenario(scenario)
@@ -300,23 +318,30 @@ def test_node_full_names_to_simulator(
         attempt_read: 100.0,
         access_network_and_conn: 50.4,
     }
-    observability_per_node = {
-        entry_point: True,
-        attempt_read: False,
-        access_network_and_conn: True,
-    }
+    observability_per_node = NodePropertyRule(
+        by_asset_name={
+            'OS App': {
+                'fullAccess': True,
+                'attemptRead': False,
+                'accessNetworkAndConnections': True,
+            }
+        }
+    )
+
+    defender_name = 'Test Defender'
     sim = MalSimulator(
         attack_graph,
         rewards=rewards,
-        node_observabilities=observability_per_node,
+        agent_settings={
+            defender_name: DefenderSettings(
+                name=defender_name,
+                observable_steps=observability_per_node,
+            ),
+        },
     )
 
     attacker_name = 'Test Attacker'
     sim.register_attacker(attacker_name, {entry_point})
-
-    defender_name = 'Test Defender'
-    sim.register_defender(defender_name)
-
     states = sim.reset()
 
     states = sim.step({attacker_name: [attempt_read]})
