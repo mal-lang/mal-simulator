@@ -44,8 +44,7 @@ def get_effects_of_attack_step(
 def get_attack_surface(
     sim_settings: MalSimulatorSettings,
     sim_state: MalSimulatorState,
-    agent_actionability_rule: NodePropertyRule | None,
-    global_actionability: dict[AttackGraphNode, bool],
+    actionability: NodePropertyRule | None,
     performed_nodes: Set[AttackGraphNode],
     from_nodes: Set[AttackGraphNode] | None = None,
 ) -> Set[AttackGraphNode]:
@@ -84,9 +83,7 @@ def get_attack_surface(
             if skip_unnecessary and not node_is_necessary(sim_state, child):
                 continue
 
-            if not node_is_actionable(
-                agent_actionability_rule, global_actionability, child
-            ):
+            if not node_is_actionable(actionability, child):
                 continue
 
             if node_is_traversable(sim_state, performed_nodes, child):

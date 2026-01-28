@@ -16,8 +16,6 @@ class MalSimulatorState:
     global_rewards: dict[AttackGraphNode, float]
     global_false_positive_rates: dict[AttackGraphNode, float]
     global_false_negative_rates: dict[AttackGraphNode, float]
-    global_actionability: dict[AttackGraphNode, bool]
-    global_observability: dict[AttackGraphNode, bool]
 
 
 def create_simulator_state(
@@ -28,8 +26,6 @@ def create_simulator_state(
     rewards: dict[str, float] | dict[AttackGraphNode, float] | None = None,
     false_positive_rates: dict[str, float] | dict[AttackGraphNode, float] | None = None,
     false_negative_rates: dict[str, float] | dict[AttackGraphNode, float] | None = None,
-    node_actionabilities: dict[str, bool] | dict[AttackGraphNode, bool] | None = None,
-    node_observabilities: dict[str, bool] | dict[AttackGraphNode, bool] | None = None,
 ) -> MalSimulatorState:
     return MalSimulatorState(
         attack_graph,
@@ -38,6 +34,4 @@ def create_simulator_state(
         full_name_dict_to_node_dict(attack_graph, rewards or {}),
         full_name_dict_to_node_dict(attack_graph, false_positive_rates or {}),
         full_name_dict_to_node_dict(attack_graph, false_negative_rates or {}),
-        full_name_dict_to_node_dict(attack_graph, node_actionabilities or {}),
-        full_name_dict_to_node_dict(attack_graph, node_observabilities or {}),
     )
