@@ -325,7 +325,7 @@ def test_node_full_names_to_simulator(
             'OS App': {
                 'fullAccess': True,
                 'attemptRead': False,
-                'accessNetworkAndConnections': True
+                'accessNetworkAndConnections': True,
             }
         }
     )
