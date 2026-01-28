@@ -1,7 +1,7 @@
 """Utilities to query nodes in an attack graph"""
 
 from __future__ import annotations
-from collections.abc import Mapping, Set
+from collections.abc import Set
 
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
