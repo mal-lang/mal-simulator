@@ -35,9 +35,7 @@ def create_defender_state(
 
     if previous_state is None:
         # Initialize
-        action_surface = get_defense_surface(
-            sim_state, actionability_rule, sim_state.global_actionability
-        )
+        action_surface = get_defense_surface(sim_state, actionability_rule)
         previous_enabled_defenses: Set[AttackGraphNode] = frozenset()
         previous_compromised_nodes: Set[AttackGraphNode] = frozenset()
         previous_observed_nodes: Set[AttackGraphNode] = frozenset()
@@ -58,9 +56,7 @@ def create_defender_state(
 
         # Initialize
         action_surface = (
-            get_defense_surface(
-                sim_state, actionability_rule, sim_state.global_actionability
-            )
+            get_defense_surface(sim_state, actionability_rule)
             - previous_state.performed_nodes
         )
 
