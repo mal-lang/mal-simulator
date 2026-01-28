@@ -115,6 +115,7 @@ class MALSimulatorStaticData(NamedTuple):
         None
     )
 
+
 class MalSimulator:
     """A MAL Simulator that works on the AttackGraph
 
