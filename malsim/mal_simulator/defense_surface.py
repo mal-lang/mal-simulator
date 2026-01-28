@@ -1,5 +1,4 @@
 from __future__ import annotations
-from collections.abc import Set
 from typing import TYPE_CHECKING
 
 from malsim.config.node_property_rule import NodePropertyRule
