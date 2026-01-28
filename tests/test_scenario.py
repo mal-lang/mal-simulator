@@ -65,10 +65,17 @@ def test_save_scenario(model: Model) -> None:
         rewards={'by_asset_type': {'Application': {'fullAccess': 1000}}},
         false_negative_rates={'by_asset_type': {'Application': {'fullAccess': 0.1}}},
         false_positive_rates={'by_asset_type': {'Application': {'fullAccess': 0.2}}},
-        actionable_steps={'by_asset_type': {'Application': ['fullAccess']}},
-        observable_steps={'by_asset_type': {'Application': ['fullAccess']}},
         agent_settings={
-            'Attacker1': AttackerSettings(name='Attacker1', entry_points=set())
+            'Attacker1': AttackerSettings(name='Attacker1', entry_points=set()),
+            'Defender1': DefenderSettings(
+                name='Defender1',
+                observable_steps=NodePropertyRule(
+                    by_asset_type={'Application': ['fullAccess']}
+                ),
+                actionable_steps=NodePropertyRule(
+                    by_asset_type={'Application': ['fullAccess']}
+                ),
+            ),
         },
     )
     save_path = '/tmp/saved_scenario.yml'
@@ -197,8 +204,9 @@ def test_load_scenario_observability_given() -> None:
 
     # Make sure only attack steps of name fullAccess
     # part of asset type Application are observable.
-    assert scenario.is_observable
-    is_observable_per_node = scenario.is_observable.per_node(scenario.attack_graph)
+    observable_steps = scenario.agent_settings['Defender1'].observable_steps
+    assert observable_steps
+    is_observable_per_node = observable_steps.per_node(scenario.attack_graph)
 
     for node in scenario.attack_graph.nodes.values():
         if (
@@ -227,7 +235,7 @@ def test_load_scenario_observability_not_given() -> None:
     scenario = Scenario.load_from_file(
         path_relative_to_tests('./testdata/scenarios/simple_scenario.yml')
     )
-    assert not scenario.is_observable
+    assert not scenario.agent_settings['Defender1'].observable_steps
 
 
 def test_apply_scenario_observability() -> None:
