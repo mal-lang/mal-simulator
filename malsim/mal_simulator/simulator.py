@@ -112,6 +112,7 @@ class MALSimulatorStaticData(NamedTuple):
     false_negative_rates: dict[str, float] | dict[AttackGraphNode, float] | None = None
 
 
+
 class MalSimulator:
     """A MAL Simulator that works on the AttackGraph
 

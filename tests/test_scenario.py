@@ -204,7 +204,9 @@ def test_load_scenario_observability_given() -> None:
 
     # Make sure only attack steps of name fullAccess
     # part of asset type Application are observable.
-    observable_steps = scenario.agent_settings['Defender1'].observable_steps
+    defender_agent = scenario.agent_settings['Defender1']
+    assert isinstance(defender_agent, DefenderSettings)
+    observable_steps = defender_agent.observable_steps
     assert observable_steps
     is_observable_per_node = observable_steps.per_node(scenario.attack_graph)
 
@@ -235,7 +237,9 @@ def test_load_scenario_observability_not_given() -> None:
     scenario = Scenario.load_from_file(
         path_relative_to_tests('./testdata/scenarios/simple_scenario.yml')
     )
-    assert not scenario.agent_settings['Defender1'].observable_steps
+    defender_agent = scenario.agent_settings['Defender1']
+    assert isinstance(defender_agent, DefenderSettings)
+    assert not defender_agent.observable_steps
 
 
 def test_apply_scenario_observability() -> None:
