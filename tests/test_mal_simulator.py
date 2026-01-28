@@ -173,6 +173,16 @@ def test_simulator_actionable_action_surface(model: Model) -> None:
             'Attacker1': AttackerSettings(
                 name='Attacker1',
                 entry_points={'OS App:fullAccess'},
+                actionable_steps=NodePropertyRule(
+                    by_asset_type={
+                        'Application': [
+                            'attemptRead',
+                            'successfulRead',
+                            'read',
+                            'notPresent',
+                        ]
+                    }
+                ),
             ),
             'Defender': DefenderSettings(
                 'Defender',
@@ -308,11 +318,16 @@ def test_node_full_names_to_simulator(
         attempt_read: 100.0,
         access_network_and_conn: 50.4,
     }
-    observability_per_node = {
-        entry_point: True,
-        attempt_read: False,
-        access_network_and_conn: True,
-    }
+    observability_per_node = NodePropertyRule(
+        by_asset_name={
+            'OS App': {
+                'fullAccess': True,
+                'attemptRead': False,
+                'accessNetworkAndConnections': True
+            }
+        }
+    )
+
     defender_name = 'Test Defender'
     sim = MalSimulator(
         attack_graph,
@@ -320,15 +335,13 @@ def test_node_full_names_to_simulator(
         agent_settings={
             defender_name: DefenderSettings(
                 name=defender_name,
-                observable_steps=observability_per_node,  # TODO nodepropertyrule
+                observable_steps=observability_per_node,
             ),
         },
     )
 
     attacker_name = 'Test Attacker'
     sim.register_attacker(attacker_name, {entry_point})
-
-
     states = sim.reset()
 
     states = sim.step({attacker_name: [attempt_read]})
