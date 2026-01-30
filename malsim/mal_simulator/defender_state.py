@@ -4,6 +4,7 @@ from typing import Any, Optional
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.agent_state import MalSimAgentState
+from malsim.mal_simulator.event_logger import EventLogger
 from malsim.types import AgentStates
 
 
@@ -22,6 +23,7 @@ class MalSimDefenderState(MalSimAgentState):
     step_observed_nodes: frozenset[AttackGraphNode]
 
     # Agent specific rules for node properties
+    logs: EventLogger = EventLogger()
     reward_rule: Optional[NodePropertyRule] = None
     actionability_rule: Optional[NodePropertyRule] = None
     false_positive_rates_rule: Optional[NodePropertyRule] = None
