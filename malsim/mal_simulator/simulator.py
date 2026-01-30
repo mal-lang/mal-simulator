@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 import logging
-from typing import Any, NamedTuple, Optional
+from typing import Any, Optional
 from collections.abc import Callable, Mapping, Set
 
 import numpy as np
@@ -20,6 +20,7 @@ from malsim.mal_simulator.defender_step import (
     defender_is_terminated,
     defender_step,
 )
+from malsim.mal_simulator.event_logger import EventLogger
 from malsim.mal_simulator.graph_state import compute_initial_graph_state
 from malsim.mal_simulator.node_getters import (
     full_names_or_nodes_to_nodes,
@@ -39,6 +40,7 @@ from malsim.mal_simulator.false_alerts import (
     node_false_positive_rate,
 )
 from malsim.config.agent_settings import AttackerSettings, DefenderSettings
+from malsim.mal_simulator.simulator_static_data import MALSimulatorStaticData
 from malsim.types import (
     AgentRewards,
     AgentStates,
@@ -102,20 +104,6 @@ ENABLED_ATTACKS_FUNCS: Mapping[
 }
 
 BASE_SETTINGS = MalSimulatorSettings()
-
-
-class MALSimulatorStaticData(NamedTuple):
-    attack_graph: AttackGraph
-    sim_settings: MalSimulatorSettings
-    rewards: Optional[dict[str, float] | dict[AttackGraphNode, float]] = None
-    false_positive_rates: Optional[dict[str, float] | dict[AttackGraphNode, float]] = (
-        None
-    )
-    false_negative_rates: Optional[dict[str, float] | dict[AttackGraphNode, float]] = (
-        None
-    )
-    node_actionabilities: Optional[dict[str, bool] | dict[AttackGraphNode, bool]] = None
-    node_observabilities: Optional[dict[str, bool] | dict[AttackGraphNode, bool]] = None
 
 
 class MalSimulator:
@@ -194,6 +182,7 @@ class MalSimulator:
         self._agent_states = agent_states
         self._alive_agents = alive_agents
         self._agent_rewards = agent_rewards
+        self.event_logger = EventLogger()
         self.sim_state = sim_state
         self.recording = recording
         self.enabled_attacks_func = enabled_attacks_func
@@ -486,6 +475,11 @@ class MalSimulator:
         self.sim_state = sim_state
         self._agent_rewards = agent_rewards
         self._alive_agents = live_agents
+
+        for attacker in get_attacker_agents(self._agent_states, self._alive_agents):
+            # generate logs
+            self.event_logger.collect_logs(attacker)
+
         return self._agent_states
 
 
