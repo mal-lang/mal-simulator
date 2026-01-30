@@ -1,0 +1,51 @@
+lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
+agents:
+  Attacker:
+    name: Attacker
+    type: attacker
+    entry_points: !!set
+      App1:fullAccess: null
+    goals: !!set
+      Data1:successfulRead: null
+    policy: RandomAgent
+model:
+  metadata:
+    name: New Model
+    langVersion: 1.0.0
+    langID: org.mal-lang.coreLang
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.0.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: App1
+      type: Application
+      associated_assets:
+        containedData:
+          1: Data1
+      extras:
+        position:
+          x: -903.0
+          y: -335.0
+    1:
+      name: Data1
+      type: Data
+      associated_assets:
+        containingApp:
+          0: App1
+        encryptCreds:
+          2: Creds1
+      extras:
+        position:
+          x: -899.0
+          y: -597.0
+    2:
+      name: Creds1
+      type: Credentials
+      associated_assets:
+        encryptedData:
+          1: Data1
+      extras:
+        position:
+          x: -390.0
+          y: -592.0
