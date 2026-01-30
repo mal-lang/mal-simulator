@@ -9,6 +9,7 @@ from malsim.config.agent_settings import DefenderSettings
 from malsim.mal_simulator.defender_state import DefenderState
 from malsim.mal_simulator.defense_surface import get_defense_surface
 from malsim.mal_simulator.observability import observed_nodes
+from malsim.mal_simulator.event_logger import collect_logs, collect_false_positives
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 
@@ -59,6 +60,17 @@ def create_defender_state(
         new_compromised_nodes,
     )
 
+    logs = collect_logs(
+        previous_state.iteration if previous_state else 0,
+        new_compromised_nodes,
+        previous_compromised_nodes,
+        rng,
+    ) + collect_false_positives(
+        previous_state.iteration if previous_state else 0,
+        sim_state.attack_graph.detectors,
+        rng,
+    )
+
     return DefenderState(
         name,
         sim_state=sim_state,
@@ -71,6 +83,7 @@ def create_defender_state(
         iteration=iteration + 1,
         performed_nodes_order=performed_nodes_order,
         previous_state=previous_state,
+        logs=tuple(previous_state.logs + logs) if previous_state else tuple(logs),
     )
 
 

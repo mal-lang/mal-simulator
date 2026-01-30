@@ -1,9 +1,10 @@
 from __future__ import annotations
 from collections.abc import Set
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.agent_settings import DefenderSettings
+from malsim.mal_simulator.event_logger import LogEntry
 from malsim.mal_simulator.agent_state import AgentState
 
 
@@ -18,7 +19,12 @@ class DefenderState(AgentState):
     # in regards to false positives/negatives and observability
     observed_nodes: Set[AttackGraphNode]
 
+    # Settings for defender
     settings: DefenderSettings
+
+    # Logs generated from detectors
+    logs: tuple[LogEntry, ...] = field(default_factory=tuple)
+
     previous_state: DefenderState | None = None
 
     # Pickling
