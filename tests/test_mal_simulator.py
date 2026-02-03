@@ -1614,3 +1614,45 @@ def test_actions_effects() -> None:
         # Assert that both action and effect was performed each step
         assert effect.model_asset
         assert action.name == 'attempt' + effect.name.capitalize()
+
+
+
+def test_actions_effects_entrypoints() -> None:
+    """Verify actions and effects works as intended with entrypoints"""
+
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/actions_effects_scenario_entrypoint_with_effects.yml'
+    )
+    sim = MalSimulator.from_scenario(
+        scenario,
+        sim_settings=MalSimulatorSettings(
+            ttc_mode=TTCMode.DISABLED,
+            run_defense_step_bernoullis=False,
+            run_attack_step_bernoullis=False,
+            attack_surface_skip_unnecessary=False,
+            compromise_entrypoints_at_start=True,
+            attacker_reward_mode=RewardMode.SAMPLE_TTC,
+            seed=1,
+        ),
+    )
+    selected_actions = run_simulation(sim, scenario.agent_settings)
+
+    # Attacker only selects steps starting with 'attempt'
+    assert {n.full_name for n in selected_actions['Attacker']} == {
+        'Net1:attemptScan',
+        'Net2:attemptScan',
+        'Net3:attemptScan',
+        'ComputerD:attemptConnect',
+        'ComputerA:attemptConnect',
+        'ComputerD:attemptAccess',
+        'ComputerC:attemptConnect',
+        'SecretData:attemptRead',
+    }
+
+    # But in the recording each step performs an action and an effect
+    for i in sim.recording:
+        action = sim.recording[i]['Attacker'][0]
+        effect = sim.recording[i]['Attacker'][1]
+        # Assert that both action and effect was performed each step
+        assert effect.model_asset
+        assert action.name == 'attempt' + effect.name.capitalize()
