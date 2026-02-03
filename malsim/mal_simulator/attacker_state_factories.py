@@ -6,8 +6,9 @@ from types import MappingProxyType
 from typing import Optional, TYPE_CHECKING
 
 from malsim.config.node_property_rule import NodePropertyRule
-from malsim.mal_simulator.attack_surface import get_attack_surface
+from malsim.mal_simulator.attack_surface import get_attack_surface, get_effects_of_attack_step
 from malsim.mal_simulator.attacker_state import MalSimAttackerState
+from malsim.mal_simulator.attacker_step import attacker_step
 from malsim.mal_simulator.node_getters import (
     full_name_dict_to_node_dict,
     full_name_or_node_to_node,
@@ -31,8 +32,8 @@ def create_attacker_state(
     sim_state: MalSimulatorState,
     name: str,
     entry_points: Set[AttackGraphNode],
+    step_compromised_nodes: Set[AttackGraphNode],
     goals: Set[AttackGraphNode] = frozenset(),
-    step_compromised_nodes: Set[AttackGraphNode] = frozenset(),
     step_attempted_nodes: Set[AttackGraphNode] = frozenset(),
     step_nodes_made_unviable: Set[AttackGraphNode] = frozenset(),
     ttc_overrides: Mapping[AttackGraphNode, TTCDist] = MappingProxyType({}),
@@ -48,9 +49,7 @@ def create_attacker_state(
     """
 
     if previous_state is None:
-        # Initial compromised nodes
-        if sim_state.settings.compromise_entrypoints_at_start:
-            step_compromised_nodes |= entry_points
+        # Initial compromised nodes are just the step compromised nodes
         compromised_nodes = step_compromised_nodes
 
         # Create an initial attack surface
@@ -141,6 +140,21 @@ def create_attacker_state(
     )
 
 
+def get_entrypoint_compromises(
+    sim_state: MalSimulatorState,
+    entry_points: set[AttackGraphNode],
+) -> set[AttackGraphNode]:
+    """Compromise entry points and return the set of compromised nodes (including effects)."""
+    step_compromised_nodes: Set[AttackGraphNode] = set()
+    for entry_point in entry_points:
+        step_compromised_nodes.add(entry_point)
+        # Perform effects of entry point compromises
+        step_compromised_nodes |= get_effects_of_attack_step(
+            sim_state, entry_point, step_compromised_nodes
+        )
+    return step_compromised_nodes
+
+
 def initial_attacker_state(
     sim_state: MalSimulatorState,
     attacker_settings: AttackerSettings,
@@ -148,24 +162,32 @@ def initial_attacker_state(
     rng: np.random.Generator,
 ) -> MalSimAttackerState:
     """Create an attacker state from attacker settings"""
+
     ttc_overrides, ttc_value_overrides, impossible_steps = (
         attacker_overriding_ttc_settings(
             sim_state.attack_graph, attacker_settings, ttc_mode, rng
         )
     )
+    entry_points = set(
+        full_names_or_nodes_to_nodes(
+            sim_state.attack_graph, attacker_settings.entry_points
+        )
+    )
+    goals = set(
+        full_names_or_nodes_to_nodes(
+            sim_state.attack_graph, attacker_settings.goals
+        )
+    )
+    step_compromised_nodes: Set[AttackGraphNode] = set()
+    if sim_state.settings.compromise_entrypoints_at_start:
+        step_compromised_nodes = get_entrypoint_compromises(sim_state, entry_points)
+
     return create_attacker_state(
         sim_state=sim_state,
         name=attacker_settings.name,
-        entry_points=set(
-            full_names_or_nodes_to_nodes(
-                sim_state.attack_graph, attacker_settings.entry_points
-            )
-        ),
-        goals=set(
-            full_names_or_nodes_to_nodes(
-                sim_state.attack_graph, attacker_settings.goals
-            )
-        ),
+        entry_points=entry_points,
+        goals=goals,
+        step_compromised_nodes=step_compromised_nodes,
         ttc_overrides=ttc_overrides,
         ttc_value_overrides=ttc_value_overrides,
         impossible_step_overrides=impossible_steps,
