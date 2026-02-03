@@ -11,7 +11,6 @@ from malsim.mal_simulator.attack_surface import (
     get_effects_of_attack_step,
 )
 from malsim.mal_simulator.attacker_state import MalSimAttackerState
-from malsim.mal_simulator.attacker_step import attacker_step
 from malsim.mal_simulator.node_getters import (
     full_name_dict_to_node_dict,
     full_name_or_node_to_node,
@@ -147,7 +146,7 @@ def get_entrypoint_compromises(
     sim_state: MalSimulatorState,
     entry_points: set[AttackGraphNode],
 ) -> set[AttackGraphNode]:
-    """Compromise entry points and return the set of compromised nodes (including effects)."""
+    """Compromise entry points and return compromised nodes including effects"""
     step_compromised_nodes: set[AttackGraphNode] = set()
     for entry_point in entry_points:
         step_compromised_nodes.add(entry_point)
