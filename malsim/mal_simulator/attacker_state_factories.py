@@ -6,7 +6,10 @@ from types import MappingProxyType
 from typing import Optional, TYPE_CHECKING
 
 from malsim.config.node_property_rule import NodePropertyRule
-from malsim.mal_simulator.attack_surface import get_attack_surface, get_effects_of_attack_step
+from malsim.mal_simulator.attack_surface import (
+    get_attack_surface,
+    get_effects_of_attack_step,
+)
 from malsim.mal_simulator.attacker_state import MalSimAttackerState
 from malsim.mal_simulator.attacker_step import attacker_step
 from malsim.mal_simulator.node_getters import (
@@ -174,9 +177,7 @@ def initial_attacker_state(
         )
     )
     goals = set(
-        full_names_or_nodes_to_nodes(
-            sim_state.attack_graph, attacker_settings.goals
-        )
+        full_names_or_nodes_to_nodes(sim_state.attack_graph, attacker_settings.goals)
     )
     step_compromised_nodes: Set[AttackGraphNode] = set()
     if sim_state.settings.compromise_entrypoints_at_start:

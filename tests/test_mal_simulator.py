@@ -1616,7 +1616,6 @@ def test_actions_effects() -> None:
         assert action.name == 'attempt' + effect.name.capitalize()
 
 
-
 def test_actions_effects_entrypoints() -> None:
     """Verify actions and effects works as intended with entrypoints"""
 
