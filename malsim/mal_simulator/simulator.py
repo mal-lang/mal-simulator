@@ -20,7 +20,6 @@ from malsim.mal_simulator.defender_step import (
     defender_is_terminated,
     defender_step,
 )
-from malsim.mal_simulator.event_logger import EventLogger
 from malsim.mal_simulator.graph_state import compute_initial_graph_state
 from malsim.mal_simulator.node_getters import (
     full_names_or_nodes_to_nodes,
@@ -182,7 +181,6 @@ class MalSimulator:
         self._agent_states = agent_states
         self._alive_agents = alive_agents
         self._agent_rewards = agent_rewards
-        self.event_logger = EventLogger()
         self.sim_state = sim_state
         self.recording = recording
         self.enabled_attacks_func = enabled_attacks_func
@@ -475,10 +473,6 @@ class MalSimulator:
         self.sim_state = sim_state
         self._agent_rewards = agent_rewards
         self._alive_agents = live_agents
-
-        for attacker in get_attacker_agents(self._agent_states, self._alive_agents):
-            # generate logs
-            self.event_logger.collect_logs(attacker)
 
         return self._agent_states
 

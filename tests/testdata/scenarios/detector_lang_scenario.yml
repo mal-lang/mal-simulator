@@ -6,6 +6,9 @@ agents:
     entry_points: !!set
       Computer:0:physicalAccess: null
     policy: RandomAgent
+  Defender:
+    name: Defender
+    type: defender
 model:
   metadata:
     name: New Model
