@@ -11,6 +11,7 @@ from malsim.config.agent_settings import DefenderSettings
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.defender_state import MalSimDefenderState
 from malsim.mal_simulator.defense_surface import get_defense_surface
+from malsim.mal_simulator.event_logger import collect_logs
 from malsim.mal_simulator.observability import defender_observed_nodes
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
@@ -45,6 +46,7 @@ def create_defender_state(
         action_surface_additions: Set[AttackGraphNode] = action_surface
         action_surface_removals: Set[AttackGraphNode] = frozenset()
         performed_nodes_order: dict[int, frozenset[AttackGraphNode]] = {}
+        logs = collect_logs(0, step_compromised_nodes, previous_compromised_nodes)
 
         if step_enabled_defenses:
             # Pre enabled defenses go into iteration 0
@@ -71,6 +73,11 @@ def create_defender_state(
         action_surface_additions = frozenset()
         action_surface_removals = step_enabled_defenses
         performed_nodes_order = dict(previous_state.performed_nodes_order)
+
+        logs = collect_logs(
+            previous_state.iteration, step_compromised_nodes, previous_compromised_nodes
+        )
+
         if step_enabled_defenses:
             performed_nodes_order[previous_state.iteration] = frozenset(
                 step_enabled_defenses
@@ -106,6 +113,7 @@ def create_defender_state(
         false_negative_rates_rule=false_negative_rates_rule,
         false_positive_rates_rule=false_positive_rates_rule,
         performed_nodes_order=MappingProxyType(performed_nodes_order),
+        logs=tuple(previous_state.logs + logs) if previous_state else tuple(logs),
     )
 
 

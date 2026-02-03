@@ -1,10 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any, Optional
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.agent_state import MalSimAgentState
-from malsim.mal_simulator.event_logger import EventLogger
+from malsim.mal_simulator.event_logger import LogEntry
 from malsim.types import AgentStates
 
 
@@ -21,9 +21,10 @@ class MalSimDefenderState(MalSimAgentState):
     observed_nodes: frozenset[AttackGraphNode]
     # Contains observed steps made by any attacker in last step
     step_observed_nodes: frozenset[AttackGraphNode]
+    # Logs generated from detectors
+    logs: tuple[LogEntry, ...] = field(default_factory=tuple)
 
     # Agent specific rules for node properties
-    logs: EventLogger = EventLogger()
     reward_rule: Optional[NodePropertyRule] = None
     actionability_rule: Optional[NodePropertyRule] = None
     false_positive_rates_rule: Optional[NodePropertyRule] = None
