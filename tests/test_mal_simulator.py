@@ -1608,12 +1608,24 @@ def test_actions_effects() -> None:
     }
 
     # But in the recording each step performs an action and an effect
+    expected_recording = {
+        1: {'Attacker': ['Net1:attemptScan', 'Net1:scan']},
+        2: {'Attacker': ['ComputerA:attemptConnect', 'ComputerA:connect']},
+        3: {'Attacker': ['Net2:attemptScan', 'Net2:scan']},
+        4: {'Attacker': ['ComputerA:attemptAccess']},
+        5: {'Attacker': ['Net3:attemptScan', 'Net3:scan']},
+        6: {'Attacker': ['ComputerD:attemptConnect', 'ComputerD:connect']},
+        7: {'Attacker': ['ComputerD:attemptAccess', 'ComputerD:access']},
+        8: {'Attacker': ['SecretData:attemptRead', 'SecretData:read']},
+    }
+
+    # Convert recording nodes to full names for comparison
     for i in sim.recording:
-        action = sim.recording[i]['Attacker'][0]
-        effect = sim.recording[i]['Attacker'][1]
-        # Assert that both action and effect was performed each step
-        assert effect.model_asset
-        assert action.name == 'attempt' + effect.name.capitalize()
+        assert len(sim.recording[i]['Attacker']) == len(
+            expected_recording[i]['Attacker']
+        )
+        for j, node in enumerate(sim.recording[i]['Attacker']):
+            assert node.full_name == expected_recording[i]['Attacker'][j]
 
 
 def test_actions_effects_entrypoints() -> None:
