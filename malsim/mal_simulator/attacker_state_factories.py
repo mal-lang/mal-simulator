@@ -148,7 +148,7 @@ def get_entrypoint_compromises(
     entry_points: set[AttackGraphNode],
 ) -> set[AttackGraphNode]:
     """Compromise entry points and return the set of compromised nodes (including effects)."""
-    step_compromised_nodes: Set[AttackGraphNode] = set()
+    step_compromised_nodes: set[AttackGraphNode] = set()
     for entry_point in entry_points:
         step_compromised_nodes.add(entry_point)
         # Perform effects of entry point compromises
