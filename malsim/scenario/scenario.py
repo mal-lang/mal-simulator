@@ -70,8 +70,6 @@ class Scenario:
         rewards: Optional[dict[str, Any]] = None,
         false_positive_rates: Optional[dict[str, Any]] = None,
         false_negative_rates: Optional[dict[str, Any]] = None,
-        observable_steps: Optional[dict[str, Any]] = None,
-        actionable_steps: Optional[dict[str, Any]] = None,
     ):
         # Lang file is required
         self._lang_file = lang_file
@@ -99,8 +97,6 @@ class Scenario:
         self.false_negative_rates = NodePropertyRule.from_optional_dict(
             false_negative_rates
         )
-        self.is_observable = NodePropertyRule.from_optional_dict(observable_steps)
-        self.is_actionable = NodePropertyRule.from_optional_dict(actionable_steps)
 
     def to_dict(self) -> dict[str, Any]:
         assert self._lang_file, (
@@ -120,10 +116,6 @@ class Scenario:
             scenario_dict['false_positive_rates'] = self.false_positive_rates.to_dict()
         if self.false_negative_rates:
             scenario_dict['false_negative_rates'] = self.false_negative_rates.to_dict()
-        if self.is_observable:
-            scenario_dict['observable_steps'] = self.is_observable.to_dict()
-        if self.is_actionable:
-            scenario_dict['actionable_steps'] = self.is_actionable.to_dict()
         if self._model_file:
             # Use model file name instead of full model if model file was given at init
             scenario_dict['model_file'] = self._model_file
@@ -142,12 +134,11 @@ class Scenario:
         """Create a scenario object from a scenario dictionary"""
         _validate_scenario_dict(scenario_dict)
 
-        agent_settings = {}
         # Load agent settings from dict
-        for name, agent_settings_dict in scenario_dict['agents'].items():
-            agent_settings[str(name)] = agent_settings_from_dict(
-                name, agent_settings_dict
-            )
+        agent_settings = {
+            str(name): agent_settings_from_dict(name, agent_settings_dict)
+            for name, agent_settings_dict in scenario_dict['agents'].items()
+        }
 
         model_or_model_file = scenario_dict.get('model') or scenario_dict['model_file']
         return Scenario(
@@ -157,8 +148,6 @@ class Scenario:
             rewards=scenario_dict.get('rewards'),
             false_positive_rates=scenario_dict.get('false_positive_rates'),
             false_negative_rates=scenario_dict.get('false_negative_rates'),
-            observable_steps=scenario_dict.get('observable_steps'),
-            actionable_steps=scenario_dict.get('actionable_steps'),
         )
 
     @classmethod
