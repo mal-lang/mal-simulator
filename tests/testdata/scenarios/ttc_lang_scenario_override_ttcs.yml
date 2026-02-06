@@ -178,7 +178,7 @@ agents:
     - ComputerA:easyAccess
     goals:
     - DataD:read
-    agent_class: ShortestPathAttacker
+    policy: ShortestPathAttacker
     ttc_overrides:
       by_asset_type:
         Computer:
