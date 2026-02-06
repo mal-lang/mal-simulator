@@ -606,6 +606,7 @@ def test_traininglang_advanced_agents() -> None:
         'Host:0:authenticate',
     ]
     expected_defender_actions = [
+        'Host:1:notPresent',  # false positive
         'Host:0:notPresent',
     ]
 
