@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **MAL Simulator** is a tool designed for running simulations on systems modeled in the **Modeling Attack Language (MAL)**.
+The **MAL Simulator** is a tool designed for running simulations on systems modeled in the **Meta Attack Language (MAL)**.
 
 It allows you to:
 * Simulate the adversarial and defensive actions of intelligent agents (attackers and defenders).
