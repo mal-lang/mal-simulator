@@ -1,0 +1,80 @@
+lang_file: /home/joakim-loxdal/Documents/mal-simulator/tests/testdata/langs/detector_lang.mal
+agents:
+  Attacker:
+    name: Attacker
+    type: attacker
+    entry_points: !!set
+      Computer:0:physicalAccess: null
+    policy: RandomAgent
+  Defender:
+    name: Defender
+    type: defender
+model:
+  metadata:
+    name: New Model
+    langVersion: 0.0.0
+    langID: test-actions-effects
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.0.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: Computer:0
+      type: Computer
+      associated_assets:
+        computerApps:
+          1: Application:1
+      extras:
+        position:
+          x: -565.0
+          y: -638.0
+    1:
+      name: Application:1
+      type: Application
+      associated_assets:
+        computerOfApp:
+          0: Computer:0
+        dataOnApp:
+          3: Data:3
+        fromApplications:
+          5: Application:5
+        toApplications:
+          5: Application:5
+      extras:
+        position:
+          x: -556.0
+          y: -428.0
+    3:
+      name: Data:3
+      type: Data
+      associated_assets:
+        appWithData:
+          1: Application:1
+      extras:
+        position:
+          x: -202.0
+          y: -427.0
+    5:
+      name: Application:5
+      type: Application
+      associated_assets:
+        toApplications:
+          1: Application:1
+        fromApplications:
+          1: Application:1
+        dataOnApp:
+          6: Data:6
+      extras:
+        position:
+          x: -543.0
+          y: -222.0
+    6:
+      name: Data:6
+      type: Data
+      associated_assets:
+        appWithData:
+          5: Application:5
+      extras:
+        position:
+          x: -206.0
+          y: -208.0
