@@ -16,10 +16,9 @@ def test_read_data_no_creds_skip_unnecessary():
     )
     run_simulation(sim, sim._agent_settings)
     performed_nodes = {
-        n.full_name for n in
-        sim.agent_states["Attacker"].performed_nodes
+        n.full_name for n in sim.agent_states['Attacker'].performed_nodes
     }
-    assert "Data1:successfulRead" in performed_nodes
+    assert 'Data1:successfulRead' in performed_nodes
 
 
 def test_read_data_no_creds_show_unnecessary():
@@ -34,10 +33,9 @@ def test_read_data_no_creds_show_unnecessary():
     )
     run_simulation(sim, sim._agent_settings)
     performed_nodes = {
-        n.full_name for n in
-        sim.agent_states["Attacker"].performed_nodes
+        n.full_name for n in sim.agent_states['Attacker'].performed_nodes
     }
-    assert "Data1:successfulRead" in performed_nodes
+    assert 'Data1:successfulRead' in performed_nodes
 
 
 def test_read_data_creds_skip_unnecessary():
@@ -52,10 +50,9 @@ def test_read_data_creds_skip_unnecessary():
     )
     run_simulation(sim, sim._agent_settings)
     performed_nodes = {
-        n.full_name for n in
-        sim.agent_states["Attacker"].performed_nodes
+        n.full_name for n in sim.agent_states['Attacker'].performed_nodes
     }
-    assert "Data1:successfulRead" not in performed_nodes
+    assert 'Data1:successfulRead' not in performed_nodes
 
 
 def test_read_data_creds_show_unnecessary():

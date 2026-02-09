@@ -1,5 +1,5 @@
 """
-MAL Simulator – Attack Graph Preprocessing
+MAL Simulator - Attack Graph Preprocessing
 
 This module prepares the attack graph before simulation by computing two
 properties for each node:
@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 # Necessity
 # ============================================================================
 
+
 def _propagate_necessity_from_node(
     node: AttackGraphNode,
     necessity_per_node: dict[AttackGraphNode, bool],
@@ -52,9 +53,7 @@ def _propagate_necessity_from_node(
 
         if necessity_per_node[child] != previous:
             changed.add(child)
-            changed |= _propagate_necessity_from_node(
-                child, necessity_per_node
-            )
+            changed |= _propagate_necessity_from_node(child, necessity_per_node)
 
     return changed
 
@@ -98,10 +97,7 @@ def evaluate_necessity(
             )
 
         case _:
-            msg = (
-                'Evaluate necessity received node "%s"(%d) '
-                'with unknown type "%s".'
-            )
+            msg = 'Evaluate necessity received node "%s"(%d) with unknown type "%s".'
             logger.error(msg, node.full_name, node.id, node.type)
             raise ValueError(msg % (node.full_name, node.id, node.type))
 
@@ -129,6 +125,7 @@ def calculate_necessity(
 # ============================================================================
 # Viability
 # ============================================================================
+
 
 def _propagate_viability_from_node(
     node: AttackGraphNode,
@@ -204,10 +201,7 @@ def evaluate_viability(
             )
 
         case _:
-            msg = (
-                'Evaluate viability received node "%s"(%d) '
-                'with unknown type "%s".'
-            )
+            msg = 'Evaluate viability received node "%s"(%d) with unknown type "%s".'
             logger.error(msg, node.full_name, node.id, node.type)
             raise ValueError(msg % (node.full_name, node.id, node.type))
 
@@ -258,6 +252,7 @@ def make_node_unviable(
 # ============================================================================
 # Pruning
 # ============================================================================
+
 
 def prune_unviable_and_unnecessary_nodes(
     graph: AttackGraph,
