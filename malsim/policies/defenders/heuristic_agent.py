@@ -34,7 +34,7 @@ class DefendCompromisedDefender:
     ) -> Optional[AttackGraphNode]:
         """Return an action that disables a compromised node"""
 
-        self.compromised_nodes |= agent_state.step_compromised_nodes
+        self.compromised_nodes |= agent_state.step_observed_nodes
 
         selected_node_cost = math.inf
         selected_node = None
@@ -84,7 +84,7 @@ class DefendFutureCompromisedDefender:
     ) -> Optional[AttackGraphNode]:
         """Return an action that disables a compromised node"""
 
-        self.compromised_nodes |= agent_state.step_compromised_nodes
+        self.compromised_nodes |= agent_state.step_observed_nodes
 
         selected_node_cost = math.inf
         selected_node = None

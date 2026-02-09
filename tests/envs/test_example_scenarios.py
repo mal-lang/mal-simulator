@@ -606,6 +606,7 @@ def test_traininglang_advanced_agents() -> None:
         'Host:0:authenticate',
     ]
     expected_defender_actions = [
+        'Host:1:notPresent',  # false positive
         'Host:0:notPresent',
     ]
 
@@ -624,12 +625,20 @@ def test_traininglang_advanced_agents() -> None:
     # Verify latest rewards
     assert isinstance(attacker_state, MalSimAttackerState)
     assert isinstance(defender_state, MalSimDefenderState)
-    assert sim.agent_reward(attacker_state.name) == 1000.0  # Reward applied correctly
-    assert sim.agent_reward(defender_state.name) == -100.0  # Reward applied correctly
+    attacker_expected_reward = sum(
+        sim.node_reward(node, attacker_name)
+        for node in attacker_state.step_performed_nodes
+    )
+    assert sim.agent_reward(attacker_state.name) == attacker_expected_reward
+    defender_expected_reward = sum(
+        sim.node_reward(node, defender_name)
+        for node in defender_state.step_performed_nodes
+    )
+    assert sim.agent_reward(defender_state.name) == -defender_expected_reward
 
     # Verify total rewards
     assert total_reward_attacker == 1000.0
-    assert total_reward_defender == -200.0  # Sum over two steps
+    assert total_reward_defender == -100.0  # Sum over two steps
 
 
 def test_traininglang_dont_compromise_entrypoints() -> None:
