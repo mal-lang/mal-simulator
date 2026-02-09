@@ -307,15 +307,15 @@ def test_analyzers_apriori_propagate_necessity(dummy_lang_graph: LanguageGraph) 
     attack_graph = AttackGraph(dummy_lang_graph)
 
     # Create a graph of nodes
-    np1 = attack_graph.add_node(lg_attack_step=dummy_or_attack_step)
-    np2 = attack_graph.add_node(lg_attack_step=dummy_or_attack_step)
-    unp1 = attack_graph.add_node(lg_attack_step=dummy_or_attack_step)
-    unp2 = attack_graph.add_node(lg_attack_step=dummy_or_attack_step)
+    np1 = attack_graph.add_node(lg_attack_step=dummy_or_attack_step, full_name='np1')
+    np2 = attack_graph.add_node(lg_attack_step=dummy_or_attack_step, full_name='np2')
+    unp1 = attack_graph.add_node(lg_attack_step=dummy_or_attack_step, full_name='unp1')
+    unp2 = attack_graph.add_node(lg_attack_step=dummy_or_attack_step, full_name='unp2')
 
-    or_1unp = attack_graph.add_node(lg_attack_step=dummy_or_attack_step)
-    or_2np = attack_graph.add_node(lg_attack_step=dummy_or_attack_step)
-    and_1np = attack_graph.add_node(lg_attack_step=dummy_and_attack_step)
-    and_2unp = attack_graph.add_node(lg_attack_step=dummy_and_attack_step)
+    or_1unp = attack_graph.add_node(lg_attack_step=dummy_or_attack_step, full_name='or_1unp')
+    or_2np = attack_graph.add_node(lg_attack_step=dummy_or_attack_step, full_name='or_2np')
+    and_1np = attack_graph.add_node(lg_attack_step=dummy_and_attack_step, full_name='and_1np')
+    and_2unp = attack_graph.add_node(lg_attack_step=dummy_and_attack_step, full_name='and_2unp')
 
     or_1unp.parents = {np1, unp1}
     or_2np.parents = {np1, np2}

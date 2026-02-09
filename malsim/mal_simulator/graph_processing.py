@@ -38,13 +38,16 @@ def _propagate_necessity_from_node(
     changed_nodes   - set of nodes that have changed necessity
     """
     changed_nodes = set()
+
     for child in node.children:
-        is_necessary = evaluate_necessity(child, necessity_per_node, set())
-        if is_necessary != necessity_per_node[child]:
-            necessity_per_node[child] = is_necessary
+        original_value = necessity_per_node[child]
+        necessity_per_node[child] = evaluate_necessity(child, necessity_per_node, set())
+
+        if necessity_per_node[child] != original_value:
             changed_nodes |= {child} | _propagate_necessity_from_node(
                 child, necessity_per_node
             )
+
     return changed_nodes
 
 
