@@ -4,7 +4,7 @@ from malsim.mal_simulator.simulator import MalSimulator
 from malsim.scenario.scenario import Scenario
 
 
-def test_read_data_no_creds_skip_unnecessary():
+def test_read_data_no_creds_skip_unnecessary() -> None:
     scenario_file = 'tests/testdata/scenarios/data_without_creds_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file)
     sim = MalSimulator.from_scenario(
@@ -21,7 +21,7 @@ def test_read_data_no_creds_skip_unnecessary():
     assert 'Data1:successfulRead' in performed_nodes
 
 
-def test_read_data_no_creds_show_unnecessary():
+def test_read_data_no_creds_show_unnecessary() -> None:
     scenario_file = 'tests/testdata/scenarios/data_without_creds_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file)
     sim = MalSimulator.from_scenario(
@@ -38,7 +38,7 @@ def test_read_data_no_creds_show_unnecessary():
     assert 'Data1:successfulRead' in performed_nodes
 
 
-def test_read_data_creds_skip_unnecessary():
+def test_read_data_creds_skip_unnecessary() -> None:
     scenario_file = 'tests/testdata/scenarios/data_with_creds_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file)
     sim = MalSimulator.from_scenario(
@@ -55,7 +55,7 @@ def test_read_data_creds_skip_unnecessary():
     assert 'Data1:successfulRead' not in performed_nodes
 
 
-def test_read_data_creds_show_unnecessary():
+def test_read_data_creds_show_unnecessary() -> None:
     scenario_file = 'tests/testdata/scenarios/data_with_creds_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file)
     sim = MalSimulator.from_scenario(
@@ -67,7 +67,6 @@ def test_read_data_creds_show_unnecessary():
     )
     run_simulation(sim, sim._agent_settings)
     performed_nodes = {
-        n.full_name for n in
-        sim.agent_states["Attacker"].performed_nodes
+        n.full_name for n in sim.agent_states['Attacker'].performed_nodes
     }
     assert "Data1:successfulRead" not in performed_nodes
