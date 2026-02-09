@@ -27,7 +27,7 @@ category TestAssets{
             -> easyAccess,
                hardAccess
 
-        & easyAccess
+        | easyAccess
             -> datas.easyRead,
                datas.hardRead,
                networks.easyAccess,

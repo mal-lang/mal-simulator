@@ -69,4 +69,4 @@ def test_read_data_creds_show_unnecessary() -> None:
     performed_nodes = {
         n.full_name for n in sim.agent_states['Attacker'].performed_nodes
     }
-    assert "Data1:successfulRead" not in performed_nodes
+    assert 'Data1:successfulRead' not in performed_nodes

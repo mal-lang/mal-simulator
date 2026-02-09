@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 
-def _propagate_necessity_from_node(
+def _propagate_necessity_from_unnecessary_node(
     node: AttackGraphNode,
     necessity_per_node: dict[AttackGraphNode, bool],
 ) -> set[AttackGraphNode]:
@@ -42,8 +42,16 @@ def _propagate_necessity_from_node(
         Set of nodes whose necessity changed.
     """
     changed: set[AttackGraphNode] = set()
+    assert necessity_per_node[node] is False, (
+        f'Node "{node.full_name}"({node.id}) is not marked as unnecessary.'
+    )
 
     for child in node.children:
+        if child.ttc and child.ttc.get('name') not in ('Enabled', 'Instant', 'Disabled'):
+            # Do not propagate unnecessary state from nodes that have a TTC
+            # probability distribution associated with them.
+            continue
+
         previous = necessity_per_node[child]
         necessity_per_node[child] = evaluate_necessity(
             child,
@@ -51,9 +59,10 @@ def _propagate_necessity_from_node(
             enabled_defenses=set(),
         )
 
-        if necessity_per_node[child] != previous:
+        if not necessity_per_node[child] and necessity_per_node[child] != previous:
+            # If child necessity changed to unneccessary, propagate further
             changed.add(child)
-            changed |= _propagate_necessity_from_node(child, necessity_per_node)
+            changed |= _propagate_necessity_from_unnecessary_node(child, necessity_per_node)
 
     return changed
 
@@ -117,7 +126,7 @@ def calculate_necessity(
                 node, necessity_per_node, enabled_defenses
             )
             if not necessity_per_node[node]:
-                _propagate_necessity_from_node(node, necessity_per_node)
+                _propagate_necessity_from_unnecessary_node(node, necessity_per_node)
 
     return necessity_per_node
 

@@ -2,7 +2,7 @@
 
 from malsim.mal_simulator.graph_processing import (
     _propagate_viability_from_node,
-    _propagate_necessity_from_node,
+    _propagate_necessity_from_unnecessary_node,
     prune_unviable_and_unnecessary_nodes,
     calculate_necessity,
     calculate_viability,
@@ -336,13 +336,17 @@ def test_analyzers_apriori_propagate_necessity(dummy_lang_graph: LanguageGraph) 
     unp2.children = {and_2unp}
 
     necessity_per_node = calculate_necessity(attack_graph, set())
+    assert all(necessity_per_node[node] for node in attack_graph.nodes.values())
+
     # Make unnecessary
     necessity_per_node[unp1] = False
     necessity_per_node[unp2] = False
 
     changed_nodes = set()
-    for parent in [np1, np2, unp1, unp2]:
-        changed_nodes |= _propagate_necessity_from_node(parent, necessity_per_node)
+    for parent in [unp1, unp2]:
+        changed_nodes |= _propagate_necessity_from_unnecessary_node(
+            parent, necessity_per_node
+        )
     assert changed_nodes == {or_1unp, and_2unp}
 
     for node in [np1, np2, or_2np, and_1np]:

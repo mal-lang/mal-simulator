@@ -4,11 +4,9 @@ Use softargmax to prioritize low TTC attack steps when running attacker
 
 from __future__ import annotations
 from typing import Any, Optional, TYPE_CHECKING
-import random
 import numpy as np
 
 from malsim.mal_simulator.state_query import node_ttc_value
-# from malsim.mal_simulator.state_query import node_ttc_value
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
@@ -20,7 +18,7 @@ class TTCSoftMinAttacker:
 
     def __init__(self, agent_config: dict[str, Any]):
         seed = agent_config.get('seed')
-        self.rng = random.Random(seed)
+        self.rng = np.random.default_rng(seed)
         self.beta = agent_config.get('beta', 1.0)
 
     def get_next_action(
@@ -28,7 +26,10 @@ class TTCSoftMinAttacker:
     ) -> Optional[AttackGraphNode]:
         """Sample node from the action surface based on ttc softargmax"""
 
-        possible_choices: list[AttackGraphNode] = list(agent_state.action_surface)
+        possible_choices = sorted(
+            list(agent_state.action_surface), key=lambda n: n.id
+        )
+
         if not possible_choices:
             return None
 
@@ -40,6 +41,5 @@ class TTCSoftMinAttacker:
         beta = self.beta  # adjust sharpness of softargmax
         weights = np.exp(-beta * np.array(ttcs_left, dtype=np.float64))
         weights /= weights.sum()
-        idx = self.rng.choices(range(len(possible_choices)), weights, k=1)[0]
-
+        idx = self.rng.choice(range(len(possible_choices)), p=weights)
         return possible_choices[idx]
