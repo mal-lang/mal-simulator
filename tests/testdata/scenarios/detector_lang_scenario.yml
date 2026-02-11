@@ -6,6 +6,8 @@ agents:
     entry_points: !!set
       Computer:0:physicalAccess: null
     policy: RandomAgent
+    config:
+      seed: 1
   Defender:
     name: Defender
     type: defender

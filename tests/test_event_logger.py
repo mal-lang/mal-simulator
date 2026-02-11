@@ -27,7 +27,7 @@ def test_active_defenses() -> None:
             context_assets={'Computer': 'Computer:0'},
         ),
         LogEntry(
-            timestep=4,
+            timestep=3,
             detector_name='logExploit',
             asset_name='Application:5',
             attack_step_name='exploit',
