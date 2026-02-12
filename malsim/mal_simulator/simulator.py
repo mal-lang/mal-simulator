@@ -596,12 +596,10 @@ def _pre_step_check(
             'and .register_defender() before stepping'
         )
         logger.warning(msg)
-        print(msg)
 
     if done(alive_agents):
         msg = 'Simulation is done but you can still step'
         logger.warning(msg)
-        print(msg)
 
     for agent_name in actions:
         if agent_name not in agent_states:
