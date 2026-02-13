@@ -194,14 +194,14 @@ def test_necessity_unnecessary(dummy_lang_graph: LanguageGraph) -> None:
     # or-node with unnecessary parents -> unnecessary
     or_attack_step_type = dummy_attack_steps['DummyOrAttackStep']
     or_node = attack_graph.add_node(or_attack_step_type)
-    or_node.ttc = None # To propagate necessity
+    or_node.ttc = None  # To propagate necessity
     or_node.parents.add(disabled_defense_step)
     disabled_defense_step.children.add(or_node)
 
     # and-node with only unnecessary parents -> unnecessary
     and_attack_step_type = dummy_attack_steps['DummyAndAttackStep']
     and_node = attack_graph.add_node(and_attack_step_type)
-    and_node.ttc = None # To propagate necessity
+    and_node.ttc = None  # To propagate necessity
     and_node.parents.add(disabled_defense_step)
     disabled_defense_step.children.add(and_node)
 
@@ -317,7 +317,7 @@ def test_analyzers_apriori_propagate_necessity(dummy_lang_graph: LanguageGraph) 
     or_1unp = attack_graph.add_node(
         lg_attack_step=dummy_or_attack_step, full_name='or_1unp'
     )
-    or_1unp.ttc = None # To allow propagating necessity
+    or_1unp.ttc = None  # To allow propagating necessity
     or_2np = attack_graph.add_node(
         lg_attack_step=dummy_or_attack_step, full_name='or_2np'
     )
@@ -327,7 +327,7 @@ def test_analyzers_apriori_propagate_necessity(dummy_lang_graph: LanguageGraph) 
     and_2unp = attack_graph.add_node(
         lg_attack_step=dummy_and_attack_step, full_name='and_2unp'
     )
-    and_2unp.ttc = None # To allow propagating necessity
+    and_2unp.ttc = None  # To allow propagating necessity
 
     or_1unp.parents = {np1, unp1}
     or_2np.parents = {np1, np2}

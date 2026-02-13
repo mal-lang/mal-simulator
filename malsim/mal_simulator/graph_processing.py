@@ -47,7 +47,11 @@ def _propagate_necessity_from_unnecessary_node(
     )
 
     for child in node.children:
-        if child.ttc and child.ttc.get('name') not in ('Enabled', 'Instant', 'Disabled'):
+        if child.ttc and child.ttc.get('name') not in (
+            'Enabled',
+            'Instant',
+            'Disabled',
+        ):
             # Do not propagate unnecessary state from nodes that have a TTC
             # probability distribution associated with them.
             continue
@@ -62,7 +66,9 @@ def _propagate_necessity_from_unnecessary_node(
         if not necessity_per_node[child] and necessity_per_node[child] != previous:
             # If child necessity changed to unneccessary, propagate further
             changed.add(child)
-            changed |= _propagate_necessity_from_unnecessary_node(child, necessity_per_node)
+            changed |= _propagate_necessity_from_unnecessary_node(
+                child, necessity_per_node
+            )
 
     return changed
 

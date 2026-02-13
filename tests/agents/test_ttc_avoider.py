@@ -60,8 +60,9 @@ def test_ttc_avoider() -> None:
         'SoftwareD:easyScan',
         'SWVulnD:easyExploit',
         'SoftwareD:easyAccess',
-        'DataD:read'
+        'DataD:read',
     ]
+
 
 def test_ttc_avoider_low_sharpness() -> None:
     """TTC Avoider with low beta/sharpness"""

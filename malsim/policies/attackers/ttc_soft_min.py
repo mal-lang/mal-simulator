@@ -26,9 +26,7 @@ class TTCSoftMinAttacker:
     ) -> Optional[AttackGraphNode]:
         """Sample node from the action surface based on ttc softargmax"""
 
-        possible_choices = sorted(
-            list(agent_state.action_surface), key=lambda n: n.id
-        )
+        possible_choices = sorted(list(agent_state.action_surface), key=lambda n: n.id)
 
         if not possible_choices:
             return None
