@@ -3,8 +3,6 @@ from typing import Any, Optional, TYPE_CHECKING
 import logging
 
 import numpy as np
-from numpy.typing import ArrayLike
-
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
