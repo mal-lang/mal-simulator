@@ -3,6 +3,7 @@ from typing import Any, Optional, TYPE_CHECKING
 import logging
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 
 if TYPE_CHECKING:
@@ -29,14 +30,13 @@ class RandomDefender:
         self, agent_state: MalSimDefenderState, **kwargs: Any
     ) -> Optional[AttackGraphNode]:
         """Return an action that disables a compromised node"""
-        if self.rng.random() > self.action_prob:
-            action = None
-        else:
-            actions = list(agent_state.action_surface)
-            if len(actions) > 0:
-                idx = self.rng.integers(len(actions))
-                action = actions[idx]
-            else:
-                action = None
+        actions = list(agent_state.action_surface)
+        # To ensure seed replication by setting the seed, we sort the actions by id
+        actions = sorted(actions, key=lambda n: n.id)
+        action: Optional[AttackGraphNode] = (
+            None
+            if (self.rng.random() > self.action_prob) or (len(actions) == 0)
+            else self.rng.choice(np.array(actions))
+        )
 
         return action
