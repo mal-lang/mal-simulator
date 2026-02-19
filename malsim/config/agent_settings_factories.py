@@ -10,6 +10,7 @@ from malsim.policies import (
     PassiveAgent,
     DefendCompromisedDefender,
     DefendFutureCompromisedDefender,
+    RandomDefender,
     RandomAgent,
     TTCSoftMinAttacker,
     ShortestPathAttacker,
@@ -24,6 +25,7 @@ policy_name_to_class = {
     'ShortestPathAttacker': ShortestPathAttacker,
     'DefendCompromisedDefender': DefendCompromisedDefender,
     'DefendFutureCompromisedDefender': DefendFutureCompromisedDefender,
+    'RandomDefender': RandomDefender,
     'RandomAgent': RandomAgent,
 }
 

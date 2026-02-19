@@ -6,6 +6,7 @@ from .defenders.heuristic_agent import (
     DefendCompromisedDefender,
     DefendFutureCompromisedDefender,
 )
+from .defenders.random import RandomDefender
 from .random_agent import RandomAgent
 from .attackers.ttc_soft_min import TTCSoftMinAttacker
 from .attackers.shortest_path import ShortestPathAttacker
@@ -21,6 +22,7 @@ __all__ = [
     'KeyboardAgent',
     'PassiveAgent',
     'RandomAgent',
+    'RandomDefender',
     'ShortestPathAttacker',
     'TTCSoftMinAttacker',
     'get_shortest_path_to',
