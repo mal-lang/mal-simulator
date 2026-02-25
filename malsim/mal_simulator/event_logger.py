@@ -75,9 +75,9 @@ def get_context_assets(
     """
     context_assets = {}
 
-    for label, lang_graph_asset in detector.context.items():
+    for label, context_item in detector.context.items():
         assert attack_step.model_asset, 'Attack step has no model asset'
-        if attack_step.model_asset.type == lang_graph_asset.name:
+        if attack_step.model_asset.lg_asset == context_item.asset_type:
             # The current asset satisfies the context requirement
             context_assets[label] = attack_step.model_asset.name
             continue
@@ -88,7 +88,7 @@ def get_context_assets(
                 step.model_asset
                 for step in reversed(list(previous_compromised_nodes))
                 if step.model_asset is not None
-                and step.model_asset.type == lang_graph_asset.name
+                and step.model_asset.lg_asset == context_item.asset_type
             ),
             None,
         )
@@ -97,7 +97,7 @@ def get_context_assets(
         if asset is None:
             msg = (
                 f'Context {detector.context} cannot be satisfied '
-                f'for step {attack_step.full_name}. No {lang_graph_asset.name} '
+                f'for step {attack_step.full_name}. No {context_item.asset_type.name} '
                 'was compromised already.'
             )
             raise ValueError(msg)
