@@ -1,4 +1,4 @@
-lang_file: /home/joakim-loxdal/Documents/mal-simulator/tests/testdata/langs/detector_lang.mal
+lang_file: ../langs/detector_lang.mal
 agents:
   Attacker:
     name: Attacker
