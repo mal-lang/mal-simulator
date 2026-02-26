@@ -90,10 +90,10 @@ class AttackerGraphEnv(gym.Env[MALObsInstance, np.int64]):
         self.render_mode: Any | None = kwargs.pop('render_mode', None)
 
         if not isinstance(scenario, Scenario):
-            scenario = Scenario.load_from_file(str(scenario))
+            scenario = Scenario.load_from_file(str(scenario), sim_settings=sim_settings)
 
         self.scenario = scenario
-        self.sim = MalSimulator.from_scenario(scenario, sim_settings)
+        self.sim = MalSimulator.from_scenario(scenario)
         self.multi_env = MalSimGraph(self.sim, attacker_visible_defense_steps=False)
         self.agent_name = get_agent_name(scenario, AgentType.ATTACKER)
         self.observation_space = self.multi_env.observation_space(self.agent_name)
@@ -154,10 +154,10 @@ class DefenderGraphEnv(gym.Env[MALObsInstance, np.int64]):
         self.render_mode: Any | None = kwargs.pop('render_mode', None)
 
         if not isinstance(scenario, Scenario):
-            scenario = Scenario.load_from_file(str(scenario))
+            scenario = Scenario.load_from_file(str(scenario), sim_settings=sim_settings)
 
         self.scenario = scenario
-        self.sim = MalSimulator.from_scenario(scenario, sim_settings)
+        self.sim = MalSimulator.from_scenario(scenario)
         self.multi_env = MalSimGraph(self.sim, attacker_visible_defense_steps=True)
         self.agent_name = get_agent_name(scenario, AgentType.DEFENDER)
         self.observation_space = self.multi_env.observation_space(self.agent_name)
@@ -299,7 +299,8 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
         for agent_name, obs in self._obs.items():
             self.action_space(agent_name)._mask = obs.steps.action_mask
         rewards = {
-            agent_name: self.sim.agent_reward(agent_name) for agent_name in states
+            agent_name: self.sim.agent_reward(state)
+            for agent_name, state in states.items()
         }
         terminations = {
             agent_name: self.sim.agent_is_terminated(agent_name)

@@ -3,10 +3,11 @@ from collections.abc import Callable, Set
 from maltoolbox.attackgraph import AttackGraphNode
 import numpy as np
 
+from malsim.config.agent_settings import AttackerSettings, DefenderSettings
 from malsim.mal_simulator.defender_state import MalSimDefenderState
 from malsim.mal_simulator.attacker_state import MalSimAttackerState
 from malsim.mal_simulator.graph_utils import node_reward
-from malsim.config.sim_settings import RewardMode, TTCMode
+from malsim.config.sim_settings import MalSimulatorSettings, RewardMode, TTCMode
 from malsim.mal_simulator.ttc_utils import TTCDist
 
 
@@ -14,6 +15,8 @@ def defender_step_reward(
     enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
     enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
     defender_state: MalSimDefenderState,
+    defender_settings: DefenderSettings,
+    sim_settings: MalSimulatorSettings,
 ) -> float:
     """
     Calculate current defender reward either cumulative or one-off.
@@ -29,7 +32,8 @@ def defender_step_reward(
 
     # Defender is penalized for compromised steps and enabled defenses
     step_reward = -sum(
-        node_reward(defender_state, n) for n in enabled_defenses | compromised_nodes
+        node_reward(n, defender_settings.rewards, sim_settings.rewards)
+        for n in enabled_defenses | compromised_nodes
     )
 
     return step_reward
@@ -38,9 +42,9 @@ def defender_step_reward(
 def attacker_step_reward(
     performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
     attacker_state: MalSimAttackerState,
+    sim_settings: MalSimulatorSettings,
+    attacker_settings: AttackerSettings,
     rng: np.random.Generator,
-    reward_mode: RewardMode,
-    ttc_mode: TTCMode,
 ) -> float:
     """
     Calculate current attacker reward either cumulative or one-off.
@@ -54,9 +58,13 @@ def attacker_step_reward(
 
     performed_steps = performed_attacks_func(attacker_state)
     action = attacker_state.step_attempted_nodes
-
+    ttc_mode = sim_settings.ttc_mode
+    reward_mode = sim_settings.attacker_reward_mode
     # Attacker is rewarded for compromised nodes
-    step_reward = sum(node_reward(attacker_state, n) for n in performed_steps)
+    step_reward = sum(
+        node_reward(n, attacker_settings.rewards, sim_settings.rewards)
+        for n in performed_steps
+    )
 
     if ttc_mode != TTCMode.DISABLED:
         # If TTC Mode is not disabled, attacker is penalized for each attempt

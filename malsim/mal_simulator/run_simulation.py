@@ -41,8 +41,8 @@ def run_simulation(sim: MalSimulator) -> dict[str, list[AttackGraphNode]]:
 
         # Perform next step of simulation
         states = sim.step(actions)
-        for agent_name in sim.agent_settings:
-            total_rewards[agent_name] += sim.agent_reward(agent_name)
+        for agent_name in agents:
+            total_rewards[agent_name] += sim.agent_reward(states[agent_name])
         iteration += 1
         print('---')
 

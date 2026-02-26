@@ -1,6 +1,8 @@
 from enum import Enum
 from dataclasses import dataclass
 
+from malsim.config.node_property_rule import NodePropertyRule
+
 
 class TTCMode(Enum):
     """
@@ -60,6 +62,11 @@ class MalSimulatorSettings:
     # run_attack_step_bernoullis
     # - if true, sample attack step bernoullis to decide if they are impossible/exists
     run_attack_step_bernoullis: bool = True
+
+    # These arguably belong to a "Global" agent that overrides empty agent settings.
+    rewards: NodePropertyRule | None = None
+    false_positive_rates: NodePropertyRule | None = None
+    false_negative_rates: NodePropertyRule | None = None
 
     # Reward settings
     attacker_reward_mode: RewardMode = RewardMode.CUMULATIVE
