@@ -12,8 +12,9 @@ A scenario is a combination of:
 """
 
 from __future__ import annotations
+from collections.abc import Mapping
 import os
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any, Optional, TextIO
 import logging
 
@@ -29,6 +30,7 @@ from malsim.config import (
 )
 from malsim.config.agent_settings_factories import agent_settings_from_dict
 from malsim.config.node_property_rule import NodePropertyRule
+from malsim.config.sim_settings import MalSimulatorSettings
 
 
 logger = logging.getLogger(__name__)
@@ -55,7 +57,10 @@ allowed_fields = [
     'actionable_steps',
     'false_positive_rates',
     'false_negative_rates',
+    'sim_settings',
 ]
+
+BASE_SETTINGS = MalSimulatorSettings()
 
 
 @dataclass
@@ -67,9 +72,7 @@ class Scenario:
         lang_file: str,
         model: Model | dict[str, Any] | str,
         agent_settings: dict[str, AttackerSettings | DefenderSettings],
-        rewards: Optional[dict[str, Any]] = None,
-        false_positive_rates: Optional[dict[str, Any]] = None,
-        false_negative_rates: Optional[dict[str, Any]] = None,
+        sim_settings: Optional[MalSimulatorSettings] = BASE_SETTINGS,
     ):
         # Lang file is required
         self._lang_file = lang_file
@@ -89,14 +92,23 @@ class Scenario:
         self.attack_graph = create_attack_graph(self.lang_graph, self.model)
         self.agent_settings = agent_settings
 
-        # Wrap dicts in NodePropertyRule if given
-        self.rewards = NodePropertyRule.from_optional_dict(rewards)
-        self.false_positive_rates = NodePropertyRule.from_optional_dict(
-            false_positive_rates
-        )
-        self.false_negative_rates = NodePropertyRule.from_optional_dict(
-            false_negative_rates
-        )
+        self.sim_settings = sim_settings or MalSimulatorSettings()
+
+    @property
+    def attacker_settings(self) -> Mapping[str, AttackerSettings]:
+        return {
+            name: settings
+            for name, settings in self.agent_settings.items()
+            if isinstance(settings, AttackerSettings)
+        }
+
+    @property
+    def defender_settings(self) -> Mapping[str, DefenderSettings]:
+        return {
+            name: settings
+            for name, settings in self.agent_settings.items()
+            if isinstance(settings, DefenderSettings)
+        }
 
     def to_dict(self) -> dict[str, Any]:
         assert self._lang_file, (
@@ -110,12 +122,18 @@ class Scenario:
             },
         }
 
-        if self.rewards:
-            scenario_dict['rewards'] = self.rewards.to_dict()
-        if self.false_positive_rates:
-            scenario_dict['false_positive_rates'] = self.false_positive_rates.to_dict()
-        if self.false_negative_rates:
-            scenario_dict['false_negative_rates'] = self.false_negative_rates.to_dict()
+        if self.sim_settings.rewards:
+            scenario_dict['rewards'] = self.sim_settings.rewards.to_dict()
+        if self.sim_settings.false_positive_rates:
+            scenario_dict['false_positive_rates'] = (
+                self.sim_settings.false_positive_rates.to_dict()
+            )
+
+        if self.sim_settings.false_negative_rates:
+            scenario_dict['false_negative_rates'] = (
+                self.sim_settings.false_negative_rates.to_dict()
+            )
+
         if self._model_file:
             # Use model file name instead of full model if model file was given at init
             scenario_dict['model_file'] = self._model_file
@@ -129,6 +147,10 @@ class Scenario:
         with open(file_path, 'w', encoding='utf-8') as f:
             yaml.safe_dump(self.to_dict(), f, sort_keys=False)
 
+    @property
+    def rewards(self) -> NodePropertyRule | None:
+        return self.sim_settings.rewards
+
     @classmethod
     def from_dict(cls, scenario_dict: dict[str, Any]) -> Scenario:
         """Create a scenario object from a scenario dictionary"""
@@ -141,19 +163,37 @@ class Scenario:
         }
 
         model_or_model_file = scenario_dict.get('model') or scenario_dict['model_file']
+
+        sim_settings = scenario_dict.get('sim_settings', {})
+        sim_settings = (
+            asdict(MalSimulatorSettings(**sim_settings))
+            if not isinstance(sim_settings, MalSimulatorSettings)
+            else asdict(sim_settings)
+        )
+
+        # for legacy reasons, also support rewards, false_positive_rates,
+        # and false_negative_rates at the top level of scenario dict
+        sim_settings['rewards'] = NodePropertyRule.from_optional_dict(
+            scenario_dict.get('rewards')
+        )
+        sim_settings['false_positive_rates'] = NodePropertyRule.from_optional_dict(
+            scenario_dict.get('false_positive_rates')
+        )
+        sim_settings['false_negative_rates'] = NodePropertyRule.from_optional_dict(
+            scenario_dict.get('false_negative_rates')
+        )
+
         return Scenario(
             lang_file=scenario_dict['lang_file'],
             agent_settings=agent_settings,
             model=model_or_model_file,
-            rewards=scenario_dict.get('rewards'),
-            false_positive_rates=scenario_dict.get('false_positive_rates'),
-            false_negative_rates=scenario_dict.get('false_negative_rates'),
+            sim_settings=MalSimulatorSettings(**sim_settings),
         )
 
     @classmethod
-    def load_from_file(cls, scenario_file: str) -> Scenario:
+    def load_from_file(cls, scenario_file: str, **override_keys: Any) -> Scenario:
         scenario_dict = load_scenario_dict(scenario_file)
-        return cls.from_dict(scenario_dict)
+        return cls.from_dict(scenario_dict | override_keys)
 
 
 def _validate_scenario_dict(scenario_dict: dict[str, Any]) -> None:

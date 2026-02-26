@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING
 from maltoolbox.attackgraph import AttackGraphNode
 import logging
 
+
 from malsim.mal_simulator.attacker_state import get_attacker_agents
 from malsim.mal_simulator.attacker_step import attacker_is_terminated
 from malsim.mal_simulator.graph_processing import make_node_unviable
-from malsim.mal_simulator.graph_utils import node_reward
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 if TYPE_CHECKING:
@@ -76,10 +76,9 @@ def defender_step(
             )
             attack_steps_made_unviable |= made_unviable
             logger.info(
-                'Defender agent "%s" enabled "%s" (reward: %d).',
+                'Defender agent "%s" enabled "%s"',
                 agent.name,
                 node.full_name,
-                node_reward(agent, node),
             )
 
     return enabled_defenses, attack_steps_made_unviable

@@ -21,7 +21,7 @@ from malsim.mal_simulator.ttc_utils import (
     get_impossible_attack_steps,
 )
 from malsim.config.agent_settings import AttackerSettings
-from malsim.config.sim_settings import TTCMode
+from malsim.config.sim_settings import MalSimulatorSettings, TTCMode
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
@@ -31,6 +31,8 @@ if TYPE_CHECKING:
 
 def create_attacker_state(
     sim_state: MalSimulatorState,
+    sim_settings: MalSimulatorSettings,
+    attacker_settings: AttackerSettings,
     name: str,
     entry_points: Set[AttackGraphNode],
     step_compromised_nodes: Set[AttackGraphNode],
@@ -40,8 +42,6 @@ def create_attacker_state(
     ttc_overrides: Mapping[AttackGraphNode, TTCDist] = {},
     ttc_value_overrides: Mapping[AttackGraphNode, float] = {},
     impossible_step_overrides: Set[AttackGraphNode] = frozenset(),
-    reward_rule: Optional[NodePropertyRule] = None,
-    actionability_rule: Optional[NodePropertyRule] = None,
     previous_state: Optional[MalSimAttackerState] = None,
 ) -> MalSimAttackerState:
     """
@@ -55,9 +55,9 @@ def create_attacker_state(
 
         # Create an initial attack surface
         new_action_surface = get_attack_surface(
-            sim_state.settings,
+            sim_settings,
             sim_state,
-            actionability_rule,
+            attacker_settings.actionable_steps,
             compromised_nodes,
         )
         action_surface_removals: Set[AttackGraphNode] = set()
@@ -77,10 +77,6 @@ def create_attacker_state(
         )
 
     else:
-        # Previous state rules will be used if previous state is given
-        reward_rule = previous_state.reward_rule
-        actionability_rule = previous_state.actionability_rule
-
         ttc_value_overrides = previous_state.ttc_value_overrides
         impossible_step_overrides = previous_state.impossible_step_overrides
         compromised_nodes = previous_state.performed_nodes | step_compromised_nodes
@@ -94,9 +90,9 @@ def create_attacker_state(
         # Build on previous attack surface (for performance)
         action_surface_additions = (
             get_attack_surface(
-                sim_state.settings,
+                sim_settings,
                 sim_state,
-                actionability_rule,
+                attacker_settings.actionable_steps,
                 compromised_nodes | step_compromised_nodes,
                 from_nodes=step_compromised_nodes,
             )
@@ -133,9 +129,8 @@ def create_attacker_state(
         ttc_value_overrides=ttc_value_overrides,
         impossible_step_overrides=frozenset(impossible_step_overrides),
         iteration=(previous_state.iteration + 1) if previous_state else 1,
-        reward_rule=reward_rule,
-        actionability_rule=actionability_rule,
         performed_nodes_order=performed_nodes_order,
+        settings=attacker_settings,
     )
 
 
@@ -156,16 +151,21 @@ def get_entrypoint_compromises(
 
 def initial_attacker_state(
     sim_state: MalSimulatorState,
+    sim_settings: MalSimulatorSettings,
     attacker_settings: AttackerSettings,
-    ttc_mode: TTCMode,
     rng: np.random.Generator,
 ) -> MalSimAttackerState:
     """Create an attacker state from attacker settings"""
 
     ttc_overrides, ttc_value_overrides, impossible_steps = (
         attacker_overriding_ttc_settings(
-            sim_state.attack_graph, attacker_settings, ttc_mode, rng
+            sim_state.attack_graph,
+            attacker_settings.ttc_overrides,
+            sim_settings.ttc_mode,
+            rng,
         )
+        if attacker_settings.ttc_overrides
+        else ({}, {}, set())
     )
     entry_points = set(
         full_names_or_nodes_to_nodes(
@@ -181,21 +181,21 @@ def initial_attacker_state(
 
     return create_attacker_state(
         sim_state=sim_state,
+        sim_settings=sim_settings,
         name=attacker_settings.name,
+        attacker_settings=attacker_settings,
         entry_points=entry_points,
         goals=goals,
         step_compromised_nodes=step_compromised_nodes,
         ttc_overrides=ttc_overrides,
         ttc_value_overrides=ttc_value_overrides,
         impossible_step_overrides=impossible_steps,
-        reward_rule=attacker_settings.rewards,
-        actionability_rule=attacker_settings.actionable_steps,
     )
 
 
 def attacker_overriding_ttc_settings(
     attack_graph: AttackGraph,
-    attacker_settings: AttackerSettings,
+    ttc_overrides_rule: NodePropertyRule,
     ttc_mode: TTCMode,
     rng: np.random.Generator,
 ) -> tuple[
@@ -213,10 +213,7 @@ def attacker_overriding_ttc_settings(
         - a set of impossible steps
     """
 
-    if not attacker_settings.ttc_overrides:
-        return {}, {}, set()
-
-    ttc_overrides_names = attacker_settings.ttc_overrides.per_node(attack_graph)
+    ttc_overrides_names = ttc_overrides_rule.per_node(attack_graph)
 
     # Convert names to TTCDist objects and map from AttackGraphNode
     # objects instead of from full names

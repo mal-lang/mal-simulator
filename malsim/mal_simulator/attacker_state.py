@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 from collections.abc import Set, Mapping
 from maltoolbox.attackgraph import AttackGraphNode
+from malsim.config.agent_settings import AttackerSettings
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.agent_state import MalSimAgentState
 from malsim.mal_simulator.ttc_utils import TTCDist
@@ -12,6 +13,7 @@ from malsim.types import AgentStates
 class MalSimAttackerState(MalSimAgentState):
     """Stores the state of an attacker in the simulator"""
 
+    settings: AttackerSettings
     # The starting points of an attacker agent
     entry_points: Set[AttackGraphNode]
     # Number of attempts to compromise a step (used for ttc caculations)

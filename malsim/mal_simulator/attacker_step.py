@@ -158,7 +158,7 @@ def attacker_step(
                     'Attacker agent "%s" compromised "%s" (reward: %d).',
                     agent.name,
                     node.full_name,
-                    node_reward(agent, node),
+                    node_reward(node, global_rewards=sim_state.settings.rewards),
                 )
                 # Run effects as a compromise of performing `node`
                 successful_compromises += attacker_step_effects(sim_state, agent, node)

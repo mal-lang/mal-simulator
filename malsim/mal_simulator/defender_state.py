@@ -1,8 +1,8 @@
 from collections.abc import Set
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 from maltoolbox.attackgraph import AttackGraphNode
-from malsim.config.node_property_rule import NodePropertyRule
+from malsim.config.agent_settings import DefenderSettings
 from malsim.mal_simulator.agent_state import MalSimAgentState
 from malsim.types import AgentStates
 
@@ -20,13 +20,9 @@ class MalSimDefenderState(MalSimAgentState):
     observed_nodes: Set[AttackGraphNode]
     # Contains observed steps made by any attacker in last step
     step_observed_nodes: Set[AttackGraphNode]
-
-    # Agent specific rules for node properties
-    reward_rule: Optional[NodePropertyRule] = None
-    actionability_rule: Optional[NodePropertyRule] = None
-    false_positive_rates_rule: Optional[NodePropertyRule] = None
-    false_negative_rates_rule: Optional[NodePropertyRule] = None
-    observability_rule: Optional[NodePropertyRule] = None
+    settings: (
+        DefenderSettings  # mainly here since some agent policies need to access it
+    )
 
     # Pickling
     def __getstate__(self) -> dict[str, Any]:

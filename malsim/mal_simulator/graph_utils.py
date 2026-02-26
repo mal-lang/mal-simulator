@@ -7,8 +7,6 @@ from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.node_getters import full_name_or_node_to_node
 from malsim.mal_simulator.simulator_state import MalSimulatorState
-from malsim.mal_simulator.attacker_state import MalSimAttackerState
-from malsim.mal_simulator.defender_state import MalSimDefenderState
 
 
 def node_is_viable(sim_state: MalSimulatorState, node: AttackGraphNode | str) -> bool:
@@ -82,13 +80,14 @@ def node_is_actionable(
 
 
 def node_reward(
-    agent: MalSimDefenderState | MalSimAttackerState,
     node: AttackGraphNode,
+    agent_reward_rule: NodePropertyRule | None = None,
+    global_rewards: NodePropertyRule | None = None,
 ) -> float:
-    if agent.reward_rule:
+    if agent_reward_rule:
         # Node reward from agent settings
-        return float(agent.reward_rule.value(node, 0.0))
-    if agent.sim_state.global_rewards:
+        return float(agent_reward_rule.value(node, 0.0))
+    if global_rewards:
         # Node reward from global settings
-        return agent.sim_state.global_rewards.get(node, 0.0)
+        return global_rewards.value(node, 0.0)
     return 0.0
