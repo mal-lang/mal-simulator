@@ -7,8 +7,6 @@ import numpy as np
 
 from maltoolbox.attackgraph import AttackGraphNode, Detector
 
-from .ttc_utils import TTCDist
-
 logger = logging.getLogger(__name__)
 
 
@@ -23,48 +21,19 @@ class LogEntry:
     context_nodes: dict[str, AttackGraphNode]
 
 
-# def false_positive_logs(
-#     iteration: int,
-#     detectors: Iterable[Detector],
-#     rng: np.random.Generator,
-# ):
-#     """
-#     Generates false positive logs for a defender based on the detectors
-#     in the attack graph and their false positive rates.
-#     """
-#     fp_logs = []
-#     for detector in detectors:
-#         if not detector.fprate:
-#             continue
-
-#         ttc_dist = TTCDist.from_dict(detector.fprate)
-#         if ttc_dist.attempt_bernoulli(rng):
-#             fp_logs.append(
-#                 LogEntry(
-#                 timestep=iteration,
-#                 detector_name=detector.name,
-#                 asset_name=detector.node.model_asset.name if detector.node.model_asset else '',
-#                     attack_step_name=detector.node.name,
-#                     context_nodes={},
-#                 )
-#             )
-
-#     return tuple(fp_logs)
-
 def get_tprate(detector: Detector) -> float:
     """Get the true positive rate for a detector, if it exists."""
     if not detector.tprate:
         return 1.0
 
     if detector.tprate['type'] != 'number':
-        logger.warning(
-            'Unsupported tprate type %s for detector %s. Defaulting to 1.0.',
-            detector.tprate.get('type'),
-            detector.name,
+        raise ValueError(
+            f'Unsupported tprate type {detector.tprate["type"]}'
+            f' for detector {detector.name}'
         )
-        return 1.0
 
-    return detector.tprate.get('value', 1.0)
+    return float(detector.tprate['value'])
+
 
 def collect_logs(
     iteration: int,
@@ -81,7 +50,8 @@ def collect_logs(
     for attack_step in step_compromised_nodes:
         for detector in attack_step.detectors.values():
             labeled_steps = get_context_steps(
-                detector, previous_compromised_nodes,
+                detector,
+                previous_compromised_nodes,
             )
             assert attack_step.model_asset is not None, 'Attack step has no model asset'
             tprate = get_tprate(detector)
@@ -89,18 +59,22 @@ def collect_logs(
                 logs.append(
                     LogEntry(
                         timestep=iteration,
-                        detector_name=detector.name,
+                        detector_name=str(detector.name),
                         asset_name=attack_step.model_asset.name,
                         attack_step_name=attack_step.name,
                         context_nodes=labeled_steps,
                     )
                 )
                 logging.debug(
-                    'Detector %s true positive on %s', detector.name, attack_step.full_name
+                    'Detector %s true positive on %s',
+                    detector.name,
+                    attack_step.full_name,
                 )
             else:
                 logging.debug(
-                    'Detector %s false negative on %s', detector.name, attack_step.full_name
+                    'Detector %s false negative on %s',
+                    detector.name,
+                    attack_step.full_name,
                 )
 
     return tuple(logs)
@@ -125,7 +99,9 @@ def get_context_steps(
 
     for label, potential_context_nodes in detector.potential_context.items():
         node = next(
-            node for node in potential_context_nodes if node in previous_compromised_nodes
+            node
+            for node in potential_context_nodes
+            if node in previous_compromised_nodes
         )
 
         if node is not None:

@@ -35,6 +35,7 @@ def test_logger_attacks() -> None:
         ),
     )
 
+
 def test_logger_attacks_false_negative() -> None:
     """Verify that false negatives can occur"""
 
@@ -46,7 +47,7 @@ def test_logger_attacks_false_negative() -> None:
     )
 
     app1_exploit = sim.get_node('Application:1:exploit')
-    assert app1_exploit.detectors['logExploit'].tprate, "Detector should have a TPRATE"
+    assert app1_exploit.detectors['logExploit'].tprate, 'Detector should have a TPRATE'
     app1_exploit.detectors['logExploit'].tprate['value'] = 0.1
 
     run_simulation(sim, sim._agent_settings)
@@ -55,7 +56,8 @@ def test_logger_attacks_false_negative() -> None:
     assert isinstance(defender_state, MalSimDefenderState)
     assert app1_exploit in defender_state.compromised_nodes
     assert defender_state.logs == (
-        # No logs for Application 1 since it had too low TPRATE, even though it was exploited
+        # No logs for Application 1 since it had too low TPRATE,
+        # even though it was exploited
         LogEntry(
             timestep=3,
             detector_name='logExploit',

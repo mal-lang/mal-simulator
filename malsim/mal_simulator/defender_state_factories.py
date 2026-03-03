@@ -75,7 +75,10 @@ def create_defender_state(
         performed_nodes_order = dict(previous_state.performed_nodes_order)
 
         logs = collect_logs(
-            previous_state.iteration, step_compromised_nodes, previous_compromised_nodes, rng
+            previous_state.iteration,
+            step_compromised_nodes,
+            previous_compromised_nodes,
+            rng,
         )
 
         if step_enabled_defenses:
