@@ -46,7 +46,7 @@ def create_defender_state(
         action_surface_additions: Set[AttackGraphNode] = action_surface
         action_surface_removals: Set[AttackGraphNode] = frozenset()
         performed_nodes_order: dict[int, frozenset[AttackGraphNode]] = {}
-        logs = collect_logs(0, step_compromised_nodes, previous_compromised_nodes)
+        logs = collect_logs(0, step_compromised_nodes, previous_compromised_nodes, rng)
 
         if step_enabled_defenses:
             # Pre enabled defenses go into iteration 0
@@ -75,7 +75,7 @@ def create_defender_state(
         performed_nodes_order = dict(previous_state.performed_nodes_order)
 
         logs = collect_logs(
-            previous_state.iteration, step_compromised_nodes, previous_compromised_nodes
+            previous_state.iteration, step_compromised_nodes, previous_compromised_nodes, rng
         )
 
         if step_enabled_defenses:

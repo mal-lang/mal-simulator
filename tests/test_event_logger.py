@@ -6,8 +6,8 @@ from malsim.mal_simulator import run_simulation
 from malsim.scenario.scenario import Scenario
 
 
-def test_active_defenses() -> None:
-    """Verify that active defenses are correctly applied"""
+def test_logger_attacks() -> None:
+    """Verify that compromised nodes are logged correctly in defender state"""
 
     scenario = Scenario.load_from_file(
         'tests/testdata/scenarios/detector_lang_scenario.yml'
@@ -24,13 +24,43 @@ def test_active_defenses() -> None:
             detector_name='logExploit',
             asset_name='Application:1',
             attack_step_name='exploit',
-            context_assets={'computer': 'Computer:0'},
+            context_nodes={'computer': sim.get_node('Computer:0:authenticate')},
         ),
         LogEntry(
             timestep=3,
             detector_name='logExploit',
             asset_name='Application:5',
             attack_step_name='exploit',
-            context_assets={'computer': 'Computer:0'},
+            context_nodes={},
+        ),
+    )
+
+def test_logger_attacks_false_negative() -> None:
+    """Verify that false negatives can occur"""
+
+    scenario = Scenario.load_from_file(
+        'tests/testdata/scenarios/detector_lang_scenario.yml'
+    )
+    sim = MalSimulator.from_scenario(
+        scenario, sim_settings=MalSimulatorSettings(seed=10)
+    )
+
+    app1_exploit = sim.get_node('Application:1:exploit')
+    assert app1_exploit.detectors['logExploit'].tprate, "Detector should have a TPRATE"
+    app1_exploit.detectors['logExploit'].tprate['value'] = 0.1
+
+    run_simulation(sim, sim._agent_settings)
+
+    defender_state = sim.agent_states['Defender']
+    assert isinstance(defender_state, MalSimDefenderState)
+    assert app1_exploit in defender_state.compromised_nodes
+    assert defender_state.logs == (
+        # No logs for Application 1 since it had too low TPRATE, even though it was exploited
+        LogEntry(
+            timestep=3,
+            detector_name='logExploit',
+            asset_name='Application:5',
+            attack_step_name='exploit',
+            context_nodes={},
         ),
     )
