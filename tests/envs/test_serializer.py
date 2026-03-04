@@ -75,30 +75,6 @@ def test_serializer() -> None:
         'Not all attack step tags map to integers'
     )
 
-    ttc_dist_names = [
-        'Bernoulli',
-        'Binomial',
-        'Exponential',
-        'Gamma',
-        'LogNormal',
-        'Pareto',
-        'TruncatedNormal',
-        'Uniform',
-        'Enabled',
-        'Disabled',
-        'Zero',
-        'Infinity',
-        'EasyAndCertain',
-        'EasyAndUncertain',
-        'HardAndCertain',
-        'HardAndUncertain',
-        'VeryHardAndCertain',
-        'VeryHardAndUncertain',
-    ]
-    assert len(
-        {serializer.ttc_dist[ttc_dist_name] for ttc_dist_name in ttc_dist_names}
-    ) == len(ttc_dist_names), 'Not all TTC distribution map to unique integers'
-
     serializer = LangSerializer(lang, split_assoc_types=True, split_step_types=True)
 
     # Test for split_assoc_types=True, split_attack_step_types=True

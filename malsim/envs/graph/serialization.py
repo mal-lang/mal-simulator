@@ -1,35 +1,7 @@
-import ast
-import textwrap
-import inspect
 from typing import Any
 from maltoolbox.language import LanguageGraph
 import numpy as np
 from numpy.typing import NDArray
-from maltoolbox.language.compiler.distributions import Distributions
-
-
-def extract_distribution_names_maltoolbox() -> list[str]:
-    src = textwrap.dedent(inspect.getsource(Distributions.validate))
-    tree = ast.parse(src)
-
-    def collect(pat: ast.pattern, acc: list[str]) -> None:
-        if (
-            isinstance(pat, ast.MatchValue)
-            and isinstance(pat.value, ast.Constant)
-            and isinstance(pat.value.value, str)
-        ):
-            acc.append(pat.value.value)
-        elif isinstance(pat, ast.MatchOr):
-            for sub in pat.patterns:
-                collect(sub, acc)
-
-    names: list[str] = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Match):
-            for case in node.cases:
-                collect(case.pattern, names)
-
-    return sorted(names)
 
 
 class LangSerializer:
@@ -181,10 +153,4 @@ class LangSerializer:
         ]
         self.step_tag: dict[str | None, int] = {
             tag: i for i, tag in enumerate(all_step_tags)
-        }
-
-        # TTC Distribution Serialization: Part of the compiler, not the language graph
-        all_ttc_dist_names = extract_distribution_names_maltoolbox()
-        self.ttc_dist = {
-            ttc_dist: i for i, ttc_dist in enumerate([None, *all_ttc_dist_names])
         }
