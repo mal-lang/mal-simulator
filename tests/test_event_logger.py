@@ -1,4 +1,3 @@
-from unittest import mock
 from malsim.config.sim_settings import MalSimulatorSettings
 from malsim.mal_simulator.defender_state import MalSimDefenderState
 from malsim.mal_simulator.event_logger import LogEntry
@@ -6,6 +5,7 @@ from malsim.mal_simulator.simulator import MalSimulator
 from malsim.mal_simulator import run_simulation
 from malsim.scenario.scenario import Scenario
 from maltoolbox.attackgraph import Detector
+
 
 def test_logger_attacks() -> None:
     """Verify that compromised nodes are logged correctly in defender state"""
@@ -46,12 +46,13 @@ def test_logger_attacks_false_negative() -> None:
     )
 
     app1_exploit = sim.get_node('Application:1:exploit')
-    # Set tprate to 0 to guarantee false negative for this step, even though it is exploited
+    # Set tprate to 0 to guarantee false negative for this step,
+    # even though it is exploited
     app1_exploit.detectors['logExploit'] = Detector(
         name=app1_exploit.detectors['logExploit'].name,
         node=app1_exploit.detectors['logExploit'].node,
         potential_context=app1_exploit.detectors['logExploit'].potential_context,
-        tprate=0.1
+        tprate=0.1,
     )
 
     run_simulation(sim, sim._agent_settings)
@@ -78,7 +79,8 @@ def test_logger_attacks_false_positive() -> None:
         'tests/testdata/scenarios/detector_lang_scenario.yml'
     )
 
-    # Set fprate to 0.9 to guarantee false positive for this step, even though it is not exploited
+    # Set fprate to 0.9 to guarantee false positive for this step,
+    # even though it is not exploited
     app1_exploit = scenario.attack_graph.get_node_by_full_name('Application:1:exploit')
 
     mocked_detector = Detector(
