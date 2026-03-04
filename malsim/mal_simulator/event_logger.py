@@ -20,20 +20,6 @@ class LogEntry:
     context: dict[str, AttackGraphNode]
 
 
-def get_tprate(detector: Detector) -> float:
-    """Get the true positive rate for a detector, if it exists."""
-    if not detector.tprate:
-        return 1.0
-
-    if detector.tprate['type'] != 'number':
-        raise ValueError(
-            f'Unsupported tprate type {detector.tprate["type"]}'
-            f' for detector {detector.name}'
-        )
-
-    return float(detector.tprate['value'])
-
-
 def collect_logs(
     iteration: int,
     step_compromised_nodes: Iterable[AttackGraphNode],
@@ -53,8 +39,7 @@ def collect_logs(
                 previous_compromised_nodes,
             )
             assert attack_step.model_asset is not None, 'Attack step has no model asset'
-            tprate = get_tprate(detector)
-            if tprate >= rng.random():
+            if detector.tprate >= rng.random():
                 logs.append(
                     LogEntry(
                         timestep=iteration,
