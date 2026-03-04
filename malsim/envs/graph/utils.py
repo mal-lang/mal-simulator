@@ -73,12 +73,6 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
                 for node in sorted_steps
             ]
         ),
-        ttc=np.array(
-            [
-                serializer.ttc_dist[node.ttc['name'] if node.ttc else None]
-                for node in sorted_steps
-            ]
-        ),
         compromised=np.array([sim.node_is_compromised(node) for node in sorted_steps]),
         observable=np.array([sim.node_is_observable(node) for node in sorted_steps]),
         attempts=np.array([get_total_attempts(node) for node in sorted_steps]),
@@ -297,7 +291,6 @@ def full_obs2attacker_obs(
         id=full_obs.steps.id[new2old_step_idx],
         logic_class=full_obs.steps.logic_class[new2old_step_idx],
         tags=full_obs.steps.tags[new2old_step_idx],
-        ttc=full_obs.steps.ttc[new2old_step_idx],
         compromised=compromised_steps,
         observable=observable_steps,
         attempts=step_attempts,
@@ -488,7 +481,6 @@ def full_obs2defender_obs(
             id=full_obs.steps.id,
             logic_class=full_obs.steps.logic_class,
             tags=full_obs.steps.tags,
-            ttc=full_obs.steps.ttc,
             compromised=observed,
             observable=full_obs.steps.observable,
             attempts=None,

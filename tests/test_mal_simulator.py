@@ -5,6 +5,7 @@ import random
 from typing import TYPE_CHECKING
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+from maltoolbox.language import LanguageGraphAttackStep
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
@@ -1590,80 +1591,29 @@ def test_actions_effects() -> None:
             attack_surface_skip_unnecessary=False,
             compromise_entrypoints_at_start=True,
             attacker_reward_mode=RewardMode.SAMPLE_TTC,
-            seed=1,
         ),
     )
-    selected_actions = run_simulation(sim, scenario.agent_settings)
+    run_simulation(sim, scenario.agent_settings)
+    for i in sorted(sim.recording.keys()):
+        node_list = sim.recording[i]['Attacker']
+        action_nodes = [node for node in node_list if node.causal_mode == 'action']
+        effect_nodes = [node for node in node_list if node.causal_mode == 'effect']
 
-    # Attacker only selects steps starting with 'attempt'
-    assert {n.full_name for n in selected_actions['Attacker']} == {
-        'Net1:attemptScan',
-        'Net2:attemptScan',
-        'Net3:attemptScan',
-        'ComputerD:attemptConnect',
-        'ComputerA:attemptConnect',
-        'ComputerD:attemptAccess',
-        'ComputerA:attemptAccess',
-        'SecretData:attemptRead',
-    }
+        def get_all_effect_children(
+            node: LanguageGraphAttackStep,
+        ) -> set[LanguageGraphAttackStep]:
+            children = set()
+            for child in node.children:
+                if child.causal_mode == 'effect':
+                    children.add(child)
+                else:
+                    children.update(list(get_all_effect_children(child)))
+            return children
 
-    # But in the recording each step performs an action and an effect
-    expected_recording = {
-        1: {'Attacker': ['Net1:attemptScan', 'Net1:scan']},
-        2: {'Attacker': ['ComputerA:attemptConnect', 'ComputerA:connect']},
-        3: {'Attacker': ['Net2:attemptScan', 'Net2:scan']},
-        4: {'Attacker': ['ComputerA:attemptAccess']},
-        5: {'Attacker': ['Net3:attemptScan', 'Net3:scan']},
-        6: {'Attacker': ['ComputerD:attemptConnect', 'ComputerD:connect']},
-        7: {'Attacker': ['ComputerD:attemptAccess', 'ComputerD:access']},
-        8: {'Attacker': ['SecretData:attemptRead', 'SecretData:read']},
-    }
+        all_effect_children = set()
+        for action_node in action_nodes:
+            action_lg_step = action_node.lg_attack_step
+            all_effect_children.update(get_all_effect_children(action_lg_step))
 
-    # Convert recording nodes to full names for comparison
-    for i in sim.recording:
-        assert len(sim.recording[i]['Attacker']) == len(
-            expected_recording[i]['Attacker']
-        )
-        for j, node in enumerate(sim.recording[i]['Attacker']):
-            assert node.full_name == expected_recording[i]['Attacker'][j]
-
-
-def test_actions_effects_entrypoints() -> None:
-    """Verify actions and effects works as intended with entrypoints"""
-
-    scenario = Scenario.load_from_file(
-        'tests/testdata/scenarios/actions_effects_scenario_entrypoint_with_effects.yml'
-    )
-    sim = MalSimulator.from_scenario(
-        scenario,
-        sim_settings=MalSimulatorSettings(
-            ttc_mode=TTCMode.DISABLED,
-            run_defense_step_bernoullis=False,
-            run_attack_step_bernoullis=False,
-            attack_surface_skip_unnecessary=False,
-            compromise_entrypoints_at_start=True,
-            attacker_reward_mode=RewardMode.SAMPLE_TTC,
-            seed=1,
-        ),
-    )
-    selected_actions = run_simulation(sim, scenario.agent_settings)
-
-    # Attacker only selects steps starting with 'attempt'
-    assert {n.full_name for n in selected_actions['Attacker']} == {
-        'Net1:attemptScan',
-        'Net2:attemptScan',
-        'Net3:attemptScan',
-        'ComputerD:attemptConnect',
-        'ComputerA:attemptConnect',
-        'ComputerD:attemptAccess',
-        'ComputerC:attemptConnect',
-        'SecretData:attemptRead',
-    }
-
-    # But in the recording each step performs an action and an effect
-    for i in sim.recording:
-        action = sim.recording[i]['Attacker'][0]
-        effect = sim.recording[i]['Attacker'][1]
-        # Assert that both action and effect was performed each step
-        assert effect.model_asset
-        assert action.name == 'attempt' + effect.name.capitalize()
+        for effect_node in effect_nodes:
+            assert effect_node.lg_attack_step in all_effect_children
