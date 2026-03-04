@@ -23,7 +23,7 @@ category System{
         -> exploit
 
       & effect exploit
-        ! logExploit (computerOfApp.authenticate computer) [1.0, 0.5]
+        ! logExploit (computerOfApp.authenticate computer) [1.0, 0.0]
         -> toApplications.attemptExploit,
            dataOnApp.read
     }

@@ -20,6 +20,38 @@ class LogEntry:
     context: dict[str, AttackGraphNode]
 
 
+def collect_false_positives(
+    iteration: int,
+    detectors: Iterable[Detector],
+    rng: np.random.Generator,
+) -> tuple[LogEntry, ...]:
+    """Generates logs for false positives from given detectors."""
+    logs = []
+    for detector in detectors:
+        if detector.fprate >= rng.random():
+            logs.append(
+                LogEntry(
+                    timestep=iteration,
+                    detector_name=str(detector.name),
+                    trigger=detector.node,
+                    context=get_random_context(detector),
+                )
+            )
+            logging.debug(
+                'Detector %s false positive on %s',
+                detector.name,
+                detector.node.full_name,
+            )
+        else:
+            logging.debug(
+                'Detector %s true negative on %s',
+                detector.name,
+                detector.node.full_name,
+            )
+
+    return tuple(logs)
+
+
 def collect_logs(
     iteration: int,
     step_compromised_nodes: Iterable[AttackGraphNode],
@@ -34,7 +66,7 @@ def collect_logs(
     logs = []
     for attack_step in step_compromised_nodes:
         for detector in attack_step.detectors.values():
-            labeled_steps = get_context_steps(
+            labeled_steps = get_context(
                 detector,
                 previous_compromised_nodes,
             )
@@ -63,7 +95,7 @@ def collect_logs(
     return tuple(logs)
 
 
-def get_context_steps(
+def get_context(
     detector: Detector,
     previous_compromised_nodes: Iterable[AttackGraphNode],
 ) -> dict[str, AttackGraphNode]:
@@ -78,7 +110,7 @@ def get_context_steps(
         A dictionary where keys are the detector context labels and values are the
         nodes that have been selected to populate the context.
     """
-    context_assets = {}
+    context_nodes = {}
 
     for label, potential_context_nodes in detector.potential_context.items():
         node = next(
@@ -88,6 +120,17 @@ def get_context_steps(
         )
 
         if node is not None:
-            context_assets[label] = node
+            context_nodes[label] = node
 
-    return context_assets
+    return context_nodes
+
+
+def get_random_context(detector: Detector) -> dict[str, AttackGraphNode]:
+    """Finds random nodes that satisfies the context of a detector"""
+    context_nodes = {}
+
+    for label, potential_context_nodes in detector.potential_context.items():
+        node = next(node for node in potential_context_nodes)
+        if node is not None:
+            context_nodes[label] = node
+    return context_nodes

@@ -11,7 +11,7 @@ from malsim.config.agent_settings import DefenderSettings
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.defender_state import MalSimDefenderState
 from malsim.mal_simulator.defense_surface import get_defense_surface
-from malsim.mal_simulator.event_logger import collect_logs
+from malsim.mal_simulator.event_logger import collect_logs, collect_false_positives
 from malsim.mal_simulator.observability import defender_observed_nodes
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
@@ -78,6 +78,10 @@ def create_defender_state(
             previous_state.iteration,
             step_compromised_nodes,
             previous_compromised_nodes,
+            rng,
+        ) + collect_false_positives(
+            previous_state.iteration,
+            sim_state.attack_graph.detectors,
             rng,
         )
 
