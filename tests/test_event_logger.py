@@ -22,16 +22,14 @@ def test_logger_attacks() -> None:
         LogEntry(
             timestep=2,
             detector_name='logExploit',
-            asset_name='Application:1',
-            attack_step_name='exploit',
-            context_nodes={'computer': sim.get_node('Computer:0:authenticate')},
+            trigger=sim.get_node('Application:1:exploit'),
+            context={'computer': sim.get_node('Computer:0:authenticate')},
         ),
         LogEntry(
             timestep=3,
             detector_name='logExploit',
-            asset_name='Application:5',
-            attack_step_name='exploit',
-            context_nodes={},
+            trigger=sim.get_node('Application:5:exploit'),
+            context={},
         ),
     )
 
@@ -61,8 +59,7 @@ def test_logger_attacks_false_negative() -> None:
         LogEntry(
             timestep=3,
             detector_name='logExploit',
-            asset_name='Application:5',
-            attack_step_name='exploit',
-            context_nodes={},
+            trigger=sim.get_node('Application:5:exploit'),
+            context={},
         ),
     )

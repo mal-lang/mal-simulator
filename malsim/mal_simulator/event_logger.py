@@ -16,9 +16,8 @@ class LogEntry:
 
     timestep: int
     detector_name: str
-    asset_name: str
-    attack_step_name: str
-    context_nodes: dict[str, AttackGraphNode]
+    trigger: AttackGraphNode
+    context: dict[str, AttackGraphNode]
 
 
 def get_tprate(detector: Detector) -> float:
@@ -60,9 +59,8 @@ def collect_logs(
                     LogEntry(
                         timestep=iteration,
                         detector_name=str(detector.name),
-                        asset_name=attack_step.model_asset.name,
-                        attack_step_name=attack_step.name,
-                        context_nodes=labeled_steps,
+                        trigger=attack_step,
+                        context=labeled_steps,
                     )
                 )
                 logging.debug(
