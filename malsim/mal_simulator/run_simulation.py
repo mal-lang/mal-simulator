@@ -4,18 +4,18 @@ from maltoolbox.attackgraph import AttackGraphNode
 
 from malsim.policies.decision_agent import DecisionAgent
 from malsim.mal_simulator.simulator import MalSimulator
-from malsim.types import AgentSettings
 
 
 def run_simulation(
-    sim: MalSimulator, agents: AgentSettings
+    sim: MalSimulator
 ) -> dict[str, list[AttackGraphNode]]:
     """Run a simulation with agents
 
     Return selected actions by each agent in each step
     """
     agent_actions: dict[str, list[AttackGraphNode]] = {}
-    total_rewards = dict.fromkeys(agents, 0.0)
+    ###total_rewards = dict.fromkeys(agents, 0.0)
+    total_rewards = dict.fromkeys(sim.agent_settings, 0.0)
 
     logger.info('Starting CLI env simulator.')
     states = sim.reset()
@@ -25,7 +25,7 @@ def run_simulation(
         actions: dict[str, list[AttackGraphNode]] = {}
 
         # Select actions for each agent
-        for agent_name, agent_config in agents.items():
+        for agent_name, agent_config in sim.agent_settings.items():
             decision_agent: Optional[DecisionAgent] = agent_config.agent
             if decision_agent is None:
                 print(
@@ -45,7 +45,7 @@ def run_simulation(
 
         # Perform next step of simulation
         states = sim.step(actions)
-        for agent_name in agents:
+        for agent_name in sim.agent_settings:
             total_rewards[agent_name] += sim.agent_reward(agent_name)
         iteration += 1
         print('---')
@@ -53,7 +53,7 @@ def run_simulation(
     print(f'Simulation over after {iteration} steps.')
 
     # Print total rewards
-    for agent_name in agents:
+    for agent_name in sim.agent_settings:
         print(f'Total reward "{agent_name}"', total_rewards[agent_name])
 
     return agent_actions
