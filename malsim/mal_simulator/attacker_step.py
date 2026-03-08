@@ -144,8 +144,10 @@ def attacker_step(
             # Entrypoints can be compromised as long as they are viable
             can_compromise = node_is_viable(sim_state, node)
         else:
-            # Otherwise it is limited by traversability
-            can_compromise = node_is_traversable(sim_state, agent.performed_nodes, node)
+            # Otherwise it is limited by action surface and traversability
+            can_compromise = node in agent.action_surface and node_is_traversable(
+                sim_state, agent.performed_nodes, node
+            )
 
         if can_compromise:
             if attempt_attacker_step(
