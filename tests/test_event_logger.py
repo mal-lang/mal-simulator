@@ -112,22 +112,22 @@ def test_logger_attacks_false_positive() -> None:
         LogEntry(
             timestep=1,
             detector_name='logExploit',
-            trigger=sim.get_node("Application:1:exploit"),
-            context={'computer': sim.get_node("Computer:0:authenticate")},
-            false_positive=True
+            trigger=sim.get_node('Application:1:exploit'),
+            context={'computer': sim.get_node('Computer:0:authenticate')},
+            false_positive=True,
         ),
         LogEntry(
             timestep=3,
             detector_name='logExploit',
-            trigger=sim.get_node("Application:1:exploit"),
-            context={'computer': sim.get_node("Computer:0:authenticate")},
-            false_positive=True
+            trigger=sim.get_node('Application:1:exploit'),
+            context={'computer': sim.get_node('Computer:0:authenticate')},
+            false_positive=True,
         ),
         LogEntry(
             timestep=4,
             detector_name='logExploit',
-            trigger=sim.get_node("Application:1:exploit"),
-            context={'computer': sim.get_node("Computer:0:authenticate")},
-            false_positive=True
+            trigger=sim.get_node('Application:1:exploit'),
+            context={'computer': sim.get_node('Computer:0:authenticate')},
+            false_positive=True,
         ),
     )
