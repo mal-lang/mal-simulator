@@ -50,7 +50,7 @@ class MalSimulatorSettings:
     attack_surface_skip_unviable: bool = True
     # attack_surface_skip_unnecessary
     # - if true do not add unnecessary nodes to the attack surface
-    attack_surface_skip_unnecessary: bool = True
+    attack_surface_skip_unnecessary: bool = False
     # If set to True, each attacker compromises/performs their
     # entry point nodes at the start of the simulation
     compromise_entrypoints_at_start: bool = True
