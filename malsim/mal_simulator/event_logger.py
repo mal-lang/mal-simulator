@@ -18,6 +18,7 @@ class LogEntry:
     detector_name: str
     trigger: AttackGraphNode
     context: dict[str, AttackGraphNode]
+    false_positive: bool = False
 
 
 def collect_false_positives(
@@ -35,6 +36,7 @@ def collect_false_positives(
                     detector_name=str(detector.name),
                     trigger=detector.node,
                     context=get_random_context(detector),
+                    false_positive=True,
                 )
             )
             logging.debug(

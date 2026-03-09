@@ -25,12 +25,14 @@ def test_logger_attacks() -> None:
             detector_name='logExploit',
             trigger=sim.get_node('Application:1:exploit'),
             context={'computer': sim.get_node('Computer:0:authenticate')},
+            false_positive=False,
         ),
         LogEntry(
             timestep=3,
             detector_name='logExploit',
             trigger=sim.get_node('Application:5:exploit'),
             context={},
+            false_positive=False,
         ),
     )
 
@@ -68,6 +70,7 @@ def test_logger_attacks_false_negative() -> None:
             detector_name='logExploit',
             trigger=sim.get_node('Application:5:exploit'),
             context={},
+            false_positive=False,
         ),
     )
 
@@ -105,3 +108,26 @@ def test_logger_attacks_false_positive() -> None:
     assert isinstance(defender_state, MalSimDefenderState)
     assert app1_exploit not in defender_state.compromised_nodes
     assert defender_state.logs
+    assert defender_state.logs == (
+        LogEntry(
+            timestep=1,
+            detector_name='logExploit',
+            trigger=sim.get_node("Application:1:exploit"),
+            context={'computer': sim.get_node("Computer:0:authenticate")},
+            false_positive=True
+        ),
+        LogEntry(
+            timestep=3,
+            detector_name='logExploit',
+            trigger=sim.get_node("Application:1:exploit"),
+            context={'computer': sim.get_node("Computer:0:authenticate")},
+            false_positive=True
+        ),
+        LogEntry(
+            timestep=4,
+            detector_name='logExploit',
+            trigger=sim.get_node("Application:1:exploit"),
+            context={'computer': sim.get_node("Computer:0:authenticate")},
+            false_positive=True
+        ),
+    )
