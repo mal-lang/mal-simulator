@@ -161,7 +161,7 @@ def _update_targets(
     ],
     disabled_nodes: frozenset[AttackGraphNode],
     current_target: Optional[AttackGraphNode] = None,
-):
+) -> deque[AttackGraphNode]:
     if current_target and current_target not in disabled_nodes:
         # If self.current_target was not compromised, e.g. due to TTCs,
         # it remains in action surface and should be added as a target.
