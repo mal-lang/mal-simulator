@@ -19,7 +19,12 @@ logger = logging.getLogger(__name__)
 class ActionOrdering(Enum):
     RANDOM = 'random'  # randomize the order of new targets at each step
     SORTED = 'sorted'  # sort by node id
-    NOTHING = 'nothing'  # rely on the ordering of the action surface set, which is theoeritically non-deterministic and may lead to non-deterministic simulations
+    # rely on the built-in ordering of the action surface set,
+    # which is theoeritically non-deterministic
+    # but in practice deterministic in CPython due to the way sets are implemented.
+    NOTHING = 'nothing'
+    # shuffle but without sorting first, which may lead to non-deterministic simulations
+    LIST_RANDOM = 'list_random'
 
 
 @dataclass
@@ -47,9 +52,22 @@ def parse_agent_config(config_dict: dict[str, Any]) -> AgentConfig:
     return AgentConfig(action_ordering=action_ordering, seed=seed)
 
 
-def shuffle(rng: random.Random, nodes: list[AttackGraphNode]) -> list[AttackGraphNode]:
+def sort_and_shuffle(
+    rng: random.Random, nodes: frozenset[AttackGraphNode]
+) -> list[AttackGraphNode]:
     """Shuffle a list of nodes using the provided random generator."""
-    nodes_copy = nodes.copy()
+    # sort to ensure deterministic order before shuffling
+    nodes_copy = sorted(nodes, key=lambda n: n.id)
+    rng.shuffle(nodes_copy)
+    return nodes_copy
+
+
+def shuffle(
+    rng: random.Random, nodes: frozenset[AttackGraphNode]
+) -> list[AttackGraphNode]:
+    """Shuffle a list of nodes using the provided random generator."""
+    # sort to ensure deterministic order before shuffling
+    nodes_copy = list(nodes)
     rng.shuffle(nodes_copy)
     return nodes_copy
 
@@ -64,7 +82,6 @@ class BreadthFirstAttacker(DecisionAgent):
         action_ordering=ActionOrdering.NOTHING,
         seed=None,
     )
-    _extend_method = 'extendleft'
 
     def __init__(self, agent_config: AgentConfig | dict[str, Any]) -> None:
         """Initialize a BFS/DFS agent.
@@ -83,27 +100,28 @@ class BreadthFirstAttacker(DecisionAgent):
 
         settings = replace(self._default_settings, **config.__dict__)
 
-        self._rng = random.Random(config.seed)
         self._prev_state = None
 
-        # _rng = random.Random(config.seed)
-        # order_funcs: dict[
-        #     ActionOrdering,
-        #     Callable[[frozenset[AttackGraphNode]], list[AttackGraphNode]],
-        # ] = {
-        #     ActionOrdering.RANDOM: lambda nodes: list(shuffle(_rng, list(nodes))),
-        #     ActionOrdering.SORTED: lambda nodes: sorted(nodes, key=lambda n: n.id),
-        #     ActionOrdering.NOTHING: lambda nodes: list(nodes),
-        # }
-        # self.order_func = order_funcs[config.action_ordering]
+        _rng = random.Random(config.seed)
+        order_funcs: dict[
+            ActionOrdering,
+            Callable[[frozenset[AttackGraphNode]], list[AttackGraphNode]],
+        ] = {
+            ActionOrdering.RANDOM: lambda nodes: list(sort_and_shuffle(_rng, nodes)),
+            ActionOrdering.SORTED: lambda nodes: sorted(nodes, key=lambda n: n.id),
+            ActionOrdering.NOTHING: lambda nodes: list(nodes),
+            ActionOrdering.LIST_RANDOM: lambda nodes: list(shuffle(_rng, nodes)),
+        }
+        self.order_func = order_funcs[config.action_ordering]
         self._settings = settings
 
-    # def extend_method(
-    #     self, targets: deque[AttackGraphNode], new_nodes: list[AttackGraphNode]
-    # ) -> deque[AttackGraphNode]:
-    #     """Extend the deque of targets with new nodes according to the policy of the agent (BFS or DFS)"""
-    #     targets.extendleft(new_nodes)
-    #     return targets
+    def extend_method(
+        self, targets: deque[AttackGraphNode], new_nodes: list[AttackGraphNode]
+    ) -> deque[AttackGraphNode]:
+        """Extend the deque of targets with new nodes
+        according to the policy of the agent (BFS or DFS)"""
+        targets.extendleft(new_nodes)
+        return targets
 
     def get_next_action(
         self, agent_state: MalSimAgentState, **kwargs: Any
@@ -116,16 +134,16 @@ class BreadthFirstAttacker(DecisionAgent):
             else agent_state.action_surface
         )
 
-        disabled_nodes = (
+        disabled_nodes: frozenset[AttackGraphNode] = (
             self._prev_state.action_surface - agent_state.action_surface
             if self._prev_state
             else frozenset()
         )
 
-        self._targets = self._update_targets(
-            new_nodes=new_nodes,
+        self._targets = _update_targets(
+            new_targets=self.order_func(new_nodes),
             old_target_queue=self._targets,
-            extend_method=self._extend_method,
+            extend_method=self.extend_method,
             disabled_nodes=disabled_nodes,
             current_target=self._current_target,
         )
@@ -134,44 +152,31 @@ class BreadthFirstAttacker(DecisionAgent):
         self._prev_state = agent_state
         return self._current_target
 
-    def _update_targets(
-        self,
-        new_nodes: list[AttackGraphNode],
-        old_target_queue: deque[AttackGraphNode],
-        extend_method: str,
-        disabled_nodes: frozenset[AttackGraphNode],
-        current_target: Optional[AttackGraphNode] = None,
-    ):
-        new_targets: list[AttackGraphNode] = []
-        if self._settings.action_ordering == ActionOrdering.SORTED:
-            # If a seed is set, we assume the user wants determinism in the
-            # simulation. Thus, we sort to an ordered list to make sure the
-            # non-deterministic ordering of the action_surface set does not
-            # break simulation determinism.
-            new_targets = sorted(new_nodes, key=lambda n: n.id)
-        else:
-            # sorted above returns a list already
-            new_targets = list(new_nodes)
 
-        if self._settings.action_ordering == ActionOrdering.RANDOM:
-            new_targets = sorted(new_nodes, key=lambda n: n.id)
-            self._rng.shuffle(new_targets)
+def _update_targets(
+    new_targets: list[AttackGraphNode],
+    old_target_queue: deque[AttackGraphNode],
+    extend_method: Callable[
+        [deque[AttackGraphNode], list[AttackGraphNode]], deque[AttackGraphNode]
+    ],
+    disabled_nodes: frozenset[AttackGraphNode],
+    current_target: Optional[AttackGraphNode] = None,
+):
+    if current_target and current_target not in disabled_nodes:
+        # If self.current_target was not compromised, e.g. due to TTCs,
+        # it remains in action surface and should be added as a target.
+        old_target_queue.append(current_target)
 
-        if current_target and current_target not in disabled_nodes:
-            # If self.current_target was not compromised, e.g. due to TTCs,
-            # it remains in action surface and should be added as a target.
-            old_target_queue.append(current_target)
+    # Enabled defenses may remove previously possible attack steps.
+    new_target_queue = (
+        deque(n for n in old_target_queue if n not in disabled_nodes)
+        if disabled_nodes
+        else old_target_queue
+    )
 
-        # Enabled defenses may remove previously possible attack steps.
-        new_target_queue = (
-            deque(n for n in old_target_queue if n not in disabled_nodes)
-            if disabled_nodes
-            else old_target_queue
-        )
+    # Use the extend method to add new targets
+    return extend_method(new_target_queue, new_targets)
 
-        # Use the extend method to add new targets
-        getattr(new_target_queue, extend_method)(new_targets)
-        return new_target_queue
 
 def _select_next_target(
     targets: deque[AttackGraphNode] | None,
@@ -187,10 +192,9 @@ def _select_next_target(
 
 class DepthFirstAttacker(BreadthFirstAttacker):
     name = 'Depth First Attacker'
-    _extend_method = 'extend'  # DFS extends to the right, BFS extends to the left
 
-    # def extend_method(
-    #     self, targets: deque[AttackGraphNode], new_nodes: list[AttackGraphNode]
-    # ) -> deque[AttackGraphNode]:
-    #     targets.extend(new_nodes)
-    #     return targets
+    def extend_method(
+        self, targets: deque[AttackGraphNode], new_nodes: list[AttackGraphNode]
+    ) -> deque[AttackGraphNode]:
+        targets.extend(new_nodes)
+        return targets
