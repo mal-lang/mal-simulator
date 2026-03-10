@@ -1,5 +1,4 @@
 from __future__ import annotations
-from collections.abc import Set, Callable
 from dataclasses import dataclass, replace
 from enum import Enum
 import logging
