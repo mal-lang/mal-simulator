@@ -100,7 +100,7 @@ class BreadthFirstAttacker(DecisionAgent):
 
         settings = replace(self._default_settings, **config.__dict__)
 
-        self._prev_state = None
+        self._prev_state: MalSimAgentState | None = None
 
         _rng = random.Random(config.seed)
         order_funcs: dict[
