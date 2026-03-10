@@ -10,7 +10,6 @@ from malsim.mal_simulator.attack_surface import get_effects_of_attack_step
 from malsim.mal_simulator.graph_utils import (
     node_is_traversable,
     node_is_viable,
-    node_reward,
 )
 from malsim.mal_simulator.state_query import node_ttc_value
 from malsim.config.sim_settings import TTCMode
@@ -155,10 +154,7 @@ def attacker_step(
             ):
                 successful_compromises.append(node)
                 logger.info(
-                    'Attacker agent "%s" compromised "%s" (reward: %d).',
-                    agent.name,
-                    node.full_name,
-                    node_reward(node, global_rewards=sim_state.settings.rewards),
+                    'Attacker agent "%s" compromised "%s"', agent.name, node.full_name
                 )
                 # Run effects as a compromise of performing `node`
                 successful_compromises += attacker_step_effects(sim_state, agent, node)
