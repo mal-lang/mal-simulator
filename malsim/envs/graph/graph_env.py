@@ -100,7 +100,10 @@ class AttackerGraphEnv(gym.Env[MALObsInstance, np.int64]):
         self.action_space = self.multi_env.action_space(self.agent_name)
 
     def reset(
-        self, seed: int | None = None, options: dict[str, Any] | None = None
+        self,
+        *,
+        seed: int | None = None,
+        options: dict[str, Any] | None = None,
     ) -> tuple[MALObsInstance, dict[str, Any]]:
         super().reset(seed=seed, options=options)
         obs, info = self.multi_env.reset(seed=seed, options=options)
@@ -164,7 +167,10 @@ class DefenderGraphEnv(gym.Env[MALObsInstance, np.int64]):
         self.action_space = self.multi_env.action_space(self.agent_name)
 
     def reset(
-        self, seed: int | None = None, options: dict[str, Any] | None = None
+        self,
+        *,
+        seed: int | None = None,
+        options: dict[str, Any] | None = None,
     ) -> tuple[MALObsInstance, dict[str, Any]]:
         super().reset(seed=seed, options=options)
         obs, info = self.multi_env.reset(seed=seed, options=options)
