@@ -63,6 +63,8 @@ class BreadthFirstAttacker(DecisionAgent):
                 agent_state.step_action_surface_removals
                 | agent_state.step_performed_nodes
             ),
+            current_target=self._current_target,
+            extend_method=self._extend_method,
         )
 
         self._current_target = self._select_next_target()
@@ -74,6 +76,8 @@ class BreadthFirstAttacker(DecisionAgent):
         new_nodes: set[AttackGraphNode],
         old_target_queue: deque[AttackGraphNode],
         disabled_nodes: set[AttackGraphNode],
+        extend_method: str,
+        current_target: Optional[AttackGraphNode] = None,
     ) -> deque[AttackGraphNode]:
         new_targets: list[AttackGraphNode] = []
         if self._settings['seed']:
@@ -89,21 +93,20 @@ class BreadthFirstAttacker(DecisionAgent):
         if self._settings['randomize']:
             self._rng.shuffle(new_targets)
 
-        if self._current_target and self._current_target not in disabled_nodes:
+        if current_target and current_target not in disabled_nodes:
             # If self.current_target was not compromised, e.g. due to TTCs,
             # it remains in action surface and should be added as a target.
-            old_target_queue.append(self._current_target)
+            old_target_queue.append(current_target)
 
         # Enabled defenses may remove previously possible attack steps.
-        if disabled_nodes:
-            new_target_queue = deque(
-                n for n in old_target_queue if n not in disabled_nodes
-            )
-        else:
-            new_target_queue = old_target_queue
+        new_target_queue = (
+            deque(n for n in old_target_queue if n not in disabled_nodes)
+            if disabled_nodes
+            else old_target_queue
+        )
 
         # Use the extend method to add new targets
-        getattr(new_target_queue, self._extend_method)(new_targets)
+        getattr(new_target_queue, extend_method)(new_targets)
         return new_target_queue
 
     def _select_next_target(self) -> AttackGraphNode | None:
