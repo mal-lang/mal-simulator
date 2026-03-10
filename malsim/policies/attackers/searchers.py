@@ -64,7 +64,7 @@ class BreadthFirstAttacker(DecisionAgent):
             ),
         )
 
-        self._select_next_target()
+        self._current_target = self._select_next_target()
         self._started = True
         return self._current_target
 
@@ -99,14 +99,14 @@ class BreadthFirstAttacker(DecisionAgent):
         # Use the extend method to add new targets
         getattr(self._targets, self._extend_method)(new_targets)
 
-    def _select_next_target(self) -> None:
+    def _select_next_target(self) -> AttackGraphNode | None:
         """
         Implement the actual next target selection logic.
         """
         if self._targets:
-            self._current_target = self._targets.pop()
+            return self._targets.pop()
         else:
-            self._current_target = None
+            return None
 
 
 class DepthFirstAttacker(BreadthFirstAttacker):
