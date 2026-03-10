@@ -9,7 +9,7 @@ from malsim.config.agent_settings import DefenderSettings
 from malsim.config.sim_settings import MalSimulatorSettings
 from malsim.mal_simulator.defender_state import MalSimDefenderState
 from malsim.mal_simulator.defense_surface import get_defense_surface
-from malsim.mal_simulator.observability import defender_observed_nodes
+from malsim.mal_simulator.observability import observed_nodes
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 
@@ -62,7 +62,7 @@ def create_defender_state(
                 step_enabled_defenses
             )
 
-    step_observed_nodes = defender_observed_nodes(
+    step_observed_nodes = observed_nodes(
         sim_state=sim_state,
         observable_steps_rule=defender_settings.observable_steps,
         false_positive_rates_rule=defender_settings.false_positive_rates

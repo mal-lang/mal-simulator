@@ -21,7 +21,7 @@ def node_is_observable(
     return bool(agent_observability_rule.value(node, False))
 
 
-def defender_observed_nodes(
+def observed_nodes(
     observable_steps_rule: Optional[NodePropertyRule],
     false_positive_rates_rule: Optional[NodePropertyRule],
     false_negative_rates_rule: Optional[NodePropertyRule],
@@ -30,7 +30,7 @@ def defender_observed_nodes(
     compromised_nodes: Set[AttackGraphNode],
 ) -> Set[AttackGraphNode]:
     """Generate set of observed compromised nodes
-    From set of compromised nodes, generate observed nodes for a defender
+    From set of compromised nodes, generate observed nodes for an agent
     in regards to observability, false negatives and false positives.
     """
     observable_steps = (
