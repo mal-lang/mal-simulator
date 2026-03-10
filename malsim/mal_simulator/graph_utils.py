@@ -81,13 +81,9 @@ def node_is_actionable(
 
 def node_reward(
     node: AttackGraphNode,
-    agent_reward_rule: NodePropertyRule | None = None,
-    global_rewards: NodePropertyRule | None = None,
+    reward_rule: NodePropertyRule | None = None,
 ) -> float:
-    if agent_reward_rule:
+    if reward_rule:
         # Node reward from agent settings
-        return float(agent_reward_rule.value(node, 0.0))
-    if global_rewards:
-        # Node reward from global settings
-        return global_rewards.value(node, 0.0)
+        return float(reward_rule.value(node, 0.0))
     return 0.0

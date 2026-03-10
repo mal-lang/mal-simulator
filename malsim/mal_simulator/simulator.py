@@ -249,7 +249,7 @@ class MalSimulator:
             return self.sim_settings.rewards.value(node, 0)
         elif agent_name:
             return node_reward(
-                node, agent_reward_rule=self._agent_settings[agent_name].rewards
+                node, reward_rule=self._agent_settings[agent_name].rewards
             )
         else:
             return 0.0
