@@ -32,7 +32,7 @@ def defender_step_reward(
 
     # Defender is penalized for compromised steps and enabled defenses
     step_reward = -sum(
-        node_reward(n, defender_settings.rewards, sim_settings.rewards)
+        node_reward(n, defender_settings.rewards or sim_settings.rewards)
         for n in enabled_defenses | compromised_nodes
     )
 
@@ -62,7 +62,7 @@ def attacker_step_reward(
     reward_mode = sim_settings.attacker_reward_mode
     # Attacker is rewarded for compromised nodes
     step_reward = sum(
-        node_reward(n, attacker_settings.rewards, sim_settings.rewards)
+        node_reward(n, attacker_settings.rewards or sim_settings.rewards)
         for n in performed_steps
     )
 
