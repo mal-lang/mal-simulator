@@ -26,18 +26,20 @@ def full_name_or_node_to_node(
     attack_graph: AttackGraph, node_or_full_name: str | AttackGraphNode
 ) -> AttackGraphNode:
     """If `node_or_full_name` is a full_mame, return corresponding AttackGraphNode"""
-    if isinstance(node_or_full_name, str):
-        return get_node(attack_graph, node_or_full_name)
-    return node_or_full_name
+    return (
+        get_node(attack_graph, node_or_full_name)
+        if isinstance(node_or_full_name, str)
+        else node_or_full_name
+    )
 
 
 def full_names_or_nodes_to_nodes(
     attack_graph: AttackGraph,
-    nodes_or_full_names: Iterable[str] | Iterable[AttackGraphNode],
+    nodes_or_full_names: Iterable[str | AttackGraphNode],
 ) -> Iterable[AttackGraphNode]:
     """Generator converting nodes full_name to AttackGraphNode objects"""
     for n in nodes_or_full_names:
-        yield get_node(attack_graph, n) if isinstance(n, str) else n
+        yield full_name_or_node_to_node(attack_graph, n)
 
 
 def full_name_dict_to_node_dict(
