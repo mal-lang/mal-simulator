@@ -45,30 +45,36 @@ class BreadthFirstAttacker(DecisionAgent):
         self._settings = self._default_settings | agent_config
 
         self._rng = random.Random(self._settings.get('seed'))
-        self._started = False
+        self.prev_state = None
 
     def get_next_action(
         self, agent_state: MalSimAgentState, **kwargs: Any
     ) -> Optional[AttackGraphNode]:
         """Receive the next action according to agent policy (bfs/dfs)"""
 
+        new_nodes = (
+            agent_state.action_surface - self.prev_state.action_surface
+            if self.prev_state
+            else agent_state.action_surface
+        )
+
+        disabled_nodes = (
+            self.prev_state.action_surface - agent_state.action_surface
+            if self.prev_state
+            else set()
+        )
+
         self._targets = self._update_targets(
-            new_nodes=set(
-                agent_state.step_action_surface_additions
-                if self._started
-                else agent_state.action_surface
-            ),
+            new_nodes=new_nodes,
             old_target_queue=self._targets,
-            disabled_nodes=set(
-                agent_state.step_action_surface_removals
-                | agent_state.step_performed_nodes
-            ),
+            disabled_nodes=disabled_nodes,
             current_target=self._current_target,
             extend_method=self._extend_method,
         )
 
         self._current_target = self._select_next_target()
         self._started = True
+        self.prev_state = agent_state
         return self._current_target
 
     def _update_targets(
