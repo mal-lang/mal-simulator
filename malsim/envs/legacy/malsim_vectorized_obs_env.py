@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Set
 from typing import Any, Optional
 import functools
 import logging
@@ -403,7 +404,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         return nodes
 
     def register_attacker(
-        self, attacker_name: str, entry_points: set[AttackGraphNode] | set[str]
+        self, attacker_name: str, entry_points: Set[AttackGraphNode] | Set[str]
     ) -> None:
         self.sim.register_attacker(attacker_name, entry_points)
         agent = self.sim.agent_states[attacker_name]
@@ -422,8 +423,8 @@ class MalSimVectorizedObsEnv(ParallelEnv):
 
     def _update_attacker_obs(
         self,
-        compromised_nodes: set[AttackGraphNode],
-        disabled_nodes: set[AttackGraphNode],
+        compromised_nodes: Set[AttackGraphNode],
+        disabled_nodes: Set[AttackGraphNode],
         attacker_agent: MalSimAttackerState,
     ) -> None:
         """Update the observation of the serialized obs attacker"""
@@ -466,8 +467,8 @@ class MalSimVectorizedObsEnv(ParallelEnv):
 
     def _update_defender_obs(
         self,
-        compromised_nodes: set[AttackGraphNode],
-        disabled_nodes: set[AttackGraphNode],
+        compromised_nodes: Set[AttackGraphNode],
+        disabled_nodes: Set[AttackGraphNode],
         defender_agent: MalSimDefenderState,
     ) -> None:
         """Update the observation of the defender"""
@@ -498,7 +499,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
             'Attack graph in simulator needs to have a model attached to it'
         )
 
-        pre_enabled_nodes: set[AttackGraphNode] = set()
+        pre_enabled_nodes: Set[AttackGraphNode] = set()
         for agent in self.sim.agent_states.values():
             # Reset observation and action mask for agents
             self._agent_observations[agent.name] = self._create_blank_observation()
@@ -512,8 +513,8 @@ class MalSimVectorizedObsEnv(ParallelEnv):
 
     def _update_observations(
         self,
-        compromised_nodes: set[AttackGraphNode],
-        disabled_nodes: set[AttackGraphNode],
+        compromised_nodes: Set[AttackGraphNode],
+        disabled_nodes: Set[AttackGraphNode],
     ) -> None:
         """Update observations of all agents"""
 

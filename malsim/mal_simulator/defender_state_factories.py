@@ -111,8 +111,8 @@ def create_defender_state(
 def initial_defender_state(
     sim_state: MalSimulatorState,
     defender_settings: DefenderSettings,
-    pre_compromised_nodes: set[AttackGraphNode],
-    pre_enabled_defenses: set[AttackGraphNode],
+    pre_compromised_nodes: Set[AttackGraphNode],
+    pre_enabled_defenses: Set[AttackGraphNode],
     rng: np.random.Generator,
 ) -> MalSimDefenderState:
     """Create a defender state from defender settings"""

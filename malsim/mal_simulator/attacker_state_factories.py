@@ -1,7 +1,7 @@
 """Creation/manipulation of attacker state"""
 
 from __future__ import annotations
-from collections.abc import Set, Mapping
+from collections.abc import MutableSet, Set, Mapping
 from typing import Optional, TYPE_CHECKING
 
 from malsim.config.node_property_rule import NodePropertyRule
@@ -61,9 +61,9 @@ def create_attacker_state(
             sim_state.global_actionability,
             compromised_nodes,
         )
-        action_surface_removals: set[AttackGraphNode] = set()
+        action_surface_removals: Set[AttackGraphNode] = set()
         action_surface_additions = new_action_surface
-        performed_nodes_order: dict[int, frozenset[AttackGraphNode]] = {}
+        performed_nodes_order: dict[int, Set[AttackGraphNode]] = {}
 
         if sim_state.settings.compromise_entrypoints_at_start:
             performed_nodes_order[0] = frozenset(entry_points)
@@ -143,10 +143,10 @@ def create_attacker_state(
 
 def get_entrypoint_compromises(
     sim_state: MalSimulatorState,
-    entry_points: set[AttackGraphNode],
-) -> set[AttackGraphNode]:
+    entry_points: Set[AttackGraphNode],
+) -> Set[AttackGraphNode]:
     """Compromise entry points and return compromised nodes including effects"""
-    step_compromised_nodes: set[AttackGraphNode] = set()
+    step_compromised_nodes: MutableSet[AttackGraphNode] = set()
     for entry_point in entry_points:
         step_compromised_nodes.add(entry_point)
         # Perform effects of entry point compromises
@@ -203,7 +203,7 @@ def attacker_overriding_ttc_settings(
 ) -> tuple[
     dict[AttackGraphNode, TTCDist],
     dict[AttackGraphNode, float],
-    set[AttackGraphNode],
+    Set[AttackGraphNode],
 ]:
     """
     Get overriding TTC distributions, TTC values, and impossible attack steps

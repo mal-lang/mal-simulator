@@ -1,3 +1,4 @@
+from collections.abc import MutableSet, Set
 from typing import Any
 from maltoolbox.language import LanguageGraph
 import numpy as np
@@ -102,12 +103,12 @@ class LangSerializer:
                 self.defender_step_type[step_key] = idx
         else:
             # Map from (step_name) to idx
-            all_step_names: set[str] = {step.name for step in all_steps}
+            all_step_names: Set[str] = {step.name for step in all_steps}
             self.step_type = {
                 (step_name,): i for i, step_name in enumerate(all_step_names)
             }
 
-            attacker_seen_step_names: set[str] = set()
+            attacker_seen_step_names: MutableSet[str] = set()
             idx = 0
             for step in all_steps_attacker_sorting:
                 if step.name not in attacker_seen_step_names:
@@ -115,7 +116,7 @@ class LangSerializer:
                     self.attacker_step_type[(step.name,)] = idx
                     idx += 1
 
-            defender_seen_step_names: set[str] = set()
+            defender_seen_step_names: MutableSet[str] = set()
             idx = 0
             for step in all_steps_defender_sorting:
                 if step.name not in defender_seen_step_names:

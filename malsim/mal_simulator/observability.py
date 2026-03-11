@@ -35,7 +35,7 @@ def defender_observed_nodes(
     sim_state: MalSimulatorState,
     rng: np.random.Generator,
     compromised_nodes: Set[AttackGraphNode],
-) -> set[AttackGraphNode]:
+) -> Set[AttackGraphNode]:
     """Generate set of observed compromised nodes
     From set of compromised nodes, generate observed nodes for a defender
     in regards to observability, false negatives and false positives.

@@ -3,18 +3,15 @@ Attacker agents can have goals, and we can use the TTCSoftMinAttacker
 to find a 'cheap' path to the goal.
 """
 
+from malsim.config.agent_settings import AttackerSettings, DefenderSettings
+from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
     run_simulation,
     TTCMode,
 )
-from malsim.scenario.scenario import (
-    Scenario,
-    AttackerSettings,
-    DefenderSettings,
-    NodePropertyRule,
-)
+from malsim.scenario.scenario import Scenario
 
 from malsim.policies import TTCSoftMinAttacker, PassiveAgent
 

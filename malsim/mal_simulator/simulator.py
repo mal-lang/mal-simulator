@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections import defaultdict
 import logging
 from typing import Any, NamedTuple, Optional
-from collections.abc import Callable, Mapping, Set
-
+from collections.abc import Callable, Mapping, MutableSet, Set
+from copy import copy
 import numpy as np
 from numpy.random import default_rng
 
@@ -333,7 +333,7 @@ class MalSimulator:
         )
 
     @property
-    def compromised_nodes(self) -> set[AttackGraphNode]:
+    def compromised_nodes(self) -> Set[AttackGraphNode]:
         return compromised_nodes(
             self._agent_states,
             self._alive_agents,
@@ -376,13 +376,13 @@ class MalSimulator:
     def register_attacker(
         self,
         name: str,
-        entry_points: set[str] | set[AttackGraphNode],
-        goals: Optional[set[str] | set[AttackGraphNode]] = None,
+        entry_points: Set[str] | Set[AttackGraphNode],
+        goals: Optional[Set[str] | Set[AttackGraphNode]] = None,
     ) -> None:
         agent_states, alive_agents, agent_rewards, agent_settings = register_attacker(
             self.sim_state,
             name,
-            self._alive_agents,
+            set(self._alive_agents),
             self._agent_settings,
             self._agent_states,
             self._agent_rewards,
@@ -403,7 +403,7 @@ class MalSimulator:
             register_attacker_settings(
                 self.performed_attacks_func,
                 self.sim_state,
-                self._alive_agents,
+                set(self._alive_agents),
                 self._agent_settings,
                 self._agent_states,
                 self._agent_rewards,
@@ -425,7 +425,7 @@ class MalSimulator:
             self.enabled_attacks_func,
             self.sim_state,
             self._agent_states,
-            self._alive_agents,
+            set(self._alive_agents),
             self._agent_rewards,
             self._agent_settings,
             self.compromised_nodes,
@@ -444,7 +444,7 @@ class MalSimulator:
                 self.enabled_attacks_func,
                 self.sim_state,
                 self._agent_states,
-                self._alive_agents,
+                set(self._alive_agents),
                 self._agent_rewards,
                 self._agent_settings,
                 defender_settings,
@@ -472,7 +472,7 @@ class MalSimulator:
             self.recording,
             self.sim_state,
             self._agent_states,
-            self._alive_agents,
+            set(self._alive_agents),
             self.rng,
             self._agent_rewards,
             self.performed_attacks_func,
@@ -541,7 +541,7 @@ def create_simulator_from_scenario(
     return sim
 
 
-def done(alive_agents: set[str]) -> bool:
+def done(alive_agents: Set[str]) -> bool:
     """Return True if simulation run is done"""
     return len(alive_agents) == 0
 
@@ -552,7 +552,7 @@ def agent_reward(agent_rewards: dict[str, float], agent_name: str) -> float:
 
 
 def agent_is_terminated(
-    agent_states: AgentStates, live_agents: set[str], agent_name: str
+    agent_states: AgentStates, live_agents: Set[str], agent_name: str
 ) -> bool:
     """Return True if agent was terminated"""
     agent_state = agent_states[agent_name]
@@ -569,12 +569,12 @@ def reset(
     agent_settings: AgentSettings,
     rng: np.random.Generator,
     rest_api_client: Optional[MalSimGUIClient],
-    performed_attacks_func: Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
-    enabled_defenses_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
-    enabled_attacks_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
+    performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
+    enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
+    enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
 ) -> tuple[
     AgentStates,
-    set[str],
+    Set[str],
     MalSimulatorState,
     AgentRewards,
     Recording,
@@ -615,7 +615,7 @@ def reset(
 
 def _pre_step_check(
     agent_states: AgentStates,
-    alive_agents: set[str],
+    alive_agents: Set[str],
     actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]],
 ) -> None:
     """Do some checks before performing step to inform the users"""
@@ -641,15 +641,15 @@ def step(
     recording: Recording,
     sim_state: MalSimulatorState,
     agent_states: AgentStates,
-    alive_agents: set[str],
+    alive_agents: MutableSet[str],
     rng: np.random.Generator,
     agent_rewards: dict[str, float],
-    performed_attacks_func: Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
-    enabled_defenses_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
-    enabled_attacks_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
+    performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
+    enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
+    enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
     actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]],
     rest_api_client: Optional[MalSimGUIClient] = None,
-) -> tuple[AgentStates, Recording, MalSimulatorState, dict[str, float], set[str]]:
+) -> tuple[AgentStates, Recording, MalSimulatorState, dict[str, float], Set[str]]:
     """Take a step in the simulation
 
     Args:
@@ -665,7 +665,7 @@ def step(
     # Populate these from the results for all agents' actions.
     step_compromised_nodes: list[AttackGraphNode] = []
     step_enabled_defenses: list[AttackGraphNode] = []
-    step_nodes_made_unviable: set[AttackGraphNode] = set()
+    step_nodes_made_unviable: Set[AttackGraphNode] = set()
     current_iteration = 0
 
     # Perform defender actions first
@@ -741,7 +741,7 @@ def step(
         )
 
     # Mark terminated agents as dead
-    for agent_name in alive_agents.copy():
+    for agent_name in copy(alive_agents):
         # Remove agents that are terminated
         if agent_is_terminated(agent_states, alive_agents, agent_name):
             logger.info('Agent %s terminated', agent_name)

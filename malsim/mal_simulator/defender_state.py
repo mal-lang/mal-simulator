@@ -46,7 +46,7 @@ class MalSimDefenderState(MalSimAgentState):
 
 
 def get_defender_agents(
-    agent_states: AgentStates, alive_agents: set[str], only_alive: bool = False
+    agent_states: AgentStates, alive_agents: Set[str], only_alive: bool = False
 ) -> list[MalSimDefenderState]:
     """Return list of mutable defender agent states of defenders.
     If `only_alive` is set to True, only return the agents that are alive.

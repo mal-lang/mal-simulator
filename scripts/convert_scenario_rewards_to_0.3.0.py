@@ -3,12 +3,14 @@ Script that takes a scenario file and converts the rewards from the old format
 (used until Mal Simulator v0.2.6) to the new format.
 """
 
+from typing import Any
+
 import yaml
 
 
-def _get_new_rewards_config(rewards: dict[str, float]) -> dict:
+def _get_new_rewards_config(rewards: dict[str, float]) -> dict[str, Any]:
     # Set the rewards according to new format
-    new_rewards = {'by_asset_name': {}}
+    new_rewards: dict[str, Any] = {'by_asset_name': {}}
     for attack_step_full_name, reward in rewards.items():
         # Split the attack step full name into asset name and step name
         parts = attack_step_full_name.split(':')
@@ -20,7 +22,7 @@ def _get_new_rewards_config(rewards: dict[str, float]) -> dict:
     return new_rewards
 
 
-def _convert_scenario_rewards_to_0_3_0(scenario_file: str) -> dict:
+def _convert_scenario_rewards_to_0_3_0(scenario_file: str) -> dict[str, Any]:
     """
     Convert scenario rewards from the old format to the new format.
     The old format is a dictionary with attack step full names as keys and
@@ -30,7 +32,7 @@ def _convert_scenario_rewards_to_0_3_0(scenario_file: str) -> dict:
     - 'by_asset_name': a dictionary with asset names as keys
     """
     with open(scenario_file, 'r', encoding='utf-8') as file:
-        scenario = yaml.safe_load(file)
+        scenario: dict[str, Any] = yaml.safe_load(file)
         if 'rewards' not in scenario:
             return scenario
         # Convert the rewards to the new format

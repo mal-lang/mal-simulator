@@ -18,15 +18,15 @@ from malsim.types import AgentRewards, AgentStates, AgentSettings
 def reset_attackers(
     sim_state: MalSimulatorState,
     agent_settings: AgentSettings,
-    performed_attacks_func: Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
+    performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
     rng: np.random.Generator,
-) -> tuple[AgentStates, set[str], AgentRewards, set[AttackGraphNode]]:
+) -> tuple[AgentStates, Set[str], AgentRewards, Set[AttackGraphNode]]:
     """Recreate all attacker agent states"""
 
     attacker_states: AgentStates = {}
-    alive_attackers: set[str] = set()
+    alive_attackers: MutableSet[str] = set()
     attacker_rewards: AgentRewards = {}
-    pre_compromised_nodes: set[AttackGraphNode] = set()
+    pre_compromised_nodes: MutableSet[AttackGraphNode] = set()
 
     for attacker_settings in get_attacker_settings(agent_settings).values():
         # Get any overriding ttc settings from attacker settings
@@ -80,11 +80,11 @@ def reset_defenders(
 def reset_agents(
     sim_state: MalSimulatorState,
     agent_settings: AgentSettings,
-    performed_attacks_func: Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
-    enabled_defenses_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
-    enabled_attacks_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
+    performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
+    enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
+    enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
     rng: np.random.Generator,
-) -> tuple[AgentStates, set[str], AgentRewards]:
+) -> tuple[AgentStates, Set[str], AgentRewards]:
     """Reset agent states to a fresh start"""
 
     attacker_states, alive_attackers, attacker_rewards, pre_compromised_nodes = (

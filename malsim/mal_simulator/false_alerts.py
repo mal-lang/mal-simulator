@@ -28,7 +28,7 @@ def generate_false_negatives(
     global_false_negative_rates: dict[AttackGraphNode, float],
     observed_nodes: Set[AttackGraphNode],
     rng: np.random.Generator,
-) -> set[AttackGraphNode]:
+) -> Set[AttackGraphNode]:
     """Return a set of false negative attack steps from observed nodes"""
     if false_negative_rate_rule or global_false_negative_rates:
         return {
@@ -62,7 +62,7 @@ def generate_false_positives(
     global_false_positive_rates: dict[AttackGraphNode, float],
     attack_graph: AttackGraph,
     rng: np.random.Generator,
-) -> set[AttackGraphNode]:
+) -> Set[AttackGraphNode]:
     """Return a set of false positive attack steps from attack graph"""
     if false_positive_rates_rule or global_false_positive_rates:
         return {

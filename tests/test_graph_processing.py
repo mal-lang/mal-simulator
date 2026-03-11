@@ -55,7 +55,7 @@ def test_viability_viable_nodes(dummy_lang_graph: LanguageGraph) -> None:
     and_node2.parents = {and_node_parent1, and_node_parent2}
 
     # Make sure viable
-    enabled_defenses: set[AttackGraphNode] = set()
+    enabled_defenses: Set[AttackGraphNode] = set()
     viable_nodes = calculate_viability(attack_graph, enabled_defenses, set())
     assert exist_node in viable_nodes
     assert not_exist_node in viable_nodes
@@ -205,7 +205,7 @@ def test_necessity_unnecessary(dummy_lang_graph: LanguageGraph) -> None:
     and_node.parents.add(disabled_defense_step)
     disabled_defense_step.children.add(and_node)
 
-    enabled_defenses: set[AttackGraphNode] = set()
+    enabled_defenses: Set[AttackGraphNode] = set()
     necessity_per_node = calculate_necessity(attack_graph, enabled_defenses)
 
     # Calculate necessity and make sure unneccessary

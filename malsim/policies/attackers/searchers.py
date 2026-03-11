@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections.abc import Set
 import logging
 import random
 
@@ -69,8 +70,8 @@ class BreadthFirstAttacker(DecisionAgent):
 
     def _update_targets(
         self,
-        new_nodes: set[AttackGraphNode],
-        disabled_nodes: set[AttackGraphNode],
+        new_nodes: Set[AttackGraphNode],
+        disabled_nodes: Set[AttackGraphNode],
     ) -> None:
         new_targets: list[AttackGraphNode] = []
         if self._settings['seed']:

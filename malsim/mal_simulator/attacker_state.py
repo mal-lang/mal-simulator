@@ -49,7 +49,7 @@ class MalSimAttackerState(MalSimAgentState):
 
 
 def get_attacker_agents(
-    agent_states: AgentStates, alive_agents: set[str], only_alive: bool = False
+    agent_states: AgentStates, alive_agents: Set[str], only_alive: bool = False
 ) -> list[MalSimAttackerState]:
     """Return list of mutable attacker agent states of attackers.
     If `only_alive` is set to True, only return the agents that are alive.

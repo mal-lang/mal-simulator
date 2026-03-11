@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections.abc import Set
 from typing import Any, Optional, TYPE_CHECKING
 import logging
 import math
@@ -27,7 +28,7 @@ class DefendCompromisedDefender:
         self.rng = (
             np.random.default_rng(seed) if agent_config.get('randomize') else None
         )
-        self.compromised_nodes: set[AttackGraphNode] = set()
+        self.compromised_nodes: Set[AttackGraphNode] = set()
 
     def get_next_action(
         self, agent_state: MalSimDefenderState, **kwargs: Any
@@ -77,7 +78,7 @@ class DefendFutureCompromisedDefender:
         self.rng = (
             np.random.default_rng(seed) if agent_config.get('randomize') else None
         )
-        self.compromised_nodes: set[AttackGraphNode] = set()
+        self.compromised_nodes: Set[AttackGraphNode] = set()
 
     def get_next_action(
         self, agent_state: MalSimDefenderState, **kwargs: Any

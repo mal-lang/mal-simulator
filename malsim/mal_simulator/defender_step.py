@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections.abc import Set
 from typing import TYPE_CHECKING
 from maltoolbox.attackgraph import AttackGraphNode
 import logging
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def defender_is_terminated(agent_states: AgentStates, alive_agents: set[str]) -> bool:
+def defender_is_terminated(agent_states: AgentStates, alive_agents: Set[str]) -> bool:
     """Check if defender is terminated
     Can be overridden by subclass for custom termination condition.
     """
@@ -31,7 +32,7 @@ def defender_step(
     sim_state: MalSimulatorState,
     agent: MalSimDefenderState,
     nodes: list[AttackGraphNode],
-) -> tuple[list[AttackGraphNode], set[AttackGraphNode]]:
+) -> tuple[list[AttackGraphNode], Set[AttackGraphNode]]:
     """Enable defense step nodes with defender.
 
     Args:
@@ -44,7 +45,7 @@ def defender_step(
 
     logger.debug('Stepping with %s', agent.name)
     enabled_defenses: list[AttackGraphNode] = []
-    attack_steps_made_unviable: set[AttackGraphNode] = set()
+    attack_steps_made_unviable: Set[AttackGraphNode] = set()
 
     for node in nodes:
         assert node == sim_state.attack_graph.nodes[node.id], (

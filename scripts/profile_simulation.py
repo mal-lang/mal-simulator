@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 logging.getLogger().setLevel(logging.INFO)
 
 
-def main():
+def main() -> None:
     """Entrypoint function for profiling simulation with CLI"""
     parser = argparse.ArgumentParser()
     parser.add_argument(

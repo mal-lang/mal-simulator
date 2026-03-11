@@ -3,12 +3,14 @@ Script that takes a scenario file and converts the rewards from the old format
 (used until Mal Simulator v0.2.6) to the new format.
 """
 
+from typing import Any
+
 from malsim.mal_simulator import MalSimulator, run_simulation
 from malsim.scenario.scenario import Scenario, path_relative_to_file_dir
 import yaml
 
 
-def _get_model_attackers(model_file: str) -> dict:
+def _get_model_attackers(model_file: str) -> dict[str, Any]:
     attackers = {}
     with open(model_file, 'r', encoding='utf-8') as file:
         model_dict = yaml.safe_load(file)
@@ -29,7 +31,7 @@ def _get_model_attackers(model_file: str) -> dict:
     return attackers
 
 
-def _convert_scenario_attackers(scenario_file: str) -> dict:
+def _convert_scenario_attackers(scenario_file: str) -> dict[str, Any]:
     """
     Convert scenario rewards from the old format to the new format.
     The old format is a dictionary with attack step full names as keys and
@@ -39,7 +41,7 @@ def _convert_scenario_attackers(scenario_file: str) -> dict:
     - 'by_asset_name': a dictionary with asset names as keys
     """
     with open(scenario_file, 'r', encoding='utf-8') as file:
-        scenario_dict = yaml.safe_load(file)
+        scenario_dict: dict[str, Any] = yaml.safe_load(file)
 
         if 'agents' in scenario_dict:
             msg = (
@@ -108,6 +110,6 @@ if __name__ == '__main__':
 
     scenario = Scenario.load_from_file(o_file)
     sim = MalSimulator.from_scenario(scenario)
-    run_simulation(sim, scenario.agents)
+    run_simulation(sim, scenario.agent_settings)
 
     print(f'Created new scenario `{o_file}` with new format for agents.')
