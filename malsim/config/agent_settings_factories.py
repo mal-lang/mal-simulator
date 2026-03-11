@@ -30,6 +30,35 @@ policy_name_to_class = {
 }
 
 
+def _validate_agent_dict(d: dict[str, Any]) -> dict[str, Any]:
+    required_keys = {'type', 'policy'}
+    allowed_keys = {
+        'type',
+        'policy',
+        'agent_class',
+        'config',
+        'rewards',
+        'false_positive_rates',
+        'false_negative_rates',
+        'observable_steps',
+        'actionable_steps',
+        'entry_points',
+        'goals',
+        'reward_mode',
+        'ttc_overrides',
+    }
+    illegal_keys = d.keys() - allowed_keys
+    missing_keys = required_keys - d.keys()
+
+    if illegal_keys:
+        raise ValueError(f"Illegal keys in agent scenario settings: {illegal_keys}")
+
+    if illegal_keys:
+        raise ValueError(f"Missing keys in agent scenario settings: {missing_keys}")
+
+    return d
+
+
 def agent_settings_from_dict(
     name: str,
     d: dict[str, Any],
@@ -37,6 +66,7 @@ def agent_settings_from_dict(
 ) -> AttackerSettings[str] | DefenderSettings:
     """Load agent settings from a dict"""
 
+    d = _validate_agent_dict(d)
     agent_type = AgentType(d['type'])
 
     # Resolve policy class if provided

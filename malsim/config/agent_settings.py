@@ -66,7 +66,6 @@ class AttackerSettings(AgentRuntimeMixin, Generic[T]):
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
-            'name': self.name,
             'type': AgentType.ATTACKER.value,
             'entry_points': {
                 n.full_name if isinstance(n, AttackGraphNode) else n
@@ -130,7 +129,6 @@ class DefenderSettings(AgentRuntimeMixin):
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
-            'name': self.name,
             'type': AgentType.DEFENDER.value,
         }
         if self.policy:
