@@ -39,6 +39,7 @@ deprecated_fields = [
     'attacker_agent_class',
     'defender_agent_class',
     'attacker_entry_points',
+    'rewards',
 ]
 
 # All required fields in scenario yml file
@@ -52,11 +53,6 @@ required_fields: list[str | tuple[str, str]] = [
 # All allowed fields in scenario yml fild
 allowed_fields = [
     *required_fields,
-    'rewards',
-    'observable_steps',
-    'actionable_steps',
-    'false_positive_rates',
-    'false_negative_rates',
     'sim_settings',
 ]
 
