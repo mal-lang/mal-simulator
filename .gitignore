@@ -179,3 +179,5 @@ uv.lock
 
 # Profiling
 prof/*
+
+*.sh

@@ -33,7 +33,6 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     sim = MalSimulator.from_scenario(
         scenario,
         sim_settings=MalSimulatorSettings(
-            attack_surface_skip_unnecessary=False,
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
         ),
@@ -180,6 +179,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         scenario,
         sim_settings=MalSimulatorSettings(
             seed=23,
+            attack_surface_skip_unnecessary=True,
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
             attacker_reward_mode=RewardMode.ONE_OFF,
         ),
