@@ -275,7 +275,7 @@ def attack_step_ttc_value(
     ttc_mode: TTCMode,
     rng: np.random.Generator,
 ) -> Optional[float]:
-    _ttc_dist = ttc_dist if ttc_dist else TTCDist.from_node(node)
+    _ttc_dist = ttc_dist or TTCDist.from_node(node)
 
     # TODO Make this check comprehensive.
     if ttc_mode == TTCMode.EXPECTED_VALUE:
@@ -350,7 +350,7 @@ def is_impossible_attack_step(
     ttc_dist: TTCDist | None,
     rng: np.random.Generator,
 ) -> bool:
-    _ttc_dist = ttc_dist if ttc_dist else TTCDist.from_node(node)
+    _ttc_dist = ttc_dist or TTCDist.from_node(node)
     return not _ttc_dist.attempt_bernoulli(rng)
 
 
