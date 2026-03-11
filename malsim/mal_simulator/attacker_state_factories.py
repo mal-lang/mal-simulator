@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 from collections.abc import Set, Mapping
-from types import MappingProxyType
 from typing import Optional, TYPE_CHECKING
 
 from malsim.config.node_property_rule import NodePropertyRule
@@ -38,8 +37,8 @@ def create_attacker_state(
     goals: Set[AttackGraphNode] = frozenset(),
     step_attempted_nodes: Set[AttackGraphNode] = frozenset(),
     step_nodes_made_unviable: Set[AttackGraphNode] = frozenset(),
-    ttc_overrides: Mapping[AttackGraphNode, TTCDist] = MappingProxyType({}),
-    ttc_value_overrides: Mapping[AttackGraphNode, float] = MappingProxyType({}),
+    ttc_overrides: Mapping[AttackGraphNode, TTCDist] = {},
+    ttc_value_overrides: Mapping[AttackGraphNode, float] = {},
     impossible_step_overrides: Set[AttackGraphNode] = frozenset(),
     reward_rule: Optional[NodePropertyRule] = None,
     actionability_rule: Optional[NodePropertyRule] = None,
@@ -131,14 +130,14 @@ def create_attacker_state(
         step_performed_nodes=frozenset(step_compromised_nodes),
         step_unviable_nodes=frozenset(step_nodes_made_unviable),
         step_attempted_nodes=frozenset(step_attempted_nodes),
-        num_attempts=MappingProxyType(new_num_attempts),
-        ttc_overrides=MappingProxyType(ttc_overrides),
-        ttc_value_overrides=MappingProxyType(ttc_value_overrides),
+        num_attempts=new_num_attempts,
+        ttc_overrides=ttc_overrides,
+        ttc_value_overrides=ttc_value_overrides,
         impossible_step_overrides=frozenset(impossible_step_overrides),
         iteration=(previous_state.iteration + 1) if previous_state else 1,
         reward_rule=reward_rule,
         actionability_rule=actionability_rule,
-        performed_nodes_order=MappingProxyType(performed_nodes_order),
+        performed_nodes_order=performed_nodes_order,
     )
 
 

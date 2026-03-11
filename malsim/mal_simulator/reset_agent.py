@@ -1,4 +1,6 @@
 from collections.abc import Callable
+from collections.abc import MutableSet, Set
+
 import numpy as np
 
 from maltoolbox.attackgraph import AttackGraphNode
@@ -48,14 +50,14 @@ def reset_attackers(
 def reset_defenders(
     sim_state: MalSimulatorState,
     agent_settings: AgentSettings,
-    pre_compromised_nodes: set[AttackGraphNode],
-    enabled_defenses_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
-    enabled_attacks_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
+    pre_compromised_nodes: Set[AttackGraphNode],
+    enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
+    enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
     rng: np.random.Generator,
-) -> tuple[AgentStates, set[str], AgentRewards]:
+) -> tuple[AgentStates, Set[str], AgentRewards]:
     """Recreate all defender agent states"""
     defender_states: AgentStates = {}
-    alive_defenders: set[str] = set()
+    alive_defenders: MutableSet[str] = set()
     defender_rewards: AgentRewards = {}
 
     for defender_settings in get_defender_settings(agent_settings).values():
@@ -72,7 +74,7 @@ def reset_defenders(
             enabled_defenses_func, enabled_attacks_func, new_defender_state
         )
 
-    return defender_states, alive_defenders, defender_rewards
+    return defender_states, frozenset(alive_defenders), defender_rewards
 
 
 def reset_agents(

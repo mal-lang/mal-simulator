@@ -12,18 +12,16 @@ Currently it adds the following information to nodes:
 """
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from collections.abc import Mapping, Set
 import logging
-
-if TYPE_CHECKING:
-    from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
 logger = logging.getLogger(__name__)
 
 
 def _propagate_necessity_from_node(
     node: AttackGraphNode, necessity_per_node: dict[AttackGraphNode, bool]
-) -> set[AttackGraphNode]:
+) -> Set[AttackGraphNode]:
     """
     Update necessity of children of node given as parameter. Propagate
     recursively via children as long as changes occur. Return all nodes which
@@ -39,19 +37,19 @@ def _propagate_necessity_from_node(
     """
     changed_nodes = set()
     for child in node.children:
-        is_necessary = evaluate_necessity(child, necessity_per_node, set())
+        is_necessary = evaluate_necessity(child, necessity_per_node, frozenset())
         if is_necessary != necessity_per_node[child]:
             necessity_per_node[child] = is_necessary
             changed_nodes |= {child} | _propagate_necessity_from_node(
                 child, necessity_per_node
             )
-    return changed_nodes
+    return frozenset(changed_nodes)
 
 
 def evaluate_necessity(
     node: AttackGraphNode,
-    necessity_per_node: dict[AttackGraphNode, bool],
-    enabled_defenses: set[AttackGraphNode],
+    necessity_per_node: Mapping[AttackGraphNode, bool],
+    enabled_defenses: Set[AttackGraphNode],
 ) -> bool:
     """
     Arguments:
@@ -94,8 +92,8 @@ def evaluate_necessity(
 
 def calculate_necessity(
     graph: AttackGraph,
-    enabled_defenses: set[AttackGraphNode],
-) -> dict[AttackGraphNode, bool]:
+    enabled_defenses: Set[AttackGraphNode],
+) -> Mapping[AttackGraphNode, bool]:
     """Calculate necessity for an attack graph
 
     arguments:
@@ -119,8 +117,8 @@ def calculate_necessity(
 def _propagate_viability_from_node(
     node: AttackGraphNode,
     viability_per_node: dict[AttackGraphNode, bool],
-    impossible_attack_steps: set[AttackGraphNode],
-) -> set[AttackGraphNode]:
+    impossible_attack_steps: Set[AttackGraphNode],
+) -> Set[AttackGraphNode]:
     """
     Update viability of children of node given as parameter. Propagate
     recursively via children as long as changes occur. Return all nodes which
@@ -137,21 +135,21 @@ def _propagate_viability_from_node(
     changed_nodes = set()
     for child in node.children:
         is_viable = evaluate_viability(
-            child, viability_per_node, set(), impossible_attack_steps
+            child, viability_per_node, frozenset(), impossible_attack_steps
         )
         if is_viable != viability_per_node[child]:
             viability_per_node[child] = is_viable
             changed_nodes |= {child} | _propagate_viability_from_node(
                 child, viability_per_node, impossible_attack_steps
             )
-    return changed_nodes
+    return frozenset(changed_nodes)
 
 
 def evaluate_viability(
     node: AttackGraphNode,
     viability_per_node: dict[AttackGraphNode, bool],
-    enabled_defenses: set[AttackGraphNode],
-    impossible_attack_steps: set[AttackGraphNode],
+    enabled_defenses: Set[AttackGraphNode],
+    impossible_attack_steps: Set[AttackGraphNode],
 ) -> bool:
     """
     Arguments:
@@ -198,9 +196,9 @@ def evaluate_viability(
 
 def calculate_viability(
     graph: AttackGraph,
-    enabled_defenses: set[AttackGraphNode],
-    impossible_attack_steps: set[AttackGraphNode],
-) -> dict[AttackGraphNode, bool]:
+    enabled_defenses: Set[AttackGraphNode],
+    impossible_attack_steps: Set[AttackGraphNode],
+) -> Mapping[AttackGraphNode, bool]:
     """Calculate viability for an attack graph
 
     graph            - graph with nodes to calculate viability for
@@ -224,8 +222,8 @@ def calculate_viability(
 def make_node_unviable(
     node: AttackGraphNode,
     viability_per_node: dict[AttackGraphNode, bool],
-    impossible_attacksteps: set[AttackGraphNode],
-) -> tuple[dict[AttackGraphNode, bool], set[AttackGraphNode]]:
+    impossible_attacksteps: Set[AttackGraphNode],
+) -> tuple[dict[AttackGraphNode, bool], Set[AttackGraphNode]]:
     """Make a node unviable
 
     Return the new viability dict and nodes made unviable as

@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Set
 
 from maltoolbox.attackgraph import AttackGraphNode
 import numpy as np
@@ -11,8 +11,8 @@ from malsim.mal_simulator.ttc_utils import TTCDist
 
 
 def defender_step_reward(
-    enabled_defenses_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
-    enabled_attacks_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
+    enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
+    enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
     defender_state: MalSimDefenderState,
 ) -> float:
     """
@@ -36,7 +36,7 @@ def defender_step_reward(
 
 
 def attacker_step_reward(
-    performed_attacks_func: Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
+    performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
     attacker_state: MalSimAttackerState,
     rng: np.random.Generator,
     reward_mode: RewardMode,

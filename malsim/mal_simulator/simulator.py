@@ -72,7 +72,7 @@ logger = logging.getLogger(__name__)
 
 PERFORMED_ATTACKS_FUNCS: Mapping[
     RewardMode,
-    Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
+    Callable[[MalSimAttackerState], Set[AttackGraphNode]],
 ] = {
     RewardMode.CUMULATIVE: lambda ds: ds.performed_nodes,
     RewardMode.ONE_OFF: lambda ds: ds.step_performed_nodes,
@@ -81,7 +81,7 @@ PERFORMED_ATTACKS_FUNCS: Mapping[
 }
 
 ENABLED_DEFENSES_FUNCS: Mapping[
-    RewardMode, Callable[[MalSimDefenderState], frozenset[AttackGraphNode]]
+    RewardMode, Callable[[MalSimDefenderState], Set[AttackGraphNode]]
 ] = {
     # all enabled defenses
     RewardMode.CUMULATIVE: lambda ds: ds.performed_nodes,
@@ -93,7 +93,7 @@ ENABLED_DEFENSES_FUNCS: Mapping[
 }
 
 ENABLED_ATTACKS_FUNCS: Mapping[
-    RewardMode, Callable[[MalSimDefenderState], frozenset[AttackGraphNode]]
+    RewardMode, Callable[[MalSimDefenderState], Set[AttackGraphNode]]
 ] = {
     # all performed attacks
     RewardMode.CUMULATIVE: lambda ds: ds.compromised_nodes,
