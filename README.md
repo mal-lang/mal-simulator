@@ -17,8 +17,7 @@ For in-depth documentation, refer to:
 ## Contributing
 
 - Use [Conventional commits](https://www.conventionalcommits.org/en/v1.0.0/)
-- The CI pipeline runs `mypy` and `ruff` for linting and type checking, and PRs will only be merged if the pipeline succeeds.
-- The CI pipeline runs `pytest`, `mypy` and `ruff format && ruff check` for linting and type checking, and PRs will only be merged if pipeline succeeds.
+- The CI pipeline runs `pytest`, `mypy` and `ruff format && ruff check` for linting and type checking. PRs will only be merged if pipeline succeeds.
 
 ## Making a release
 - Make a PR where you change to the new version number in `pyproject.toml` and `malsim/__init__.py`.
