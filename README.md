@@ -10,11 +10,14 @@ It allows you to:
 * Develop machine learning agents (e.g., using Reinforcement Learning) in a safe, dynamic environment.
 * Incorporate stochastic modeling through Time-to-Compromise (TTC) distributions.
 
-For in-depth documentation please refer to the official **[Wiki](https://github.com/mal-lang/mal-simulator/wiki)**.
+For in-depth documentation, refer to:
+- The official **[Wiki](https://github.com/mal-lang/mal-simulator/wiki)**.
+- The official MAL infrastructure **[tutorials](https://github.com/mal-lang/mal-tutorials)**.
 
 ## Contributing
 
 - Use [Conventional commits](https://www.conventionalcommits.org/en/v1.0.0/)
+- The CI pipeline runs `mypy` and `ruff` for linting and type checking, and PRs will only be merged if the pipeline succeeds.
 - The CI pipeline runs `pytest`, `mypy` and `ruff format && ruff check` for linting and type checking, and PRs will only be merged if pipeline succeeds.
 
 ## Making a release
