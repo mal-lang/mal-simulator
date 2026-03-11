@@ -1,4 +1,4 @@
-from collections.abc import MutableSet, Set
+from collections.abc import MutableSet
 
 from maltoolbox.language import LanguageGraphAssociation
 import numpy as np
