@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from collections.abc import MutableSet, Set, Mapping
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.attack_surface import (
@@ -40,9 +40,9 @@ def create_attacker_state(
     ttc_overrides: Mapping[AttackGraphNode, TTCDist] = {},
     ttc_value_overrides: Mapping[AttackGraphNode, float] = {},
     impossible_step_overrides: Set[AttackGraphNode] = frozenset(),
-    reward_rule: Optional[NodePropertyRule] = None,
-    actionability_rule: Optional[NodePropertyRule] = None,
-    previous_state: Optional[MalSimAttackerState] = None,
+    reward_rule: NodePropertyRule | None = None,
+    actionability_rule: NodePropertyRule | None = None,
+    previous_state: MalSimAttackerState | None = None,
 ) -> MalSimAttackerState:
     """
     Update a previous attacker state based on what the agent compromised

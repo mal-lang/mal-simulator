@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
@@ -67,7 +67,7 @@ class NodePropertyRule:
     @classmethod
     def from_optional_dict(
         cls, node_property_dict: dict[str, dict[str, Any]] | None
-    ) -> Optional[NodePropertyRule]:
+    ) -> NodePropertyRule | None:
         if node_property_dict is None:
             return None
 

@@ -12,7 +12,7 @@ import yaml
 
 def _get_model_attackers(model_file: str) -> dict[str, Any]:
     attackers = {}
-    with open(model_file, 'r', encoding='utf-8') as file:
+    with open(model_file, encoding='utf-8') as file:
         model_dict = yaml.safe_load(file)
         model_attackers = model_dict.get('attackers', {})
 
@@ -40,7 +40,7 @@ def _convert_scenario_attackers(scenario_file: str) -> dict[str, Any]:
     - 'by_asset_type': a dictionary with asset types as keys
     - 'by_asset_name': a dictionary with asset names as keys
     """
-    with open(scenario_file, 'r', encoding='utf-8') as file:
+    with open(scenario_file, encoding='utf-8') as file:
         scenario_dict: dict[str, Any] = yaml.safe_load(file)
 
         if 'agents' in scenario_dict:

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Set
-from typing import Any, Optional
+from typing import Any
 
 from maltoolbox.attackgraph import AttackGraphNode
 
@@ -17,7 +17,7 @@ class MalSimEnv(ABC):
     def step(self, actions: Any) -> Any: ...
 
     def reset(
-        self, seed: Optional[int] = None, options: Optional[dict[str, Any]] = None
+        self, seed: int | None = None, options: dict[str, Any] | None = None
     ) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
         if seed is not None:
             self.sim.sim_settings.seed = seed

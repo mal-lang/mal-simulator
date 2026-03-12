@@ -6,7 +6,7 @@ import logging
 import random
 
 from collections import deque
-from typing import ClassVar, Optional, TYPE_CHECKING, Any
+from typing import ClassVar, TYPE_CHECKING, Any
 
 from ..decision_agent import DecisionAgent
 
@@ -89,7 +89,7 @@ class BreadthFirstAttacker(DecisionAgent):
             agent_config: Dict with settings to override defaults
         """
         self._targets: deque[AttackGraphNode] = deque()
-        self._current_target: Optional[AttackGraphNode] = None
+        self._current_target: AttackGraphNode | None = None
 
         config = (
             parse_agent_config(agent_config)
@@ -124,7 +124,7 @@ class BreadthFirstAttacker(DecisionAgent):
 
     def get_next_action(
         self, agent_state: MalSimAgentState, **kwargs: Any
-    ) -> Optional[AttackGraphNode]:
+    ) -> AttackGraphNode | None:
         """Receive the next action according to agent policy (bfs/dfs)"""
 
         new_nodes = (

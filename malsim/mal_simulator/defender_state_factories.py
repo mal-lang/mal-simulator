@@ -1,7 +1,6 @@
 """Creation/manipulation of defender state"""
 
 from collections.abc import Set
-from typing import Optional
 
 import numpy as np
 from maltoolbox.attackgraph import AttackGraphNode
@@ -21,12 +20,12 @@ def create_defender_state(
     step_compromised_nodes: Set[AttackGraphNode] = frozenset(),
     step_enabled_defenses: Set[AttackGraphNode] = frozenset(),
     step_nodes_made_unviable: Set[AttackGraphNode] = frozenset(),
-    reward_rule: Optional[NodePropertyRule] = None,
-    actionability_rule: Optional[NodePropertyRule] = None,
-    observability_rule: Optional[NodePropertyRule] = None,
-    false_positive_rates_rule: Optional[NodePropertyRule] = None,
-    false_negative_rates_rule: Optional[NodePropertyRule] = None,
-    previous_state: Optional[MalSimDefenderState] = None,
+    reward_rule: NodePropertyRule | None = None,
+    actionability_rule: NodePropertyRule | None = None,
+    observability_rule: NodePropertyRule | None = None,
+    false_positive_rates_rule: NodePropertyRule | None = None,
+    false_negative_rates_rule: NodePropertyRule | None = None,
+    previous_state: MalSimDefenderState | None = None,
 ) -> MalSimDefenderState:
     """
     Update a previous defender state based on what steps

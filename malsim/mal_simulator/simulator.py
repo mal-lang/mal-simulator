@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 import logging
-from typing import Any, NamedTuple, Optional
+from typing import Any, NamedTuple
 from collections.abc import Callable, Mapping, MutableSet, Set
 from copy import copy
 import numpy as np
@@ -107,15 +107,11 @@ BASE_SETTINGS = MalSimulatorSettings()
 class MALSimulatorStaticData(NamedTuple):
     attack_graph: AttackGraph
     sim_settings: MalSimulatorSettings
-    rewards: Optional[dict[str, float] | dict[AttackGraphNode, float]] = None
-    false_positive_rates: Optional[dict[str, float] | dict[AttackGraphNode, float]] = (
-        None
-    )
-    false_negative_rates: Optional[dict[str, float] | dict[AttackGraphNode, float]] = (
-        None
-    )
-    node_actionabilities: Optional[dict[str, bool] | dict[AttackGraphNode, bool]] = None
-    node_observabilities: Optional[dict[str, bool] | dict[AttackGraphNode, bool]] = None
+    rewards: dict[str, float] | dict[AttackGraphNode, float] | None = None
+    false_positive_rates: dict[str, float] | dict[AttackGraphNode, float] | None = None
+    false_negative_rates: dict[str, float] | dict[AttackGraphNode, float] | None = None
+    node_actionabilities: dict[str, bool] | dict[AttackGraphNode, bool] | None = None
+    node_observabilities: dict[str, bool] | dict[AttackGraphNode, bool] | None = None
 
 
 class MalSimulator:
@@ -130,20 +126,20 @@ class MalSimulator:
         self,
         attack_graph: AttackGraph,
         sim_settings: MalSimulatorSettings = BASE_SETTINGS,
-        agent_settings: Optional[AgentSettings] = None,
-        rewards: Optional[dict[str, float] | dict[AttackGraphNode, float]] = None,
-        false_positive_rates: Optional[
-            dict[str, float] | dict[AttackGraphNode, float]
-        ] = None,
-        false_negative_rates: Optional[
-            dict[str, float] | dict[AttackGraphNode, float]
-        ] = None,
-        node_actionabilities: Optional[
-            dict[str, bool] | dict[AttackGraphNode, bool]
-        ] = None,
-        node_observabilities: Optional[
-            dict[str, bool] | dict[AttackGraphNode, bool]
-        ] = None,
+        agent_settings: AgentSettings | None = None,
+        rewards: dict[str, float] | dict[AttackGraphNode, float] | None = None,
+        false_positive_rates: dict[str, float]
+        | dict[AttackGraphNode, float]
+        | None = None,
+        false_negative_rates: dict[str, float]
+        | dict[AttackGraphNode, float]
+        | None = None,
+        node_actionabilities: dict[str, bool]
+        | dict[AttackGraphNode, bool]
+        | None = None,
+        node_observabilities: dict[str, bool]
+        | dict[AttackGraphNode, bool]
+        | None = None,
         send_to_api: bool = False,
     ):
         """
@@ -238,7 +234,7 @@ class MalSimulator:
         return done(self._alive_agents)
 
     def node_ttc_value(
-        self, node: AttackGraphNode, agent_name: Optional[str] = None
+        self, node: AttackGraphNode, agent_name: str | None = None
     ) -> float:
         if agent_name:
             agent = self._agent_states[agent_name]
@@ -250,7 +246,7 @@ class MalSimulator:
             return self.sim_state.graph_state.ttc_values[node]
 
     def node_is_actionable(
-        self, node: AttackGraphNode, agent_name: Optional[str] = None
+        self, node: AttackGraphNode, agent_name: str | None = None
     ) -> bool:
         agent_actionability = None
         if agent_name:
@@ -260,7 +256,7 @@ class MalSimulator:
         )
 
     def node_reward(
-        self, node: AttackGraphNode, agent_name: Optional[str] = None
+        self, node: AttackGraphNode, agent_name: str | None = None
     ) -> float:
         if not agent_name:
             return self.sim_state.global_rewards.get(node, 0)
@@ -268,7 +264,7 @@ class MalSimulator:
             return node_reward(self._agent_states[agent_name], node)
 
     def node_is_observable(
-        self, node: AttackGraphNode, agent_name: Optional[str] = None
+        self, node: AttackGraphNode, agent_name: str | None = None
     ) -> bool:
         agent_observability = None
         if agent_name:
@@ -283,7 +279,7 @@ class MalSimulator:
         )
 
     def node_false_positive_rate(
-        self, node: AttackGraphNode, agent_name: Optional[str] = None
+        self, node: AttackGraphNode, agent_name: str | None = None
     ) -> float:
         false_positive_rates_rule = None
         if agent_name:
@@ -297,7 +293,7 @@ class MalSimulator:
         )
 
     def node_false_negative_rate(
-        self, node: AttackGraphNode, agent_name: Optional[str] = None
+        self, node: AttackGraphNode, agent_name: str | None = None
     ) -> float:
         false_negative_rates_rule = None
         if agent_name:
@@ -345,7 +341,7 @@ class MalSimulator:
         return node_is_traversable(self.sim_state, performed_nodes, node)
 
     def get_node(
-        self, full_name: Optional[str] = None, node_id: Optional[int] = None
+        self, full_name: str | None = None, node_id: int | None = None
     ) -> AttackGraphNode:
         return get_node(self.sim_state.attack_graph, full_name, node_id)
 
@@ -377,7 +373,7 @@ class MalSimulator:
         self,
         name: str,
         entry_points: Set[str] | Set[AttackGraphNode],
-        goals: Optional[Set[str] | Set[AttackGraphNode]] = None,
+        goals: Set[str] | Set[AttackGraphNode] | None = None,
     ) -> None:
         agent_states, alive_agents, agent_rewards, agent_settings = register_attacker(
             self.sim_state,
@@ -568,7 +564,7 @@ def reset(
     static_data: MALSimulatorStaticData,
     agent_settings: AgentSettings,
     rng: np.random.Generator,
-    rest_api_client: Optional[MalSimGUIClient],
+    rest_api_client: MalSimGUIClient | None,
     performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
     enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
     enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
@@ -648,7 +644,7 @@ def step(
     enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
     enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
     actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]],
-    rest_api_client: Optional[MalSimGUIClient] = None,
+    rest_api_client: MalSimGUIClient | None = None,
 ) -> tuple[AgentStates, Recording, MalSimulatorState, dict[str, float], Set[str]]:
     """Take a step in the simulation
 
