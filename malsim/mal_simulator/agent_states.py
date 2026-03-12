@@ -31,3 +31,19 @@ def get_defender_agents(
         if (a.name in alive_agents or not only_alive)
         and isinstance(a, MalSimDefenderState)
     ]
+
+
+def defender_states(agent_states: AgentStates) -> dict[str, MalSimDefenderState]:
+    return {
+        name: state
+        for name, state in agent_states.items()
+        if isinstance(state, MalSimDefenderState)
+    }
+
+
+def attacker_states(agent_states: AgentStates) -> dict[str, MalSimAttackerState]:
+    return {
+        name: state
+        for name, state in agent_states.items()
+        if isinstance(state, MalSimAttackerState)
+    }

@@ -10,6 +10,8 @@ from numpy.random import default_rng
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
+from malsim.config.agent_settings import defender_settings
+from malsim.config.agent_settings import attacker_settings
 from malsim.mal_simulator.agent_states import (
     AgentStates,
     get_attacker_agents,
@@ -111,38 +113,6 @@ BASE_SETTINGS = MalSimulatorSettings()
 class MALSimulatorStaticData(NamedTuple):
     attack_graph: AttackGraph
     sim_settings: MalSimulatorSettings
-
-
-def defender_settings(agent_settings: AgentSettings) -> dict[str, DefenderSettings]:
-    return {
-        name: settings
-        for name, settings in agent_settings.items()
-        if isinstance(settings, DefenderSettings)
-    }
-
-
-def attacker_settings(agent_settings: AgentSettings) -> dict[str, AttackerSettings]:
-    return {
-        name: settings
-        for name, settings in agent_settings.items()
-        if isinstance(settings, AttackerSettings)
-    }
-
-
-def defender_states(agent_states: AgentStates) -> dict[str, MalSimDefenderState]:
-    return {
-        name: state
-        for name, state in agent_states.items()
-        if isinstance(state, MalSimDefenderState)
-    }
-
-
-def attacker_states(agent_states: AgentStates) -> dict[str, MalSimAttackerState]:
-    return {
-        name: state
-        for name, state in agent_states.items()
-        if isinstance(state, MalSimAttackerState)
-    }
 
 
 class MalSimulator:
