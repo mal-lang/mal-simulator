@@ -15,4 +15,3 @@ def test_example_scenario_file() -> None:
 
 if __name__ == '__main__':
     test_example_scenario_file()
-    

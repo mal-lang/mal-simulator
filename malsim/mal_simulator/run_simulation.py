@@ -6,9 +6,7 @@ from malsim.policies.decision_agent import DecisionAgent
 from malsim.mal_simulator.simulator import MalSimulator
 
 
-def run_simulation(
-    sim: MalSimulator
-) -> dict[str, list[AttackGraphNode]]:
+def run_simulation(sim: MalSimulator) -> dict[str, list[AttackGraphNode]]:
     """Run a simulation with agents
 
     Return selected actions by each agent in each step
