@@ -142,13 +142,9 @@ class Scenario:
         """Create a scenario object from a scenario dictionary"""
         _validate_scenario_dict(scenario_dict)
 
-        global_rewards: NodePropertyRule[float] | None = (
-            NodePropertyRule.from_optional_dict(scenario_dict.get('rewards'))
-        )
-
         # Load agent settings from dict
         agent_settings = [
-            agent_settings_from_dict(name, agent_settings_dict, global_rewards)
+            agent_settings_from_dict(name, agent_settings_dict)
             for name, agent_settings_dict in scenario_dict['agents'].items()
         ]
 
