@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 import logging
-from typing import Any, NamedTuple, Optional
+from typing import Any, Optional
 from collections.abc import Callable, Mapping, Set
 
 import numpy as np
@@ -39,6 +39,7 @@ from malsim.mal_simulator.false_alerts import (
     node_false_positive_rate,
 )
 from malsim.config.agent_settings import AttackerSettings, DefenderSettings
+from malsim.mal_simulator.simulator_static_data import MALSimulatorStaticData
 from malsim.types import (
     AgentRewards,
     AgentStates,
@@ -102,20 +103,6 @@ ENABLED_ATTACKS_FUNCS: Mapping[
 }
 
 BASE_SETTINGS = MalSimulatorSettings()
-
-
-class MALSimulatorStaticData(NamedTuple):
-    attack_graph: AttackGraph
-    sim_settings: MalSimulatorSettings
-    rewards: Optional[dict[str, float] | dict[AttackGraphNode, float]] = None
-    false_positive_rates: Optional[dict[str, float] | dict[AttackGraphNode, float]] = (
-        None
-    )
-    false_negative_rates: Optional[dict[str, float] | dict[AttackGraphNode, float]] = (
-        None
-    )
-    node_actionabilities: Optional[dict[str, bool] | dict[AttackGraphNode, bool]] = None
-    node_observabilities: Optional[dict[str, bool] | dict[AttackGraphNode, bool]] = None
 
 
 class MalSimulator:
@@ -486,6 +473,7 @@ class MalSimulator:
         self.sim_state = sim_state
         self._agent_rewards = agent_rewards
         self._alive_agents = live_agents
+
         return self._agent_states
 
 
