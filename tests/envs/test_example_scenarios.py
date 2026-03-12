@@ -34,6 +34,7 @@ def test_bfs_vs_bfs_state_and_reward_first() -> None:
         sim_settings=MalSimulatorSettings(
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
         ),
     )
     sim = MalSimulator.from_scenario(scenario)
