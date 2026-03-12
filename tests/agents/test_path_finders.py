@@ -1,4 +1,4 @@
-from malsim.mal_simulator import MalSimulator, MalSimulatorSettings, TTCMode
+from malsim.mal_simulator import MalSimulator, TTCMode
 from malsim.policies import get_shortest_path_to
 from malsim.scenario.scenario import Scenario
 
@@ -28,11 +28,9 @@ def test_path_finding() -> None:
 def test_path_finding_ttc_lang() -> None:
     scenario_file = 'tests/testdata/scenarios/ttc_lang_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file)
-    sim = MalSimulator.from_scenario(
-        scenario,
-        sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.EXPECTED_VALUE, seed=100),
-        register_agents=False,
-    )
+    scenario.sim_settings.ttc_mode = TTCMode.EXPECTED_VALUE
+    scenario.sim_settings.seed = 100
+    sim = MalSimulator.from_scenario(scenario, register_agents=False)
 
     entry_point = sim.get_node('Net1:easyAccess')
     goal = sim.get_node('DataD:read')
