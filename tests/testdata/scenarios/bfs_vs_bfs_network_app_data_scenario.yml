@@ -6,7 +6,7 @@ agents:
     agent_class: BreadthFirstAttacker
     type: attacker
     config:
-      seed: 1
+      action_ordering: sorted
     entry_points:
       - 'Internet:accessUninspected'
     rewards:
@@ -18,7 +18,7 @@ agents:
     agent_class: BreadthFirstAttacker
     type: defender
     config:
-      seed: 1
+      action_ordering: sorted
     rewards:
       by_asset_name:
         Linux system:

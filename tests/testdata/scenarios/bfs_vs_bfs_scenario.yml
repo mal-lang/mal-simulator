@@ -8,7 +8,7 @@ agents:
     reward_mode: ONE_OFF
     config:
       seed: 1
-      randomize: True
+      action_ordering: random
     entry_points:
       - 'Program 1:fullAccess'
 
@@ -17,7 +17,7 @@ agents:
     type: defender
     config:
       seed: 1
-      randomize: True
+      action_ordering: random
     rewards:
       by_asset_name:
         Program 1:
@@ -26,3 +26,4 @@ agents:
         Program 2:
           notPresent: 3
           supplyChainAuditing: 7
+      
