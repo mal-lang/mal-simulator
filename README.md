@@ -78,7 +78,7 @@ scenario = Scenario.load_from_file(SCENARIO_FILE)
 sim = MalSimulator.from_scenario(scenario)
 
 # 3. Run the simulation
-agent_actions = run_simulation(sim, scenario.agents)
+agent_actions = run_simulation(sim)
 
 print("Simulation finished. Agent actions:", agent_actions)
 ```
