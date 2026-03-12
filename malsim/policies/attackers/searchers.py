@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections.abc import Callable, Set
 from dataclasses import dataclass, replace
 from enum import Enum
 import logging
@@ -53,7 +54,7 @@ def parse_agent_config(config_dict: dict[str, Any]) -> AgentConfig:
 
 
 def sort_and_shuffle(
-    rng: random.Random, nodes: frozenset[AttackGraphNode]
+    rng: random.Random, nodes: Set[AttackGraphNode]
 ) -> list[AttackGraphNode]:
     """Shuffle a list of nodes using the provided random generator."""
     # sort to ensure deterministic order before shuffling
@@ -62,9 +63,7 @@ def sort_and_shuffle(
     return nodes_copy
 
 
-def shuffle(
-    rng: random.Random, nodes: frozenset[AttackGraphNode]
-) -> list[AttackGraphNode]:
+def shuffle(rng: random.Random, nodes: Set[AttackGraphNode]) -> list[AttackGraphNode]:
     """Shuffle a list of nodes using the provided random generator."""
     # sort to ensure deterministic order before shuffling
     nodes_copy = list(nodes)
@@ -105,7 +104,7 @@ class BreadthFirstAttacker(DecisionAgent):
         _rng = random.Random(config.seed)
         order_funcs: dict[
             ActionOrdering,
-            Callable[[frozenset[AttackGraphNode]], list[AttackGraphNode]],
+            Callable[[Set[AttackGraphNode]], list[AttackGraphNode]],
         ] = {
             ActionOrdering.RANDOM: lambda nodes: list(sort_and_shuffle(_rng, nodes)),
             ActionOrdering.SORTED: lambda nodes: sorted(nodes, key=lambda n: n.id),
@@ -134,7 +133,7 @@ class BreadthFirstAttacker(DecisionAgent):
             else agent_state.action_surface
         )
 
-        disabled_nodes: frozenset[AttackGraphNode] = (
+        disabled_nodes: Set[AttackGraphNode] = (
             self._prev_state.action_surface - agent_state.action_surface
             if self._prev_state
             else frozenset()
@@ -159,7 +158,7 @@ def _update_targets(
     extend_method: Callable[
         [deque[AttackGraphNode], list[AttackGraphNode]], deque[AttackGraphNode]
     ],
-    disabled_nodes: frozenset[AttackGraphNode],
+    disabled_nodes: Set[AttackGraphNode],
     current_target: Optional[AttackGraphNode] = None,
 ) -> deque[AttackGraphNode]:
     if current_target and current_target not in disabled_nodes:
