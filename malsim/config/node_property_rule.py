@@ -30,6 +30,14 @@ def optional(f: Callable[[X], Y]) -> Callable[[Optional[X]], Optional[Y]]:
     return wrapper
 
 
+def get_asset_name(node: AttackGraphNode) -> str:
+    if not node.model_asset:
+        raise ValueError(
+            'Can not create NodePropertyRule from nodes without model asset connection.'
+        )
+    return node.model_asset.name
+
+
 @dataclass
 class NodePropertyRule(Generic[T]):
     """
@@ -62,28 +70,21 @@ class NodePropertyRule(Generic[T]):
     def from_attack_step_dict(
         cls, attack_step_dict: dict[AttackGraphNode, T]
     ) -> NodePropertyRule[T]:
-        by_asset_type = {
-            asset_name: {
-                node.name: value
-                for node, value in attack_step_dict.items()
-                if node.model_asset and node.model_asset.type == asset_name
-            }
-            for asset_name in {
-                node.model_asset.type for node in attack_step_dict if node.model_asset
-            }
-        }
+        """Create a NodePropertyRule from a list of attack steps
+        For simplicitly it will only create 'by_asset_name' rules.
+        """
         by_asset_name = {
             asset_name: {
                 node.name: value
                 for node, value in attack_step_dict.items()
                 if node.model_asset and node.model_asset.name == asset_name
             }
-            for asset_name in {
-                node.model_asset.name for node in attack_step_dict if node.model_asset
-            }
+            for asset_name in (
+                get_asset_name(node) for node in attack_step_dict if node.model_asset
+            )
         }
 
-        return cls(by_asset_type=by_asset_type, by_asset_name=by_asset_name)
+        return cls(by_asset_name=by_asset_name)
 
     def value(self, node: AttackGraphNode, default: T | DefaultType) -> T | DefaultType:
         """Get value for `node` based on this node property config"""
