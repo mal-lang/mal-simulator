@@ -11,12 +11,7 @@ from maltoolbox.language import (
 from malsim.mal_simulator import MalSimulator
 from malsim.envs import MalSimVectorizedObsEnv
 
-model_file_name = 'tests/testdata/models/simple_test_model.yml'
-attack_graph_file_name = path.join('/tmp', 'attack_graph.json')
-lang_file_name = 'tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar'
-
 ## Helpers
-
 
 def get_node(graph: AttackGraph, full_name: str) -> AttackGraphNode:
     node = graph.get_node_by_full_name(full_name)
@@ -39,6 +34,10 @@ def path_testdata(filename: str) -> str:
 
 @pytest.fixture(scope='session', name='env')
 def fixture_env() -> MalSimVectorizedObsEnv:
+    model_file_name = 'tests/testdata/models/simple_test_model.yml'
+    lang_file_name = 'tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar'
+
+    attack_graph_file_name = path.join('/tmp', 'attack_graph.json')
     attack_graph = create_attack_graph(lang_file_name, model_file_name)
     attack_graph.save_to_file(attack_graph_file_name)
     env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
@@ -84,6 +83,7 @@ def model(corelang_lang_graph: LanguageGraph) -> Model:
     Model object with no assets or associations
     """
     # Init LanguageClassesFactory
+    model_file_name = 'tests/testdata/models/simple_test_model.yml'
     return Model.load_from_file(model_file_name, corelang_lang_graph)
 
 

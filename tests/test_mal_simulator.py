@@ -1396,7 +1396,7 @@ def test_settings_serialization() -> None:
     assert deserialized_settings == settings
 
 
-def test_simulator_picklable() -> None:
+def test_simulator_picklable(tmp_path) -> None:
     import pickle
 
     scenario = Scenario.load_from_file(
@@ -1404,7 +1404,7 @@ def test_simulator_picklable() -> None:
     )
     sim = MalSimulator.from_scenario(scenario)
 
-    pickle_path = '/tmp/sim.pkl'
+    pickle_path = tmp_path / 'sim.pkl'
     with open(pickle_path, 'wb') as f:
         pickle.dump(sim, f)
 
