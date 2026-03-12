@@ -4,6 +4,7 @@ from gymnasium.vector import AsyncVectorEnv
 from gymnasium.utils.env_checker import check_env
 
 from malsim import MalSimulator
+from malsim.config.sim_settings import AttackSurfaceSettings
 from malsim.envs.graph.graph_env import (
     AttackerGraphEnv,
     DefenderGraphEnv,
@@ -38,29 +39,30 @@ from malsim.envs.graph.wrapper import ActionThenAssetWrapper, AssetThenActionWra
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
-            attack_surface_skip_unnecessary=False,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
             attacker_reward_mode=RewardMode.ONE_OFF,
         ),
         MalSimulatorSettings(
             ttc_mode=TTCMode.PRE_SAMPLE,
             run_defense_step_bernoullis=True,
             run_attack_step_bernoullis=True,
-            attack_surface_skip_unnecessary=True,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=True),
             attacker_reward_mode=RewardMode.CUMULATIVE,
         ),
         MalSimulatorSettings(
             ttc_mode=TTCMode.EXPECTED_VALUE,
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=True,
-            attack_surface_skip_unnecessary=True,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=True),
             attacker_reward_mode=RewardMode.ONE_OFF,
         ),
         MalSimulatorSettings(
             ttc_mode=TTCMode.DISABLED,
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
-            attack_surface_skip_unnecessary=False,
-            attack_surface_skip_unviable=False,
+            attack_surface=AttackSurfaceSettings(
+                skip_unnecessary=False, skip_unviable=False
+            ),
         ),
     ],
 )
@@ -84,7 +86,7 @@ def test_attacker_episode() -> None:
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
-            attack_surface_skip_unnecessary=False,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
             attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
@@ -194,7 +196,7 @@ def test_defender_episode() -> None:
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
-            attack_surface_skip_unnecessary=False,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
             attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
@@ -237,7 +239,7 @@ def test_asset_then_action_wrapper() -> None:
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
-            attack_surface_skip_unnecessary=False,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
             attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
@@ -267,7 +269,7 @@ def test_asset_then_action_wrapper() -> None:
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
-            attack_surface_skip_unnecessary=False,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
             attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
@@ -300,7 +302,7 @@ def test_action_then_asset_wrapper() -> None:
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
-            attack_surface_skip_unnecessary=False,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
             attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
@@ -329,7 +331,7 @@ def test_action_then_asset_wrapper() -> None:
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
-            attack_surface_skip_unnecessary=False,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
             attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
@@ -361,7 +363,7 @@ def test_async_vector_env() -> None:
                 ttc_mode=TTCMode.PER_STEP_SAMPLE,
                 run_defense_step_bernoullis=False,
                 run_attack_step_bernoullis=False,
-                attack_surface_skip_unnecessary=False,
+                attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
                 attacker_reward_mode=RewardMode.ONE_OFF,
             ),
         )

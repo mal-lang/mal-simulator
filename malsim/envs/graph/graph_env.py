@@ -1,6 +1,8 @@
 import gymnasium as gym
 from typing import Any
 
+from malsim.config.sim_settings import AttackSurfaceSettings, RewardMode
+
 from .mal_spaces import (
     MALObsAttackStepSpace,
     MALObsDefenseStepSpace,
@@ -35,7 +37,7 @@ DEFAULT_SIM_SETTINGS = MalSimulatorSettings(
     ttc_mode=TTCMode.PER_STEP_SAMPLE,
     run_defense_step_bernoullis=False,
     run_attack_step_bernoullis=False,
-    attack_surface_skip_unnecessary=False,
+    attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
     attacker_reward_mode=RewardMode.ONE_OFF,
 )
 
@@ -75,7 +77,7 @@ class AttackerGraphEnv(gym.Env[MALObsInstance, np.int64]):
                 ttc_mode=TTCMode.PER_STEP_SAMPLE,
                 run_defense_step_bernoullis=False,
                 run_attack_step_bernoullis=False,
-                attack_surface_skip_unnecessary=False,
+                attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
                 attacker_reward_mode=RewardMode.ONE_OFF,
             ),
         },
@@ -142,7 +144,7 @@ class DefenderGraphEnv(gym.Env[MALObsInstance, np.int64]):
                 ttc_mode=TTCMode.PER_STEP_SAMPLE,
                 run_defense_step_bernoullis=False,
                 run_attack_step_bernoullis=False,
-                attack_surface_skip_unnecessary=False,
+                attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
                 attacker_reward_mode=RewardMode.ONE_OFF,
             ),
         },

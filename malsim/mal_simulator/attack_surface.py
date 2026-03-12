@@ -4,6 +4,7 @@ from collections import deque
 from collections.abc import MutableSet, Set
 
 from malsim.config.node_property_rule import NodePropertyRule
+from malsim.config.sim_settings import AttackSurfaceSettings
 from malsim.mal_simulator.graph_utils import (
     node_is_actionable,
     node_is_necessary,
@@ -42,7 +43,7 @@ def get_effects_of_attack_step(
 
 
 def get_attack_surface(
-    sim_settings: MalSimulatorSettings,
+    settings: AttackSurfaceSettings,
     sim_state: MalSimulatorState,
     actionability: Optional[NodePropertyRule],
     performed_nodes: Set[AttackGraphNode],
@@ -64,9 +65,9 @@ def get_attack_surface(
     from_nodes = from_nodes if from_nodes is not None else performed_nodes
     attack_surface: MutableSet[AttackGraphNode] = set()
 
-    skip_compromised = sim_settings.attack_surface_skip_compromised
-    skip_unviable = sim_settings.attack_surface_skip_unviable
-    skip_unnecessary = sim_settings.attack_surface_skip_unnecessary
+    skip_compromised = settings.skip_compromised
+    skip_unviable = settings.skip_unviable
+    skip_unnecessary = settings.skip_unnecessary
 
     for parent in from_nodes:
         for child in parent.children:

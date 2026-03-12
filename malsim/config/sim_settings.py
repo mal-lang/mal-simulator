@@ -1,5 +1,5 @@
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from malsim.config.node_property_rule import NodePropertyRule
@@ -27,6 +27,21 @@ class RewardMode(Enum):
 
 
 @dataclass
+class AttackSurfaceSettings:
+    """Settings for how to calculate the attack surface"""
+
+    # attack_surface_skip_compromised
+    # - if true do not add already compromised nodes to the attack surface
+    skip_compromised: bool = True
+    # attack_surface_skip_unviable
+    # - if true do not add unviable nodes to the attack surface
+    skip_unviable: bool = True
+    # attack_surface_skip_unnecessary
+    # - if true do not add unnecessary nodes to the attack surface
+    skip_unnecessary: bool = False
+
+
+@dataclass
 class MalSimulatorSettings:
     """Contains settings used in MalSimulator"""
 
@@ -44,15 +59,9 @@ class MalSimulatorSettings:
     # seed
     # - optionally run deterministic simulations with seed
     seed: Optional[int] = None
-    # attack_surface_skip_compromised
-    # - if true do not add already compromised nodes to the attack surface
-    attack_surface_skip_compromised: bool = True
-    # attack_surface_skip_unviable
-    # - if true do not add unviable nodes to the attack surface
-    attack_surface_skip_unviable: bool = True
-    # attack_surface_skip_unnecessary
-    # - if true do not add unnecessary nodes to the attack surface
-    attack_surface_skip_unnecessary: bool = False
+
+    attack_surface: AttackSurfaceSettings = field(default_factory=AttackSurfaceSettings)
+
     # If set to True, each attacker compromises/performs their
     # entry point nodes at the start of the simulation
     compromise_entrypoints_at_start: bool = True
@@ -81,3 +90,6 @@ class MalSimulatorSettings:
             self.attacker_reward_mode = RewardMode[self.attacker_reward_mode]
         if isinstance(self.defender_reward_mode, str):
             self.defender_reward_mode = RewardMode[self.defender_reward_mode]
+
+        if isinstance(self.attack_surface, dict):
+            self.attack_surface = AttackSurfaceSettings(**self.attack_surface)

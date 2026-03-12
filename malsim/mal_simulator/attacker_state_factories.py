@@ -21,7 +21,11 @@ from malsim.mal_simulator.ttc_utils import (
     get_impossible_attack_steps,
 )
 from malsim.config.agent_settings import AttackerSettings
-from malsim.config.sim_settings import MalSimulatorSettings, TTCMode
+from malsim.config.sim_settings import (
+    AttackSurfaceSettings,
+    MalSimulatorSettings,
+    TTCMode,
+)
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
@@ -31,7 +35,7 @@ if TYPE_CHECKING:
 
 def create_attacker_state(
     sim_state: MalSimulatorState,
-    sim_settings: MalSimulatorSettings,
+    attack_surface_settings: AttackSurfaceSettings,
     attacker_settings: AttackerSettings,
     name: str,
     entry_points: Set[AttackGraphNode],
@@ -55,7 +59,7 @@ def create_attacker_state(
 
         # Create an initial attack surface
         new_action_surface = get_attack_surface(
-            sim_settings,
+            attack_surface_settings,
             sim_state,
             attacker_settings.actionable_steps,
             compromised_nodes,
@@ -90,7 +94,7 @@ def create_attacker_state(
         # Build on previous attack surface (for performance)
         action_surface_additions = (
             get_attack_surface(
-                sim_settings,
+                attack_surface_settings,
                 sim_state,
                 attacker_settings.actionable_steps,
                 compromised_nodes | step_compromised_nodes,
@@ -181,7 +185,7 @@ def initial_attacker_state(
 
     return create_attacker_state(
         sim_state=sim_state,
-        sim_settings=sim_settings,
+        attack_surface_settings=sim_state.settings.attack_surface,
         name=attacker_settings.name,
         attacker_settings=attacker_settings,
         entry_points=entry_points,
