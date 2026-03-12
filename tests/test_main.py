@@ -28,7 +28,7 @@ def test_run_simulation(mock_input: Any) -> None:
 
     scenario = Scenario.load_from_file(scenario_file)
     sim = MalSimulator.from_scenario(scenario)
-    run_simulation(sim, scenario.agent_settings)
+    run_simulation(sim)
 
 
 @patch('builtins.input', return_value='\n')  # to not freeze on input()
@@ -41,4 +41,4 @@ def test_run_simulation_without_defender_agent(mock_input: Any) -> None:
     )
     scenario = Scenario.load_from_file(scenario_file)
     sim = MalSimulator.from_scenario(scenario)
-    run_simulation(sim, scenario.agent_settings)
+    run_simulation(sim)
