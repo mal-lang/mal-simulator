@@ -91,7 +91,7 @@ def agent_settings_from_dict(
             actionable_steps=NodePropertyRule.from_optional_dict(
                 d.get('actionable_steps')
             ),
-            rewards=NodePropertyRule.from_optional_dict(d.get('rewards'))
+            rewards=NodePropertyRule.from_optional_dict(d.get('rewards')),
             config=config,
             reward_mode=RewardMode[d.get('reward_mode', 'CUMULATIVE')],
         )
