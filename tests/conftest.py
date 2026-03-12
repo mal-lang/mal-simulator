@@ -13,6 +13,7 @@ from malsim.envs import MalSimVectorizedObsEnv
 
 ## Helpers
 
+
 def get_node(graph: AttackGraph, full_name: str) -> AttackGraphNode:
     node = graph.get_node_by_full_name(full_name)
     assert node, f'Node {full_name} does not exist in graph'
