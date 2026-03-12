@@ -1,12 +1,11 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 import logging
 
 import numpy as np
 
 from maltoolbox.attackgraph import AttackGraphNode
 
-from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.attack_surface import get_effects_of_attack_step
 from malsim.mal_simulator.graph_utils import (
     node_is_traversable,
@@ -149,7 +148,7 @@ def attacker_step(
 
         if can_compromise:
             if attempt_attacker_step(
-               sim_state, rng, sim_state.settings.ttc_mode, agent, node
+                sim_state, rng, sim_state.settings.ttc_mode, agent, node
             ):
                 successful_compromises.append(node)
                 logger.info(

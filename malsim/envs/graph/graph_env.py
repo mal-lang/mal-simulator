@@ -1,7 +1,7 @@
 import gymnasium as gym
 from typing import Any
 
-from malsim.config.sim_settings import AttackSurfaceSettings, RewardMode
+from malsim.config.sim_settings import AttackSurfaceSettings
 
 from .mal_spaces import (
     MALObsAttackStepSpace,

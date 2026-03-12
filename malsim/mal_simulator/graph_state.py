@@ -42,7 +42,9 @@ def compute_initial_graph_state(
 
     # TTC (Time to compromise) for each attack step
     # will only be set if TTCMode PRE_SAMLE/EXPECTED_VALUE is used
-    ttc_values = attack_step_ttc_values(graph.attack_steps, rng, settings.ttc_mode)
+    ttc_values = attack_step_ttc_values(
+        graph.attack_steps, rng=rng, ttc_mode=settings.ttc_mode
+    )
     # These steps will be enabled from the start of the simulation
     # depending on if bernoullis are sampled or not
     enabled_defenses = get_pre_enabled_defenses(

@@ -405,7 +405,6 @@ class MalSimVectorizedObsEnv(ParallelEnv[str, dict[str, Any], dict[str, str]]):
             nodes = [self.index_to_node(step_idx)]
         return nodes
 
-
     def _init_agent(self, agent: MalSimAgentState) -> None:
         # Fill dicts with env specific agent obs/infos
         self._agent_observations[agent.name] = self._create_blank_observation()

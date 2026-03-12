@@ -556,8 +556,6 @@ def test_scenario_advanced_agent_settings() -> None:
     assert isinstance(attacker, AttackerSettings)
     assert attacker.type == AgentType.ATTACKER
 
-    attack_graph = scenario.attack_graph
-
     # entry points
     assert {n.full_name for n in attacker.entry_points} == {
         'User:3:phishing',

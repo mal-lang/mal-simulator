@@ -343,6 +343,7 @@ def get_pre_enabled_defenses(
 
     return frozenset(pre_enabled_defenses)
 
+
 def is_impossible_attack_step(
     node: AttackGraphNode,
     ttc_dist: TTCDist | None,
@@ -350,6 +351,7 @@ def is_impossible_attack_step(
 ) -> bool:
     _ttc_dist = ttc_dist if ttc_dist else TTCDist.from_node(node)
     return not _ttc_dist.attempt_bernoulli(rng)
+
 
 def get_impossible_attack_steps(
     nodes: Iterable[AttackGraphNode],
