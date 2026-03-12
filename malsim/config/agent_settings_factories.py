@@ -51,10 +51,10 @@ def _validate_agent_dict(d: dict[str, Any]) -> dict[str, Any]:
     missing_keys = required_keys - d.keys()
 
     if illegal_keys:
-        raise ValueError(f"Illegal keys in agent scenario settings: {illegal_keys}")
+        raise ValueError(f'Illegal keys in agent scenario settings: {illegal_keys}')
 
     if illegal_keys:
-        raise ValueError(f"Missing keys in agent scenario settings: {missing_keys}")
+        raise ValueError(f'Missing keys in agent scenario settings: {missing_keys}')
 
     return d
 

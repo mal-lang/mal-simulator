@@ -40,12 +40,24 @@ def test_defend_compromised_defender(dummy_lang_graph: LanguageGraph) -> None:
 
     # Create attack graph with nodes
     ag = AttackGraph(dummy_lang_graph)
-    node0 = ag.add_node(lg_attack_step=dummy_and_attack_step, model_asset=dummy_asset0, node_id=0)
-    node1 = ag.add_node(lg_attack_step=dummy_defense_attack_step, model_asset=dummy_asset1, node_id=1)
-    node2 = ag.add_node(lg_attack_step=dummy_defense_attack_step, model_asset=dummy_asset2, node_id=2)
-    node3 = ag.add_node(lg_attack_step=dummy_and_attack_step, model_asset=dummy_asset3, node_id=3)
-    node4 = ag.add_node(lg_attack_step=dummy_and_attack_step, model_asset=dummy_asset4, node_id=4)
-    node5 = ag.add_node(lg_attack_step=dummy_and_attack_step, model_asset=dummy_asset5, node_id=5)
+    node0 = ag.add_node(
+        lg_attack_step=dummy_and_attack_step, model_asset=dummy_asset0, node_id=0
+    )
+    node1 = ag.add_node(
+        lg_attack_step=dummy_defense_attack_step, model_asset=dummy_asset1, node_id=1
+    )
+    node2 = ag.add_node(
+        lg_attack_step=dummy_defense_attack_step, model_asset=dummy_asset2, node_id=2
+    )
+    node3 = ag.add_node(
+        lg_attack_step=dummy_and_attack_step, model_asset=dummy_asset3, node_id=3
+    )
+    node4 = ag.add_node(
+        lg_attack_step=dummy_and_attack_step, model_asset=dummy_asset4, node_id=4
+    )
+    node5 = ag.add_node(
+        lg_attack_step=dummy_and_attack_step, model_asset=dummy_asset5, node_id=5
+    )
 
     # Connect nodes (Node1 -> Node3, Node4, Node5)
     node0.children.add(node3)
