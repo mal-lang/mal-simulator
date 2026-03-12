@@ -6,7 +6,8 @@ from maltoolbox.model import Model
 from maltoolbox.language import LanguageGraph
 
 from malsim import MalSimulator, run_simulation
-from malsim.scenario.scenario import Scenario, AttackerSettings, DefenderSettings
+from malsim.config.agent_settings import AttackerSettings, DefenderSettings
+from malsim.scenario.scenario import Scenario
 from malsim.policies import BreadthFirstAttacker, PassiveAgent
 
 

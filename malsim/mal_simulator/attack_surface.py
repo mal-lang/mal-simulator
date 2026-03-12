@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 from collections import deque
-from collections.abc import Set
+from collections.abc import MutableSet, Set
 
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.graph_utils import (
@@ -21,10 +21,10 @@ def get_effects_of_attack_step(
     sim_state: MalSimulatorState,
     attack_step: AttackGraphNode,
     performed_nodes: Set[AttackGraphNode],
-) -> set[AttackGraphNode]:
+) -> Set[AttackGraphNode]:
     """Get nodes performed as a consequence of `attack_step` being compromised"""
     performed = set(performed_nodes) | {attack_step}
-    effects: set[AttackGraphNode] = set()
+    effects: MutableSet[AttackGraphNode] = set()
     potential_effects = deque(
         n for n in attack_step.children if n.causal_mode == 'effect'
     )
@@ -38,7 +38,7 @@ def get_effects_of_attack_step(
             potential_effects += (
                 n for n in effect.children if n.causal_mode == 'effect'
             )
-    return effects
+    return frozenset(effects)
 
 
 def get_attack_surface(
@@ -48,7 +48,7 @@ def get_attack_surface(
     global_actionability: dict[AttackGraphNode, bool],
     performed_nodes: Set[AttackGraphNode],
     from_nodes: Optional[Set[AttackGraphNode]] = None,
-) -> frozenset[AttackGraphNode]:
+) -> Set[AttackGraphNode]:
     """
     Calculate the attack surface of the attacker.
     If from_nodes are provided only calculate the attack surface
@@ -63,7 +63,7 @@ def get_attack_surface(
     """
 
     from_nodes = from_nodes if from_nodes is not None else performed_nodes
-    attack_surface: set[AttackGraphNode] = set()
+    attack_surface: MutableSet[AttackGraphNode] = set()
 
     skip_compromised = sim_settings.attack_surface_skip_compromised
     skip_unviable = sim_settings.attack_surface_skip_unviable

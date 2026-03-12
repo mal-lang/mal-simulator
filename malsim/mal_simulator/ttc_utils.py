@@ -3,7 +3,7 @@
 from __future__ import annotations
 import logging
 from enum import Enum
-from collections.abc import Mapping
+from collections.abc import Mapping, Set
 
 from typing import Any, Iterable, Optional, TYPE_CHECKING
 
@@ -299,7 +299,7 @@ def get_pre_enabled_defenses(
     defense_steps: list[AttackGraphNode],
     sample: bool,
     rng: Optional[np.random.Generator] = None,
-) -> set[AttackGraphNode]:
+) -> Set[AttackGraphNode]:
     """
     Calculate and return pre defenses that got a non-infinite
     ttc value sample, which means they will be pre enabled
@@ -324,14 +324,14 @@ def get_pre_enabled_defenses(
             if sample and ttc_dist.attempt_bernoulli(rng or np.random.default_rng()):
                 pre_enabled_defenses.add(node)
 
-    return pre_enabled_defenses
+    return frozenset(pre_enabled_defenses)
 
 
 def get_impossible_attack_steps(
     nodes: Iterable[AttackGraphNode],
     rng: Optional[np.random.Generator] = None,
     ttc_dists: Optional[Mapping[AttackGraphNode, TTCDist]] = None,
-) -> set[AttackGraphNode]:
+) -> Set[AttackGraphNode]:
     """
     Calculate and return which attack steps in `nodes` gets
     infintity TTC in sample which means they are impossible.

@@ -1,3 +1,5 @@
+from collections.abc import MutableSet
+
 from maltoolbox.language import LanguageGraphAssociation
 import numpy as np
 
@@ -136,12 +138,12 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
             ]
         )
     )
-    assoc2asset: set[tuple[int, int]] = set()
+    assoc2asset: MutableSet[tuple[int, int]] = set()
     for i, (_, asset1, asset2) in enumerate(sorted_associations):
         assoc2asset.add((i, sorted_assets.index(asset1)))
         assoc2asset.add((i, sorted_assets.index(asset2)))
 
-    asset2asset: set[tuple[int, int]] = set()
+    asset2asset: MutableSet[tuple[int, int]] = set()
     for _, asset1, asset2 in sorted_associations:
         asset1_idx = sorted_assets.index(asset1)
         asset2_idx = sorted_assets.index(asset2)
@@ -160,8 +162,8 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         ),
         id=np.array([node.id for node in sorted_and_or_steps], dtype=np.int64),
     )
-    step2logic: set[tuple[int, int]] = set()
-    logic2step: set[tuple[int, int]] = set()
+    step2logic: MutableSet[tuple[int, int]] = set()
+    logic2step: MutableSet[tuple[int, int]] = set()
     for logic_gate_id, node in enumerate(sorted_and_or_steps):
         logic2step.add((logic_gate_id, node.id))
         for child in node.children:

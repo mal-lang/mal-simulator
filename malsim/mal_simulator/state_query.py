@@ -1,6 +1,7 @@
 """Query node properties affected by agent states"""
 
 from __future__ import annotations
+from collections.abc import Set
 
 from maltoolbox.attackgraph import AttackGraphNode
 from maltoolbox.attackgraph import AttackGraph
@@ -15,7 +16,7 @@ from malsim.types import AgentStates
 def node_is_enabled_defense(
     attack_graph: AttackGraph,
     agent_states: AgentStates,
-    live_agents: set[str],
+    live_agents: Set[str],
     node: AttackGraphNode | str,
 ) -> bool:
     """Get a nodes defense status"""
@@ -29,7 +30,7 @@ def node_is_enabled_defense(
 def node_is_compromised(
     attack_graph: AttackGraph,
     agent_states: AgentStates,
-    live_agents: set[str],
+    live_agents: Set[str],
     node: AttackGraphNode | str,
 ) -> bool:
     """Return True if node is compromised by any attacker agent"""
@@ -42,9 +43,9 @@ def node_is_compromised(
 
 def compromised_nodes(
     agent_states: AgentStates,
-    live_agents: set[str],
-) -> set[AttackGraphNode]:
-    compromised: set[AttackGraphNode] = set()
+    live_agents: Set[str],
+) -> Set[AttackGraphNode]:
+    compromised: Set[AttackGraphNode] = set()
     for attacker in get_attacker_agents(agent_states, live_agents):
         compromised |= attacker.performed_nodes
     return compromised

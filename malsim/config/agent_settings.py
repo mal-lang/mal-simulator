@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Set
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
@@ -45,8 +46,8 @@ class AttackerSettings(AgentRuntimeMixin):
     """Settings for an attacker in a scenario."""
 
     name: str
-    entry_points: set[str] | set[AttackGraphNode]
-    goals: set[str] | set[AttackGraphNode] = field(default_factory=set)
+    entry_points: Set[str] | Set[AttackGraphNode]
+    goals: Set[str] | Set[AttackGraphNode] = field(default_factory=set)
     policy: Optional[type] = None
     actionable_steps: Optional[NodePropertyRule] = None
     rewards: Optional[NodePropertyRule] = None

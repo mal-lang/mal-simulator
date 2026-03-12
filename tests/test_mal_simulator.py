@@ -1,6 +1,7 @@
 """Test MalSimulator class"""
 
 from __future__ import annotations
+from collections.abc import MutableSet, Set
 import random
 from typing import TYPE_CHECKING, Any
 
@@ -999,7 +1000,7 @@ def test_simulator_false_positives_after_done() -> None:
     assert sim.done()
 
     # Simulation is done, but we can still observe false positives
-    false_positives: set[AttackGraphNode] = set()
+    false_positives: Set[AttackGraphNode] = set()
     for _ in range(100):
         states = sim.step({})
         defender_state = states['defender']
@@ -1601,19 +1602,19 @@ def test_actions_effects() -> None:
 
         def get_all_effect_children(
             node: LanguageGraphAttackStep,
-        ) -> set[LanguageGraphAttackStep]:
-            children = set()
+        ) -> Set[LanguageGraphAttackStep]:
+            children: MutableSet[LanguageGraphAttackStep] = set()
             for child in node.children:
                 if child.causal_mode == 'effect':
                     children.add(child)
                 else:
-                    children.update(list(get_all_effect_children(child)))
+                    children |= get_all_effect_children(child)
             return children
 
-        all_effect_children = set()
+        all_effect_children: MutableSet[LanguageGraphAttackStep] = set()
         for action_node in action_nodes:
             action_lg_step = action_node.lg_attack_step
-            all_effect_children.update(get_all_effect_children(action_lg_step))
+            all_effect_children |= get_all_effect_children(action_lg_step)
 
         for effect_node in effect_nodes:
             assert effect_node.lg_attack_step in all_effect_children

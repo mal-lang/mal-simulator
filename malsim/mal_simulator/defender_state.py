@@ -1,5 +1,5 @@
+from collections.abc import Set
 from dataclasses import dataclass
-from types import MappingProxyType
 from typing import Any, Optional
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
@@ -12,14 +12,14 @@ class MalSimDefenderState(MalSimAgentState):
     """Stores the state of a defender in the simulator"""
 
     # Contains all steps performed by any attacker
-    compromised_nodes: frozenset[AttackGraphNode]
+    compromised_nodes: Set[AttackGraphNode]
     # Contains steps performed by any attacker in last step
-    step_compromised_nodes: frozenset[AttackGraphNode]
+    step_compromised_nodes: Set[AttackGraphNode]
     # Contains all observed steps by any attacker
     # in regards to false positives/negatives and observability
-    observed_nodes: frozenset[AttackGraphNode]
+    observed_nodes: Set[AttackGraphNode]
     # Contains observed steps made by any attacker in last step
-    step_observed_nodes: frozenset[AttackGraphNode]
+    step_observed_nodes: Set[AttackGraphNode]
 
     # Agent specific rules for node properties
     reward_rule: Optional[NodePropertyRule] = None
@@ -38,7 +38,7 @@ class MalSimDefenderState(MalSimAgentState):
         object.__setattr__(
             self,
             'performed_nodes_order',
-            MappingProxyType(state['performed_nodes_order']),
+            state['performed_nodes_order'],
         )
         for key, value in state.items():
             if key not in ('performed_nodes_order'):
@@ -46,7 +46,7 @@ class MalSimDefenderState(MalSimAgentState):
 
 
 def get_defender_agents(
-    agent_states: AgentStates, alive_agents: set[str], only_alive: bool = False
+    agent_states: AgentStates, alive_agents: Set[str], only_alive: bool = False
 ) -> list[MalSimDefenderState]:
     """Return list of mutable defender agent states of defenders.
     If `only_alive` is set to True, only return the agents that are alive.
