@@ -220,11 +220,11 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
         self.lang_serializer = LangSerializer(
             self.attack_graph.lang_graph, split_assoc_types=False, split_step_types=True
         )
-        self.observation_spaces: dict[str, MALObs] = {  # type: ignore
+        self.observation_spaces: dict[str, MALObs] = {
             'attacker': MALAttackerObs(self.lang_serializer),
             'defender': MALDefenderObs(self.lang_serializer),
         }
-        self.action_spaces: dict[  # type: ignore
+        self.action_spaces: dict[
             str, MALObsAttackStepSpace | MALObsDefenseStepSpace
         ] = {
             'attacker': MALObsAttackStepSpace(self.sim),
