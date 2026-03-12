@@ -35,7 +35,7 @@ class AgentConfig:
     action_ordering: ActionOrdering = ActionOrdering.NOTHING
     # The random seed to initialize the randomness engine with.
     # If None, no seed is set and thus results may be non-deterministic.
-    seed: Optional[int] = None
+    seed: int | None = None
 
 
 def parse_agent_config(config_dict: dict[str, Any]) -> AgentConfig:
@@ -159,7 +159,7 @@ def _update_targets(
         [deque[AttackGraphNode], list[AttackGraphNode]], deque[AttackGraphNode]
     ],
     disabled_nodes: Set[AttackGraphNode],
-    current_target: Optional[AttackGraphNode] = None,
+    current_target: AttackGraphNode | None = None,
 ) -> deque[AttackGraphNode]:
     if current_target and current_target not in disabled_nodes:
         # If self.current_target was not compromised, e.g. due to TTCs,
