@@ -52,12 +52,13 @@ class BreadthFirstAttacker(DecisionAgent):
     ) -> Optional[AttackGraphNode]:
         """Receive the next action according to agent policy (bfs/dfs)"""
 
-        self._update_targets(
+        self._targets = self._update_targets(
             new_nodes=set(
                 agent_state.step_action_surface_additions
                 if self._started
                 else agent_state.action_surface
             ),
+            old_target_queue=self._targets,
             disabled_nodes=set(
                 agent_state.step_action_surface_removals
                 | agent_state.step_performed_nodes
@@ -70,9 +71,10 @@ class BreadthFirstAttacker(DecisionAgent):
 
     def _update_targets(
         self,
-        new_nodes: Set[AttackGraphNode],
-        disabled_nodes: Set[AttackGraphNode],
-    ) -> None:
+        new_nodes: set[AttackGraphNode],
+        old_target_queue: deque[AttackGraphNode],
+        disabled_nodes: set[AttackGraphNode],
+    ) -> deque[AttackGraphNode]:
         new_targets: list[AttackGraphNode] = []
         if self._settings['seed']:
             # If a seed is set, we assume the user wants determinism in the
@@ -90,14 +92,19 @@ class BreadthFirstAttacker(DecisionAgent):
         if self._current_target and self._current_target not in disabled_nodes:
             # If self.current_target was not compromised, e.g. due to TTCs,
             # it remains in action surface and should be added as a target.
-            self._targets.append(self._current_target)
+            old_target_queue.append(self._current_target)
 
         # Enabled defenses may remove previously possible attack steps.
         if disabled_nodes:
-            self._targets = deque(n for n in self._targets if n not in disabled_nodes)
+            new_target_queue = deque(
+                n for n in old_target_queue if n not in disabled_nodes
+            )
+        else:
+            new_target_queue = old_target_queue
 
         # Use the extend method to add new targets
-        getattr(self._targets, self._extend_method)(new_targets)
+        getattr(new_target_queue, self._extend_method)(new_targets)
+        return new_target_queue
 
     def _select_next_target(self) -> AttackGraphNode | None:
         """
