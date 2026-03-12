@@ -15,14 +15,14 @@ def test_scenario_obj_files() -> None:
     scenario = Scenario(
         lang_file='tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar',
         model='tests/testdata/models/traininglang_model.yml',
-        agent_settings={
-            'Attacker1': AttackerSettings(
+        agents=(
+            AttackerSettings(
                 name='Attacker1',
-                entry_points={'User:3:phishing', 'Host:0:connect'},
+                entry_points=frozenset({'User:3:phishing', 'Host:0:connect'}),
                 policy=BreadthFirstAttacker,
             ),
-            'Defender1': DefenderSettings(name='Defender1', policy=PassiveAgent),
-        },
+            DefenderSettings(name='Defender1', policy=PassiveAgent),
+        ),
     )
 
     scenario.save_to_file('scenario1.yml')
@@ -39,17 +39,18 @@ def test_scenario_obj_file_and_dict() -> None:
     model = Model.load_from_file(
         'tests/testdata/models/traininglang_model.yml', lang_graph
     )
+
     scenario = Scenario(
         lang_file='tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar',
         model=model.to_dict(),
-        agent_settings={
-            'Attacker1': AttackerSettings(
+        agents=(
+            AttackerSettings(
                 name='Attacker1',
-                entry_points={'User:3:phishing', 'Host:0:connect'},
+                entry_points=frozenset({'User:3:phishing', 'Host:0:connect'}),
                 policy=BreadthFirstAttacker,
             ),
-            'Defender1': DefenderSettings(name='Defender1', policy=PassiveAgent),
-        },
+            DefenderSettings(name='Defender1', policy=PassiveAgent),
+        ),
     )
 
     scenario.save_to_file('scenario2.yml')
@@ -66,17 +67,18 @@ def test_scenario_obj_file_and_model() -> None:
     model = Model.load_from_file(
         'tests/testdata/models/traininglang_model.yml', lang_graph
     )
+
     scenario = Scenario(
         lang_file='tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar',
         model=model,
-        agent_settings={
-            'Attacker1': AttackerSettings(
+        agents=(
+            AttackerSettings(
                 name='Attacker1',
-                entry_points={'User:3:phishing', 'Host:0:connect'},
+                entry_points=frozenset({'User:3:phishing', 'Host:0:connect'}),
                 policy=BreadthFirstAttacker,
             ),
-            'Defender1': DefenderSettings(name='Defender1', policy=PassiveAgent),
-        },
+            DefenderSettings(name='Defender1', policy=PassiveAgent),
+        ),
     )
 
     scenario.save_to_file('scenario3.yml')

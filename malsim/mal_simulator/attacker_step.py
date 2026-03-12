@@ -1,11 +1,12 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 import logging
 
 import numpy as np
 
 from maltoolbox.attackgraph import AttackGraphNode
 
+from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.attack_surface import get_effects_of_attack_step
 from malsim.mal_simulator.graph_utils import (
     node_is_traversable,
@@ -38,12 +39,10 @@ def attacker_is_terminated(attacker_state: MalSimAttackerState) -> bool:
             'Attacker "%s" action surface is empty, terminate', attacker_state.name
         )
         return True
-    if attacker_state.goals:
+    goals = attacker_state.settings.goals
+    if goals:
         # Attacker is terminated if it has goals and all goals are met
-        return (
-            attacker_state.goals & attacker_state.performed_nodes
-            == attacker_state.goals
-        )
+        return goals & attacker_state.performed_nodes == goals
     # Otherwise not terminated
     return False
 
@@ -84,9 +83,9 @@ def attempt_attacker_step(
 
     num_attempts = agent.num_attempts[node] + 1
 
-    if node in agent.ttc_overrides:
+    if agent.settings.ttc_dists and node in agent.settings.ttc_dists:
         # If this agent has custom ttc distribution set for this node, use it
-        ttc_dist = agent.ttc_overrides[node]
+        ttc_dist = agent.settings.ttc_dists[node]
     else:
         ttc_dist = TTCDist.from_node(node)
 
@@ -139,7 +138,7 @@ def attacker_step(
             'comes from the agents action surface.'
         )
 
-        if node in agent.entry_points:
+        if node in agent.settings.entry_points:
             # Entrypoints can be compromised as long as they are viable
             can_compromise = node_is_viable(sim_state, node)
         else:
@@ -150,7 +149,7 @@ def attacker_step(
 
         if can_compromise:
             if attempt_attacker_step(
-                sim_state, rng, sim_state.settings.ttc_mode, agent, node
+               sim_state, rng, sim_state.settings.ttc_mode, agent, node
             ):
                 successful_compromises.append(node)
                 logger.info(

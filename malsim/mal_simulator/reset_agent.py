@@ -41,7 +41,6 @@ def reset_attackers(
 
 def reset_defenders(
     sim_state: MalSimulatorState,
-    sim_settings: MalSimulatorSettings,
     agent_settings: AgentSettings,
     pre_compromised_nodes: Set[AttackGraphNode],
     rng: np.random.Generator,
@@ -53,7 +52,6 @@ def reset_defenders(
     for defender_settings in get_defender_settings(agent_settings).values():
         new_defender_state = initial_defender_state(
             sim_state,
-            sim_settings,
             defender_settings,
             pre_compromised_nodes,
             sim_state.graph_state.pre_enabled_defenses,
@@ -79,7 +77,6 @@ def reset_agents(
 
     defender_states, alive_defenders = reset_defenders(
         sim_state,
-        sim_settings,
         agent_settings,
         pre_compromised_nodes,
         rng,

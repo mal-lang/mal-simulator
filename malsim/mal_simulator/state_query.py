@@ -64,8 +64,8 @@ def node_ttc_value(
 
     # If agent overrides the global TTC values
     # return that value instead of the global
-    if node in attacker_state.ttc_value_overrides:
-        return attacker_state.ttc_value_overrides[node]
+    if attacker_state.ttc_values and node in attacker_state.ttc_values:
+        return attacker_state.ttc_values[node]
 
     assert node in attacker_state.sim_state.graph_state.ttc_values, (
         f'Node {node.full_name} does not have a ttc value'

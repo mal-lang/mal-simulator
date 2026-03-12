@@ -32,8 +32,9 @@ def test_load_scenario() -> None:
     scenario = Scenario.load_from_file(
         path_relative_to_tests('./testdata/scenarios/simple_scenario.yml')
     )
-    assert scenario.rewards
-    rewards_per_node = scenario.rewards
+    assert scenario.attacker_settings['Attacker1'].rewards
+    rewards_per_node = scenario.attacker_settings['Attacker1'].rewards
+    assert rewards_per_node.by_asset_name
     # Verify rewards were added as defined in './testdata/simple_scenario.yml'
     assert rewards_per_node.by_asset_name['OS App']['notPresent'] == 2
     assert rewards_per_node.by_asset_name['OS App']['supplyChainAuditing'] == 7
@@ -46,12 +47,12 @@ def test_load_scenario() -> None:
 
     # Verify attacker entrypoint was added
     attack_step = get_node(scenario.attack_graph, 'OS App:fullAccess')
-    attacker1 = scenario.agent_settings['Attacker1']
+    attacker1 = scenario.attacker_settings['Attacker1']
     assert isinstance(attacker1, AttackerSettings)
-    assert attack_step.full_name in attacker1.entry_points
+    assert attack_step in attacker1.entry_points
 
-    assert scenario.agent_settings['Attacker1'].policy == BreadthFirstAttacker
-    assert scenario.agent_settings['Defender1'].policy == PassiveAgent
+    assert scenario.attacker_settings['Attacker1'].policy == BreadthFirstAttacker
+    assert scenario.defender_settings['Defender1'].policy == PassiveAgent
 
 
 def test_save_scenario(model: Model, tmp_path: Any) -> None:
@@ -63,29 +64,34 @@ def test_save_scenario(model: Model, tmp_path: Any) -> None:
             'testdata/langs/org.mal-lang.coreLang-1.0.0.mar'
         ),
         model=model,
-        sim_settings=MalSimulatorSettings(
-            rewards=NodePropertyRule(
-                by_asset_type={'Application': {'fullAccess': 1000}}
+        sim_settings=MalSimulatorSettings(),
+        agents=(
+            AttackerSettings(
+                name='Attacker1',
+                entry_points=frozenset(),
+                rewards=NodePropertyRule(
+                    by_asset_type={'Application': {'fullAccess': 1000}}
+                ),
             ),
-            false_negative_rates=NodePropertyRule(
-                by_asset_type={'Application': {'fullAccess': 0.1}}
-            ),
-            false_positive_rates=NodePropertyRule(
-                by_asset_type={'Application': {'fullAccess': 0.2}}
-            ),
-        ),
-        agent_settings={
-            'Attacker1': AttackerSettings(name='Attacker1', entry_points=set()),
-            'Defender1': DefenderSettings(
+            DefenderSettings(
                 name='Defender1',
                 observable_steps=NodePropertyRule(
-                    by_asset_type={'Application': ['fullAccess']}
+                    by_asset_type={'Application': {'fullAccess': True}}
                 ),
                 actionable_steps=NodePropertyRule(
-                    by_asset_type={'Application': ['fullAccess']}
+                    by_asset_type={'Application': {'fullAccess': True}}
+                ),
+                rewards=NodePropertyRule(
+                    by_asset_type={'Application': {'fullAccess': 1000}}
+                ),
+                false_negative_rates=NodePropertyRule(
+                    by_asset_type={'Application': {'fullAccess': 0.1}}
+                ),
+                false_positive_rates=NodePropertyRule(
+                    by_asset_type={'Application': {'fullAccess': 0.2}}
                 ),
             ),
-        },
+        ),
     )
     save_path = tmp_path / 'saved_scenario.yml'
     scenario.save_to_file(save_path)
@@ -103,8 +109,8 @@ def test_extend_scenario() -> None:
         )
     )
     num_nodes_with_reward = 0
-    assert scenario.rewards
-    rewards_per_node = scenario.rewards
+    assert scenario.defender_settings['Defender1'].rewards
+    rewards_per_node = scenario.defender_settings['Defender1'].rewards
 
     for node in scenario.attack_graph.nodes.values():
         reward = rewards_per_node.value(node, 0)
@@ -131,8 +137,8 @@ def test_extend_scenario_deeper() -> None:
             './testdata/scenarios/sub/traininglang_scenario_extended_again.yml'
         )
     )
-    assert scenario.sim_settings.rewards
-    rewards_per_node = scenario.sim_settings.rewards
+    assert scenario.defender_settings['Defender1'].rewards
+    rewards_per_node = scenario.defender_settings['Defender1'].rewards
     num_nodes_with_reward = 0
     for node in scenario.attack_graph.nodes.values():
         reward = rewards_per_node.value(node, 0)
@@ -160,17 +166,18 @@ def test_extend_scenario_override_lang_model() -> None:
             './testdata/scenarios/sub/traininglang_scenario_override_lang_model.yml'
         )
     )
+    attackgraph = scenario.attack_graph
 
     # No reward overrides
-    assert scenario.rewards
-    rewards_per_node = scenario.rewards.per_node(scenario.attack_graph)
-    assert rewards_per_node['Host:0:notPresent'] == 2
-    assert rewards_per_node['Host:0:access'] == 4
-    assert rewards_per_node['Host:1:notPresent'] == 7
-    assert rewards_per_node['Host:1:access'] == 5
-    assert rewards_per_node['Data:2:notPresent'] == 8
-    assert rewards_per_node['Data:2:read'] == 5
-    assert rewards_per_node['Data:2:modify'] == 10
+    assert scenario.attacker_settings['Attacker1'].rewards
+    rewards_per_node = scenario.attacker_settings['Attacker1'].rewards
+    assert rewards_per_node[attackgraph.get_node_by_full_name('Host:0:notPresent')] == 2
+    assert rewards_per_node[attackgraph.get_node_by_full_name('Host:0:access')] == 4
+    assert rewards_per_node[attackgraph.get_node_by_full_name('Host:1:notPresent')] == 7
+    assert rewards_per_node[attackgraph.get_node_by_full_name('Host:1:access')] == 5
+    assert rewards_per_node[attackgraph.get_node_by_full_name('Data:2:notPresent')] == 8
+    assert rewards_per_node[attackgraph.get_node_by_full_name('Data:2:read')] == 5
+    assert rewards_per_node[attackgraph.get_node_by_full_name('Data:2:modify')] == 10
 
     # No agent overrides
     assert len(scenario.agent_settings) == 2
@@ -184,7 +191,9 @@ def test_load_scenario_no_defender_agent() -> None:
         path_relative_to_tests('./testdata/scenarios/no_defender_agent_scenario.yml')
     )
     assert 'defender' not in scenario.agent_settings
-    assert isinstance(scenario.agent_settings['attacker1'].agent, BreadthFirstAttacker)
+    assert isinstance(
+        scenario.attacker_settings['attacker1'].agent, BreadthFirstAttacker
+    )
 
 
 def test_load_scenario_agent_class_error() -> None:
@@ -213,7 +222,7 @@ def test_load_scenario_observability_given() -> None:
 
     # Make sure only attack steps of name fullAccess
     # part of asset type Application are observable.
-    defender_agent = scenario.agent_settings['Defender1']
+    defender_agent = scenario.defender_settings['Defender1']
     assert isinstance(defender_agent, DefenderSettings)
     observable_steps = defender_agent.observable_steps
     assert observable_steps
@@ -246,7 +255,7 @@ def test_load_scenario_observability_not_given() -> None:
     scenario = Scenario.load_from_file(
         path_relative_to_tests('./testdata/scenarios/simple_scenario.yml')
     )
-    defender_agent = scenario.agent_settings['Defender1']
+    defender_agent = scenario.defender_settings['Defender1']
     assert isinstance(defender_agent, DefenderSettings)
     assert not defender_agent.observable_steps
 
@@ -369,10 +378,13 @@ def test_load_scenario_false_positive_negative_rate() -> None:
     host_1_access_fn_rate = 0.5
     user_3_compromise_fn_rate = 1.0
 
-    assert scenario.sim_settings.false_negative_rates
-    assert scenario.sim_settings.false_positive_rates
-    fpr_per_node = scenario.sim_settings.false_positive_rates
-    fnr_per_node = scenario.sim_settings.false_negative_rates
+    defender_settings = scenario.defender_settings['defender']
+
+    assert isinstance(defender_settings, DefenderSettings)
+    assert defender_settings.false_negative_rates
+    assert defender_settings.false_positive_rates
+    fpr_per_node = defender_settings.false_positive_rates
+    fnr_per_node = defender_settings.false_negative_rates
 
     for node in scenario.attack_graph.nodes.values():
         if node.full_name == 'Host:0:access':
@@ -517,24 +529,22 @@ def test_scenario_advanced_agent_settings() -> None:
     assert scenario._model_file
     assert scenario._model_file.endswith('models/traininglang_model.yml')
 
-    # --- global rewards ---
-    assert isinstance(scenario.rewards, NodePropertyRule)
-    global_rewards = scenario.rewards.by_asset_name
-    assert global_rewards['Host:0']['notPresent'] == 2
-    assert global_rewards['Host:0']['access'] == 4
-    assert global_rewards['Host:1']['notPresent'] == 7
-    assert global_rewards['Host:1']['access'] == 5
-    assert global_rewards['Data:2']['notPresent'] == 8
-    assert global_rewards['Data:2']['read'] == 5
-    assert global_rewards['Data:2']['modify'] == 10
+    # --- attacker rewards ---
+    assert isinstance(scenario.attacker_settings['Attacker1'].rewards, NodePropertyRule)
+    attacker_rewards = scenario.attacker_settings['Attacker1'].rewards.by_asset_name
+    assert attacker_rewards
+    assert attacker_rewards['Host:0']['access'] == 4
+    assert attacker_rewards['Host:1']['access'] == 5
+    assert attacker_rewards['Data:2']['read'] == 5
+    assert attacker_rewards['Data:2']['modify'] == 10
 
     # --- agents ---
-    agents = scenario.agent_settings
-    assert 'Attacker1' in agents
-    assert 'Defender1' in agents
 
-    attacker = agents['Attacker1']
-    defender = agents['Defender1']
+    assert 'Attacker1' in scenario.attacker_settings
+    assert 'Defender1' in scenario.defender_settings
+
+    attacker = scenario.attacker_settings['Attacker1']
+    defender = scenario.defender_settings['Defender1']
 
     # -----------------------
     # Attacker1
@@ -543,7 +553,7 @@ def test_scenario_advanced_agent_settings() -> None:
     assert attacker.type == AgentType.ATTACKER
 
     # entry points
-    assert attacker.entry_points == {
+    assert {n.full_name for n in attacker.entry_points} == {
         'User:3:phishing',
         'Host:0:connect',
     }
@@ -560,6 +570,7 @@ def test_scenario_advanced_agent_settings() -> None:
 
     # observable_steps
     assert attacker.rewards is not None
+    assert attacker.rewards.by_asset_name
     assert attacker.rewards.by_asset_name['Host:0']['authenticate'] == 1000
 
     # -----------------------
@@ -578,9 +589,12 @@ def test_scenario_advanced_agent_settings() -> None:
     assert isinstance(defender.false_positive_rates, NodePropertyRule)
     assert isinstance(defender.false_negative_rates, NodePropertyRule)
 
+    assert defender.false_negative_rates.by_asset_type
     assert defender.false_negative_rates.by_asset_type['Host']['access'] == 0.5
+    assert defender.false_positive_rates.by_asset_type
     assert defender.false_positive_rates.by_asset_type['Host']['connect'] == 0.5
 
     # Rewards (defender has none in file)
     assert defender.rewards is not None
+    assert defender.rewards.by_asset_name
     assert defender.rewards.by_asset_name['Host:0']['notPresent'] == 100

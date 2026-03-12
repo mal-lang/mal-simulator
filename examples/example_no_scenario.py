@@ -10,6 +10,7 @@ from maltoolbox.language import LanguageGraph
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.model import Model
 
+from malsim.config.agent_settings import AttackerSettings, DefenderSettings
 from malsim.mal_simulator import MalSimulator, MalSimDefenderState, MalSimAttackerState
 from malsim.policies import BreadthFirstAttacker, DefendFutureCompromisedDefender
 
@@ -23,14 +24,22 @@ def test_example_no_scenario() -> None:
     corelang_graph = LanguageGraph.from_mar_archive(file_lang)
     model = Model.load_from_file(path_to_model, corelang_graph)
     attack_graph = AttackGraph(corelang_graph, model)
-    sim = MalSimulator(attack_graph)
-
-    # Register attacker and defender
     attacker_name = 'MyAttacker'
-    sim.register_attacker(attacker_name, {'Program 1:fullAccess'})
-    attacker_policy = BreadthFirstAttacker({})
     defender_name = 'MyDefender'
-    sim.register_defender(defender_name)
+    sim = MalSimulator(
+        attack_graph,
+        agents=(
+            AttackerSettings(
+                name=attacker_name,
+                entry_points=frozenset(
+                    {attack_graph.get_node_by_full_name('Program 1:fullAccess')}
+                ),
+            ),
+            DefenderSettings(name=defender_name),
+        ),
+    )
+
+    attacker_policy = BreadthFirstAttacker({})
     defender_policy = DefendFutureCompromisedDefender({})
 
     states = sim.reset()

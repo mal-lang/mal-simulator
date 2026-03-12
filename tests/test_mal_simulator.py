@@ -31,7 +31,6 @@ import numpy as np
 import pytest
 
 from malsim.policies.random_agent import RandomAgent
-from malsim.types import AgentSettings
 from .conftest import get_node
 
 if TYPE_CHECKING:
@@ -39,26 +38,23 @@ if TYPE_CHECKING:
     from maltoolbox.model import Model
 
 
-def test_init(corelang_lang_graph: LanguageGraph, model: Model) -> None:
-    attack_graph = AttackGraph(corelang_lang_graph, model)
-    MalSimulator(attack_graph)
-
-
 def test_init_with_agent_settings(
     corelang_lang_graph: LanguageGraph, model: Model
 ) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    entry_points = {'OS App:localConnect'}
-    goals = {'OS App:fullAccess'}
+    entry_points = frozenset(
+        {attack_graph.get_node_by_full_name('OS App:localConnect')}
+    )
+    goals = frozenset({attack_graph.get_node_by_full_name('OS App:fullAccess')})
 
-    agent_settings: AgentSettings = {
-        'Attacker1': AttackerSettings(
+    agent_settings = (
+        AttackerSettings(
             name='Attacker1', entry_points=entry_points, goals=goals, policy=RandomAgent
         ),
-        'Defender1': DefenderSettings(name='Defender1', policy=RandomAgent),
-    }
+        DefenderSettings(name='Defender1', policy=RandomAgent),
+    )
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimulator(attack_graph, agent_settings=agent_settings)
+    sim = MalSimulator(attack_graph, agents=agent_settings)
 
     # Make sure the agents were registered
     assert sim.agent_states.keys() == {'Attacker1', 'Defender1'}
@@ -74,7 +70,18 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     agent_entry_point = 'OS App:localConnect'
     attacker_name = 'testagent'
 
-    sim = MalSimulator(attack_graph, sim_settings=MalSimulatorSettings(seed=10))
+    sim = MalSimulator(
+        attack_graph,
+        sim_settings=MalSimulatorSettings(seed=10),
+        agents=(
+            AttackerSettings(
+                name=attacker_name,
+                entry_points=frozenset(
+                    {attack_graph.get_node_by_full_name(agent_entry_point)}
+                ),
+            ),
+        ),
+    )
 
     viability_before = {
         n.full_name: v for n, v in sim.sim_state.graph_state.viability_per_node.items()
@@ -85,7 +92,6 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     enabled_defenses = {
         n.full_name for n in sim.sim_state.graph_state.pre_enabled_defenses
     }
-    sim.register_attacker_settings(AttackerSettings(attacker_name, {agent_entry_point}))
     assert attacker_name in sim.agent_states
     assert len(sim.agent_states) == 1
     attacker_state = sim.agent_states[attacker_name]
@@ -113,7 +119,9 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
 
     # Re-creating the simulator object with the same seed
     # should result in getting the same viability and necessity values
-    sim = MalSimulator(attack_graph, sim_settings=MalSimulatorSettings(seed=10))
+    sim = MalSimulator(
+        attack_graph, sim_settings=MalSimulatorSettings(seed=10), agents=()
+    )
     for node, viable in sim.sim_state.graph_state.viability_per_node.items():
         # viability is the same after reset
         assert viability_before[node.full_name] == viable
@@ -123,44 +131,13 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
         assert necessity_before[node.full_name] == necessary
 
 
-def test_register_agent_attacker(
-    corelang_lang_graph: LanguageGraph, model: Model
-) -> None:
-    attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimulator(attack_graph)
-
-    agent_name = 'attacker1'
-    sim.register_attacker_settings(AttackerSettings(agent_name, set()))
-
-    assert agent_name in sim.agent_states
-    assert agent_name in sim.agent_states
-
-    with pytest.raises(AssertionError):
-        # Can not register two agents same name
-        sim.register_attacker_settings(AttackerSettings(agent_name, set()))
-
-
-def test_register_agent_defender(
-    corelang_lang_graph: LanguageGraph, model: Model
-) -> None:
-    attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimulator(attack_graph)
-
-    agent_name = 'defender1'
-    sim.register_defender_settings(DefenderSettings(agent_name))
-
-    assert agent_name in sim.agent_states
-    assert agent_name in sim.agent_states
-
-
 def test_register_agent_action_surface(
     corelang_lang_graph: LanguageGraph, model: Model
 ) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimulator(attack_graph)
+    sim = MalSimulator(attack_graph, agents=(DefenderSettings(name='defender1'),))
 
     agent_name = 'defender1'
-    sim.register_defender_settings(DefenderSettings(agent_name))
 
     defender_state = sim.agent_states[agent_name]
     action_surface = defender_state.action_surface
@@ -172,35 +149,35 @@ def test_simulator_actionable_action_surface(model: Model) -> None:
     scenario = Scenario(
         lang_file='tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar',
         model=model,
-        agent_settings={
-            'Attacker1': AttackerSettings(
+        agents=(
+            AttackerSettings(
                 name='Attacker1',
-                entry_points={'OS App:fullAccess'},
+                entry_points=frozenset({'OS App:fullAccess'}),
                 actionable_steps=NodePropertyRule(
                     by_asset_type={
-                        'Application': [
-                            'attemptRead',
-                            'successfulRead',
-                            'read',
-                            'notPresent',
-                        ]
+                        'Application': {
+                            'attemptRead': True,
+                            'successfulRead': True,
+                            'read': True,
+                            'notPresent': True,
+                        }
                     }
                 ),
             ),
-            'Defender': DefenderSettings(
-                'Defender',
+            DefenderSettings(
+                name='Defender',
                 actionable_steps=NodePropertyRule(
                     by_asset_type={
-                        'Application': [
-                            'attemptRead',
-                            'successfulRead',
-                            'read',
-                            'notPresent',
-                        ]
+                        'Application': {
+                            'attemptRead': True,
+                            'successfulRead': True,
+                            'read': True,
+                            'notPresent': True,
+                        }
                     }
                 ),
             ),
-        },
+        ),
     )
     sim = MalSimulator.from_scenario(scenario)
 
@@ -222,7 +199,7 @@ def test_simulator_initialize_agents(
     """Test _initialize_agents"""
 
     scenario = Scenario.load_from_file('tests/testdata/scenarios/simple_scenario.yml')
-    sim = MalSimulator.from_scenario(scenario, register_agents=False)
+    sim = MalSimulator.from_scenario(scenario)
 
     # Register the agents
     attacker_name = 'Attacker1'
@@ -252,10 +229,15 @@ def test_attacker_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
     attack_graph = AttackGraph(corelang_lang_graph, model)
     entry_point = get_node(attack_graph, 'OS App:fullAccess')
 
-    sim = MalSimulator(attack_graph)
+    sim = MalSimulator(
+        attack_graph,
+        agents=(
+            AttackerSettings(name='attacker', entry_points=frozenset({entry_point})),
+        ),
+    )
 
-    attacker_name = 'Test Attacker'
-    sim.register_attacker(attacker_name, {entry_point})
+    attacker_name = 'attacker'
+
     sim.reset()
 
     attacker_agent = sim._agent_states[attacker_name]
@@ -274,10 +256,10 @@ def test_attacker_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
 
 def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimulator(attack_graph)
+    sim = MalSimulator(attack_graph, agents=(DefenderSettings(name='defender'),))
 
     defender_name = 'defender'
-    sim.register_defender(defender_name)
+
     sim.reset()
 
     defender_agent = sim._agent_states[defender_name]
@@ -338,19 +320,26 @@ def test_node_full_names_to_simulator(
     )
 
     defender_name = 'Test Defender'
+    attacker_name = 'Test Attacker'
     sim = MalSimulator(
         attack_graph,
-        sim_settings=MalSimulatorSettings(rewards=rewards),
-        agent_settings={
-            defender_name: DefenderSettings(
+        sim_settings=MalSimulatorSettings(),
+        agents=(
+            DefenderSettings(
                 name=defender_name,
                 observable_steps=observability_per_node,
+                rewards=rewards,
             ),
-        },
+            AttackerSettings(
+                name=attacker_name,
+                entry_points=frozenset(
+                    {attack_graph.get_node_by_full_name(entry_point_full_name)}
+                ),
+                rewards=rewards,
+            ),
+        ),
     )
 
-    attacker_name = 'Test Attacker'
-    sim.register_attacker(attacker_name, {entry_point_full_name})
     states = sim.reset()
 
     states = sim.step({attacker_name: [asset_name + ':' + attempt_read]})
@@ -368,9 +357,16 @@ def test_node_full_names_to_simulator(
     }
 
     # Make sure rewards worked
-    assert sim.agent_reward(states[defender_name]) == -sum(
-        rewards.to_dict()['by_asset_name'][asset_name].values()
-    )
+    as_dict = rewards.to_dict()
+    assert as_dict
+    by_asset_name = as_dict['by_asset_name']
+    assert by_asset_name
+    assert sim.agent_reward(states[attacker_name]) and sim.agent_reward(
+        states[attacker_name]
+    ) == sum(by_asset_name[asset_name].values())
+    assert sim.agent_reward(states[attacker_name]) and sim.agent_reward(
+        states[defender_name]
+    ) == -sum(by_asset_name[asset_name].values())
 
 
 def test_attacker_step_rewards_cumulative(
@@ -396,12 +392,15 @@ def test_attacker_step_rewards_cumulative(
     attacker_name = 'Test Attacker'
     sim = MalSimulator(
         attack_graph,
-        sim_settings=MalSimulatorSettings(rewards=rewards),
-        agent_settings={
-            attacker_name: AttackerSettings(
-                name=attacker_name, entry_points={entry_point}
-            )
-        },
+        sim_settings=MalSimulatorSettings(),
+        agents=(
+            AttackerSettings(
+                name=attacker_name,
+                entry_points=frozenset({entry_point}),
+                rewards=rewards,
+                reward_mode=RewardMode.CUMULATIVE,
+            ),
+        ),
     )
 
     sim.reset()
@@ -427,11 +426,18 @@ def test_attacker_step_rewards_cumulative(
 
 def test_is_traversable(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    entry_point = 'OS App:fullAccess'
-    sim = MalSimulator(attack_graph)
-
+    entry_point = attack_graph.get_node_by_full_name('OS App:fullAccess')
     attacker_name = 'Test Attacker'
-    sim.register_attacker(attacker_name, {entry_point})
+    sim = MalSimulator(
+        attack_graph,
+        agents=(
+            AttackerSettings(
+                name=attacker_name,
+                entry_points=frozenset({entry_point}),
+            ),
+        ),
+    )
+
     attacker_state = sim.agent_states[attacker_name]
 
     # Compromise all or steps it can
@@ -447,7 +453,7 @@ def test_is_traversable(corelang_lang_graph: LanguageGraph, model: Model) -> Non
         children_of_reached_nodes |= n.children
 
     for node in sim.sim_state.attack_graph.nodes.values():
-        if node in attacker_state.entry_points:
+        if node in attacker_state.settings.entry_points:
             # Unclear traversability of entry points
             continue
 
@@ -473,12 +479,15 @@ def test_not_initial_compromise_entrypoints(
 ) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
     entry_point = get_node(attack_graph, 'OS App:fullAccess')
+    attacker_name = 'Test Attacker'
     sim = MalSimulator(
         attack_graph,
         sim_settings=MalSimulatorSettings(compromise_entrypoints_at_start=False),
+        agents=(
+            AttackerSettings(name=attacker_name, entry_points=frozenset({entry_point})),
+        ),
     )
-    attacker_name = 'Test Attacker'
-    sim.register_attacker(attacker_name, {entry_point})
+
     attacker_state = sim.reset()[attacker_name]
 
     # No performed nodes, action surface is only the entrypoint
@@ -495,14 +504,22 @@ def test_not_initial_compromise_entrypoints_unviable_step(
     corelang_lang_graph: LanguageGraph, model: Model
 ) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
+    attacker_name = 'Test Attacker'
+    defender_name = 'Test Defender'
     sim = MalSimulator(
         attack_graph,
         sim_settings=MalSimulatorSettings(compromise_entrypoints_at_start=False),
+        agents=(
+            AttackerSettings(
+                name=attacker_name,
+                entry_points=frozenset(
+                    {attack_graph.get_node_by_full_name('OS App:fullAccess')}
+                ),
+            ),
+            DefenderSettings(name=defender_name),
+        ),
     )
-    attacker_name = 'Test Attacker'
-    defender_name = 'Test Defender'
-    sim.register_attacker(attacker_name, {'OS App:fullAccess'})
-    sim.register_defender(defender_name)
+
     attacker_state = sim.reset()[attacker_name]
 
     # Step should not succeed if defender defended the entrypoint
@@ -516,10 +533,13 @@ def test_not_initial_compromise_entrypoints_unviable_step(
 def test_is_compromised(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
     entry_point = get_node(attack_graph, 'OS App:fullAccess')
-    sim = MalSimulator(attack_graph)
-
     attacker_name = 'Test Attacker'
-    sim.register_attacker(attacker_name, {entry_point})
+    sim = MalSimulator(
+        attack_graph,
+        agents=(
+            AttackerSettings(name=attacker_name, entry_points=frozenset({entry_point})),
+        ),
+    )
     attacker_state = sim.agent_states[attacker_name]
 
     # Compromise all or steps it can
@@ -541,7 +561,7 @@ def test_is_compromised(corelang_lang_graph: LanguageGraph, model: Model) -> Non
 
 def test_get_node(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimulator(attack_graph)
+    sim = MalSimulator(attack_graph, agents=())
 
     assert isinstance(sim.get_node('OS App:fullAccess'), AttackGraphNode)
 
@@ -552,13 +572,15 @@ def test_get_node(corelang_lang_graph: LanguageGraph, model: Model) -> None:
 def test_simulation_done(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
     entry_point = get_node(attack_graph, 'OS App:fullAccess')
-    sim = MalSimulator(attack_graph)
-
     defender_name = 'Test defender'
-    sim.register_defender(defender_name)
-
     attacker_name = 'Test Attacker'
-    sim.register_attacker(attacker_name, {entry_point})
+    sim = MalSimulator(
+        attack_graph,
+        agents=(
+            AttackerSettings(name=attacker_name, entry_points=frozenset({entry_point})),
+            DefenderSettings(name=defender_name),
+        ),
+    )
     states = sim.reset()
 
     for _ in range(10):
@@ -581,14 +603,17 @@ def test_simulation_terminations(
     corelang_lang_graph: LanguageGraph, model: Model
 ) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    entry_point = get_node(attack_graph, 'OS App:fullAccess')
-    sim = MalSimulator(attack_graph)
-
     defender_name = 'Test defender'
-    sim.register_defender(defender_name)
-
     attacker_name = 'Test Attacker'
-    sim.register_attacker(attacker_name, {entry_point})
+    entry_point = get_node(attack_graph, 'OS App:fullAccess')
+    sim = MalSimulator(
+        attack_graph,
+        agents=(
+            DefenderSettings(name=defender_name),
+            AttackerSettings(name=attacker_name, entry_points=frozenset({entry_point})),
+        ),
+    )
+
     states = sim.reset()
     attacker_state = states[attacker_name]
     assert isinstance(attacker_state, MalSimAttackerState)
@@ -635,16 +660,15 @@ def test_attacker_step_rewards_one_off(
 
     sim = MalSimulator(
         attack_graph,
-        sim_settings=MalSimulatorSettings(
-            attacker_reward_mode=RewardMode.ONE_OFF,
-            rewards=rewards,
-        ),
-        agent_settings={
-            attacker_name: AttackerSettings(
+        sim_settings=MalSimulatorSettings(),
+        agents=(
+            AttackerSettings(
                 name=attacker_name,
-                entry_points={entry_point.full_name},
+                reward_mode=RewardMode.ONE_OFF,
+                entry_points=frozenset({entry_point}),
+                rewards=rewards,
             ),
-        },
+        ),
     )
 
     agent_states = sim.reset()
@@ -684,15 +708,17 @@ def test_attacker_step_rewards_expected_ttc(
     attacker_name = 'Test Attacker'
     sim = MalSimulator(
         attack_graph,
-        sim_settings=MalSimulatorSettings(
-            attacker_reward_mode=RewardMode.EXPECTED_TTC, rewards=rewards
+        sim_settings=MalSimulatorSettings(),
+        agents=(
+            AttackerSettings(
+                name=attacker_name,
+                entry_points=frozenset({entry_point}),
+                reward_mode=RewardMode.EXPECTED_TTC,
+                rewards=rewards,
+            ),
         ),
-        agent_settings={
-            attacker_name: AttackerSettings(
-                name=attacker_name, entry_points={entry_point.full_name}
-            )
-        },
     )
+
     state = sim.reset()[attacker_name]
 
     while not sim.done():
@@ -721,7 +747,10 @@ def test_defender_step_rewards_cumulative(
     access_network_and_conn = get_node(
         attack_graph, 'OS App:accessNetworkAndConnections'
     )
+    assert entry_point.model_asset
 
+    attacker_name = 'Test Attacker'  # To be able to step
+    defender_name = 'defender'
     rewards = NodePropertyRule(
         by_asset_name={
             entry_point.model_asset.name: {
@@ -732,18 +761,14 @@ def test_defender_step_rewards_cumulative(
             }
         }
     )
-    defender_name = 'defender'
-    attacker_name = 'Test Attacker'  # To be able to step
 
     sim = MalSimulator(
         attack_graph,
-        sim_settings=MalSimulatorSettings(rewards=rewards),
-        agent_settings={
-            defender_name: DefenderSettings(name=defender_name),
-            attacker_name: AttackerSettings(
-                name=attacker_name, entry_points={entry_point}
-            ),
-        },
+        sim_settings=MalSimulatorSettings(),
+        agents=(
+            DefenderSettings(name=defender_name, rewards=rewards),
+            AttackerSettings(name=attacker_name, entry_points=frozenset({entry_point})),
+        ),
     )
 
     agent_states = sim.reset()
@@ -788,16 +813,15 @@ def test_defender_step_rewards_one_off(
 
     sim = MalSimulator(
         attack_graph,
-        sim_settings=MalSimulatorSettings(
-            defender_reward_mode=RewardMode.ONE_OFF, rewards=rewards
-        ),
-        agent_settings={
-            defender_name: DefenderSettings(name=defender_name),
-            attacker_name: AttackerSettings(
-                name=attacker_name, entry_points={entry_point.full_name}
+        sim_settings=MalSimulatorSettings(),
+        agents=(
+            DefenderSettings(
+                name=defender_name, reward_mode=RewardMode.ONE_OFF, rewards=rewards
             ),
-        },
+            AttackerSettings(name=attacker_name, entry_points=frozenset({entry_point})),
+        ),
     )
+
     sim.reset()
 
     states = sim.step({attacker_name: [attempt_read]})
@@ -819,12 +843,17 @@ def test_agent_state_views_simple(
     entry_point = get_node(attack_graph, 'OS App:fullAccess')
 
     mss = MalSimulatorSettings(seed=13, ttc_mode=TTCMode.PER_STEP_SAMPLE)
-    # Create simulator and register agents
-    sim = MalSimulator(attack_graph, sim_settings=mss)
     attacker_name = 'attacker'
     defender_name = 'defender'
-    sim.register_attacker(attacker_name, {entry_point.full_name})
-    sim.register_defender(defender_name)
+    # Create simulator and register agents
+    sim = MalSimulator(
+        attack_graph,
+        sim_settings=mss,
+        agents=(
+            AttackerSettings(name=attacker_name, entry_points=frozenset({entry_point})),
+            DefenderSettings(name=defender_name),
+        ),
+    )
 
     # Evaluate the agent state views after reset
     state_views = sim.agent_states
@@ -971,15 +1000,9 @@ def test_step_attacker_defender_action_surface_updates() -> None:
         'tests/testdata/scenarios/traininglang_scenario.yml'
     )
 
-    sim = MalSimulator.from_scenario(scenario, register_agents=False)
-    # Register the agents
-    attacker_agent_id = 'attacker'
-    defender_agent_id = 'defender'
-
-    user3_phishing = get_node(sim.sim_state.attack_graph, 'User:3:phishing')
-    host0_connect = get_node(sim.sim_state.attack_graph, 'Host:0:connect')
-    sim.register_attacker(attacker_agent_id, {user3_phishing, host0_connect})
-    sim.register_defender(defender_agent_id)
+    sim = MalSimulator.from_scenario(scenario)
+    attacker_agent_id = 'Attacker1'
+    defender_agent_id = 'Defender1'
 
     states = sim.agent_states
 
@@ -1060,15 +1083,9 @@ def test_simulator_false_positives() -> None:
         'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml',
         sim_settings=MalSimulatorSettings(seed=30),
     )
-    scenario.sim_settings.false_negative_rates = None
+    scenario.defender_settings['defender'].false_negative_rates = None
 
-    scenario.false_negative_rates = None
-
-    sim = MalSimulator.from_scenario(
-        scenario, sim_settings=MalSimulatorSettings(seed=30)
-    )
-
-    sim = MalSimulator.from_scenario(scenario, register_agents=False)
+    sim = MalSimulator.from_scenario(scenario)
     run_simulation(sim)
 
     defender_state = sim.agent_states['defender']
@@ -1085,11 +1102,11 @@ def test_simulator_false_positives_after_done() -> None:
 
     scenario = Scenario.load_from_file(
         'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml',
-        sim_settings=MalSimulatorSettings(seed=30, false_negative_rates=None),
+        sim_settings=MalSimulatorSettings(seed=30),
     )
+    scenario.defender_settings['defender'].false_negative_rates = None
 
-    scenario.false_negative_rates = None
-    sim = MalSimulator.from_scenario(scenario, MalSimulatorSettings(seed=100))
+    sim = MalSimulator.from_scenario(scenario)
     run_simulation(sim)
     assert sim.done()
 
@@ -1111,7 +1128,7 @@ def test_simulator_false_positives_reset() -> None:
         'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml',
         sim_settings=MalSimulatorSettings(seed=9),
     )
-    scenario.sim_settings.false_negative_rates = None
+    scenario.defender_settings['defender'].false_negative_rates = None
 
     sim = MalSimulator.from_scenario(scenario)
     defender_state = sim.reset()['defender']
@@ -1127,9 +1144,10 @@ def test_simulator_false_negatives() -> None:
         'tests/testdata/scenarios/traininglang_fp_fn_scenario.yml',
         sim_settings=MalSimulatorSettings(seed=100),
     )
-
-    scenario.sim_settings.false_positive_rates = None
-    sim = MalSimulator.from_scenario(scenario, register_agents=False)
+    scenario.defender_settings['defender'].false_positive_rates = None
+    sim = MalSimulator.from_scenario(
+        scenario,
+    )
     run_simulation(sim)
 
     defender_state = sim.agent_states['defender']
@@ -1228,17 +1246,24 @@ def test_simulator_multiple_attackers() -> None:
         sim_settings=MalSimulatorSettings(seed=100),
     )
 
-    scenario.attacker_settings['Attacker1'].entry_points = {
-        'User:3:phishing',
-        'Host:0:connect',
-    }
-    scenario.agent_settings['Attacker2'] = AttackerSettings(
-        name='Attacker2', entry_points={'Network:3:access'}
+    scenario.attacker_settings['Attacker1'].entry_points = frozenset(
+        {
+            'User:3:phishing',
+            'Host:0:connect',
+        }
     )
+    scenario.agent_settings = [
+        *scenario.agent_settings,
+        AttackerSettings(
+            name='Attacker2',
+            entry_points=frozenset(
+                {scenario.attack_graph.get_node_by_full_name('Network:3:access')}
+            ),
+        ),
+    ]
 
     sim = MalSimulator.from_scenario(
         scenario,
-        register_agents=False,
     )
 
     states = sim.reset()
@@ -1305,15 +1330,13 @@ def test_simulator_multiple_defenders() -> None:
         sim_settings=MalSimulatorSettings(seed=100),
     )
 
-    scenario.attacker_settings['Attacker1'].entry_points = {
-        'User:3:phishing',
-        'Host:0:connect',
-    }
-    scenario.agent_settings['Defender2'] = DefenderSettings(name='Defender2')
+    scenario.agent_settings = [
+        *scenario.agent_settings,
+        DefenderSettings(name='Defender2'),
+    ]
 
     sim = MalSimulator.from_scenario(
         scenario,
-        register_agents=False,
     )
 
     states = sim.reset()
@@ -1366,34 +1389,35 @@ def test_simulator_attacker_override_ttcs_state() -> None:
 
     bad_attacker_settings = sim.agent_settings['BadAttacker']
     assert isinstance(bad_attacker_settings, AttackerSettings)
-    assert bad_attacker_settings.ttc_overrides is not None
+    assert bad_attacker_settings.ttc_dists is not None
     bad_attacker_state = states['BadAttacker']
     assert isinstance(bad_attacker_state, MalSimAttackerState)
 
-    assert set(
-        bad_attacker_settings.ttc_overrides.per_node(sim.sim_state.attack_graph)
-    ) == {
+    assert bad_attacker_settings.ttc_dists
+    assert set(bad_attacker_settings.ttc_dists.per_node(scenario.attack_graph)) == {
         'ComputerC:easyConnect',
         'ComputerA:easyConnect',
         'ComputerD:easyConnect',
         'ComputerB:easyConnect',
     }
-    assert {
-        n.full_name: v for n, v in bad_attacker_state.ttc_value_overrides.items()
-    } == {
+
+    assert bad_attacker_state.ttc_values
+    assert {n.full_name: v for n, v in bad_attacker_state.ttc_values.items()} == {
         'ComputerA:easyConnect': 7.4543483865750755,
         'ComputerB:easyConnect': 15.661809565462281,
         'ComputerC:easyConnect': 5.434482312470439,
         'ComputerD:easyConnect': 35.14904078865208,
     }
-    assert {n.full_name for n in bad_attacker_state.impossible_step_overrides} == {
+    assert {n.full_name for n in bad_attacker_state.impossible_steps} == {
         'ComputerB:easyConnect'
     }
 
     good_attacker_state = states['GoodAttacker']
+    good_attacker_settings = sim._agent_settings['GoodAttacker']
     assert isinstance(good_attacker_state, MalSimAttackerState)
-    assert not good_attacker_state.ttc_value_overrides
-    assert not good_attacker_state.impossible_step_overrides
+    assert isinstance(good_attacker_settings, AttackerSettings)
+    assert not good_attacker_settings.ttc_dists
+    assert not good_attacker_state.impossible_steps
 
 
 def test_simulator_attacker_override_ttcs_step() -> None:
@@ -1418,7 +1442,7 @@ def test_simulator_attacker_override_ttcs_step() -> None:
     while not sim.agent_is_terminated(attacker_name):
         # Good attacker should be fast
         attacker_state = states[attacker_name]
-        agent_conf = scenario.agent_settings[attacker_name]
+        agent_conf = scenario.attacker_settings[attacker_name]
         assert agent_conf.agent is not None
         next_action = agent_conf.agent.get_next_action(attacker_state)
         states = sim.step({attacker_name: [next_action]})
@@ -1433,7 +1457,7 @@ def test_simulator_attacker_override_ttcs_step() -> None:
     while not sim.agent_is_terminated(attacker_name):
         # Bad attacker should be slow
         attacker_state = states[attacker_name]
-        agent_conf = scenario.agent_settings[attacker_name]
+        agent_conf = scenario.attacker_settings[attacker_name]
         assert agent_conf.agent is not None
         next_action = agent_conf.agent.get_next_action(attacker_state)
         states = sim.step({attacker_name: [next_action]})
@@ -1459,8 +1483,6 @@ def test_simulator_seed_setting() -> None:
             ),
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
-            attacker_reward_mode=RewardMode.ONE_OFF,
-            defender_reward_mode=RewardMode.CUMULATIVE,
         ),
     )
     sim = MalSimulator.from_scenario(scenario)
@@ -1491,8 +1513,6 @@ def test_settings_serialization() -> None:
     """Test that the settings serialization works"""
     settings = MalSimulatorSettings(
         ttc_mode=TTCMode.PER_STEP_SAMPLE,
-        attacker_reward_mode=RewardMode.ONE_OFF,
-        defender_reward_mode=RewardMode.CUMULATIVE,
     )
     deserialized_settings = MalSimulatorSettings(**asdict(settings))
     assert deserialized_settings == settings
@@ -1586,7 +1606,6 @@ def test_active_defenses() -> None:
                 skip_unnecessary=False,
             ),
             compromise_entrypoints_at_start=True,
-            attacker_reward_mode=RewardMode.SAMPLE_TTC,
         ),
     )
     sim = MalSimulator.from_scenario(scenario)
@@ -1609,7 +1628,6 @@ def test_compromise_order() -> None:
         'tests/testdata/scenarios/socialEngineering_scenario.yml'
     )
     sim = MalSimulator.from_scenario(scenario)
-    sim.register_defender('Defender1')
     states = sim.reset()
 
     attacker_record = (
@@ -1691,7 +1709,6 @@ def test_actions_effects() -> None:
                 skip_unnecessary=False,
             ),
             compromise_entrypoints_at_start=True,
-            attacker_reward_mode=RewardMode.SAMPLE_TTC,
         ),
     )
 

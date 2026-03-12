@@ -7,7 +7,6 @@ import numpy as np
 from maltoolbox.attackgraph import AttackGraphNode
 
 from malsim.config.agent_settings import DefenderSettings
-from malsim.config.sim_settings import MalSimulatorSettings
 from malsim.mal_simulator.defender_state import MalSimDefenderState
 from malsim.mal_simulator.defense_surface import get_defense_surface
 from malsim.mal_simulator.observability import observed_nodes
@@ -16,7 +15,6 @@ from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 def create_defender_state(
     sim_state: MalSimulatorState,
-    sim_settings: MalSimulatorSettings,
     name: str,
     rng: np.random.Generator,
     defender_settings: DefenderSettings,
@@ -66,11 +64,9 @@ def create_defender_state(
     step_observed_nodes = observed_nodes(
         sim_state=sim_state,
         observable_steps_rule=defender_settings.observable_steps,
-        false_positive_rates_rule=defender_settings.false_positive_rates
-        or sim_settings.false_positive_rates,
+        false_positive_rates_rule=defender_settings.false_positive_rates,
         rng=rng,
-        false_negative_rates_rule=defender_settings.false_negative_rates
-        or sim_settings.false_negative_rates,
+        false_negative_rates_rule=defender_settings.false_negative_rates,
         compromised_nodes=step_compromised_nodes,
     )
     return MalSimDefenderState(
@@ -96,7 +92,6 @@ def create_defender_state(
 
 def initial_defender_state(
     sim_state: MalSimulatorState,
-    sim_settings: MalSimulatorSettings,
     defender_settings: DefenderSettings,
     pre_compromised_nodes: Set[AttackGraphNode],
     pre_enabled_defenses: Set[AttackGraphNode],
@@ -105,7 +100,6 @@ def initial_defender_state(
     """Create a defender state from defender settings"""
     return create_defender_state(
         sim_state=sim_state,
-        sim_settings=sim_settings,
         name=defender_settings.name,
         step_compromised_nodes=pre_compromised_nodes,
         step_enabled_defenses=pre_enabled_defenses,

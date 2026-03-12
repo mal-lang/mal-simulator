@@ -31,7 +31,7 @@ def optional(f: Callable[[X], Y]) -> Callable[[Optional[X]], Optional[Y]]:
 
 
 @dataclass
-class NodePropertyRule(Generic[T]):
+class NodePropertyRule(Mapping, Generic[T]):
     """
     Defines a mapping from nodes to values based on:
     - asset_type filters
@@ -41,6 +41,19 @@ class NodePropertyRule(Generic[T]):
     by_asset_type: Mapping[str, Mapping[str, T]] | None = None
     by_asset_name: Mapping[str, Mapping[str, T]] | None = None
     default: Any = None
+
+    def __len__(self) -> int:
+        return len(self.by_asset_type or {}) + len(self.by_asset_name or {})
+
+    def __iter__(self):
+        if self.by_asset_type:
+            for asset_type, sub_dict in self.by_asset_type.items():
+                for node_name in sub_dict:
+                    yield (asset_type, node_name)
+        if self.by_asset_name:
+            for asset_name, sub_dict in self.by_asset_name.items():
+                for node_name in sub_dict:
+                    yield (asset_name, node_name)
 
     def __getitem__(self, key) -> T:
         x = self.value(key, None)

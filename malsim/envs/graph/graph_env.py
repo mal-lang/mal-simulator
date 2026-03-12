@@ -21,7 +21,6 @@ from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
     TTCMode,
-    RewardMode,
     MalSimAttackerState,
 )
 from .serialization import LangSerializer
@@ -38,7 +37,6 @@ DEFAULT_SIM_SETTINGS = MalSimulatorSettings(
     run_defense_step_bernoullis=False,
     run_attack_step_bernoullis=False,
     attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
-    attacker_reward_mode=RewardMode.ONE_OFF,
 )
 
 
@@ -68,7 +66,7 @@ def register_graph_envs(
 class AttackerGraphEnv(gym.Env[MALObsInstance, np.int64]):
     metadata = {'render_modes': []}
 
-    spec: EnvSpec = EnvSpec(
+    spec = EnvSpec(
         id='GraphAttackerEnv-v0',
         entry_point='malsim.envs.graph.graph_env:AttackerGraphEnv',
         nondeterministic=True,
@@ -78,7 +76,6 @@ class AttackerGraphEnv(gym.Env[MALObsInstance, np.int64]):
                 run_defense_step_bernoullis=False,
                 run_attack_step_bernoullis=False,
                 attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
-                attacker_reward_mode=RewardMode.ONE_OFF,
             ),
         },
     )
@@ -135,7 +132,7 @@ class AttackerGraphEnv(gym.Env[MALObsInstance, np.int64]):
 class DefenderGraphEnv(gym.Env[MALObsInstance, np.int64]):
     metadata = {'render_modes': []}
 
-    spec: EnvSpec = EnvSpec(
+    spec = EnvSpec(
         id='GraphDefenderEnv-v0',
         entry_point='malsim.envs.graph.graph_env:DefenderGraphEnv',
         nondeterministic=True,
@@ -145,7 +142,6 @@ class DefenderGraphEnv(gym.Env[MALObsInstance, np.int64]):
                 run_defense_step_bernoullis=False,
                 run_attack_step_bernoullis=False,
                 attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
-                attacker_reward_mode=RewardMode.ONE_OFF,
             ),
         },
     )
@@ -201,9 +197,7 @@ class DefenderGraphEnv(gym.Env[MALObsInstance, np.int64]):
 
 def get_agent_name(scenario: Scenario, agent_type: AgentType) -> str:
     agent_names = [
-        name
-        for name, agent in scenario.agent_settings.items()
-        if agent.type == agent_type
+        agent.name for agent in scenario.agent_settings if agent.type == agent_type
     ]
     assert len(agent_names) == 1, (
         f'Expected exactly one agent of type {agent_type},'
@@ -226,11 +220,11 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
         self.lang_serializer = LangSerializer(
             self.attack_graph.lang_graph, split_assoc_types=False, split_step_types=True
         )
-        self.observation_spaces: dict[str, MALObs] = {
+        self.observation_spaces: dict[str, MALObs] = {  # type: ignore
             'attacker': MALAttackerObs(self.lang_serializer),
             'defender': MALDefenderObs(self.lang_serializer),
         }
-        self.action_spaces: dict[
+        self.action_spaces: dict[  # type: ignore
             str, MALObsAttackStepSpace | MALObsDefenseStepSpace
         ] = {
             'attacker': MALObsAttackStepSpace(self.sim),
@@ -307,8 +301,9 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
         for agent_name, obs in self._obs.items():
             self.action_space(agent_name)._mask = obs.steps.action_mask
         rewards = {
-            agent_name: self.sim.agent_reward(state)
+            agent_name: x
             for agent_name, state in states.items()
+            if (x := self.sim.agent_reward(state)) is not None
         }
         terminations = {
             agent_name: self.sim.agent_is_terminated(agent_name)

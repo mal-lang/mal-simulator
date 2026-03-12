@@ -42,16 +42,14 @@ def fixture_env() -> MalSimVectorizedObsEnv:
     attack_graph_file_name = path.join('/tmp', 'attack_graph.json')
     attack_graph = create_attack_graph(lang_file_name, model_file_name)
     attack_graph.save_to_file(attack_graph_file_name)
+    os_app_fa = get_node(attack_graph, 'OS App:fullAccess')
     env = MalSimVectorizedObsEnv(
         MalSimulator(
             attack_graph,
-            agent_settings={
-                'defender': DefenderSettings(name='defender'),
-                'attacker': AttackerSettings(
-                    name='attacker',
-                    entry_points={get_node(attack_graph, 'OS App:fullAccess')},
-                ),
-            },
+            agents=(
+                DefenderSettings(name='defender'),
+                AttackerSettings(name='attacker', entry_points=frozenset({os_app_fa})),
+            ),
         )
     )
     return env

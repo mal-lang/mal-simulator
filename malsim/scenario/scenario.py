@@ -12,7 +12,7 @@ A scenario is a combination of:
 """
 
 from __future__ import annotations
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 import os
 from dataclasses import asdict, dataclass
 from typing import Any, Optional, TextIO
@@ -71,7 +71,7 @@ class Scenario:
         self,
         lang_file: str,
         model: Model | dict[str, Any] | str,
-        agent_settings: dict[str, AttackerSettings | DefenderSettings],
+        agents: Iterable[AttackerSettings[str] | DefenderSettings],
         sim_settings: Optional[MalSimulatorSettings] = BASE_SETTINGS,
     ):
         # Lang file is required
@@ -89,24 +89,32 @@ class Scenario:
         else:
             raise ValueError('`model` must be Model, dict, or str (file path)')
 
-        self.attack_graph = create_attack_graph(self.lang_graph, self.model)
-        self.agent_settings = agent_settings
+        attack_graph = create_attack_graph(self.lang_graph, self.model)
+
+        attacker_settings = [a for a in agents if isinstance(a, AttackerSettings)]
+        attacker_settings_with_nodes = [
+            a.convert_to_attack_graph_nodes(attack_graph) for a in attacker_settings
+        ]
+        defender_settings = [a for a in agents if isinstance(a, DefenderSettings)]
+
+        self.attack_graph = attack_graph
+        self.agent_settings = attacker_settings_with_nodes + defender_settings
 
         self.sim_settings = sim_settings or MalSimulatorSettings()
 
     @property
-    def attacker_settings(self) -> Mapping[str, AttackerSettings]:
+    def attacker_settings(self) -> Mapping[str, AttackerSettings[AttackGraphNode]]:
         return {
-            name: settings
-            for name, settings in self.agent_settings.items()
+            settings.name: settings
+            for settings in self.agent_settings
             if isinstance(settings, AttackerSettings)
         }
 
     @property
     def defender_settings(self) -> Mapping[str, DefenderSettings]:
         return {
-            name: settings
-            for name, settings in self.agent_settings.items()
+            settings.name: settings
+            for settings in self.agent_settings
             if isinstance(settings, DefenderSettings)
         }
 
@@ -117,22 +125,8 @@ class Scenario:
         scenario_dict = {
             # 'version': ?
             'lang_file': self._lang_file,
-            'agents': {
-                name: agent.to_dict() for name, agent in self.agent_settings.items()
-            },
+            'agents': {agent.name: agent.to_dict() for agent in self.agent_settings},
         }
-
-        if self.sim_settings.rewards:
-            scenario_dict['rewards'] = self.sim_settings.rewards.to_dict()
-        if self.sim_settings.false_positive_rates:
-            scenario_dict['false_positive_rates'] = (
-                self.sim_settings.false_positive_rates.to_dict()
-            )
-
-        if self.sim_settings.false_negative_rates:
-            scenario_dict['false_negative_rates'] = (
-                self.sim_settings.false_negative_rates.to_dict()
-            )
 
         if self._model_file:
             # Use model file name instead of full model if model file was given at init
@@ -147,20 +141,20 @@ class Scenario:
         with open(file_path, 'w', encoding='utf-8') as f:
             yaml.safe_dump(self.to_dict(), f, sort_keys=False)
 
-    @property
-    def rewards(self) -> NodePropertyRule | None:
-        return self.sim_settings.rewards
-
     @classmethod
     def from_dict(cls, scenario_dict: dict[str, Any]) -> Scenario:
         """Create a scenario object from a scenario dictionary"""
         _validate_scenario_dict(scenario_dict)
 
+        global_rewards = NodePropertyRule.from_optional_dict(
+            scenario_dict.get('rewards')
+        )
+
         # Load agent settings from dict
-        agent_settings = {
-            str(name): agent_settings_from_dict(name, agent_settings_dict)
+        agent_settings = [
+            agent_settings_from_dict(name, agent_settings_dict, global_rewards)
             for name, agent_settings_dict in scenario_dict['agents'].items()
-        }
+        ]
 
         model_or_model_file = scenario_dict.get('model') or scenario_dict['model_file']
 
@@ -173,19 +167,28 @@ class Scenario:
 
         # for legacy reasons, also support rewards, false_positive_rates,
         # and false_negative_rates at the top level of scenario dict
-        sim_settings['rewards'] = NodePropertyRule.from_optional_dict(
-            scenario_dict.get('rewards')
-        )
-        sim_settings['false_positive_rates'] = NodePropertyRule.from_optional_dict(
-            scenario_dict.get('false_positive_rates')
-        )
-        sim_settings['false_negative_rates'] = NodePropertyRule.from_optional_dict(
-            scenario_dict.get('false_negative_rates')
-        )
+        if 'rewards' in scenario_dict:
+            logger.warning(
+                "Found 'rewards' in scenario dict. "
+                "This should be moved under 'agent_settings'"
+            )
+            del scenario_dict['rewards']
+        if 'false_positive_rates' in scenario_dict:
+            logger.warning(
+                "Found 'false_positive_rates' in scenario dict. "
+                "This should be moved under 'agent_settings'"
+            )
+            del scenario_dict['false_positive_rates']
+        if 'false_negative_rates' in scenario_dict:
+            logger.warning(
+                "Found 'false_negative_rates' in scenario dict. "
+                "This should be moved under 'agent_settings'"
+            )
+            del scenario_dict['false_negative_rates']
 
         return Scenario(
             lang_file=scenario_dict['lang_file'],
-            agent_settings=agent_settings,
+            agents=agent_settings,
             model=model_or_model_file,
             sim_settings=MalSimulatorSettings(**sim_settings),
         )

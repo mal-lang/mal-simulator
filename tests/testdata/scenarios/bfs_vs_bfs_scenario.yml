@@ -15,6 +15,7 @@ agents:
   'attacker1':
     agent_class: BreadthFirstAttacker
     type: attacker
+    reward_mode: ONE_OFF
     config:
       seed: 1
       randomize: True

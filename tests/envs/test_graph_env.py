@@ -40,21 +40,18 @@ from malsim.envs.graph.wrapper import ActionThenAssetWrapper, AssetThenActionWra
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
             attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
-            attacker_reward_mode=RewardMode.ONE_OFF,
         ),
         MalSimulatorSettings(
             ttc_mode=TTCMode.PRE_SAMPLE,
             run_defense_step_bernoullis=True,
             run_attack_step_bernoullis=True,
             attack_surface=AttackSurfaceSettings(skip_unnecessary=True),
-            attacker_reward_mode=RewardMode.CUMULATIVE,
         ),
         MalSimulatorSettings(
             ttc_mode=TTCMode.EXPECTED_VALUE,
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=True,
             attack_surface=AttackSurfaceSettings(skip_unnecessary=True),
-            attacker_reward_mode=RewardMode.ONE_OFF,
         ),
         MalSimulatorSettings(
             ttc_mode=TTCMode.DISABLED,
@@ -87,7 +84,6 @@ def test_attacker_episode() -> None:
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
             attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
-            attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
     ser = attacker_env.multi_env.lang_serializer
@@ -197,7 +193,6 @@ def test_defender_episode() -> None:
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
             attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
-            attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
 
@@ -240,7 +235,6 @@ def test_asset_then_action_wrapper() -> None:
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
             attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
-            attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
     assert scenario.attack_graph.model is not None, (
@@ -270,7 +264,6 @@ def test_asset_then_action_wrapper() -> None:
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
             attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
-            attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
     assert scenario.attack_graph.model is not None, (
@@ -303,7 +296,6 @@ def test_action_then_asset_wrapper() -> None:
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
             attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
-            attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
     assert scenario.attack_graph.model is not None, (
@@ -332,7 +324,6 @@ def test_action_then_asset_wrapper() -> None:
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
             attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
-            attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
     wrapped_env = ActionThenAssetWrapper(
@@ -364,7 +355,6 @@ def test_async_vector_env() -> None:
                 run_defense_step_bernoullis=False,
                 run_attack_step_bernoullis=False,
                 attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
-                attacker_reward_mode=RewardMode.ONE_OFF,
             ),
         )
 

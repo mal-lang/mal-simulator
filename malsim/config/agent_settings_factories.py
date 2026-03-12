@@ -1,8 +1,10 @@
 from typing import Any
 
+
 from malsim.config.agent_settings import AgentType, AttackerSettings, DefenderSettings
 
 from malsim.config.node_property_rule import NodePropertyRule
+from malsim.config.sim_settings import RewardMode
 from malsim.policies import (
     BreadthFirstAttacker,
     DepthFirstAttacker,
@@ -31,7 +33,8 @@ policy_name_to_class = {
 def agent_settings_from_dict(
     name: str,
     d: dict[str, Any],
-) -> AttackerSettings | DefenderSettings:
+    global_rewards: NodePropertyRule[float] | None = None,
+) -> AttackerSettings[str] | DefenderSettings:
     """Load agent settings from a dict"""
 
     agent_type = AgentType(d['type'])
@@ -52,15 +55,17 @@ def agent_settings_from_dict(
     if agent_type == AgentType.ATTACKER:
         return AttackerSettings(
             name=name,
-            entry_points=set(d['entry_points']),
-            goals=set(d.get('goals', [])),
-            ttc_overrides=NodePropertyRule.from_optional_dict(d.get('ttc_overrides')),
+            entry_points=frozenset(d['entry_points']),
+            goals=frozenset(d.get('goals', [])),
+            ttc_dists=NodePropertyRule.from_optional_dict(d.get('ttc_overrides')),
             policy=policy,
             actionable_steps=NodePropertyRule.from_optional_dict(
                 d.get('actionable_steps')
             ),
-            rewards=NodePropertyRule.from_optional_dict(d.get('rewards')),
+            rewards=NodePropertyRule.from_optional_dict(d.get('rewards'))
+            or global_rewards,
             config=config,
+            reward_mode=RewardMode[d.get('reward_mode', 'CUMULATIVE')],
         )
 
     # Defender
@@ -69,7 +74,7 @@ def agent_settings_from_dict(
         policy=policy,
         observable_steps=NodePropertyRule.from_optional_dict(d.get('observable_steps')),
         actionable_steps=NodePropertyRule.from_optional_dict(d.get('actionable_steps')),
-        rewards=NodePropertyRule.from_optional_dict(d.get('rewards')),
+        rewards=NodePropertyRule.from_optional_dict(d.get('rewards')) or global_rewards,
         false_positive_rates=NodePropertyRule.from_optional_dict(
             d.get('false_positive_rates')
         ),
@@ -77,4 +82,5 @@ def agent_settings_from_dict(
             d.get('false_negative_rates')
         ),
         config=config,
+        reward_mode=RewardMode[d.get('reward_mode', 'CUMULATIVE')],
     )
