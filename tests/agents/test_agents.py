@@ -217,7 +217,7 @@ def test_random_agent_wait_prob() -> None:
     )
     sim = MalSimulator.from_scenario(scenario)
     defender_name = 'Defender'
-    defender_ai = sim._agent_settings[defender_name].agent
+    defender_ai = sim.agent_settings[defender_name].agent
     assert isinstance(defender_ai, RandomAgent)
     wait_prob = scenario.agent_settings[defender_name].config['wait_prob']
 
