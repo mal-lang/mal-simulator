@@ -68,9 +68,8 @@ def defender_step(
             sim_state.graph_state.viability_per_node, made_unviable = (
                 make_node_unviable(
                     node,
-                    dict(
-                        sim_state.graph_state.viability_per_node
-                    ),  # TODO make this immutable
+                    # TODO make this immutable
+                    dict(sim_state.graph_state.viability_per_node),
                     sim_state.graph_state.impossible_attack_steps,
                 )
             )
