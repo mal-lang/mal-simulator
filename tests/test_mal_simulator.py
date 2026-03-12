@@ -3,7 +3,7 @@
 from __future__ import annotations
 from collections.abc import MutableSet, Set
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from maltoolbox.language import LanguageGraphAttackStep
@@ -976,7 +976,7 @@ def test_simulator_false_positives() -> None:
     sim = MalSimulator.from_scenario(
         scenario, sim_settings=MalSimulatorSettings(seed=30)
     )
-    run_simulation(sim, scenario.agent_settings)
+    run_simulation(sim)
 
     defender_state = sim.agent_states['defender']
     assert isinstance(defender_state, MalSimDefenderState)
@@ -996,7 +996,7 @@ def test_simulator_false_positives_after_done() -> None:
 
     scenario.false_negative_rates = None
     sim = MalSimulator.from_scenario(scenario, MalSimulatorSettings(seed=100))
-    run_simulation(sim, scenario.agent_settings)
+    run_simulation(sim)
     assert sim.done()
 
     # Simulation is done, but we can still observe false positives
@@ -1039,7 +1039,7 @@ def test_simulator_false_negatives() -> None:
     sim = MalSimulator.from_scenario(
         scenario, sim_settings=MalSimulatorSettings(seed=100)
     )
-    run_simulation(sim, scenario.agent_settings)
+    run_simulation(sim)
 
     defender_state = sim.agent_states['defender']
     assert isinstance(defender_state, MalSimDefenderState)
@@ -1060,7 +1060,7 @@ def test_simulator_no_fpr_fnr() -> None:
     sim = MalSimulator.from_scenario(
         scenario, sim_settings=MalSimulatorSettings(seed=100)
     )
-    run_simulation(sim, scenario.agent_settings)
+    run_simulation(sim)
 
     defender_state = sim.agent_states['defender']
     assert isinstance(defender_state, MalSimDefenderState)
@@ -1263,7 +1263,7 @@ def test_simulator_attacker_override_ttcs_state() -> None:
     )
     states = sim.reset()
 
-    bad_attacker_settings = sim._agent_settings['BadAttacker']
+    bad_attacker_settings = sim.agent_settings['BadAttacker']
     assert isinstance(bad_attacker_settings, AttackerSettings)
     assert bad_attacker_settings.ttc_overrides is not None
     bad_attacker_state = states['BadAttacker']
@@ -1397,7 +1397,7 @@ def test_settings_serialization() -> None:
     assert deserialized_settings == settings
 
 
-def test_simulator_picklable() -> None:
+def test_simulator_picklable(tmp_path: Any) -> None:
     import pickle
 
     scenario = Scenario.load_from_file(
@@ -1405,7 +1405,7 @@ def test_simulator_picklable() -> None:
     )
     sim = MalSimulator.from_scenario(scenario)
 
-    pickle_path = '/tmp/sim.pkl'
+    pickle_path = tmp_path / 'sim.pkl'
     with open(pickle_path, 'wb') as f:
         pickle.dump(sim, f)
 
@@ -1594,7 +1594,7 @@ def test_actions_effects() -> None:
             attacker_reward_mode=RewardMode.SAMPLE_TTC,
         ),
     )
-    run_simulation(sim, scenario.agent_settings)
+    run_simulation(sim)
     for i in sorted(sim.recording.keys()):
         node_list = sim.recording[i]['Attacker']
         action_nodes = [node for node in node_list if node.causal_mode == 'action']

@@ -200,7 +200,7 @@ class MalSimulator:
         self.enabled_defenses_func = enabled_defenses_func
         self.performed_attacks_func = performed_attacks_func
         self.sim_settings = sim_settings
-        self._agent_settings = agent_settings
+        self.agent_settings = agent_settings
         self.rest_api_client = rest_api_client
         self._static_data = static_sim_data
 
@@ -364,7 +364,7 @@ class MalSimulator:
             self.recording,
         ) = reset(
             self._static_data,
-            self._agent_settings,
+            self.agent_settings,
             self.rng,
             self.rest_api_client,
             self.performed_attacks_func,
@@ -396,7 +396,7 @@ class MalSimulator:
         self._agent_states = agent_states
         self._alive_agents = alive_agents
         self._agent_rewards = agent_rewards
-        self._agent_settings = agent_settings
+        self.agent_settings = agent_settings
 
     def register_attacker_settings(self, attacker_settings: AttackerSettings) -> None:
         agent_states, alive_agents, agent_rewards, agent_settings = (
@@ -417,7 +417,7 @@ class MalSimulator:
         self._agent_states = agent_states
         self._alive_agents = alive_agents
         self._agent_rewards = agent_rewards
-        self._agent_settings = agent_settings
+        self.agent_settings = agent_settings
 
     def register_defender(self, name: str) -> None:
         agent_states, alive_agents, agent_rewards, agent_settings = register_defender(
@@ -427,7 +427,7 @@ class MalSimulator:
             self._agent_states,
             set(self._alive_agents),
             self._agent_rewards,
-            self._agent_settings,
+            self.agent_settings,
             self.compromised_nodes,
             name,
             self.rng,
@@ -435,7 +435,7 @@ class MalSimulator:
         self._agent_states = agent_states
         self._alive_agents = alive_agents
         self._agent_rewards = agent_rewards
-        self._agent_settings = agent_settings
+        self.agent_settings = agent_settings
 
     def register_defender_settings(self, defender_settings: DefenderSettings) -> None:
         agent_states, alive_agents, agent_rewards, agent_settings = (
@@ -446,7 +446,7 @@ class MalSimulator:
                 self._agent_states,
                 set(self._alive_agents),
                 self._agent_rewards,
-                self._agent_settings,
+                self.agent_settings,
                 defender_settings,
                 self.compromised_nodes,
                 self.rng,
@@ -455,7 +455,7 @@ class MalSimulator:
         self._agent_states = agent_states
         self._alive_agents = alive_agents
         self._agent_rewards = agent_rewards
-        self._agent_settings = agent_settings
+        self.agent_settings = agent_settings
 
     @property
     def agent_states(self) -> dict[str, MalSimAttackerState | MalSimDefenderState]:

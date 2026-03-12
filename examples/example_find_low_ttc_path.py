@@ -35,7 +35,7 @@ def test_run_scenario_ttc_soft_min_attacker() -> None:
     mal_simulator = MalSimulator.from_scenario(
         scenario, sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.EXPECTED_VALUE)
     )
-    paths = run_simulation(mal_simulator, scenario.agent_settings)
+    paths = run_simulation(mal_simulator)
     print(paths)
 
 

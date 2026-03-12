@@ -28,7 +28,7 @@ def test_scenario_obj_files() -> None:
     scenario.save_to_file('scenario1.yml')
 
     mal_simulator = MalSimulator.from_scenario(scenario)
-    _ = run_simulation(mal_simulator, scenario.agent_settings)
+    _ = run_simulation(mal_simulator)
 
 
 def test_scenario_obj_file_and_dict() -> None:
@@ -55,7 +55,7 @@ def test_scenario_obj_file_and_dict() -> None:
     scenario.save_to_file('scenario2.yml')
 
     mal_simulator = MalSimulator.from_scenario(scenario)
-    _ = run_simulation(mal_simulator, scenario.agent_settings)
+    _ = run_simulation(mal_simulator)
 
 
 def test_scenario_obj_file_and_model() -> None:
@@ -82,7 +82,7 @@ def test_scenario_obj_file_and_model() -> None:
     scenario.save_to_file('scenario3.yml')
 
     mal_simulator = MalSimulator.from_scenario(scenario)
-    _ = run_simulation(mal_simulator, scenario.agent_settings)
+    _ = run_simulation(mal_simulator)
 
 
 if __name__ == '__main__':
