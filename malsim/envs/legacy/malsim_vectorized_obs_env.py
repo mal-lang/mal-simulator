@@ -92,12 +92,12 @@ class MalSimVectorizedObsEnv(ParallelEnv[str, dict[str, Any], dict[str, str]]):
         self._agent_infos: dict[str, Any] = {}
 
     @property
-    def agents(self) -> list[str]:  # type: ignore[override]
+    def agents(self) -> list[str]:
         """Required by ParallelEnv"""
         return list(self.sim._alive_agents)
 
     @property
-    def possible_agents(self) -> list[str]:  # type: ignore[override]
+    def possible_agents(self) -> list[str]:
         """Required by ParallelEnv"""
         return list(self.sim._agent_states.keys())
 
@@ -258,14 +258,14 @@ class MalSimVectorizedObsEnv(ParallelEnv[str, dict[str, Any], dict[str, str]]):
             self._agent_infos[agent.name] = self.create_action_mask(agent)
 
     @functools.lru_cache(maxsize=None)
-    def action_space(self, agent: Optional[str] = None) -> MultiDiscrete:  # type: ignore[override]
+    def action_space(self, agent: Optional[str] = None) -> MultiDiscrete:
         num_actions = 2  # two actions: wait or use
         # For now, an `object` is an attack step
         num_steps = len(self.sim.sim_state.attack_graph.nodes)
         return MultiDiscrete([num_actions, num_steps], dtype=np.int64)
 
     @functools.lru_cache(maxsize=None)
-    def observation_space(self, agent_name: Optional[str] = None) -> Dict:  # type: ignore[override]
+    def observation_space(self, agent_name: Optional[str] = None) -> Dict:
         # For now, an `object` is an attack step
         assert self.attack_graph.model, (
             'Attack graph in simulator needs to have a model attached to it'
