@@ -183,7 +183,7 @@ class MalSimulator:
         self.sim_state = sim_state
         self.recording = recording
         self.sim_settings = sim_settings
-        self._agent_settings = _agent_settings
+        self.agent_settings = _agent_settings
         self.rest_api_client = rest_api_client
         self._static_data = static_sim_data
         self._defender_reward_fns = defender_reward_fns
@@ -231,19 +231,19 @@ class MalSimulator:
         self, node: AttackGraphNode, agent_name: str | None = None
     ) -> bool:
         agent_actionability = (
-            self._agent_settings[agent_name].actionable_steps if agent_name else None
+            self.agent_settings[agent_name].actionable_steps if agent_name else None
         )
         return node_is_actionable(agent_actionability, node)
 
     def node_reward(self, node: AttackGraphNode, agent_name: str) -> float:
-        return node_reward(node, reward_rule=self._agent_settings[agent_name].rewards)
+        return node_reward(node, reward_rule=self.agent_settings[agent_name].rewards)
 
     def node_is_observable(
         self, node: AttackGraphNode, agent_name: str | None = None
     ) -> bool:
         agent_observability = None
         if agent_name:
-            agent = defender_settings(self._agent_settings)[agent_name]
+            agent = defender_settings(self.agent_settings)[agent_name]
             agent_observability = agent.observable_steps
 
         return (
@@ -257,7 +257,7 @@ class MalSimulator:
     ) -> float:
         false_positive_rates_rule = None
         if agent_name:
-            agent = defender_settings(self._agent_settings)[agent_name]
+            agent = defender_settings(self.agent_settings)[agent_name]
             false_positive_rates_rule = agent.false_positive_rates
         return node_false_positive_rate(node, false_positive_rates_rule)
 
@@ -266,7 +266,7 @@ class MalSimulator:
     ) -> float:
         false_negative_rates_rule = None
         if agent_name:
-            agent = defender_settings(self._agent_settings)[agent_name]
+            agent = defender_settings(self.agent_settings)[agent_name]
             false_negative_rates_rule = agent.false_negative_rates
         return node_false_negative_rate(node, false_negative_rates_rule)
 

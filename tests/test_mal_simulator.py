@@ -1165,9 +1165,7 @@ def test_simulator_no_fpr_fnr() -> None:
         sim_settings=MalSimulatorSettings(seed=100),
     )
 
-    sim = MalSimulator.from_scenario(
-        scenario, sim_settings=MalSimulatorSettings(seed=100)
-    )
+    sim = MalSimulator.from_scenario(scenario)
 
     sim = MalSimulator.from_scenario(scenario)
     run_simulation(sim)
@@ -1405,7 +1403,7 @@ def test_simulator_attacker_override_ttcs_state() -> None:
     }
 
     good_attacker_state = states['GoodAttacker']
-    good_attacker_settings = sim._agent_settings['GoodAttacker']
+    good_attacker_settings = sim.agent_settings['GoodAttacker']
     assert isinstance(good_attacker_state, MalSimAttackerState)
     assert isinstance(good_attacker_settings, AttackerSettings)
     assert not good_attacker_settings.ttc_dists

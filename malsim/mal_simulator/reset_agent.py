@@ -25,7 +25,7 @@ def reset_attackers(
     """Recreate all attacker agent states"""
 
     attacker_states: AgentStates = {}
-    alive_attackers: Set[str] = set()
+    alive_attackers: MutableSet[str] = set()
     pre_compromised_nodes: Set[AttackGraphNode] = set()
 
     for attacker_settings in get_attacker_settings(agent_settings).values():
