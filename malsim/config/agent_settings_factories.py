@@ -102,7 +102,7 @@ def agent_settings_from_dict(
         policy=policy,
         observable_steps=NodePropertyRule.from_optional_dict(d.get('observable_steps')),
         actionable_steps=NodePropertyRule.from_optional_dict(d.get('actionable_steps')),
-        rewards=NodePropertyRule.from_optional_dict(d.get('rewards')) or global_rewards,
+        rewards=NodePropertyRule.from_optional_dict(d.get('rewards')),
         false_positive_rates=NodePropertyRule.from_optional_dict(
             d.get('false_positive_rates')
         ),
