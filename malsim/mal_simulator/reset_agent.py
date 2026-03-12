@@ -80,10 +80,7 @@ def reset_agents(
     )
 
     defender_states, alive_defenders = reset_defenders(
-        sim_state,
-        agent_settings,
-        pre_compromised_nodes,
-        rng,
+        sim_state, agent_settings, pre_compromised_nodes, rng
     )
 
     return (

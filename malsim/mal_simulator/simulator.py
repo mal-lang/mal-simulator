@@ -431,11 +431,7 @@ def reset(
 
     # Re-calculate initial simulator state
     graph_state = compute_initial_graph_state(attack_graph, settings, rng)
-    sim_state = create_simulator_state(
-        attack_graph,
-        graph_state,
-        settings,
-    )
+    sim_state = create_simulator_state(attack_graph, graph_state, settings)
 
     agent_states, alive_agents = reset_agents(
         sim_state,
