@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from maltoolbox.attackgraph import AttackGraph
+from malsim.config.agent_settings import AttackerSettings
 from malsim.mal_simulator import MalSimulator, MalSimAttackerState
 from malsim.envs import MalSimVectorizedObsEnv
 from malsim.scenario.scenario import Scenario
@@ -525,10 +526,17 @@ def test_malsimulator_observe_and_reward_attacker_no_entrypoints(
     corelang_lang_graph: LanguageGraph, model: Model
 ) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
+    sim = MalSimVectorizedObsEnv(
+        MalSimulator(
+            attack_graph,
+            agent_settings={
+                'attacker': AttackerSettings(name='attacker', entry_points=set())
+            },
+        )
+    )
 
     # Register an attacker
-    sim.register_attacker('attacker', set())
+
     sim.reset()
 
     obs, rew, _, _, _ = sim.step({})

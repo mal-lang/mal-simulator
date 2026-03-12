@@ -114,19 +114,15 @@ class DefenderEnv(gym.Env[Any, Any]):
         scenario = Scenario.load_from_file(scenario_file)
 
         self.scenario_agents = scenario.agent_settings
-        self.sim = MalSimVectorizedObsEnv(
-            MalSimulator(
-                scenario.attack_graph,
-            ),
-        )
+        self.sim = MalSimVectorizedObsEnv(MalSimulator.from_scenario(scenario))
 
         # Register attacker agents from scenario
-        self._register_attacker_agents(self.scenario_agents)
+        # self._register_attacker_agents(self.scenario_agents)
         self.attacker_decision_agents: dict[str, DecisionAgent] = {}
 
         # Register defender agent
-        self.defender_agent_name = 'DefenderEnvAgent'
-        self.sim.register_defender(self.defender_agent_name)
+        self.defender_agent_name = next(iter(scenario.defender_settings.keys()))
+        # self.sim.register_defender(self.defender_agent_name)
         self.sim.reset()
 
         self.observation_space = self.sim.observation_space(self.defender_agent_name)

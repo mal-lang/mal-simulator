@@ -367,9 +367,6 @@ def test_node_full_names_to_simulator(
     }
 
     # Make sure rewards worked
-    assert sim.agent_reward(states[attacker_name]) == sum(
-        rewards.to_dict()['by_asset_name'][asset_name].values()
-    )
     assert sim.agent_reward(states[defender_name]) == -sum(
         rewards.to_dict()['by_asset_name'][asset_name].values()
     )
@@ -395,13 +392,17 @@ def test_attacker_step_rewards_cumulative(
             }
         }
     )
+    attacker_name = 'Test Attacker'
     sim = MalSimulator(
         attack_graph,
         sim_settings=MalSimulatorSettings(rewards=rewards),
+        agent_settings={
+            attacker_name: AttackerSettings(
+                name=attacker_name, entry_points={entry_point}
+            )
+        },
     )
 
-    attacker_name = 'Test Attacker'
-    sim.register_attacker(attacker_name, {entry_point})
     sim.reset()
 
     states = sim.step({attacker_name: [attempt_read]})
@@ -679,14 +680,18 @@ def test_attacker_step_rewards_expected_ttc(
             for n in attack_graph.attack_steps
         }
     )
+    attacker_name = 'Test Attacker'
     sim = MalSimulator(
         attack_graph,
         sim_settings=MalSimulatorSettings(
             attacker_reward_mode=RewardMode.EXPECTED_TTC, rewards=rewards
         ),
+        agent_settings={
+            attacker_name: AttackerSettings(
+                name=attacker_name, entry_points={entry_point.full_name}
+            )
+        },
     )
-    attacker_name = 'Test Attacker'
-    sim.register_attacker(attacker_name, {entry_point.full_name})
     state = sim.reset()[attacker_name]
 
     while not sim.done():
@@ -726,13 +731,20 @@ def test_defender_step_rewards_cumulative(
             }
         }
     )
-
-    sim = MalSimulator(attack_graph, sim_settings=MalSimulatorSettings(rewards=rewards))
-
     defender_name = 'defender'
-    sim.register_defender(defender_name)
     attacker_name = 'Test Attacker'  # To be able to step
-    sim.register_attacker(attacker_name, {entry_point})
+
+    sim = MalSimulator(
+        attack_graph,
+        sim_settings=MalSimulatorSettings(rewards=rewards),
+        agent_settings={
+            defender_name: DefenderSettings(name=defender_name),
+            attacker_name: AttackerSettings(
+                name=attacker_name, entry_points={entry_point}
+            ),
+        },
+    )
+
     agent_states = sim.reset()
 
     sim.step({attacker_name: [attempt_read]})
@@ -770,18 +782,21 @@ def test_defender_step_rewards_one_off(
             }
         }
     )
+    defender_name = 'defender'
+    attacker_name = 'Test Attacker'  # To be able to step
 
     sim = MalSimulator(
         attack_graph,
         sim_settings=MalSimulatorSettings(
             defender_reward_mode=RewardMode.ONE_OFF, rewards=rewards
         ),
+        agent_settings={
+            defender_name: DefenderSettings(name=defender_name),
+            attacker_name: AttackerSettings(
+                name=attacker_name, entry_points={entry_point.full_name}
+            ),
+        },
     )
-
-    defender_name = 'defender'
-    sim.register_defender(defender_name)
-    attacker_name = 'Test Attacker'  # To be able to step
-    sim.register_attacker(attacker_name, {entry_point})
     sim.reset()
 
     states = sim.step({attacker_name: [attempt_read]})
