@@ -12,10 +12,9 @@ from malsim.mal_simulator.ttc_utils import TTCDist
 
 
 def defender_step_reward_fn(
-    enabled_defenses_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
-    enabled_attacks_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
+    enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
+    enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
     defender_settings: DefenderSettings,
-    sim_settings: MalSimulatorSettings,
 ) -> Callable[[MalSimDefenderState], float]:
     def defender_step_reward(
         defender_state: MalSimDefenderState,
@@ -34,7 +33,7 @@ def defender_step_reward_fn(
 
         # Defender is penalized for compromised steps and enabled defenses
         step_reward = -sum(
-            node_reward(n, defender_settings.rewards or sim_settings.rewards)
+            node_reward(n, defender_settings.rewards)
             for n in enabled_defenses | compromised_nodes
         )
 
@@ -46,8 +45,7 @@ def defender_step_reward_fn(
 def attacker_step_reward_fn(
     performed_attacks_func: Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
     ttc_mode: TTCMode,
-    attacker_settings: AttackerSettings,
-    sim_settings: MalSimulatorSettings,
+    attacker_settings: AttackerSettings[AttackGraphNode],
     rng: np.random.Generator,
 ):
     def attacker_step_reward(
@@ -65,10 +63,10 @@ def attacker_step_reward_fn(
 
         performed_steps = performed_attacks_func(attacker_state)
         action = attacker_state.step_attempted_nodes
-        reward_mode = sim_settings.attacker_reward_mode
+        reward_mode = attacker_settings.reward_mode
         # Attacker is rewarded for compromised nodes
         step_reward = sum(
-            node_reward(n, attacker_settings.rewards or sim_settings.rewards)
+            node_reward(n, attacker_settings.rewards)
             for n in performed_steps
         )
 

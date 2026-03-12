@@ -15,22 +15,7 @@ rewards:
       read: 5
       modify: 10
 
-# Specific fpr/fnr for some specific steps
-false_positive_rates:
-  by_asset_name:
-    Host:0:
-      access: 0.2
-    Host:1:
-      access: 0.3
 
-false_negative_rates:
-  by_asset_name:
-    Host:0:
-      access: 0.4
-    Host:1:
-      access: 0.5
-    User:3:
-      compromise: 1.0
 
 
 agents:
@@ -43,3 +28,19 @@ agents:
   defender:
     type: defender
     agent_class: 'PassiveAgent'
+    # Specific fpr/fnr for some specific steps
+    false_positive_rates:
+      by_asset_name:
+        Host:0:
+          access: 0.2
+        Host:1:
+          access: 0.3
+
+    false_negative_rates:
+      by_asset_name:
+        Host:0:
+          access: 0.4
+        Host:1:
+          access: 0.5
+        User:3:
+          compromise: 1.0

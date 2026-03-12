@@ -38,6 +38,7 @@ model:
       type: Network
   attackers:
     5:
+      reward_mode: ONE_OFF
       entry_points:
         Host:0:
           asset_id: 0

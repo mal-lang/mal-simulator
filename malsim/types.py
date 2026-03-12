@@ -4,11 +4,11 @@ from typing import TYPE_CHECKING
 from maltoolbox.attackgraph import AttackGraphNode
 
 if TYPE_CHECKING:
-    from malsim.config.agent_settings import AttackerSettings, DefenderSettings
+    from malsim.config.agent_settings import Attacker, Defender
     from malsim.mal_simulator.attacker_state import MalSimAttackerState
     from malsim.mal_simulator.defender_state import MalSimDefenderState
 
-AgentSettings = dict[str, 'AttackerSettings | DefenderSettings']
+AgentSettings = dict[str, 'Attacker | Defender']
 AgentStates = dict[str, 'MalSimAttackerState | MalSimDefenderState']
 AgentRewards = dict[str, float]
 Recording = dict[int, dict[str, list[AttackGraphNode]]]

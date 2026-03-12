@@ -1,20 +1,6 @@
 lang_file: ../langs/org.mal-lang.trainingLang-1.0.0.mar
 model_file: ../models/traininglang_model.yml
 
-# Rewards for each attack step
-rewards:
-  by_asset_name:
-    Host:0:
-      notPresent: 2
-      access: 4
-    Host:1:
-      notPresent: 7
-      access: 5
-    Data:2:
-      notPresent: 8
-      read: 5
-      modify: 10
-
 false_negative_rates:
   by_asset_type:
     Data:
@@ -43,9 +29,18 @@ agents:
       by_asset_name:
         Host:0:
           authenticate: 1000
+          access: 4
+        Host:1:
+          access: 5
+        Data:2:
+          notPresent: 8
+          read: 5
+          modify: 10
+
 
   'Defender1':
     type: 'defender'
+    reward_mode: ONE_OFF
     policy: 'DefendCompromisedDefender'
     false_negative_rates:
       by_asset_type:
@@ -67,3 +62,10 @@ agents:
       by_asset_name:
         Host:0:
           notPresent: 100
+        Host:1:
+          notPresent: 7
+          access: 5
+        Data:2:
+          notPresent: 8
+          read: 5
+          modify: 10

@@ -145,8 +145,10 @@ def get_shortest_paths_for_attacker(
     }
 
     shortest_paths = {}
-    assert attacker_state.goals, 'Attacker needs goal set for shortest path calculation'
-    for goal in attacker_state.goals:
+    assert attacker_state.settings.goals, (
+        'Attacker needs goal set for shortest path calculation'
+    )
+    for goal in attacker_state.settings.goals:
         shortest_paths[goal] = get_shortest_path_to(
             attacker_state.sim_state.attack_graph,
             list(attacker_state.performed_nodes),

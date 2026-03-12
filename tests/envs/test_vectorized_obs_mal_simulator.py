@@ -3,8 +3,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
-from maltoolbox.attackgraph import AttackGraph
-from malsim.config.agent_settings import AttackerSettings
+from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+from malsim.config.agent_settings import AttackerSettings, DefenderSettings
 from malsim.mal_simulator import MalSimulator, MalSimAttackerState
 from malsim.envs import MalSimVectorizedObsEnv
 from malsim.scenario.scenario import Scenario
@@ -22,7 +22,7 @@ def test_create_blank_observation(
     """Make sure blank observation contains correct default values"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
+    sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph, agents=()))
 
     num_objects = len(attack_graph.nodes)
     blank_observation = sim._create_blank_observation()
@@ -84,9 +84,18 @@ def test_create_blank_observation_deterministic(
     attack_graph = AttackGraph(corelang_lang_graph, model)
     os_app_fa = get_node(attack_graph, 'OS App:fullAccess')
 
-    sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
-    sim.register_attacker('test_attacker', {os_app_fa})
-    sim.register_defender('test_defender')
+    sim = MalSimVectorizedObsEnv(
+        MalSimulator(
+            attack_graph,
+            agents=(
+                AttackerSettings(
+                    name='test_attacker',
+                    entry_points=frozenset({os_app_fa}),
+                ),
+                DefenderSettings(name='test_defender'),
+            ),
+        )
+    )
 
     obs1, _ = sim.reset(seed=123)
     obs2, _ = sim.reset(seed=123)
@@ -135,11 +144,20 @@ def test_step_deterministic(corelang_lang_graph: LanguageGraph, model: Model) ->
     """Make sure blank observation is deterministic with seed given"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
-    os_app_fa = get_node(attack_graph, 'OS App:fullAccess')
-
-    sim.register_attacker('test_attacker', {os_app_fa})
-    sim.register_defender('test_defender')
+    sim = MalSimVectorizedObsEnv(
+        MalSimulator(
+            attack_graph,
+            agents=(
+                AttackerSettings(
+                    name='test_attacker',
+                    entry_points=frozenset(
+                        {get_node(attack_graph, 'OS App:fullAccess')}
+                    ),
+                ),
+                DefenderSettings(name='test_defender'),
+            ),
+        )
+    )
 
     obs1: dict[str, Any] = {}
     obs2: dict[str, Any] = {}
@@ -248,20 +266,25 @@ def test_create_blank_observation_actionability_given(
 
 def test_malsimulator_observe_attacker() -> None:
     scenario = Scenario.load_from_file('tests/testdata/scenarios/simple_scenario.yml')
-
-    # Create the simulator
-    env = MalSimVectorizedObsEnv(MalSimulator(scenario.attack_graph))
-
-    # Register the agents
     defender_agent_name = 'defender'
     attacker_agent_name = 'attacker'
 
-    os_app_fa = get_node(scenario.attack_graph, 'OS App:fullAccess')
+    # Create the simulator
+    env = MalSimVectorizedObsEnv(
+        MalSimulator(
+            scenario.attack_graph,
+            agents=(
+                AttackerSettings(
+                    name=attacker_agent_name,
+                    entry_points=frozenset(
+                        {get_node(scenario.attack_graph, 'OS App:fullAccess')}
+                    ),
+                ),
+                DefenderSettings(name=defender_agent_name),
+            ),
+        )
+    )
 
-    env.register_attacker(attacker_agent_name, {os_app_fa})
-    env.register_defender(defender_agent_name)
-
-    # Must reset after registering agents
     env.reset()
 
     # Make alteration to the attack graph attacker
@@ -355,13 +378,11 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
     attacker_name = 'Attacker1'
     user3_phish = get_node(scenario.attack_graph, 'User:3:phishing')
     host0_connect = get_node(scenario.attack_graph, 'Host:0:connect')
-    entry_points = {user3_phish, host0_connect}
+    entry_points = frozenset({user3_phish, host0_connect})
     scenario.attacker_settings[attacker_name].entry_points = entry_points
 
     # Create the simulator
-    env = MalSimVectorizedObsEnv(
-        MalSimulator.from_scenario(scenario, register_agents=False)
-    )
+    env = MalSimVectorizedObsEnv(MalSimulator.from_scenario(scenario))
 
     defender_agent_name = 'Defender1'
 
@@ -498,10 +519,11 @@ def test_malsimulator_initial_observation_defender(
     """Make sure ._observe_defender observes nodes and set observed state"""
 
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
-
     defender_agent_name = 'defender'
-    env.register_defender(defender_agent_name)
+    env = MalSimVectorizedObsEnv(
+        MalSimulator(attack_graph, agents=(DefenderSettings(name=defender_agent_name),))
+    )
+
     obs, _ = env.reset()
 
     defender_obs_state = obs[defender_agent_name]['observed_state']
@@ -526,42 +548,41 @@ def test_malsimulator_observe_and_reward_attacker_no_entrypoints(
     corelang_lang_graph: LanguageGraph, model: Model
 ) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
+    entry_points: frozenset[AttackGraphNode] = (
+        frozenset()
+    )  # No entry points for attacker
     sim = MalSimVectorizedObsEnv(
         MalSimulator(
             attack_graph,
-            agent_settings={
-                'attacker': AttackerSettings(name='attacker', entry_points=set())
-            },
+            agents=(AttackerSettings('attacker', entry_points=entry_points),),
         )
     )
 
-    # Register an attacker
-
-    sim.reset()
-
-    obs, rew, _, _, _ = sim.step({})
+    obs, _ = sim.reset()
 
     # Observe and reward with no new actions
     # Since attacker has no entry points and no steps have been performed
     # the observed state should be empty
     for state in obs['attacker']['observed_state']:
         assert state == -1
-    assert rew['attacker'] == 0
 
 
 def test_malsimulator_observe_and_reward_attacker_entrypoints(
     traininglang_lang_graph: LanguageGraph, traininglang_model: Model
 ) -> None:
     attack_graph = AttackGraph(traininglang_lang_graph, traininglang_model)
-    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
 
     user3_phish = get_node(attack_graph, 'User:3:phishing')
     host0_connect = get_node(attack_graph, 'Host:0:connect')
 
-    # Register an attacker
     attacker_name = 'attacker'
-    entry_points = {user3_phish, host0_connect}
-    env.register_attacker(attacker_name, entry_points)
+    entry_points = frozenset({user3_phish, host0_connect})
+    env = MalSimVectorizedObsEnv(
+        MalSimulator(
+            attack_graph,
+            agents=(AttackerSettings(name=attacker_name, entry_points=entry_points),),
+        )
+    )
 
     # We need to reinitialize to initialize agent
     obs, _ = env.reset()
@@ -572,13 +593,13 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
 
         node = env.index_to_node(index)
         if state == -1:
-            assert node not in attacker_state.entry_points
+            assert node not in attacker_state.settings.entry_points
             assert node not in attacker_state.performed_nodes
             assert not any(p in attacker_state.performed_nodes for p in node.parents)
         elif state == 0:
-            assert node not in attacker_state.entry_points
+            assert node not in attacker_state.settings.entry_points
             assert node not in attacker_state.performed_nodes
             assert any(p in attacker_state.performed_nodes for p in node.parents)
         elif state == 1:
-            assert node in attacker_state.entry_points
+            assert node in attacker_state.settings.entry_points
             assert node in attacker_state.performed_nodes

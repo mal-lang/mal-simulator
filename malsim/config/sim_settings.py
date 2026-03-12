@@ -1,8 +1,6 @@
+from __future__ import annotations
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Optional
-
-from malsim.config.node_property_rule import NodePropertyRule
 
 
 class TTCMode(Enum):
@@ -73,23 +71,10 @@ class MalSimulatorSettings:
     # - if true, sample attack step bernoullis to decide if they are impossible/exists
     run_attack_step_bernoullis: bool = True
 
-    # These arguably belong to a "Global" agent that overrides empty agent settings.
-    rewards: NodePropertyRule | None = None
-    false_positive_rates: NodePropertyRule | None = None
-    false_negative_rates: NodePropertyRule | None = None
-
-    # Reward settings
-    attacker_reward_mode: RewardMode = RewardMode.CUMULATIVE
-    defender_reward_mode: RewardMode = RewardMode.CUMULATIVE
-
     def __post_init__(self) -> None:
         """Allow ttc/reward mode to be given as strings - convert to enums"""
         if isinstance(self.ttc_mode, str):
             self.ttc_mode = TTCMode[self.ttc_mode]
-        if isinstance(self.attacker_reward_mode, str):
-            self.attacker_reward_mode = RewardMode[self.attacker_reward_mode]
-        if isinstance(self.defender_reward_mode, str):
-            self.defender_reward_mode = RewardMode[self.defender_reward_mode]
 
         if isinstance(self.attack_surface, dict):
             self.attack_surface = AttackSurfaceSettings(**self.attack_surface)

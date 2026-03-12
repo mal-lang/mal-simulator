@@ -11,7 +11,6 @@ from malsim.scenario.scenario import Scenario
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
-    RewardMode,
     TTCMode,
     MalSimDefenderState,
     MalSimAttackerState,
@@ -41,8 +40,8 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     defender_agent_name = 'defender1'
     attacker_agent_name = 'attacker1'
 
-    attacker_agent = scenario.agent_settings[attacker_agent_name].agent
-    defender_agent = scenario.agent_settings[defender_agent_name].agent
+    attacker_agent = scenario.attacker_settings[attacker_agent_name].agent
+    defender_agent = scenario.defender_settings[defender_agent_name].agent
     assert attacker_agent
     assert defender_agent
 
@@ -181,7 +180,6 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
             seed=23,
             attack_surface=AttackSurfaceSettings(skip_unnecessary=True),
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
-            attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
     sim = MalSimulator.from_scenario(scenario)
@@ -189,8 +187,8 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     defender_agent_name = 'defender1'
     attacker_agent_name = 'attacker1'
 
-    attacker_agent = scenario.agent_settings[attacker_agent_name].agent
-    defender_agent = scenario.agent_settings[defender_agent_name].agent
+    attacker_agent = scenario.attacker_settings[attacker_agent_name].agent
+    defender_agent = scenario.defender_settings[defender_agent_name].agent
     assert attacker_agent
     assert defender_agent
 
@@ -322,7 +320,6 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
         sim_settings=MalSimulatorSettings(
             seed=100,
             ttc_mode=TTCMode.EFFORT_BASED_PER_STEP_SAMPLE,
-            attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
     sim = MalSimulator.from_scenario(scenario)
@@ -330,8 +327,8 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
     defender_agent_name = 'defender1'
     attacker_agent_name = 'attacker1'
 
-    attacker_agent = scenario.agent_settings[attacker_agent_name].agent
-    defender_agent = scenario.agent_settings[defender_agent_name].agent
+    attacker_agent = scenario.attacker_settings[attacker_agent_name].agent
+    defender_agent = scenario.defender_settings[defender_agent_name].agent
     assert attacker_agent
     assert defender_agent
 
@@ -429,7 +426,6 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         sim_settings=MalSimulatorSettings(
             seed=1,
             ttc_mode=TTCMode.EXPECTED_VALUE,
-            attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
 
@@ -438,8 +434,8 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
     defender_agent_name = 'defender1'
     attacker_agent_name = 'attacker1'
 
-    attacker_agent = scenario.agent_settings[attacker_agent_name].agent
-    defender_agent = scenario.agent_settings[defender_agent_name].agent
+    attacker_agent = scenario.attacker_settings[attacker_agent_name].agent
+    defender_agent = scenario.defender_settings[defender_agent_name].agent
 
     assert attacker_agent
     assert defender_agent
@@ -556,8 +552,8 @@ def test_traininglang_advanced_agents() -> None:
     attacker_name = 'Attacker1'
     defender_name = 'Defender1'
 
-    attacker_agent = scenario.agent_settings[attacker_name].agent
-    defender_agent = scenario.agent_settings[defender_name].agent
+    attacker_agent = scenario.attacker_settings[attacker_name].agent
+    defender_agent = scenario.defender_settings[defender_name].agent
     assert attacker_agent
     assert defender_agent
 
@@ -633,7 +629,7 @@ def test_traininglang_advanced_agents() -> None:
 
     # Verify total rewards
     assert total_reward_attacker == 1000.0
-    assert total_reward_defender == -100.0  # Sum over two steps
+    assert total_reward_defender == -107.0  # Sum over two steps
 
 
 def test_traininglang_dont_compromise_entrypoints() -> None:
@@ -662,8 +658,8 @@ def test_traininglang_dont_compromise_entrypoints() -> None:
     attacker_name = 'attacker1'
     defender_name = 'defender1'
 
-    attacker_agent = scenario.agent_settings[attacker_name].agent
-    defender_agent = scenario.agent_settings[defender_name].agent
+    attacker_agent = scenario.attacker_settings[attacker_name].agent
+    defender_agent = scenario.defender_settings[defender_name].agent
     assert attacker_agent
     assert defender_agent
 

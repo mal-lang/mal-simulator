@@ -20,9 +20,7 @@ class MalSimDefenderState(MalSimAgentState):
     observed_nodes: Set[AttackGraphNode]
     # Contains observed steps made by any attacker in last step
     step_observed_nodes: Set[AttackGraphNode]
-    settings: (
-        DefenderSettings  # mainly here since some agent policies need to access it
-    )
+    settings: DefenderSettings
 
     # Pickling
     def __getstate__(self) -> dict[str, Any]:
