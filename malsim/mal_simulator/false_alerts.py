@@ -35,7 +35,7 @@ def generate_false_negatives(
 
 def node_false_positive_rate(
     node: AttackGraphNode,
-    false_positive_rates_rule: Optional[NodePropertyRule] = None,
+    false_positive_rates_rule: Optional[NodePropertyRule[float]] = None,
 ) -> float:
     if false_positive_rates_rule:
         # FPR from agent settings
@@ -44,7 +44,7 @@ def node_false_positive_rate(
 
 
 def generate_false_positives(
-    false_positive_rates_rule: Optional[NodePropertyRule],
+    false_positive_rates_rule: Optional[NodePropertyRule[float]],
     attack_graph: AttackGraph,
     rng: np.random.Generator,
 ) -> Set[AttackGraphNode]:

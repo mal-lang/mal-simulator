@@ -285,7 +285,7 @@ def test_malsimulator_observe_attacker() -> None:
         )
     )
 
-    env.reset()
+    obs, _ = env.reset()
 
     # Make alteration to the attack graph attacker
     attacker_state = env.get_agent_state(attacker_agent_name)
@@ -304,7 +304,7 @@ def test_malsimulator_observe_attacker() -> None:
 
     num_reached_steps_before = len(attacker_state.performed_nodes)
 
-    obs = {}
+
     for attacker_action in actions_to_take:
         obs, _, _, _, _ = env.step(
             {

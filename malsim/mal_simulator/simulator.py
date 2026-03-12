@@ -11,12 +11,17 @@ from numpy.random import default_rng
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
 from malsim.config.node_property_rule import NodePropertyRule
-from malsim.mal_simulator.attacker_state import MalSimAttackerState, get_attacker_agents
+from malsim.mal_simulator.agent_states import (
+    AgentStates,
+    get_attacker_agents,
+    get_defender_agents,
+)
+from malsim.mal_simulator.attacker_state import MalSimAttackerState
 from malsim.mal_simulator.attacker_step import (
     attacker_is_terminated,
     attacker_step,
 )
-from malsim.mal_simulator.defender_state import MalSimDefenderState, get_defender_agents
+from malsim.mal_simulator.defender_state import MalSimDefenderState
 from malsim.mal_simulator.defender_step import (
     defender_is_terminated,
     defender_step,
@@ -43,8 +48,6 @@ from malsim.config.agent_settings import (
     DefenderSettings,
 )
 from malsim.types import (
-    AgentStates,
-    AgentSettings,
     Recording,
 )
 from malsim.scenario.scenario import Scenario
@@ -216,13 +219,6 @@ class MalSimulator:
         self._static_data = static_sim_data
         self._defender_reward_fns = defender_reward_fns
         self._attacker_reward_fns = attacker_reward_fns
-        self._agent_rewards = {
-            agent: reward_fn(defender_states(agent_states)[agent])
-            for agent, reward_fn in defender_reward_fns.items()
-        } | {
-            agent: reward_fn(attacker_states(agent_states)[agent])
-            for agent, reward_fn in attacker_reward_fns.items()
-        }
 
     def __getstate__(self) -> dict[str, Any]:
         """This just ensures a pickled simulator doesn't contain some data structures"""
@@ -410,13 +406,6 @@ class MalSimulator:
         self.recording = recording
         self.sim_state = sim_state
         self._alive_agents = live_agents
-
-        rewards = {
-            state.name: self._agent_reward_from_state(state)
-            for state in agent_states.values()
-        }
-
-        self._agent_rewards = rewards
 
         return self._agent_states
 

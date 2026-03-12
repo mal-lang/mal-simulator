@@ -5,13 +5,13 @@ from maltoolbox.attackgraph import AttackGraphNode
 import logging
 
 
-from malsim.mal_simulator.attacker_state import get_attacker_agents
+from malsim.mal_simulator.agent_states import get_attacker_agents
 from malsim.mal_simulator.attacker_step import attacker_is_terminated
 from malsim.mal_simulator.graph_processing import make_node_unviable
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 if TYPE_CHECKING:
-    from malsim.types import AgentStates
+    from malsim.mal_simulator.agent_states import AgentStates
     from malsim.mal_simulator.defender_state import MalSimDefenderState
 
 logger = logging.getLogger(__name__)

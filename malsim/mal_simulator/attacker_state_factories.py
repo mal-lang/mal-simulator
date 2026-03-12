@@ -189,7 +189,7 @@ def initial_attacker_state(
 
 def attacker_overriding_ttc_settings(
     attack_graph: AttackGraph,
-    ttc_overrides_rule: NodePropertyRule,
+    ttc_overrides_rule: NodePropertyRule[TTCDist],
     ttc_mode: TTCMode,
     rng: np.random.Generator,
 ) -> tuple[

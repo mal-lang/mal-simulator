@@ -4,7 +4,6 @@ from typing import Any
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.agent_settings import AttackerSettings
 from malsim.mal_simulator.agent_state import MalSimAgentState
-from malsim.types import AgentStates
 
 
 @dataclass(frozen=True)
@@ -41,17 +40,3 @@ class MalSimAttackerState(MalSimAgentState):
         for key, value in state.items():
             if key not in ('num_attempts', 'ttc_overrides', 'ttc_value_overrides'):
                 object.__setattr__(self, key, value)
-
-
-def get_attacker_agents(
-    agent_states: AgentStates, alive_agents: Set[str], only_alive: bool = False
-) -> list[MalSimAttackerState]:
-    """Return list of mutable attacker agent states of attackers.
-    If `only_alive` is set to True, only return the agents that are alive.
-    """
-    return [
-        a
-        for a in agent_states.values()
-        if (a.name in alive_agents or not only_alive)
-        and isinstance(a, MalSimAttackerState)
-    ]

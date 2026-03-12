@@ -11,8 +11,8 @@ if TYPE_CHECKING:
 
 def get_defense_surface(
     sim_state: MalSimulatorState,
-    agent_actionability_rule: Optional[NodePropertyRule],
-) -> Set[AttackGraphNode]:
+    agent_actionability_rule: Optional[NodePropertyRule[bool]],
+) -> set[AttackGraphNode]:
     """Get the defense surface.
     All non-suppressed defense steps that are not already enabled.
 

@@ -15,16 +15,16 @@ from malsim.mal_simulator.false_alerts import (
 
 
 def node_is_observable(
-    agent_observability_rule: NodePropertyRule,
+    agent_observability_rule: NodePropertyRule[bool],
     node: AttackGraphNode,
 ) -> bool:
     return bool(agent_observability_rule.value(node, False))
 
 
 def observed_nodes(
-    observable_steps_rule: Optional[NodePropertyRule],
-    false_positive_rates_rule: Optional[NodePropertyRule],
-    false_negative_rates_rule: Optional[NodePropertyRule],
+    observable_steps_rule: Optional[NodePropertyRule[bool]],
+    false_positive_rates_rule: Optional[NodePropertyRule[float]],
+    false_negative_rates_rule: Optional[NodePropertyRule[float]],
     sim_state: MalSimulatorState,
     rng: np.random.Generator,
     compromised_nodes: Set[AttackGraphNode],

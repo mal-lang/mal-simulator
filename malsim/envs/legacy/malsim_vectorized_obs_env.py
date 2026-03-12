@@ -30,7 +30,7 @@ ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
 
 
-class MalSimVectorizedObsEnv(ParallelEnv):
+class MalSimVectorizedObsEnv(ParallelEnv[str, dict[str, Any], dict[str, str]]):
     """
     Environment that runs simulation between agents.
     Builds serialized observations.
