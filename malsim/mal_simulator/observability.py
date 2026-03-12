@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Optional
 from collections.abc import Set
 
 import numpy as np
@@ -15,7 +14,7 @@ from malsim.mal_simulator.false_alerts import (
 
 
 def node_is_observable(
-    agent_observability_rule: Optional[NodePropertyRule],
+    agent_observability_rule: NodePropertyRule | None,
     global_observability: dict[AttackGraphNode, bool],
     node: AttackGraphNode,
 ) -> bool:
@@ -29,9 +28,9 @@ def node_is_observable(
 
 
 def defender_observed_nodes(
-    observability_rule: Optional[NodePropertyRule],
-    false_positive_rates_rule: Optional[NodePropertyRule],
-    false_negative_rates_rule: Optional[NodePropertyRule],
+    observability_rule: NodePropertyRule | None,
+    false_positive_rates_rule: NodePropertyRule | None,
+    false_negative_rates_rule: NodePropertyRule | None,
     sim_state: MalSimulatorState,
     rng: np.random.Generator,
     compromised_nodes: Set[AttackGraphNode],

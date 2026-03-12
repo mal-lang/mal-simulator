@@ -3,7 +3,7 @@ Use softargmax to prioritize low TTC attack steps when running attacker
 """
 
 from __future__ import annotations
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 import random
 import numpy as np
 
@@ -25,7 +25,7 @@ class TTCSoftMinAttacker:
 
     def get_next_action(
         self, agent_state: MalSimAttackerState, **kwargs: Any
-    ) -> Optional[AttackGraphNode]:
+    ) -> AttackGraphNode | None:
         """Sample node from the action surface based on ttc softargmax"""
 
         possible_choices: list[AttackGraphNode] = list(agent_state.action_surface)

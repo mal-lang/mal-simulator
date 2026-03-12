@@ -6,7 +6,7 @@ import logging
 import random
 
 from collections import deque
-from typing import ClassVar, Optional, TYPE_CHECKING, Any
+from typing import ClassVar, TYPE_CHECKING, Any
 
 from ..decision_agent import DecisionAgent
 
@@ -35,7 +35,7 @@ class AgentConfig:
     action_ordering: ActionOrdering = ActionOrdering.NOTHING
     # The random seed to initialize the randomness engine with.
     # If None, no seed is set and thus results may be non-deterministic.
-    seed: Optional[int] = None
+    seed: int | None = None
 
 
 def parse_agent_config(config_dict: dict[str, Any]) -> AgentConfig:
@@ -89,7 +89,7 @@ class BreadthFirstAttacker(DecisionAgent):
             agent_config: Dict with settings to override defaults
         """
         self._targets: deque[AttackGraphNode] = deque()
-        self._current_target: Optional[AttackGraphNode] = None
+        self._current_target: AttackGraphNode | None = None
 
         config = (
             parse_agent_config(agent_config)
@@ -124,7 +124,7 @@ class BreadthFirstAttacker(DecisionAgent):
 
     def get_next_action(
         self, agent_state: MalSimAgentState, **kwargs: Any
-    ) -> Optional[AttackGraphNode]:
+    ) -> AttackGraphNode | None:
         """Receive the next action according to agent policy (bfs/dfs)"""
 
         new_nodes = (
@@ -159,7 +159,7 @@ def _update_targets(
         [deque[AttackGraphNode], list[AttackGraphNode]], deque[AttackGraphNode]
     ],
     disabled_nodes: Set[AttackGraphNode],
-    current_target: Optional[AttackGraphNode] = None,
+    current_target: AttackGraphNode | None = None,
 ) -> deque[AttackGraphNode]:
     if current_target and current_target not in disabled_nodes:
         # If self.current_target was not compromised, e.g. due to TTCs,

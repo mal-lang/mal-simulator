@@ -14,7 +14,7 @@ A scenario is a combination of:
 from __future__ import annotations
 import os
 from dataclasses import dataclass
-from typing import Any, Optional, TextIO
+from typing import Any, TextIO
 import logging
 
 import yaml
@@ -67,11 +67,11 @@ class Scenario:
         lang_file: str,
         model: Model | dict[str, Any] | str,
         agent_settings: dict[str, AttackerSettings | DefenderSettings],
-        rewards: Optional[dict[str, Any]] = None,
-        false_positive_rates: Optional[dict[str, Any]] = None,
-        false_negative_rates: Optional[dict[str, Any]] = None,
-        observable_steps: Optional[dict[str, Any]] = None,
-        actionable_steps: Optional[dict[str, Any]] = None,
+        rewards: dict[str, Any] | None = None,
+        false_positive_rates: dict[str, Any] | None = None,
+        false_negative_rates: dict[str, Any] | None = None,
+        observable_steps: dict[str, Any] | None = None,
+        actionable_steps: dict[str, Any] | None = None,
     ):
         # Lang file is required
         self._lang_file = lang_file
@@ -241,7 +241,7 @@ def load_scenario_dict(scenario_file: str) -> dict[str, Any]:
 
     Extend it with other scenario if `extend` keyword is used.
     """
-    with open(scenario_file, 'r', encoding='utf-8') as s_file:
+    with open(scenario_file, encoding='utf-8') as s_file:
         scenario: dict[str, Any] = yaml.safe_load(s_file)
 
         if 'extends' in scenario:

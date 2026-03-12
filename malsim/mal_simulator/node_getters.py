@@ -1,11 +1,12 @@
-from typing import Any, Iterable, Optional
+from typing import Any
+from collections.abc import Iterable
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
 
 def get_node(
     attack_graph: AttackGraph,
-    full_name: Optional[str] = None,
-    node_id: Optional[int] = None,
+    full_name: str | None = None,
+    node_id: int | None = None,
 ) -> AttackGraphNode:
     """Get node from attack graph by either full name or id"""
 

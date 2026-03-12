@@ -1,6 +1,6 @@
 from __future__ import annotations
 from collections.abc import Set
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 import logging
 import math
 
@@ -32,7 +32,7 @@ class DefendCompromisedDefender:
 
     def get_next_action(
         self, agent_state: MalSimDefenderState, **kwargs: Any
-    ) -> Optional[AttackGraphNode]:
+    ) -> AttackGraphNode | None:
         """Return an action that disables a compromised node"""
 
         self.compromised_nodes |= agent_state.step_observed_nodes
@@ -82,7 +82,7 @@ class DefendFutureCompromisedDefender:
 
     def get_next_action(
         self, agent_state: MalSimDefenderState, **kwargs: Any
-    ) -> Optional[AttackGraphNode]:
+    ) -> AttackGraphNode | None:
         """Return an action that disables a compromised node"""
 
         self.compromised_nodes |= agent_state.step_observed_nodes

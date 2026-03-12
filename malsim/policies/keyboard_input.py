@@ -1,6 +1,6 @@
 from __future__ import annotations
 import logging
-from typing import TYPE_CHECKING, Optional, Any
+from typing import TYPE_CHECKING, Any
 
 from .decision_agent import DecisionAgent
 
@@ -19,7 +19,7 @@ class KeyboardAgent(DecisionAgent):
 
     def get_next_action(
         self, agent_state: MalSimAgentState, **kwargs: Any
-    ) -> Optional[AttackGraphNode]:
+    ) -> AttackGraphNode | None:
         """Compute action from action_surface"""
 
         def valid_action(user_input: str) -> bool:
@@ -33,7 +33,7 @@ class KeyboardAgent(DecisionAgent):
 
             return 0 <= node <= len(agent_state.action_surface)
 
-        def get_action_object(user_input: str) -> Optional[int]:
+        def get_action_object(user_input: str) -> int | None:
             node = int(user_input) if user_input != '' else None
             return node
 

@@ -1,7 +1,6 @@
 """Functions to generate false negatives/positives in the simulator"""
 
 from __future__ import annotations
-from typing import Optional
 from collections.abc import Set
 
 import numpy as np
@@ -10,7 +9,7 @@ from malsim.config.node_property_rule import NodePropertyRule
 
 
 def node_false_negative_rate(
-    false_negative_rates_rule: Optional[NodePropertyRule],
+    false_negative_rates_rule: NodePropertyRule | None,
     global_false_negative_rates: dict[AttackGraphNode, float],
     node: AttackGraphNode,
 ) -> float:
@@ -24,7 +23,7 @@ def node_false_negative_rate(
 
 
 def generate_false_negatives(
-    false_negative_rate_rule: Optional[NodePropertyRule],
+    false_negative_rate_rule: NodePropertyRule | None,
     global_false_negative_rates: dict[AttackGraphNode, float],
     observed_nodes: Set[AttackGraphNode],
     rng: np.random.Generator,
@@ -44,7 +43,7 @@ def generate_false_negatives(
 
 
 def node_false_positive_rate(
-    false_positive_rates_rule: Optional[NodePropertyRule],
+    false_positive_rates_rule: NodePropertyRule | None,
     global_false_positive_rates: dict[AttackGraphNode, float],
     node: AttackGraphNode,
 ) -> float:
@@ -58,7 +57,7 @@ def node_false_positive_rate(
 
 
 def generate_false_positives(
-    false_positive_rates_rule: Optional[NodePropertyRule],
+    false_positive_rates_rule: NodePropertyRule | None,
     global_false_positive_rates: dict[AttackGraphNode, float],
     attack_graph: AttackGraph,
     rng: np.random.Generator,

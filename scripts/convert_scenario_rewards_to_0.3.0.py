@@ -31,7 +31,7 @@ def _convert_scenario_rewards_to_0_3_0(scenario_file: str) -> dict[str, Any]:
     - 'by_asset_type': a dictionary with asset types as keys
     - 'by_asset_name': a dictionary with asset names as keys
     """
-    with open(scenario_file, 'r', encoding='utf-8') as file:
+    with open(scenario_file, encoding='utf-8') as file:
         scenario: dict[str, Any] = yaml.safe_load(file)
         if 'rewards' not in scenario:
             return scenario

@@ -3,7 +3,7 @@
 # before someone with more Gymnasium knowledge
 # can jump into the code base
 
-from typing import Any, Dict, SupportsFloat, Optional
+from typing import Any, SupportsFloat
 
 import gymnasium as gym
 import gymnasium.utils.env_checker as env_checker
@@ -75,7 +75,7 @@ class AttackerEnv(gym.Env[Any, Any]):
     def step(
         self, action: Any
     ) -> tuple[Any, SupportsFloat, bool, bool, dict[str, Any]]:
-        obs: Dict[str, Any]
+        obs: dict[str, Any]
 
         # TODO: Add potential defender and give defender action if it exists
         actions = {
@@ -143,7 +143,7 @@ class DefenderEnv(gym.Env[Any, Any]):
     def _create_attacker_decision_agents(
         self,
         agents: dict[str, AttackerSettings | DefenderSettings],
-        seed: Optional[int] = None,
+        seed: int | None = None,
     ) -> dict[str, DecisionAgent]:
         """Create decision agents for each attacker"""
 

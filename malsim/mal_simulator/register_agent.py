@@ -1,5 +1,4 @@
 from collections.abc import Callable, MutableSet
-from typing import Optional
 from collections.abc import Set
 
 from maltoolbox.attackgraph import AttackGraphNode
@@ -76,7 +75,7 @@ def register_attacker(
     performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
     enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
     enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
-    goals: Optional[Set[str] | Set[AttackGraphNode]] = None,
+    goals: Set[str] | Set[AttackGraphNode] | None = None,
 ) -> tuple[AgentStates, Set[str], AgentRewards, AgentSettings]:
     """Register a mal sim attacker agent without settings object"""
     attacker_settings = AttackerSettings(name, entry_points, goals or set())

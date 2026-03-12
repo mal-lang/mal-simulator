@@ -1,6 +1,5 @@
 from enum import Enum
 from dataclasses import dataclass
-from typing import Optional
 
 
 class TTCMode(Enum):
@@ -41,7 +40,7 @@ class MalSimulatorSettings:
 
     # seed
     # - optionally run deterministic simulations with seed
-    seed: Optional[int] = None
+    seed: int | None = None
     # attack_surface_skip_compromised
     # - if true do not add already compromised nodes to the attack surface
     attack_surface_skip_compromised: bool = True

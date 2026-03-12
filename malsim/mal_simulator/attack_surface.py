@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from collections import deque
 from collections.abc import MutableSet, Set
 
@@ -44,10 +44,10 @@ def get_effects_of_attack_step(
 def get_attack_surface(
     sim_settings: MalSimulatorSettings,
     sim_state: MalSimulatorState,
-    agent_actionability_rule: Optional[NodePropertyRule],
+    agent_actionability_rule: NodePropertyRule | None,
     global_actionability: dict[AttackGraphNode, bool],
     performed_nodes: Set[AttackGraphNode],
-    from_nodes: Optional[Set[AttackGraphNode]] = None,
+    from_nodes: Set[AttackGraphNode] | None = None,
 ) -> Set[AttackGraphNode]:
     """
     Calculate the attack surface of the attacker.

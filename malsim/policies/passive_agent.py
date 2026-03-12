@@ -1,7 +1,7 @@
 """A passive agent that always choose to do nothing"""
 
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional, Any
+from typing import TYPE_CHECKING, Any
 
 from .decision_agent import DecisionAgent
 
@@ -15,6 +15,6 @@ class PassiveAgent(DecisionAgent):
 
     def get_next_action(
         self, agent_state: MalSimAgentState, **kwargs: Any
-    ) -> Optional[AttackGraphNode]:
+    ) -> AttackGraphNode | None:
         # A passive agent never does anything
         return None
