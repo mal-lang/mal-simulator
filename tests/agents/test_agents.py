@@ -95,7 +95,7 @@ def test_defend_compromised_defender(dummy_lang_graph: LanguageGraph) -> None:
     defender_ai = DefendCompromisedDefender(agent_config)
 
     # Should pick cheapest one
-    sim._agent_settings['def_comp'].rewards = NodePropertyRule.from_attack_step_dict(
+    sim.agent_settings['def_comp'].rewards = NodePropertyRule.from_attack_step_dict(
         {node1: 100, node2: 10}
     )
     # Get next action
@@ -105,7 +105,7 @@ def test_defend_compromised_defender(dummy_lang_graph: LanguageGraph) -> None:
     assert action_node.id == node2.id
 
     # Should pick cheapest one
-    sim._agent_settings['def_comp'].rewards = NodePropertyRule.from_attack_step_dict(
+    sim.agent_settings['def_comp'].rewards = NodePropertyRule.from_attack_step_dict(
         {node1: 10, node2: 100}
     )
 

@@ -11,7 +11,7 @@ def run_simulation(sim: MalSimulator) -> dict[str, list[AttackGraphNode]]:
 
     Return selected actions by each agent in each step
     """
-    agents = sim._agent_settings
+    agents = sim.agent_settings
     agent_actions: dict[str, list[AttackGraphNode]] = {}
     total_rewards = dict.fromkeys(sim.agent_settings, 0.0)
 
