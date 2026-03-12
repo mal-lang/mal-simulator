@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from maltoolbox.language import LanguageGraphAttackStep
@@ -1396,7 +1396,7 @@ def test_settings_serialization() -> None:
     assert deserialized_settings == settings
 
 
-def test_simulator_picklable(tmp_path) -> None:
+def test_simulator_picklable(tmp_path: Any) -> None:
     import pickle
 
     scenario = Scenario.load_from_file(

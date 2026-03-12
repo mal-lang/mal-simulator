@@ -53,7 +53,7 @@ def test_load_scenario() -> None:
     assert scenario.agent_settings['Defender1'].policy == PassiveAgent
 
 
-def test_save_scenario(model: Model, tmp_path) -> None:
+def test_save_scenario(model: Model, tmp_path: Any) -> None:
     """Make sure we can load and save a scenario"""
 
     # Load the scenario
@@ -456,7 +456,7 @@ def test_apply_scenario_rewards_old_format() -> None:
         NodePropertyRule.from_optional_dict(scenario_dict['rewards'])
 
 
-def test_scenario_pickle(tmp_path) -> None:
+def test_scenario_pickle(tmp_path: Any) -> None:
     """Make sure we can pickle a scenario"""
 
     # Load the scenario
