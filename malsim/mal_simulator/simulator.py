@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections import defaultdict
 import logging
 from typing import Any, NamedTuple, Optional
-from collections.abc import Callable, Mapping, MutableSet, Set
-from copy import copy
+from collections.abc import Callable, Mapping, Set
+
 import numpy as np
 from numpy.random import default_rng
 
@@ -33,7 +33,10 @@ from malsim.mal_simulator.register_agent import (
     register_defender_settings,
 )
 from malsim.mal_simulator.reset_agent import reset_agents
-from malsim.mal_simulator.rewards import defender_step_reward, attacker_step_reward
+from malsim.mal_simulator.rewards import (
+    attacker_step_reward_fn,
+    defender_step_reward_fn,
+)
 from malsim.mal_simulator.false_alerts import (
     node_false_negative_rate,
     node_false_positive_rate,
@@ -116,6 +119,30 @@ def defender_settings(agent_settings: AgentSettings) -> dict[str, DefenderSettin
     }
 
 
+def attacker_settings(agent_settings: AgentSettings) -> dict[str, AttackerSettings]:
+    return {
+        name: settings
+        for name, settings in agent_settings.items()
+        if isinstance(settings, AttackerSettings)
+    }
+
+
+def defender_states(agent_states: AgentStates) -> dict[str, MalSimDefenderState]:
+    return {
+        name: state
+        for name, state in agent_states.items()
+        if isinstance(state, MalSimDefenderState)
+    }
+
+
+def attacker_states(agent_states: AgentStates) -> dict[str, MalSimAttackerState]:
+    return {
+        name: state
+        for name, state in agent_states.items()
+        if isinstance(state, MalSimAttackerState)
+    }
+
+
 class MalSimulator:
     """A MAL Simulator that works on the AttackGraph
 
@@ -150,13 +177,7 @@ class MalSimulator:
             attack_graph,
             sim_settings,
         )
-        performed_attacks_func = PERFORMED_ATTACKS_FUNCS[
-            sim_settings.attacker_reward_mode
-        ]
-        enabled_defenses_func = ENABLED_DEFENSES_FUNCS[
-            sim_settings.defender_reward_mode
-        ]
-        enabled_attacks_func = ENABLED_ATTACKS_FUNCS[sim_settings.defender_reward_mode]
+
         agent_settings = agent_settings or {}
 
         agent_states, alive_agents, sim_state, recording = reset(
@@ -166,16 +187,27 @@ class MalSimulator:
             rest_api_client,
         )
 
-        rewards = {
-            state.name: _agent_reward_from_state(
-                state,
+        defender_reward_mode = sim_settings.defender_reward_mode
+        attacker_reward_mode = sim_settings.attacker_reward_mode
+
+        defender_reward_fns = {
+            agent_id: defender_step_reward_fn(
+                ENABLED_DEFENSES_FUNCS[defender_reward_mode],
+                ENABLED_ATTACKS_FUNCS[defender_reward_mode],
+                agent_settings,
                 sim_settings,
-                enabled_attacks_func,
-                enabled_defenses_func,
-                performed_attacks_func,
+            )
+            for agent_id, agent_settings in defender_settings(agent_settings).items()
+        }
+        attacker_reward_fns = {
+            agent_id: attacker_step_reward_fn(
+                PERFORMED_ATTACKS_FUNCS[attacker_reward_mode],
+                sim_settings.ttc_mode,
+                agent_setting,
+                sim_settings,
                 rng,
             )
-            for state in agent_states.values()
+            for agent_id, agent_setting in attacker_settings(agent_settings).items()
         }
 
         # Set all instance variables
@@ -184,21 +216,25 @@ class MalSimulator:
         self._alive_agents = alive_agents
         self.sim_state = sim_state
         self.recording = recording
-        self.enabled_attacks_func = enabled_attacks_func
-        self.enabled_defenses_func = enabled_defenses_func
-        self.performed_attacks_func = performed_attacks_func
         self.sim_settings = sim_settings
         self.agent_settings = agent_settings
         self.rest_api_client = rest_api_client
         self._static_data = static_sim_data
-        self._agent_rewards = rewards
+        self._defender_reward_fns = defender_reward_fns
+        self._attacker_reward_fns = attacker_reward_fns
+        self._agent_rewards = {
+            agent: reward_fn(defender_states(agent_states)[agent])
+            for agent, reward_fn in defender_reward_fns.items()
+        } | {
+            agent: reward_fn(attacker_states(agent_states)[agent])
+            for agent, reward_fn in attacker_reward_fns.items()
+        }
 
     def __getstate__(self) -> dict[str, Any]:
         """This just ensures a pickled simulator doesn't contain some data structures"""
         do_not_pickle = {
-            'performed_attacks_func',
-            'enabled_defenses_func',
-            'enabled_attacks_func',
+            '_defender_reward_fns',
+            '_attacker_reward_fns',
         }
         return {k: v for (k, v) in self.__dict__.items() if k not in do_not_pickle}
 
@@ -242,17 +278,8 @@ class MalSimulator:
         )
         return node_is_actionable(agent_actionability, node)
 
-    def node_reward(
-        self, node: AttackGraphNode, agent_name: Optional[str] = None
-    ) -> float:
-        if not agent_name and self.sim_settings.rewards:
-            return self.sim_settings.rewards.value(node, 0)
-        elif agent_name:
-            return node_reward(
-                node, reward_rule=self._agent_settings[agent_name].rewards
-            )
-        else:
-            return 0.0
+    def node_reward(self, node: AttackGraphNode, agent_name: str) -> float:
+        return node_reward(node, reward_rule=self._agent_settings[agent_name].rewards)
 
     def node_is_observable(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
@@ -431,14 +458,19 @@ class MalSimulator:
 
     def _agent_reward_from_state(
         self, state: MalSimAttackerState | MalSimDefenderState
-    ) -> float:
-        return _agent_reward_from_state(
-            state,
-            self.sim_settings,
-            self.enabled_attacks_func,
-            self.enabled_defenses_func,
-            self.performed_attacks_func,
-            self.rng,
+    ) -> float | None:
+        return (
+            (
+                self._defender_reward_fns[state.name](state)
+                if state.name in self._defender_reward_fns
+                else None
+            )
+            if isinstance(state, MalSimDefenderState)
+            else (
+                self._attacker_reward_fns[state.name](state)
+                if state.name in self._attacker_reward_fns
+                else None
+            )
         )
 
     def step(
@@ -671,29 +703,3 @@ def step(
         )
 
     return agent_states, recording, sim_state, alive_agents
-
-
-def _agent_reward_from_state(
-    state: MalSimAttackerState | MalSimDefenderState,
-    sim_settings: MalSimulatorSettings,
-    enabled_attacks_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
-    enabled_defenses_func: Callable[[MalSimDefenderState], frozenset[AttackGraphNode]],
-    performed_attacks_func: Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
-    rng: np.random.Generator,
-) -> float:
-    if isinstance(state, MalSimDefenderState):
-        return defender_step_reward(
-            enabled_defenses_func,
-            enabled_attacks_func,
-            state,
-            state.settings,
-            sim_settings,
-        )
-
-    return attacker_step_reward(
-        performed_attacks_func,
-        state,
-        sim_settings,
-        state.settings,
-        rng,
-    )
