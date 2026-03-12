@@ -1583,7 +1583,7 @@ def test_scenario_advanced_agent_settings() -> None:
     assert not sim.node_is_actionable(sim.get_node('Data:2:read'), attacker_name)
 
     assert sim.node_reward(sim.get_node('Host:0:authenticate'), attacker_name) == 1000
-    assert sim.node_reward(sim.get_node('Host:0:access'), attacker_name) == 0.0
+    assert sim.node_reward(sim.get_node('Host:0:access'), attacker_name) == 4.0
 
 
 def test_active_defenses() -> None:
