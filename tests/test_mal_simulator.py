@@ -52,7 +52,6 @@ def test_init_with_agent_settings(
         ),
         DefenderSettings(name='Defender1', policy=RandomAgent),
     )
-    attack_graph = AttackGraph(corelang_lang_graph, model)
     sim = MalSimulator(attack_graph, agents=agent_settings)
 
     # Make sure the agents were registered
