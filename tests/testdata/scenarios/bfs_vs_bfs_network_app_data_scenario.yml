@@ -14,7 +14,7 @@ agents:
     agent_class: BreadthFirstAttacker
     type: attacker
     config:
-      seed: 1
+      action_ordering: sorted
     entry_points:
       - 'Internet:accessUninspected'
 
@@ -22,4 +22,4 @@ agents:
     agent_class: BreadthFirstAttacker
     type: defender
     config:
-      seed: 1
+      action_ordering: sorted
