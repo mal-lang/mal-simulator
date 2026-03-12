@@ -22,7 +22,6 @@ from malsim.scenario.scenario import Scenario
 from malsim.mal_simulator import (
     MalSimulatorSettings,
     TTCMode,
-    RewardMode,
     MalSimAttackerState,
 )
 import numpy as np

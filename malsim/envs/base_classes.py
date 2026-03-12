@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Set
-from typing import Any
+from typing import Any, Optional
 
 
 from ..mal_simulator.defender_state import MalSimDefenderState

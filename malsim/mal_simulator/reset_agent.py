@@ -1,4 +1,4 @@
-from collections.abc import Callable, Set
+from collections.abc import MutableSet, Set
 
 import numpy as np
 
@@ -51,7 +51,7 @@ def reset_defenders(
 ) -> tuple[AgentStates, Set[str]]:
     """Recreate all defender agent states"""
     defender_states: AgentStates = {}
-    alive_defenders: Set[str] = set()
+    alive_defenders: MutableSet[str] = set()
 
     for defender_settings in get_defender_settings(agent_settings).values():
         new_defender_state = initial_defender_state(
@@ -64,7 +64,7 @@ def reset_defenders(
         alive_defenders.add(defender_settings.name)
         defender_states[defender_settings.name] = new_defender_state
 
-    return defender_states, alive_defenders
+    return defender_states, frozenset(alive_defenders)
 
 
 def reset_agents(

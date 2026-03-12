@@ -1,7 +1,7 @@
 """Creation/manipulation of attacker state"""
 
 from __future__ import annotations
-from collections.abc import Set, Mapping
+from collections.abc import MutableSet, Set, Mapping
 from typing import Optional, TYPE_CHECKING
 
 from malsim.config.node_property_rule import NodePropertyRule

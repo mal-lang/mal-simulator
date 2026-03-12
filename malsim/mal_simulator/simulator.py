@@ -3,14 +3,13 @@ from __future__ import annotations
 from collections import defaultdict
 import logging
 from typing import Any, NamedTuple, Optional
-from collections.abc import Callable, Mapping, Set
-
+from collections.abc import Callable, Iterable, Mapping, MutableSet, Set
+from copy import copy
 import numpy as np
 from numpy.random import default_rng
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
-from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.agent_states import (
     AgentStates,
     get_attacker_agents,

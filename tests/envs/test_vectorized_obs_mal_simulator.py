@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
+from collections.abc import Set
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from malsim.config.agent_settings import AttackerSettings, DefenderSettings
@@ -304,7 +305,6 @@ def test_malsimulator_observe_attacker() -> None:
 
     num_reached_steps_before = len(attacker_state.performed_nodes)
 
-
     for attacker_action in actions_to_take:
         obs, _, _, _, _ = env.step(
             {
@@ -548,9 +548,7 @@ def test_malsimulator_observe_and_reward_attacker_no_entrypoints(
     corelang_lang_graph: LanguageGraph, model: Model
 ) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
-    entry_points: frozenset[AttackGraphNode] = (
-        frozenset()
-    )  # No entry points for attacker
+    entry_points: Set[AttackGraphNode] = frozenset()  # No entry points for attacker
     sim = MalSimVectorizedObsEnv(
         MalSimulator(
             attack_graph,

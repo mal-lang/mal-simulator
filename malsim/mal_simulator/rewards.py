@@ -7,7 +7,7 @@ from malsim.config.agent_settings import AttackerSettings, DefenderSettings
 from malsim.mal_simulator.defender_state import MalSimDefenderState
 from malsim.mal_simulator.attacker_state import MalSimAttackerState
 from malsim.mal_simulator.graph_utils import node_reward
-from malsim.config.sim_settings import MalSimulatorSettings, RewardMode, TTCMode
+from malsim.config.sim_settings import RewardMode, TTCMode
 from malsim.mal_simulator.ttc_utils import TTCDist
 
 
@@ -43,7 +43,7 @@ def defender_step_reward_fn(
 
 
 def attacker_step_reward_fn(
-    performed_attacks_func: Callable[[MalSimAttackerState], frozenset[AttackGraphNode]],
+    performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
     ttc_mode: TTCMode,
     attacker_settings: AttackerSettings[AttackGraphNode],
     rng: np.random.Generator,
@@ -66,8 +66,7 @@ def attacker_step_reward_fn(
         reward_mode = attacker_settings.reward_mode
         # Attacker is rewarded for compromised nodes
         step_reward = sum(
-            node_reward(n, attacker_settings.rewards)
-            for n in performed_steps
+            node_reward(n, attacker_settings.rewards) for n in performed_steps
         )
 
         if ttc_mode != TTCMode.DISABLED:
