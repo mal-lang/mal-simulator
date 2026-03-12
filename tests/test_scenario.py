@@ -568,7 +568,11 @@ def test_scenario_advanced_agent_settings() -> None:
 
     # actionable_steps
     assert isinstance(attacker.actionable_steps, NodePropertyRule)
-    assert attacker.actionable_steps.by_asset_type == {
+
+    # TODO the types of NodePropertyRule are currently not preserved when loading from file.
+    # Either NodePropertyRule needs to be changed, or the loading logic needs to be updated
+    # to preserve the respect the type of the NodePropertyRule objects.
+    assert attacker.actionable_steps.by_asset_type == {  # type: ignore[comparison-overlap]
         'Host': ['authenticate', 'connect'],
         'User': ['compromise'],
     }
@@ -588,9 +592,12 @@ def test_scenario_advanced_agent_settings() -> None:
     assert isinstance(defender.actionable_steps, NodePropertyRule)
     assert isinstance(defender.observable_steps, NodePropertyRule)
 
+    # TODO the types of NodePropertyRule are currently not preserved when loading from file.
+    # Either NodePropertyRule needs to be changed, or the loading logic needs to be updated
+    # to preserve the respect the type of the NodePropertyRule objects.
     assert (
         defender.actionable_steps.by_asset_type
-        and defender.actionable_steps.by_asset_type == {'Host': ['notPresent']}
+        and defender.actionable_steps.by_asset_type == {'Host': ['notPresent']}  # type: ignore[comparison-overlap]
     )
 
     # FN/FP rates
