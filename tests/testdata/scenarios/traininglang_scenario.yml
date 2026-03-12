@@ -1,8 +1,6 @@
 lang_file: ../langs/org.mal-lang.trainingLang-1.0.0.mar
 model_file: ../models/traininglang_model.yml
 
-
-
 agents:
   'Attacker1':
     type: 'attacker'

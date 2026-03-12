@@ -57,19 +57,6 @@ model:
     malVersion: 0.1.0-SNAPSHOT
     name: Simple Example Model for trainingLang
 
-# Rewards for each attack step
-rewards:
-  by_asset_name:
-    Host:0:
-      notPresent: 2
-      access: 4
-    Host:1:
-      notPresent: 7
-      access: 5
-    Data:2:
-      notPresent: 8
-      read: 5
-      modify: 10
 
 agents:
   'Attacker1':
@@ -78,6 +65,32 @@ agents:
     entry_points:
     - 'User:3:phishing'
     - 'Host:0:connect'
+    # Rewards for each attack step
+    rewards:
+      by_asset_name:
+        Host:0:
+          notPresent: 2
+          access: 4
+        Host:1:
+          notPresent: 7
+          access: 5
+        Data:2:
+          notPresent: 8
+          read: 5
+          modify: 10
 
   'Defender1':
     type: 'defender'
+    # Rewards for each attack step
+    rewards:
+      by_asset_name:
+        Host:0:
+          notPresent: 2
+          access: 4
+        Host:1:
+          notPresent: 7
+          access: 5
+        Data:2:
+          notPresent: 8
+          read: 5
+          modify: 10
