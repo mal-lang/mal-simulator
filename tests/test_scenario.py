@@ -53,7 +53,7 @@ def test_load_scenario() -> None:
     assert scenario.agent_settings['Defender1'].policy == PassiveAgent
 
 
-def test_save_scenario(model: Model) -> None:
+def test_save_scenario(model: Model, tmp_path: Any) -> None:
     """Make sure we can load and save a scenario"""
 
     # Load the scenario
@@ -71,7 +71,7 @@ def test_save_scenario(model: Model) -> None:
             'Attacker1': AttackerSettings(name='Attacker1', entry_points=set())
         },
     )
-    save_path = '/tmp/saved_scenario.yml'
+    save_path = tmp_path / 'saved_scenario.yml'
     scenario.save_to_file(save_path)
     loaded_scenario = Scenario.load_from_file(save_path)
     assert loaded_scenario.to_dict() == scenario.to_dict()
@@ -456,7 +456,7 @@ def test_apply_scenario_rewards_old_format() -> None:
         NodePropertyRule.from_optional_dict(scenario_dict['rewards'])
 
 
-def test_scenario_pickle() -> None:
+def test_scenario_pickle(tmp_path: Any) -> None:
     """Make sure we can pickle a scenario"""
 
     # Load the scenario
@@ -464,10 +464,10 @@ def test_scenario_pickle() -> None:
         path_relative_to_tests('./testdata/scenarios/simple_scenario.yml')
     )
 
-    with open('/tmp/scenario.pkl', 'wb') as f:
+    with open(tmp_path / 'scenario.pkl', 'wb') as f:
         pickle.dump(scenario, f)
 
-    with open('/tmp/scenario.pkl', 'rb') as f:
+    with open(tmp_path / 'scenario.pkl', 'rb') as f:
         loaded_scenario = pickle.load(f)
 
     assert loaded_scenario.to_dict() == scenario.to_dict()
