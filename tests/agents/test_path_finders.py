@@ -12,7 +12,7 @@ def test_path_finding() -> None:
     data_2_read = attack_graph.get_node_by_full_name('Data:2:read')
     sim = MalSimulator.from_scenario(scenario)
 
-    agent_state = sim.agent_states['path_finder']
+    agent_state = sim.agent_states['Attacker1']
 
     path = get_shortest_path_to(
         sim.sim_state.attack_graph,
