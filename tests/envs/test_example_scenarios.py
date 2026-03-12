@@ -17,7 +17,7 @@ from malsim.mal_simulator import (
 )
 
 
-def test_bfs_vs_bfs_state_and_reward() -> None:
+def test_bfs_vs_bfs_state_and_reward_first() -> None:
     """
     The point of this test is to see that a specific
     scenario runs deterministically.

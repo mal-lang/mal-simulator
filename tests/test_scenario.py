@@ -32,8 +32,9 @@ def test_load_scenario() -> None:
     scenario = Scenario.load_from_file(
         path_relative_to_tests('./testdata/scenarios/simple_scenario.yml')
     )
-    assert scenario.attacker_settings['Attacker1'].rewards
-    rewards_per_node = scenario.attacker_settings['Attacker1'].rewards
+
+    assert scenario.defender_settings['Defender1'].rewards
+    rewards_per_node = scenario.defender_settings['Defender1'].rewards
     assert rewards_per_node.by_asset_name
     # Verify rewards were added as defined in './testdata/simple_scenario.yml'
     assert rewards_per_node.by_asset_name['OS App']['notPresent'] == 2
@@ -568,8 +569,8 @@ def test_scenario_advanced_agent_settings() -> None:
     # actionable_steps
     assert isinstance(attacker.actionable_steps, NodePropertyRule)
     assert attacker.actionable_steps.by_asset_type == {
-        'Host': {'authenticate': True, 'connect': True},
-        'User': {'compromise': True},
+        'Host': ['authenticate', 'connect'],
+        'User': ['compromise'],
     }
 
     # observable_steps
@@ -589,7 +590,7 @@ def test_scenario_advanced_agent_settings() -> None:
 
     assert (
         defender.actionable_steps.by_asset_type
-        and defender.actionable_steps.by_asset_type == {'Host': {'notPresent': True}}
+        and defender.actionable_steps.by_asset_type == {'Host': ['notPresent']}
     )
 
     # FN/FP rates
