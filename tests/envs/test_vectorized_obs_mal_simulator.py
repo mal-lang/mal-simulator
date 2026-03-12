@@ -280,6 +280,7 @@ def test_malsimulator_observe_attacker() -> None:
 
     num_reached_steps_before = len(attacker_state.performed_nodes)
 
+    obs = {}
     for attacker_action in actions_to_take:
         obs, _, _, _, _ = env.step(
             {
@@ -349,21 +350,20 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
     scenario = Scenario.load_from_file(
         'tests/testdata/scenarios/traininglang_scenario.yml'
     )
+
+    attacker_name = 'Attacker1'
+    user3_phish = get_node(scenario.attack_graph, 'User:3:phishing')
+    host0_connect = get_node(scenario.attack_graph, 'Host:0:connect')
+    entry_points = {user3_phish, host0_connect}
+    scenario.attacker_settings[attacker_name].entry_points = entry_points
+
     # Create the simulator
     env = MalSimVectorizedObsEnv(
         MalSimulator.from_scenario(scenario, register_agents=False)
     )
 
-    user3_phish = get_node(scenario.attack_graph, 'User:3:phishing')
-    host0_connect = get_node(scenario.attack_graph, 'Host:0:connect')
-
-    # Register an attacker
-    attacker_name = 'attacker'
-    entry_points = {user3_phish, host0_connect}
-    env.register_attacker(attacker_name, entry_points)
-
     defender_agent_name = 'Defender1'
-    env.register_defender(defender_agent_name)
+
     env.reset()
 
     defender_state = env.get_agent_state(defender_agent_name)

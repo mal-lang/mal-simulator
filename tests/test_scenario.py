@@ -8,6 +8,7 @@ from typing import Any
 from maltoolbox.model import Model
 from malsim.config.agent_settings import AgentType, AttackerSettings, DefenderSettings
 from malsim.config.node_property_rule import NodePropertyRule
+from malsim.config.sim_settings import MalSimulatorSettings
 from malsim.scenario.scenario import Scenario
 from malsim.policies import PassiveAgent, BreadthFirstAttacker
 
@@ -32,16 +33,16 @@ def test_load_scenario() -> None:
         path_relative_to_tests('./testdata/scenarios/simple_scenario.yml')
     )
     assert scenario.rewards
-    rewards_per_node = scenario.rewards.per_node(scenario.attack_graph)
+    rewards_per_node = scenario.rewards
     # Verify rewards were added as defined in './testdata/simple_scenario.yml'
-    assert rewards_per_node['OS App:notPresent'] == 2
-    assert rewards_per_node['OS App:supplyChainAuditing'] == 7
-    assert rewards_per_node['Program 1:notPresent'] == 3
-    assert rewards_per_node['Program 1:supplyChainAuditing'] == 7
-    assert rewards_per_node['SoftwareVulnerability:4:notPresent'] == 4
-    assert rewards_per_node['Data:5:notPresent'] == 1
-    assert rewards_per_node['Credentials:6:notPhishable'] == 7
-    assert rewards_per_node['Identity:11:notPresent'] == 3.5
+    assert rewards_per_node.by_asset_name['OS App']['notPresent'] == 2
+    assert rewards_per_node.by_asset_name['OS App']['supplyChainAuditing'] == 7
+    assert rewards_per_node.by_asset_name['Program 1']['notPresent'] == 3
+    assert rewards_per_node.by_asset_name['Program 1']['supplyChainAuditing'] == 7
+    assert rewards_per_node.by_asset_name['SoftwareVulnerability:4']['notPresent'] == 4
+    assert rewards_per_node.by_asset_name['Data:5']['notPresent'] == 1
+    assert rewards_per_node.by_asset_name['Credentials:6']['notPhishable'] == 7
+    assert rewards_per_node.by_asset_name['Identity:11']['notPresent'] == 3.5
 
     # Verify attacker entrypoint was added
     attack_step = get_node(scenario.attack_graph, 'OS App:fullAccess')
@@ -62,9 +63,17 @@ def test_save_scenario(model: Model, tmp_path: Any) -> None:
             'testdata/langs/org.mal-lang.coreLang-1.0.0.mar'
         ),
         model=model,
-        rewards={'by_asset_type': {'Application': {'fullAccess': 1000}}},
-        false_negative_rates={'by_asset_type': {'Application': {'fullAccess': 0.1}}},
-        false_positive_rates={'by_asset_type': {'Application': {'fullAccess': 0.2}}},
+        sim_settings=MalSimulatorSettings(
+            rewards=NodePropertyRule(
+                by_asset_type={'Application': {'fullAccess': 1000}}
+            ),
+            false_negative_rates=NodePropertyRule(
+                by_asset_type={'Application': {'fullAccess': 0.1}}
+            ),
+            false_positive_rates=NodePropertyRule(
+                by_asset_type={'Application': {'fullAccess': 0.2}}
+            ),
+        ),
         agent_settings={
             'Attacker1': AttackerSettings(name='Attacker1', entry_points=set()),
             'Defender1': DefenderSettings(
@@ -95,10 +104,10 @@ def test_extend_scenario() -> None:
     )
     num_nodes_with_reward = 0
     assert scenario.rewards
-    rewards_per_node = scenario.rewards.per_node(scenario.attack_graph)
+    rewards_per_node = scenario.rewards
 
     for node in scenario.attack_graph.nodes.values():
-        reward = rewards_per_node.get(node.full_name, 0)
+        reward = rewards_per_node.value(node, 0)
         if reward:
             # All nodes with reward set should have reward 1
             # Since this is defined in the overriding scenario
@@ -122,11 +131,11 @@ def test_extend_scenario_deeper() -> None:
             './testdata/scenarios/sub/traininglang_scenario_extended_again.yml'
         )
     )
-    assert scenario.rewards
-    rewards_per_node = scenario.rewards.per_node(scenario.attack_graph)
+    assert scenario.sim_settings.rewards
+    rewards_per_node = scenario.sim_settings.rewards
     num_nodes_with_reward = 0
     for node in scenario.attack_graph.nodes.values():
-        reward = rewards_per_node.get(node.full_name, 0)
+        reward = rewards_per_node.value(node, 0)
         if reward:
             # All nodes with reward set should have reward 1
             # Since this is defined in the extended scenario
@@ -360,31 +369,31 @@ def test_load_scenario_false_positive_negative_rate() -> None:
     host_1_access_fn_rate = 0.5
     user_3_compromise_fn_rate = 1.0
 
-    assert scenario.false_negative_rates
-    assert scenario.false_positive_rates
-    fpr_per_node = scenario.false_positive_rates.per_node(scenario.attack_graph)
-    fnr_per_node = scenario.false_negative_rates.per_node(scenario.attack_graph)
+    assert scenario.sim_settings.false_negative_rates
+    assert scenario.sim_settings.false_positive_rates
+    fpr_per_node = scenario.sim_settings.false_positive_rates
+    fnr_per_node = scenario.sim_settings.false_negative_rates
 
     for node in scenario.attack_graph.nodes.values():
         if node.full_name == 'Host:0:access':
             # According to scenario file
-            assert fpr_per_node[node.full_name] == host_0_access_fp_rate
-            assert fnr_per_node[node.full_name] == host_0_access_fn_rate
+            assert fpr_per_node[node] == host_0_access_fp_rate
+            assert fnr_per_node[node] == host_0_access_fn_rate
 
         elif node.full_name == 'Host:1:access':
             # According to scenario file
-            assert fpr_per_node[node.full_name] == host_1_access_fp_rate
-            assert fnr_per_node[node.full_name] == host_1_access_fn_rate
+            assert fpr_per_node[node] == host_1_access_fp_rate
+            assert fnr_per_node[node] == host_1_access_fn_rate
 
         elif node.full_name == 'User:3:compromise':
             # According to scenario file
-            assert node.full_name not in fpr_per_node
-            assert fnr_per_node[node.full_name] == user_3_compromise_fn_rate
+            assert node not in fpr_per_node
+            assert fnr_per_node[node] == user_3_compromise_fn_rate
 
         else:
             # If no rules - don't set fpr/fnr
-            assert node.full_name not in fpr_per_node
-            assert node.full_name not in fnr_per_node
+            assert node not in fpr_per_node
+            assert node not in fnr_per_node
 
 
 def test_apply_scenario_fpr_fnr() -> None:

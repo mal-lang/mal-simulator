@@ -3,6 +3,7 @@ from typing import Any
 from malsim.scenario.scenario import Scenario
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from maltoolbox.language import LanguageGraph
+from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator import MalSimulator, MalSimDefenderState
 from malsim.policies import (
     DefendCompromisedDefender,
@@ -70,9 +71,9 @@ def test_defend_compromised_defender(dummy_lang_graph: LanguageGraph) -> None:
     defender_ai = DefendCompromisedDefender(agent_config)
 
     # Should pick cheapest one
-    sim.sim_state.global_rewards[node1] = 100
-    sim.sim_state.global_rewards[node2] = 10
-
+    sim.sim_settings.rewards = NodePropertyRule.from_attack_step_dict(
+        {node1: 100, node2: 10}
+    )
     # Get next action
     assert isinstance(agent_state, MalSimDefenderState)
     action_node = defender_ai.get_next_action(agent_state)
@@ -80,8 +81,9 @@ def test_defend_compromised_defender(dummy_lang_graph: LanguageGraph) -> None:
     assert action_node.id == node2.id
 
     # Should pick cheapest one
-    sim.sim_state.global_rewards[node1] = 10
-    sim.sim_state.global_rewards[node2] = 100
+    sim.sim_settings.rewards = NodePropertyRule.from_attack_step_dict(
+        {node1: 10, node2: 100}
+    )
 
     # Get next action
     action_node = defender_ai.get_next_action(agent_state)

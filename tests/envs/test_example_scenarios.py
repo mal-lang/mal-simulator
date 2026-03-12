@@ -29,14 +29,14 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
     """
 
     scenario_file = 'tests/testdata/scenarios/bfs_vs_bfs_network_app_data_scenario.yml'
-    scenario = Scenario.load_from_file(scenario_file)
-    sim = MalSimulator.from_scenario(
-        scenario,
+    scenario = Scenario.load_from_file(
+        scenario_file,
         sim_settings=MalSimulatorSettings(
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
         ),
     )
+    sim = MalSimulator.from_scenario(scenario)
     defender_agent_name = 'defender1'
     attacker_agent_name = 'attacker1'
 
@@ -79,8 +79,8 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         if defender_node and defender_node in defender_state.step_performed_nodes:
             defender_actions.append(defender_node.full_name)
 
-        total_reward_defender += sim.agent_reward(defender_state.name)
-        total_reward_attacker += sim.agent_reward(attacker_state.name)
+        total_reward_defender += sim.agent_reward(defender_state)
+        total_reward_attacker += sim.agent_reward(attacker_state)
 
     assert defender_state.iteration == 45
     assert attacker_state.iteration == 45
@@ -155,8 +155,8 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         assert node in defender_state.performed_nodes
 
     # Verify rewards in latest run and total rewards
-    assert sim.agent_reward(attacker_state.name) == 0
-    assert sim.agent_reward(defender_state.name) == -50
+    assert sim.agent_reward(attacker_state) == 0
+    assert sim.agent_reward(defender_state) == -50
 
     assert total_reward_attacker == 0
     assert total_reward_defender == -2200
@@ -174,9 +174,8 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
     """
 
     scenario_file = 'tests/testdata/scenarios/bfs_vs_bfs_scenario.yml'
-    scenario = Scenario.load_from_file(scenario_file)
-    sim = MalSimulator.from_scenario(
-        scenario,
+    scenario = Scenario.load_from_file(
+        scenario_file,
         sim_settings=MalSimulatorSettings(
             seed=23,
             attack_surface_skip_unnecessary=True,
@@ -184,6 +183,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
             attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
+    sim = MalSimulator.from_scenario(scenario)
 
     defender_agent_name = 'defender1'
     attacker_agent_name = 'attacker1'
@@ -229,8 +229,8 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         if defender_node and defender_node in states['defender1'].step_performed_nodes:
             defender_actions.append(defender_node.full_name)
 
-        total_reward_defender += sim.agent_reward(defender_state.name)
-        total_reward_attacker += sim.agent_reward(attacker_state.name)
+        total_reward_defender += sim.agent_reward(defender_state)
+        total_reward_attacker += sim.agent_reward(attacker_state)
 
     # Make sure the actions performed were as expected
     assert attacker_actions == [
@@ -307,10 +307,8 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
 
     # Verify rewards in latest run and total rewards
     assert isinstance(attacker_state, MalSimAttackerState)
-    assert sim.agent_reward(attacker_state.name) == -len(
-        attacker_state.step_attempted_nodes
-    )
-    assert sim.agent_reward(defender_state.name) == -19
+    assert sim.agent_reward(attacker_state) == -len(attacker_state.step_attempted_nodes)
+    assert sim.agent_reward(defender_state) == -19
 
     assert total_reward_attacker == -attacker_failed_steps
     assert total_reward_defender == -15927.0
@@ -318,15 +316,15 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
 
 def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
     scenario_file = 'tests/testdata/scenarios/bfs_vs_bfs_scenario.yml'
-    scenario = Scenario.load_from_file(scenario_file)
-    sim = MalSimulator.from_scenario(
-        scenario,
+    scenario = Scenario.load_from_file(
+        scenario_file,
         sim_settings=MalSimulatorSettings(
             seed=100,
             ttc_mode=TTCMode.EFFORT_BASED_PER_STEP_SAMPLE,
             attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
+    sim = MalSimulator.from_scenario(scenario)
 
     defender_agent_name = 'defender1'
     attacker_agent_name = 'attacker1'
@@ -372,8 +370,8 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
         if defender_node and defender_node in defender_state.step_performed_nodes:
             defender_actions.append(defender_node.full_name)
 
-        total_reward_defender += sim.agent_reward(defender_state.name)
-        total_reward_attacker += sim.agent_reward(attacker_state.name)
+        total_reward_defender += sim.agent_reward(defender_state)
+        total_reward_attacker += sim.agent_reward(attacker_state)
 
     assert attacker_state.iteration == 12
     assert defender_state.iteration == 12
@@ -416,10 +414,8 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
 
     # Verify rewards in latest run and total rewards
     assert isinstance(attacker_state, MalSimAttackerState)
-    assert sim.agent_reward(attacker_state.name) == -len(
-        attacker_state.step_attempted_nodes
-    )
-    assert sim.agent_reward(defender_state.name) == -19
+    assert sim.agent_reward(attacker_state) == -len(attacker_state.step_attempted_nodes)
+    assert sim.agent_reward(defender_state) == -19
 
     assert total_reward_attacker == -attacker_failed_steps
     assert total_reward_defender == -100.0
@@ -427,16 +423,16 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
 
 def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
     scenario_file = 'tests/testdata/scenarios/bfs_vs_bfs_scenario.yml'
-    scenario = Scenario.load_from_file(scenario_file)
-
-    sim = MalSimulator.from_scenario(
-        scenario,
+    scenario = Scenario.load_from_file(
+        scenario_file,
         sim_settings=MalSimulatorSettings(
             seed=1,
             ttc_mode=TTCMode.EXPECTED_VALUE,
             attacker_reward_mode=RewardMode.ONE_OFF,
         ),
     )
+
+    sim = MalSimulator.from_scenario(scenario)
 
     defender_agent_name = 'defender1'
     attacker_agent_name = 'attacker1'
@@ -483,8 +479,8 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         if defender_node and defender_node in defender_state.step_performed_nodes:
             defender_actions.append(defender_node.full_name)
 
-        total_reward_defender += sim.agent_reward(defender_state.name)
-        total_reward_attacker += sim.agent_reward(attacker_state.name)
+        total_reward_defender += sim.agent_reward(defender_state)
+        total_reward_attacker += sim.agent_reward(attacker_state)
 
     assert attacker_state.iteration == 12
     assert defender_state.iteration == 12
@@ -527,10 +523,8 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
 
     # Verify rewards in latest run and total rewards
     assert isinstance(attacker_state, MalSimAttackerState)
-    assert sim.agent_reward(attacker_state.name) == -len(
-        attacker_state.step_attempted_nodes
-    )
-    assert sim.agent_reward(defender_state.name) == -19
+    assert sim.agent_reward(attacker_state) == -len(attacker_state.step_attempted_nodes)
+    assert sim.agent_reward(defender_state) == -19
 
     assert total_reward_attacker == -attacker_failed_steps
     assert total_reward_defender == -100.0
@@ -546,10 +540,8 @@ def test_traininglang_advanced_agents() -> None:
     scenario_file = (
         'tests/testdata/scenarios/traininglang_scenario_advanced_agent_settings.yml'
     )
-    scenario = Scenario.load_from_file(scenario_file)
-
-    sim = MalSimulator.from_scenario(
-        scenario,
+    scenario = Scenario.load_from_file(
+        scenario_file,
         sim_settings=MalSimulatorSettings(
             attack_surface_skip_unnecessary=False,
             run_defense_step_bernoullis=False,
@@ -557,6 +549,8 @@ def test_traininglang_advanced_agents() -> None:
             seed=100,
         ),
     )
+
+    sim = MalSimulator.from_scenario(scenario)
 
     attacker_name = 'Attacker1'
     defender_name = 'Defender1'
@@ -597,8 +591,8 @@ def test_traininglang_advanced_agents() -> None:
         if defender_node and defender_node in defender_state.step_performed_nodes:
             defender_actions.append(defender_node.full_name)
 
-        total_reward_attacker += sim.agent_reward(attacker_state.name)
-        total_reward_defender += sim.agent_reward(defender_state.name)
+        total_reward_attacker += sim.agent_reward(attacker_state)
+        total_reward_defender += sim.agent_reward(defender_state)
 
     # Example checks (adapt to exact expected sequence in your scenario)
     expected_attacker_actions = [
@@ -629,12 +623,12 @@ def test_traininglang_advanced_agents() -> None:
         sim.node_reward(node, attacker_name)
         for node in attacker_state.step_performed_nodes
     )
-    assert sim.agent_reward(attacker_state.name) == attacker_expected_reward
+    assert sim.agent_reward(attacker_state) == attacker_expected_reward
     defender_expected_reward = sum(
         sim.node_reward(node, defender_name)
         for node in defender_state.step_performed_nodes
     )
-    assert sim.agent_reward(defender_state.name) == -defender_expected_reward
+    assert sim.agent_reward(defender_state) == -defender_expected_reward
 
     # Verify total rewards
     assert total_reward_attacker == 1000.0
@@ -649,10 +643,8 @@ def test_traininglang_dont_compromise_entrypoints() -> None:
     """
 
     scenario_file = 'tests/testdata/scenarios/bfs_vs_bfs_scenario.yml'
-    scenario = Scenario.load_from_file(scenario_file)
-
-    sim = MalSimulator.from_scenario(
-        scenario,
+    scenario = Scenario.load_from_file(
+        scenario_file,
         sim_settings=MalSimulatorSettings(
             attack_surface_skip_unnecessary=False,
             run_defense_step_bernoullis=False,
@@ -661,6 +653,8 @@ def test_traininglang_dont_compromise_entrypoints() -> None:
             compromise_entrypoints_at_start=False,
         ),
     )
+
+    sim = MalSimulator.from_scenario(scenario)
 
     attacker_name = 'attacker1'
     defender_name = 'defender1'
@@ -702,8 +696,8 @@ def test_traininglang_dont_compromise_entrypoints() -> None:
         if defender_node and defender_node in defender_state.step_performed_nodes:
             defender_actions.append(defender_node.full_name)
 
-        total_reward_attacker += sim.agent_reward(attacker_state.name)
-        total_reward_defender += sim.agent_reward(defender_state.name)
+        total_reward_attacker += sim.agent_reward(attacker_state)
+        total_reward_defender += sim.agent_reward(defender_state)
 
     assert attacker_actions == [
         'Program 1:fullAccess',
