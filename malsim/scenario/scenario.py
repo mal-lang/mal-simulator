@@ -29,7 +29,6 @@ from malsim.config import (
     AttackerSettings,
 )
 from malsim.config.agent_settings_factories import agent_settings_from_dict
-from malsim.config.node_property_rule import NodePropertyRule
 from malsim.config.sim_settings import MalSimulatorSettings
 
 
