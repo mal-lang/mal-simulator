@@ -6,6 +6,7 @@ These tests are to make sure the whole simulator maintains expected behavior.
 Determinism, ttcs, agents, action surfaces, step etc.
 """
 
+from malsim.config.sim_settings import AttackSurfaceSettings
 from malsim.scenario.scenario import Scenario
 from malsim.mal_simulator import (
     MalSimulator,
@@ -178,7 +179,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         scenario_file,
         sim_settings=MalSimulatorSettings(
             seed=23,
-            attack_surface_skip_unnecessary=True,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=True),
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
             attacker_reward_mode=RewardMode.ONE_OFF,
         ),
@@ -543,7 +544,7 @@ def test_traininglang_advanced_agents() -> None:
     scenario = Scenario.load_from_file(
         scenario_file,
         sim_settings=MalSimulatorSettings(
-            attack_surface_skip_unnecessary=False,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
             seed=100,
@@ -646,7 +647,9 @@ def test_traininglang_dont_compromise_entrypoints() -> None:
     scenario = Scenario.load_from_file(
         scenario_file,
         sim_settings=MalSimulatorSettings(
-            attack_surface_skip_unnecessary=False,
+            attack_surface=AttackSurfaceSettings(
+                skip_unnecessary=False,
+            ),
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
             seed=100,

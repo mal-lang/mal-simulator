@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from maltoolbox.language import LanguageGraphAttackStep
 from malsim.config.node_property_rule import NodePropertyRule
+from malsim.config.sim_settings import AttackSurfaceSettings
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
@@ -1403,7 +1404,9 @@ def test_simulator_attacker_override_ttcs_step() -> None:
     scenario = Scenario.load_from_file(
         'tests/testdata/scenarios/ttc_lang_scenario_override_ttcs.yml',
         sim_settings=MalSimulatorSettings(
-            seed=100, ttc_mode=TTCMode.PRE_SAMPLE, attack_surface_skip_unnecessary=False
+            seed=100,
+            ttc_mode=TTCMode.PRE_SAMPLE,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
         ),
     )
     sim = MalSimulator.from_scenario(scenario)
@@ -1449,9 +1452,11 @@ def test_simulator_seed_setting() -> None:
             uncompromise_untraversable_steps=False,
             ttc_mode=TTCMode.PER_STEP_SAMPLE,
             seed=100,
-            attack_surface_skip_compromised=True,
-            attack_surface_skip_unviable=True,
-            attack_surface_skip_unnecessary=False,
+            attack_surface=AttackSurfaceSettings(
+                skip_compromised=True,
+                skip_unviable=True,
+                skip_unnecessary=False,
+            ),
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
             attacker_reward_mode=RewardMode.ONE_OFF,
@@ -1577,7 +1582,9 @@ def test_active_defenses() -> None:
             ttc_mode=TTCMode.DISABLED,
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
-            attack_surface_skip_unnecessary=False,
+            attack_surface=AttackSurfaceSettings(
+                skip_unnecessary=False,
+            ),
             compromise_entrypoints_at_start=True,
             attacker_reward_mode=RewardMode.SAMPLE_TTC,
         ),
@@ -1680,7 +1687,9 @@ def test_actions_effects() -> None:
             ttc_mode=TTCMode.DISABLED,
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
-            attack_surface_skip_unnecessary=False,
+            attack_surface=AttackSurfaceSettings(
+                skip_unnecessary=False,
+            ),
             compromise_entrypoints_at_start=True,
             attacker_reward_mode=RewardMode.SAMPLE_TTC,
         ),

@@ -661,7 +661,7 @@ def step(
         # Update attacker state
         agent_states[attacker_state.name] = create_attacker_state(
             sim_state=sim_state,
-            sim_settings=sim_settings,
+            attack_surface_settings=sim_state.settings.attack_surface,
             attacker_settings=attacker_state.settings,
             name=attacker_state.name,
             entry_points=attacker_state.entry_points,
