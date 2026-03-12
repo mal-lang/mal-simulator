@@ -44,7 +44,7 @@ def get_effects_of_attack_step(
 def get_attack_surface(
     settings: AttackSurfaceSettings,
     sim_state: MalSimulatorState,
-    actionability: Optional[NodePropertyRule],
+    actionability: Optional[NodePropertyRule[bool]],
     performed_nodes: Set[AttackGraphNode],
     from_nodes: Optional[Set[AttackGraphNode]] = None,
 ) -> Set[AttackGraphNode]:

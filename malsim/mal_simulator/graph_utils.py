@@ -68,20 +68,17 @@ def node_is_traversable(
 
 
 def node_is_actionable(
-    agent_actionability: dict[AttackGraphNode, bool] | NodePropertyRule | None,
+    agent_actionability: NodePropertyRule[bool] | None,
     node: AttackGraphNode,
 ) -> bool:
     if agent_actionability:
-        # Actionability from global settings
-        if isinstance(agent_actionability, NodePropertyRule):
-            return bool(agent_actionability.value(node, False))
-        return agent_actionability.get(node, False)
+        return agent_actionability.value(node, False)
     return True
 
 
 def node_reward(
     node: AttackGraphNode,
-    reward_rule: NodePropertyRule | None = None,
+    reward_rule: NodePropertyRule[float] | None = None,
 ) -> float:
     if reward_rule:
         # Node reward from agent settings

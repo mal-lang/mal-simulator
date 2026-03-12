@@ -31,7 +31,7 @@ def optional(f: Callable[[X], Y]) -> Callable[[Optional[X]], Optional[Y]]:
 
 
 @dataclass
-class NodePropertyRule(Mapping, Generic[T]):
+class NodePropertyRule(Generic[T]):
     """
     Defines a mapping from nodes to values based on:
     - asset_type filters
@@ -45,17 +45,7 @@ class NodePropertyRule(Mapping, Generic[T]):
     def __len__(self) -> int:
         return len(self.by_asset_type or {}) + len(self.by_asset_name or {})
 
-    def __iter__(self):
-        if self.by_asset_type:
-            for asset_type, sub_dict in self.by_asset_type.items():
-                for node_name in sub_dict:
-                    yield (asset_type, node_name)
-        if self.by_asset_name:
-            for asset_name, sub_dict in self.by_asset_name.items():
-                for node_name in sub_dict:
-                    yield (asset_name, node_name)
-
-    def __getitem__(self, key) -> T:
+    def __getitem__(self, key: AttackGraphNode) -> T:
         x = self.value(key, None)
         if x is None:
             raise KeyError(f'No value found for node {key}')
@@ -65,13 +55,13 @@ class NodePropertyRule(Mapping, Generic[T]):
         if self.by_asset_type is None and self.by_asset_name is None:
             raise ValueError('Expected either "by_asset_type" or "by_asset_name"')
 
-    def __contains__(self, item):
+    def __contains__(self, item: AttackGraphNode) -> bool:
         return self.value(item, None) is not None
 
     @classmethod
     def from_attack_step_dict(
         cls, attack_step_dict: dict[AttackGraphNode, T]
-    ) -> NodePropertyRule:
+    ) -> NodePropertyRule[T]:
         by_asset_type = {
             asset_name: {
                 node.name: value
@@ -95,9 +85,7 @@ class NodePropertyRule(Mapping, Generic[T]):
 
         return cls(by_asset_type=by_asset_type, by_asset_name=by_asset_name)
 
-    def value(
-        self, node: AttackGraphNode, default: T | DefaultType = None
-    ) -> T | DefaultType:
+    def value(self, node: AttackGraphNode, default: T | DefaultType) -> T | DefaultType:
         """Get value for `node` based on this node property config"""
         if not node.model_asset:
             return default
@@ -124,7 +112,7 @@ class NodePropertyRule(Mapping, Generic[T]):
         """Return a dict mapping from each step full name to value given by config"""
         per_node_dict = {}
         for n in attack_graph.nodes.values():
-            value = self.value(n)
+            value = self.value(n, None)
             if value is not None:
                 per_node_dict[n.full_name] = value
         return per_node_dict
@@ -132,7 +120,7 @@ class NodePropertyRule(Mapping, Generic[T]):
     @classmethod
     def _validate_dict(
         cls, node_property_dict: Mapping[str, Mapping[str, Mapping[str, T]]]
-    ) -> NodePropertyRule:
+    ) -> NodePropertyRule[T]:
         allowed_fields = {'by_asset_type', 'by_asset_name'}
         present_allowed_fields = allowed_fields & node_property_dict.keys()
         forbidden_fields = node_property_dict.keys() - allowed_fields
@@ -151,14 +139,14 @@ class NodePropertyRule(Mapping, Generic[T]):
     @classmethod
     def from_optional_dict(
         cls, node_property_dict: dict[str, dict[str, Any]] | None
-    ) -> Optional[NodePropertyRule]:
+    ) -> Optional[NodePropertyRule[T]]:
         return optional(cls.from_dict)(node_property_dict)
 
     @classmethod
     def from_dict(
         cls,
         node_property_dict: Mapping[str, Mapping[str, Any]],
-    ) -> NodePropertyRule:
+    ) -> NodePropertyRule[T]:
         return cls._validate_dict(node_property_dict)
 
     def to_dict(self) -> Mapping[str, Mapping[str, Mapping[str, T]] | None]:

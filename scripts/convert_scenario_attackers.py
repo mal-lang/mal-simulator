@@ -10,7 +10,7 @@ from malsim.scenario.scenario import Scenario, path_relative_to_file_dir
 import yaml
 
 
-def _get_model_attackers(model_file: str) -> dict[str, Any]:
+def _get_model_attackers(model_file: str) -> dict[str, dict[str, Any]]:
     attackers = {}
     with open(model_file, 'r', encoding='utf-8') as file:
         model_dict = yaml.safe_load(file)
@@ -110,6 +110,6 @@ if __name__ == '__main__':
 
     scenario = Scenario.load_from_file(o_file)
     sim = MalSimulator.from_scenario(scenario)
-    run_simulation(sim, scenario.agent_settings)
+    run_simulation(sim)
 
     print(f'Created new scenario `{o_file}` with new format for agents.')

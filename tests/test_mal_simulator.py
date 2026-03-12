@@ -17,9 +17,8 @@ from malsim.mal_simulator import (
     TTCMode,
     RewardMode,
 )
-from malsim.mal_simulator.attacker_state import get_attacker_agents
 from malsim.mal_simulator.attacker_step import attacker_is_terminated, attacker_step
-from malsim.mal_simulator.defender_state import get_defender_agents
+from malsim.mal_simulator.agent_states import get_attacker_agents, get_defender_agents
 from malsim.mal_simulator.defender_step import defender_is_terminated, defender_step
 from malsim.mal_simulator import TTCDist
 from malsim import Scenario, run_simulation
@@ -1246,12 +1245,6 @@ def test_simulator_multiple_attackers() -> None:
         sim_settings=MalSimulatorSettings(seed=100),
     )
 
-    scenario.attacker_settings['Attacker1'].entry_points = frozenset(
-        {
-            'User:3:phishing',
-            'Host:0:connect',
-        }
-    )
     scenario.agent_settings = [
         *scenario.agent_settings,
         AttackerSettings(

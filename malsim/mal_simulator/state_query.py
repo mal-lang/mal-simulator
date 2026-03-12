@@ -6,11 +6,11 @@ from collections.abc import Set
 from maltoolbox.attackgraph import AttackGraphNode
 from maltoolbox.attackgraph import AttackGraph
 
-from malsim.mal_simulator.attacker_state import MalSimAttackerState, get_attacker_agents
-from malsim.mal_simulator.defender_state import get_defender_agents
+from malsim.mal_simulator.attacker_state import MalSimAttackerState
+from malsim.mal_simulator.agent_states import get_defender_agents
 from malsim.mal_simulator.node_getters import full_name_or_node_to_node
 from malsim.config.sim_settings import TTCMode
-from malsim.types import AgentStates
+from malsim.mal_simulator.agent_states import AgentStates, get_attacker_agents
 
 
 def node_is_enabled_defense(

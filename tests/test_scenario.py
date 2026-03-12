@@ -190,7 +190,7 @@ def test_load_scenario_no_defender_agent() -> None:
     scenario = Scenario.load_from_file(
         path_relative_to_tests('./testdata/scenarios/no_defender_agent_scenario.yml')
     )
-    assert 'defender' not in scenario.agent_settings
+    assert 'defender' not in scenario.defender_settings
     assert isinstance(
         scenario.attacker_settings['attacker1'].agent, BreadthFirstAttacker
     )
@@ -279,7 +279,9 @@ def test_apply_scenario_observability() -> None:
     }
 
     # Apply observability rules
-    observable = NodePropertyRule.from_optional_dict(observability_rules)
+    observable: NodePropertyRule[bool] | None = NodePropertyRule.from_optional_dict(
+        observability_rules
+    )
     assert observable
     observable_per_node = observable.per_node(scenario.attack_graph)
 
@@ -429,7 +431,9 @@ def test_apply_scenario_fpr_fnr() -> None:
     }
 
     # Apply false negative rate rules
-    false_negatives_rates = NodePropertyRule.from_optional_dict(property_values)
+    false_negatives_rates: NodePropertyRule[float] | None = (
+        NodePropertyRule.from_optional_dict(property_values)
+    )
     assert false_negatives_rates
     fnr_per_node = false_negatives_rates.per_node(scenario.attack_graph)
 
@@ -552,6 +556,8 @@ def test_scenario_advanced_agent_settings() -> None:
     assert isinstance(attacker, AttackerSettings)
     assert attacker.type == AgentType.ATTACKER
 
+    attack_graph = scenario.attack_graph
+
     # entry points
     assert {n.full_name for n in attacker.entry_points} == {
         'User:3:phishing',
@@ -564,8 +570,8 @@ def test_scenario_advanced_agent_settings() -> None:
     # actionable_steps
     assert isinstance(attacker.actionable_steps, NodePropertyRule)
     assert attacker.actionable_steps.by_asset_type == {
-        'Host': ['authenticate', 'connect'],
-        'User': ['compromise'],
+        'Host': {'authenticate': True, 'connect': True},
+        'User': {'compromise': True},
     }
 
     # observable_steps
@@ -583,7 +589,10 @@ def test_scenario_advanced_agent_settings() -> None:
     assert isinstance(defender.actionable_steps, NodePropertyRule)
     assert isinstance(defender.observable_steps, NodePropertyRule)
 
-    assert defender.actionable_steps.by_asset_type == {'Host': ['notPresent']}
+    assert (
+        defender.actionable_steps.by_asset_type
+        and defender.actionable_steps.by_asset_type == {'Host': {'notPresent': True}}
+    )
 
     # FN/FP rates
     assert isinstance(defender.false_positive_rates, NodePropertyRule)

@@ -3,7 +3,7 @@ from collections.abc import MutableSet
 from maltoolbox.language import LanguageGraphAssociation
 import numpy as np
 
-from malsim.mal_simulator.attacker_state import get_attacker_agents
+from malsim.mal_simulator.agent_states import get_attacker_agents
 
 from .mal_spaces import (
     Assets,

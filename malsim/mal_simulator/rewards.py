@@ -47,7 +47,7 @@ def attacker_step_reward_fn(
     ttc_mode: TTCMode,
     attacker_settings: AttackerSettings[AttackGraphNode],
     rng: np.random.Generator,
-):
+) -> Callable[[MalSimAttackerState], float]:
     def attacker_step_reward(
         attacker_state: MalSimAttackerState,
     ) -> float:
@@ -88,3 +88,6 @@ def attacker_step_reward_fn(
         return step_reward
 
     return attacker_step_reward
+
+
+AgentRewards = dict[str, float]

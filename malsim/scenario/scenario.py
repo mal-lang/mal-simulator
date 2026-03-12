@@ -22,7 +22,7 @@ import yaml
 
 from maltoolbox.model import Model
 from maltoolbox.language import LanguageGraph
-from maltoolbox.attackgraph import create_attack_graph
+from maltoolbox.attackgraph import AttackGraphNode, create_attack_graph
 
 from malsim.config import (
     DefenderSettings,
@@ -146,8 +146,8 @@ class Scenario:
         """Create a scenario object from a scenario dictionary"""
         _validate_scenario_dict(scenario_dict)
 
-        global_rewards = NodePropertyRule.from_optional_dict(
-            scenario_dict.get('rewards')
+        global_rewards: NodePropertyRule[float] | None = (
+            NodePropertyRule.from_optional_dict(scenario_dict.get('rewards'))
         )
 
         # Load agent settings from dict
