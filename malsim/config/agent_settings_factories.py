@@ -62,7 +62,6 @@ def _validate_agent_dict(d: dict[str, Any]) -> dict[str, Any]:
 def agent_settings_from_dict(
     name: str,
     d: dict[str, Any],
-    global_rewards: NodePropertyRule[float] | None = None,
 ) -> AttackerSettings[str] | DefenderSettings:
     """Load agent settings from a dict"""
 
@@ -93,7 +92,6 @@ def agent_settings_from_dict(
                 d.get('actionable_steps')
             ),
             rewards=NodePropertyRule.from_optional_dict(d.get('rewards'))
-            or global_rewards,
             config=config,
             reward_mode=RewardMode[d.get('reward_mode', 'CUMULATIVE')],
         )
