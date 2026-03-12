@@ -569,8 +569,8 @@ def test_scenario_advanced_agent_settings() -> None:
     # actionable_steps
     assert isinstance(attacker.actionable_steps, NodePropertyRule)
     assert attacker.actionable_steps.by_asset_type == {
-        'Host': ['authenticate', 'connect'],
-        'User': ['compromise'],
+        'Host': {'authenticate': True, 'connect': True},
+        'User': {'compromise': True},
     }
 
     # observable_steps
@@ -590,7 +590,7 @@ def test_scenario_advanced_agent_settings() -> None:
 
     assert (
         defender.actionable_steps.by_asset_type
-        and defender.actionable_steps.by_asset_type == {'Host': ['notPresent']}
+        and defender.actionable_steps.by_asset_type == {'Host': {'notPresent': True}}
     )
 
     # FN/FP rates

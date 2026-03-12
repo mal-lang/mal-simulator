@@ -315,7 +315,7 @@ class MalSimulator:
     def agent_reward(
         self, agent_state: MalSimAttackerState | MalSimDefenderState
     ) -> float:
-        return self._agent_reward_from_state(agent_state)
+        return self._agent_reward_from_state(agent_state) or 0.0
 
     def agent_is_terminated(self, agent_name: str) -> bool:
         return agent_is_terminated(self._agent_states, self._alive_agents, agent_name)
