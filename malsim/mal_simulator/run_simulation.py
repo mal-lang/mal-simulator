@@ -13,7 +13,7 @@ def run_simulation(sim: MalSimulator) -> dict[str, list[AttackGraphNode]]:
     """
     agents = sim.agent_settings
     agent_actions: dict[str, list[AttackGraphNode]] = {}
-    total_rewards = dict.fromkeys(sim.agent_settings, 0.0)
+    total_rewards = dict.fromkeys(agents, 0.0)
 
     logger.info('Starting CLI env simulator.')
     states = sim.reset()
@@ -23,7 +23,7 @@ def run_simulation(sim: MalSimulator) -> dict[str, list[AttackGraphNode]]:
         actions: dict[str, list[AttackGraphNode]] = {}
 
         # Select actions for each agent
-        for agent_name, agent_config in sim.agent_settings.items():
+        for agent_name, agent_config in agents.items():
             decision_agent: Optional[DecisionAgent] = agent_config.agent
             if decision_agent is None:
                 print(
