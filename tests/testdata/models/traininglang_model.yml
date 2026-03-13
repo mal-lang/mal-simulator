@@ -34,18 +34,7 @@ assets:
         1: Host:1
     name: Network:3
     type: Network
-attackers:
-  5:
-    entry_points:
-      Host:0:
-        asset_id: 0
-        attack_steps:
-        - connect
-      User:3:
-        asset_id: 3
-        attack_steps:
-        - phishing
-    name: Attacker1
+
 metadata:
   MAL-Toolbox Version: 0.2.0
   info: Created by the mal-toolbox model python module.

@@ -3,6 +3,9 @@ from typing import Any
 from malsim.scenario.scenario import Scenario
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from maltoolbox.language import LanguageGraph
+from maltoolbox.model import Model
+from malsim.config.agent_settings import AttackerSettings, DefenderSettings
+from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator import MalSimulator, MalSimDefenderState
 from malsim.policies import (
     DefendCompromisedDefender,
@@ -27,14 +30,34 @@ def test_defend_compromised_defender(dummy_lang_graph: LanguageGraph) -> None:
         'DummyDefenseAttackStep'
     ]
 
+    dummy_model = Model('Dummy model', dummy_lang_graph)
+    dummy_asset0 = dummy_model.add_asset('DummyAsset')
+    dummy_asset1 = dummy_model.add_asset('DummyAsset')
+    dummy_asset2 = dummy_model.add_asset('DummyAsset')
+    dummy_asset3 = dummy_model.add_asset('DummyAsset')
+    dummy_asset4 = dummy_model.add_asset('DummyAsset')
+    dummy_asset5 = dummy_model.add_asset('DummyAsset')
+
     # Create attack graph with nodes
     ag = AttackGraph(dummy_lang_graph)
-    node0 = ag.add_node(lg_attack_step=dummy_and_attack_step, node_id=0)
-    node1 = ag.add_node(lg_attack_step=dummy_defense_attack_step, node_id=1)
-    node2 = ag.add_node(lg_attack_step=dummy_defense_attack_step, node_id=2)
-    node3 = ag.add_node(lg_attack_step=dummy_and_attack_step, node_id=3)
-    node4 = ag.add_node(lg_attack_step=dummy_and_attack_step, node_id=4)
-    node5 = ag.add_node(lg_attack_step=dummy_and_attack_step, node_id=5)
+    node0 = ag.add_node(
+        lg_attack_step=dummy_and_attack_step, model_asset=dummy_asset0, node_id=0
+    )
+    node1 = ag.add_node(
+        lg_attack_step=dummy_defense_attack_step, model_asset=dummy_asset1, node_id=1
+    )
+    node2 = ag.add_node(
+        lg_attack_step=dummy_defense_attack_step, model_asset=dummy_asset2, node_id=2
+    )
+    node3 = ag.add_node(
+        lg_attack_step=dummy_and_attack_step, model_asset=dummy_asset3, node_id=3
+    )
+    node4 = ag.add_node(
+        lg_attack_step=dummy_and_attack_step, model_asset=dummy_asset4, node_id=4
+    )
+    node5 = ag.add_node(
+        lg_attack_step=dummy_and_attack_step, model_asset=dummy_asset5, node_id=5
+    )
 
     # Connect nodes (Node1 -> Node3, Node4, Node5)
     node0.children.add(node3)
@@ -56,13 +79,15 @@ def test_defend_compromised_defender(dummy_lang_graph: LanguageGraph) -> None:
     node2.children.add(node5)
     node5.parents.add(node2)
 
-    sim = MalSimulator(ag)
-
-    # Set up an attacker
-    sim.register_attacker('bfs', {node4})
+    sim = MalSimulator(
+        ag,
+        agents=(
+            AttackerSettings(name='bfs', entry_points=frozenset({node4})),
+            DefenderSettings(name='def_comp'),
+        ),
+    )
 
     # Set up a defender
-    sim.register_defender('def_comp')
     agent_state = sim.agent_states['def_comp']
 
     # Configure BreadthFirstAttacker
@@ -70,9 +95,9 @@ def test_defend_compromised_defender(dummy_lang_graph: LanguageGraph) -> None:
     defender_ai = DefendCompromisedDefender(agent_config)
 
     # Should pick cheapest one
-    sim.sim_state.global_rewards[node1] = 100
-    sim.sim_state.global_rewards[node2] = 10
-
+    sim.agent_settings['def_comp'].rewards = NodePropertyRule.from_attack_step_dict(
+        {node1: 100, node2: 10}
+    )
     # Get next action
     assert isinstance(agent_state, MalSimDefenderState)
     action_node = defender_ai.get_next_action(agent_state)
@@ -80,8 +105,9 @@ def test_defend_compromised_defender(dummy_lang_graph: LanguageGraph) -> None:
     assert action_node.id == node2.id
 
     # Should pick cheapest one
-    sim.sim_state.global_rewards[node1] = 10
-    sim.sim_state.global_rewards[node2] = 100
+    sim.agent_settings['def_comp'].rewards = NodePropertyRule.from_attack_step_dict(
+        {node1: 10, node2: 100}
+    )
 
     # Get next action
     action_node = defender_ai.get_next_action(agent_state)
@@ -141,13 +167,14 @@ def test_defend_future_compromised_defender(dummy_lang_graph: LanguageGraph) -> 
     node4.children.add(node6)
     node6.parents.add(node4)
 
-    sim = MalSimulator(ag)
+    sim = MalSimulator(
+        ag,
+        agents=(
+            AttackerSettings(name='bfs', entry_points=frozenset({node4})),
+            DefenderSettings(name='def_future_comp'),
+        ),
+    )
 
-    # Set up an attacker
-    sim.register_attacker('attacker', {node4})
-
-    # Set up a defender
-    sim.register_defender('def_future_comp')
     agent_state = sim.agent_states['def_future_comp']
 
     # Configure BreadthFirstAttacker
@@ -181,11 +208,15 @@ def test_random_agent(dummy_lang_graph: LanguageGraph) -> None:
     node0.children.add(node3)
     node3.parents.add(node0)
 
-    sim = MalSimulator(ag)
+    sim = MalSimulator(
+        ag,
+        agents=(
+            AttackerSettings(name='random_attacker', entry_points=frozenset({node0})),
+        ),
+    )
 
     # Set up an attacker
     attacker_name = 'random_attacker'
-    sim.register_attacker(attacker_name, {node0})
 
     agent_config: dict[str, Any] = {}
     attacker_ai = RandomAgent(agent_config)
@@ -217,9 +248,9 @@ def test_random_agent_wait_prob() -> None:
     )
     sim = MalSimulator.from_scenario(scenario)
     defender_name = 'Defender'
-    defender_ai = sim.agent_settings[defender_name].agent
+    wait_prob = scenario.defender_settings[defender_name].config['wait_prob']
+    defender_ai = scenario.defender_settings[defender_name].agent
     assert isinstance(defender_ai, RandomAgent)
-    wait_prob = scenario.agent_settings[defender_name].config['wait_prob']
 
     actions = []
     for _ in range(100):

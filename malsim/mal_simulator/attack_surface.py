@@ -4,6 +4,7 @@ from collections import deque
 from collections.abc import MutableSet, Set
 
 from malsim.config.node_property_rule import NodePropertyRule
+from malsim.config.sim_settings import AttackSurfaceSettings
 from malsim.mal_simulator.graph_utils import (
     node_is_actionable,
     node_is_necessary,
@@ -13,7 +14,6 @@ from malsim.mal_simulator.graph_utils import (
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
-    from malsim.config.sim_settings import MalSimulatorSettings
     from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 
@@ -42,10 +42,9 @@ def get_effects_of_attack_step(
 
 
 def get_attack_surface(
-    sim_settings: MalSimulatorSettings,
+    settings: AttackSurfaceSettings,
     sim_state: MalSimulatorState,
-    agent_actionability_rule: Optional[NodePropertyRule],
-    global_actionability: dict[AttackGraphNode, bool],
+    actionability: Optional[NodePropertyRule[bool]],
     performed_nodes: Set[AttackGraphNode],
     from_nodes: Optional[Set[AttackGraphNode]] = None,
 ) -> Set[AttackGraphNode]:
@@ -65,9 +64,9 @@ def get_attack_surface(
     from_nodes = from_nodes if from_nodes is not None else performed_nodes
     attack_surface: MutableSet[AttackGraphNode] = set()
 
-    skip_compromised = sim_settings.attack_surface_skip_compromised
-    skip_unviable = sim_settings.attack_surface_skip_unviable
-    skip_unnecessary = sim_settings.attack_surface_skip_unnecessary
+    skip_compromised = settings.skip_compromised
+    skip_unviable = settings.skip_unviable
+    skip_unnecessary = settings.skip_unnecessary
 
     for parent in from_nodes:
         for child in parent.children:
@@ -84,9 +83,7 @@ def get_attack_surface(
             if skip_unnecessary and not node_is_necessary(sim_state, child):
                 continue
 
-            if not node_is_actionable(
-                agent_actionability_rule, global_actionability, child
-            ):
+            if not node_is_actionable(actionability, child):
                 continue
 
             if node_is_traversable(sim_state, performed_nodes, child):

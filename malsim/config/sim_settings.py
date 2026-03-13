@@ -1,5 +1,6 @@
+from __future__ import annotations
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 
@@ -25,6 +26,21 @@ class RewardMode(Enum):
 
 
 @dataclass
+class AttackSurfaceSettings:
+    """Settings for how to calculate the attack surface"""
+
+    # attack_surface_skip_compromised
+    # - if true do not add already compromised nodes to the attack surface
+    skip_compromised: bool = True
+    # attack_surface_skip_unviable
+    # - if true do not add unviable nodes to the attack surface
+    skip_unviable: bool = True
+    # attack_surface_skip_unnecessary
+    # - if true do not add unnecessary nodes to the attack surface
+    skip_unnecessary: bool = True
+
+
+@dataclass
 class MalSimulatorSettings:
     """Contains settings used in MalSimulator"""
 
@@ -42,15 +58,9 @@ class MalSimulatorSettings:
     # seed
     # - optionally run deterministic simulations with seed
     seed: Optional[int] = None
-    # attack_surface_skip_compromised
-    # - if true do not add already compromised nodes to the attack surface
-    attack_surface_skip_compromised: bool = True
-    # attack_surface_skip_unviable
-    # - if true do not add unviable nodes to the attack surface
-    attack_surface_skip_unviable: bool = True
-    # attack_surface_skip_unnecessary
-    # - if true do not add unnecessary nodes to the attack surface
-    attack_surface_skip_unnecessary: bool = False
+
+    attack_surface: AttackSurfaceSettings = field(default_factory=AttackSurfaceSettings)
+
     # If set to True, each attacker compromises/performs their
     # entry point nodes at the start of the simulation
     compromise_entrypoints_at_start: bool = True
@@ -62,15 +72,10 @@ class MalSimulatorSettings:
     # - if true, sample attack step bernoullis to decide if they are impossible/exists
     run_attack_step_bernoullis: bool = True
 
-    # Reward settings
-    attacker_reward_mode: RewardMode = RewardMode.CUMULATIVE
-    defender_reward_mode: RewardMode = RewardMode.CUMULATIVE
-
     def __post_init__(self) -> None:
         """Allow ttc/reward mode to be given as strings - convert to enums"""
         if isinstance(self.ttc_mode, str):
             self.ttc_mode = TTCMode[self.ttc_mode]
-        if isinstance(self.attacker_reward_mode, str):
-            self.attacker_reward_mode = RewardMode[self.attacker_reward_mode]
-        if isinstance(self.defender_reward_mode, str):
-            self.defender_reward_mode = RewardMode[self.defender_reward_mode]
+
+        if isinstance(self.attack_surface, dict):
+            self.attack_surface = AttackSurfaceSettings(**self.attack_surface)

@@ -1,8 +1,10 @@
 from typing import Any
 
+
 from malsim.config.agent_settings import AgentType, AttackerSettings, DefenderSettings
 
 from malsim.config.node_property_rule import NodePropertyRule
+from malsim.config.sim_settings import RewardMode
 from malsim.policies import (
     BreadthFirstAttacker,
     DepthFirstAttacker,
@@ -28,12 +30,42 @@ policy_name_to_class = {
 }
 
 
+def _validate_agent_dict(d: dict[str, Any]) -> dict[str, Any]:
+    required_keys = {'type', 'policy'}
+    allowed_keys = {
+        'type',
+        'policy',
+        'agent_class',
+        'config',
+        'rewards',
+        'false_positive_rates',
+        'false_negative_rates',
+        'observable_steps',
+        'actionable_steps',
+        'entry_points',
+        'goals',
+        'reward_mode',
+        'ttc_overrides',
+    }
+    illegal_keys = d.keys() - allowed_keys
+    missing_keys = required_keys - d.keys()
+
+    if illegal_keys:
+        raise ValueError(f'Illegal keys in agent scenario settings: {illegal_keys}')
+
+    if illegal_keys:
+        raise ValueError(f'Missing keys in agent scenario settings: {missing_keys}')
+
+    return d
+
+
 def agent_settings_from_dict(
     name: str,
     d: dict[str, Any],
-) -> AttackerSettings | DefenderSettings:
+) -> AttackerSettings[str] | DefenderSettings:
     """Load agent settings from a dict"""
 
+    d = _validate_agent_dict(d)
     agent_type = AgentType(d['type'])
 
     # Resolve policy class if provided
@@ -52,15 +84,16 @@ def agent_settings_from_dict(
     if agent_type == AgentType.ATTACKER:
         return AttackerSettings(
             name=name,
-            entry_points=set(d['entry_points']),
-            goals=set(d.get('goals', [])),
-            ttc_overrides=NodePropertyRule.from_optional_dict(d.get('ttc_overrides')),
+            entry_points=frozenset(d['entry_points']),
+            goals=frozenset(d.get('goals', [])),
+            ttc_dists=NodePropertyRule.from_optional_dict(d.get('ttc_overrides')),
             policy=policy,
             actionable_steps=NodePropertyRule.from_optional_dict(
                 d.get('actionable_steps')
             ),
             rewards=NodePropertyRule.from_optional_dict(d.get('rewards')),
             config=config,
+            reward_mode=RewardMode[d.get('reward_mode', 'CUMULATIVE')],
         )
 
     # Defender
@@ -77,4 +110,5 @@ def agent_settings_from_dict(
             d.get('false_negative_rates')
         ),
         config=config,
+        reward_mode=RewardMode[d.get('reward_mode', 'CUMULATIVE')],
     )

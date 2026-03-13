@@ -57,7 +57,10 @@ class AssetThenActionWrapper(
         self.mask = action_space.mask
 
     def reset(
-        self, seed: int | None = None, options: dict[str, Any] | None = None
+        self,
+        *,
+        seed: int | None = None,
+        options: dict[str, Any] | None = None,
     ) -> tuple[MALObsInstance, dict[str, Any]]:
         obs, info = self.env.reset(seed=seed, options=options)
         self._obs = obs
@@ -119,7 +122,10 @@ class ActionThenAssetWrapper(
         self.mask = action_space.mask
 
     def reset(
-        self, seed: int | None = None, options: dict[str, Any] | None = None
+        self,
+        *,
+        seed: int | None = None,
+        options: dict[str, Any] | None = None,
     ) -> tuple[MALObsInstance, dict[str, Any]]:
         obs, info = self.env.reset(seed=seed, options=options)
         self._obs = obs

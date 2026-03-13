@@ -40,7 +40,7 @@ def main() -> None:
     profiler = cProfile.Profile()
     profiler.enable()
 
-    run_simulation(sim, scenario.agent_settings)
+    run_simulation(sim)
 
     profiler.disable()
 

@@ -48,7 +48,7 @@ class DefendCompromisedDefender:
             if node in self.compromised_nodes:
                 continue
 
-            node_cost = node_reward(agent_state, node)
+            node_cost = node_reward(node, agent_state.settings.rewards)
 
             # Strategy:
             # - Enabled the cheapest defense node
@@ -98,7 +98,7 @@ class DefendFutureCompromisedDefender:
             if node in self.compromised_nodes:
                 continue
 
-            node_cost = node_reward(agent_state, node)
+            node_cost = node_reward(node, agent_state.settings.rewards)
 
             # Strategy:
             # - Enabled the cheapest defense node

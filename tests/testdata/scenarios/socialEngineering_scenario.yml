@@ -4,6 +4,8 @@ agents:
     type: attacker
     entry_points:
     - Human:attemptSocialEngineering
+  Defender1:
+    type: defender
 model:
   metadata:
     name: socialEngineering_scenario

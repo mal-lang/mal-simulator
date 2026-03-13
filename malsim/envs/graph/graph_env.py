@@ -1,6 +1,8 @@
 import gymnasium as gym
 from typing import Any
 
+from malsim.config.sim_settings import AttackSurfaceSettings
+
 from .mal_spaces import (
     MALObsAttackStepSpace,
     MALObsDefenseStepSpace,
@@ -19,7 +21,6 @@ from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
     TTCMode,
-    RewardMode,
     MalSimAttackerState,
 )
 from .serialization import LangSerializer
@@ -35,8 +36,7 @@ DEFAULT_SIM_SETTINGS = MalSimulatorSettings(
     ttc_mode=TTCMode.PER_STEP_SAMPLE,
     run_defense_step_bernoullis=False,
     run_attack_step_bernoullis=False,
-    attack_surface_skip_unnecessary=False,
-    attacker_reward_mode=RewardMode.ONE_OFF,
+    attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
 )
 
 
@@ -66,7 +66,7 @@ def register_graph_envs(
 class AttackerGraphEnv(gym.Env[MALObsInstance, np.int64]):
     metadata = {'render_modes': []}
 
-    spec: EnvSpec = EnvSpec(
+    spec = EnvSpec(
         id='GraphAttackerEnv-v0',
         entry_point='malsim.envs.graph.graph_env:AttackerGraphEnv',
         nondeterministic=True,
@@ -75,8 +75,7 @@ class AttackerGraphEnv(gym.Env[MALObsInstance, np.int64]):
                 ttc_mode=TTCMode.PER_STEP_SAMPLE,
                 run_defense_step_bernoullis=False,
                 run_attack_step_bernoullis=False,
-                attack_surface_skip_unnecessary=False,
-                attacker_reward_mode=RewardMode.ONE_OFF,
+                attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
             ),
         },
     )
@@ -90,17 +89,20 @@ class AttackerGraphEnv(gym.Env[MALObsInstance, np.int64]):
         self.render_mode: Any | None = kwargs.pop('render_mode', None)
 
         if not isinstance(scenario, Scenario):
-            scenario = Scenario.load_from_file(str(scenario))
+            scenario = Scenario.load_from_file(str(scenario), sim_settings=sim_settings)
 
         self.scenario = scenario
-        self.sim = MalSimulator.from_scenario(scenario, sim_settings)
+        self.sim = MalSimulator.from_scenario(scenario)
         self.multi_env = MalSimGraph(self.sim, attacker_visible_defense_steps=False)
         self.agent_name = get_agent_name(scenario, AgentType.ATTACKER)
         self.observation_space = self.multi_env.observation_space(self.agent_name)
         self.action_space = self.multi_env.action_space(self.agent_name)
 
     def reset(
-        self, seed: int | None = None, options: dict[str, Any] | None = None
+        self,
+        *,
+        seed: int | None = None,
+        options: dict[str, Any] | None = None,
     ) -> tuple[MALObsInstance, dict[str, Any]]:
         super().reset(seed=seed, options=options)
         obs, info = self.multi_env.reset(seed=seed, options=options)
@@ -130,7 +132,7 @@ class AttackerGraphEnv(gym.Env[MALObsInstance, np.int64]):
 class DefenderGraphEnv(gym.Env[MALObsInstance, np.int64]):
     metadata = {'render_modes': []}
 
-    spec: EnvSpec = EnvSpec(
+    spec = EnvSpec(
         id='GraphDefenderEnv-v0',
         entry_point='malsim.envs.graph.graph_env:DefenderGraphEnv',
         nondeterministic=True,
@@ -139,8 +141,7 @@ class DefenderGraphEnv(gym.Env[MALObsInstance, np.int64]):
                 ttc_mode=TTCMode.PER_STEP_SAMPLE,
                 run_defense_step_bernoullis=False,
                 run_attack_step_bernoullis=False,
-                attack_surface_skip_unnecessary=False,
-                attacker_reward_mode=RewardMode.ONE_OFF,
+                attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
             ),
         },
     )
@@ -154,17 +155,20 @@ class DefenderGraphEnv(gym.Env[MALObsInstance, np.int64]):
         self.render_mode: Any | None = kwargs.pop('render_mode', None)
 
         if not isinstance(scenario, Scenario):
-            scenario = Scenario.load_from_file(str(scenario))
+            scenario = Scenario.load_from_file(str(scenario), sim_settings=sim_settings)
 
         self.scenario = scenario
-        self.sim = MalSimulator.from_scenario(scenario, sim_settings)
+        self.sim = MalSimulator.from_scenario(scenario)
         self.multi_env = MalSimGraph(self.sim, attacker_visible_defense_steps=True)
         self.agent_name = get_agent_name(scenario, AgentType.DEFENDER)
         self.observation_space = self.multi_env.observation_space(self.agent_name)
         self.action_space = self.multi_env.action_space(self.agent_name)
 
     def reset(
-        self, seed: int | None = None, options: dict[str, Any] | None = None
+        self,
+        *,
+        seed: int | None = None,
+        options: dict[str, Any] | None = None,
     ) -> tuple[MALObsInstance, dict[str, Any]]:
         super().reset(seed=seed, options=options)
         obs, info = self.multi_env.reset(seed=seed, options=options)
@@ -193,9 +197,7 @@ class DefenderGraphEnv(gym.Env[MALObsInstance, np.int64]):
 
 def get_agent_name(scenario: Scenario, agent_type: AgentType) -> str:
     agent_names = [
-        name
-        for name, agent in scenario.agent_settings.items()
-        if agent.type == agent_type
+        agent.name for agent in scenario.agent_settings if agent.type == agent_type
     ]
     assert len(agent_names) == 1, (
         f'Expected exactly one agent of type {agent_type},'
@@ -299,7 +301,9 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
         for agent_name, obs in self._obs.items():
             self.action_space(agent_name)._mask = obs.steps.action_mask
         rewards = {
-            agent_name: self.sim.agent_reward(agent_name) for agent_name in states
+            agent_name: x
+            for agent_name, state in states.items()
+            if (x := self.sim.agent_reward(state)) is not None
         }
         terminations = {
             agent_name: self.sim.agent_is_terminated(agent_name)

@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 from collections.abc import Set
-from typing import Optional
 
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.node_getters import full_name_or_node_to_node
 from malsim.mal_simulator.simulator_state import MalSimulatorState
-from malsim.mal_simulator.attacker_state import MalSimAttackerState
-from malsim.mal_simulator.defender_state import MalSimDefenderState
 
 
 def node_is_viable(sim_state: MalSimulatorState, node: AttackGraphNode | str) -> bool:
@@ -71,27 +68,19 @@ def node_is_traversable(
 
 
 def node_is_actionable(
-    agent_actionability_rule: Optional[NodePropertyRule],
-    global_actionability: dict[AttackGraphNode, bool],
+    agent_actionability: NodePropertyRule[bool] | None,
     node: AttackGraphNode,
 ) -> bool:
-    if agent_actionability_rule:
-        # Actionability from agent settings
-        return bool(agent_actionability_rule.value(node, False))
-    if global_actionability:
-        # Actionability from global settings
-        return global_actionability.get(node, False)
+    if agent_actionability:
+        return agent_actionability.value(node, False)
     return True
 
 
 def node_reward(
-    agent: MalSimDefenderState | MalSimAttackerState,
     node: AttackGraphNode,
+    reward_rule: NodePropertyRule[float] | None = None,
 ) -> float:
-    if agent.reward_rule:
+    if reward_rule:
         # Node reward from agent settings
-        return float(agent.reward_rule.value(node, 0.0))
-    if agent.sim_state.global_rewards:
-        # Node reward from global settings
-        return agent.sim_state.global_rewards.get(node, 0.0)
+        return float(reward_rule.value(node, 0.0))
     return 0.0

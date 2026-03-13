@@ -1,10 +1,9 @@
 from collections.abc import Set
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 from maltoolbox.attackgraph import AttackGraphNode
-from malsim.config.node_property_rule import NodePropertyRule
+from malsim.config.agent_settings import DefenderSettings
 from malsim.mal_simulator.agent_state import MalSimAgentState
-from malsim.types import AgentStates
 
 
 @dataclass(frozen=True)
@@ -20,13 +19,7 @@ class MalSimDefenderState(MalSimAgentState):
     observed_nodes: Set[AttackGraphNode]
     # Contains observed steps made by any attacker in last step
     step_observed_nodes: Set[AttackGraphNode]
-
-    # Agent specific rules for node properties
-    reward_rule: Optional[NodePropertyRule] = None
-    actionability_rule: Optional[NodePropertyRule] = None
-    false_positive_rates_rule: Optional[NodePropertyRule] = None
-    false_negative_rates_rule: Optional[NodePropertyRule] = None
-    observability_rule: Optional[NodePropertyRule] = None
+    settings: DefenderSettings
 
     # Pickling
     def __getstate__(self) -> dict[str, Any]:
@@ -43,17 +36,3 @@ class MalSimDefenderState(MalSimAgentState):
         for key, value in state.items():
             if key not in ('performed_nodes_order'):
                 object.__setattr__(self, key, value)
-
-
-def get_defender_agents(
-    agent_states: AgentStates, alive_agents: Set[str], only_alive: bool = False
-) -> list[MalSimDefenderState]:
-    """Return list of mutable defender agent states of defenders.
-    If `only_alive` is set to True, only return the agents that are alive.
-    """
-    return [
-        a
-        for a in agent_states.values()
-        if (a.name in alive_agents or not only_alive)
-        and isinstance(a, MalSimDefenderState)
-    ]

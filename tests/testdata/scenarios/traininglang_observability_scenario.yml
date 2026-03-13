@@ -1,20 +1,6 @@
 lang_file: ../langs/org.mal-lang.trainingLang-1.0.0.mar
 model_file: ../models/traininglang_model.yml
 
-# Rewards for each attack step
-rewards:
-  by_asset_name:
-    Host:0:
-      notPresent: 2
-      access: 4
-    Host:1:
-      notPresent: 7
-      access: 5
-    Data:2:
-      notPresent: 8
-      read: 5
-      modify: 10
-
 agents:
   'Attacker1':
     type: 'attacker'
@@ -22,22 +8,42 @@ agents:
     entry_points:
     - 'User:3:phishing'
     - 'Host:0:connect'
+    # Rewards for each attack step
+    rewards:
+      by_asset_name:
+        Host:0:
+          access: 4
+        Host:1:
+          access: 5
+        Data:2:
+          read: 5
+          modify: 10
 
   'Defender1':
     type: 'defender'
     agent_class: KeyboardAgent
 
-# Optional way to make only certain steps observable
-# If observable_steps are set, all steps not
-# matching these rules will have observability set to False.
-observable_steps:
-  by_asset_type:
-    Host:
-      - access
-      - authenticate
-    Data:
-      - read
+    # Optional way to make only certain steps observable
+    # If observable_steps are set, all steps not
+    # matching these rules will have observability set to False.
+    observable_steps:
+      by_asset_type:
+        Host:
+          - access
+          - authenticate
+        Data:
+          - read
 
-  by_asset_name:
-    User:3:
-      - phishing
+      by_asset_name:
+        User:3:
+          - phishing
+
+    # Rewards for each attack step
+    rewards:
+      by_asset_name:
+        Host:0:
+          notPresent: 2
+        Host:1:
+          notPresent: 7
+        Data:2:
+          notPresent: 8

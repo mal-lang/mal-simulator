@@ -268,31 +268,48 @@ named_ttc_dists: dict[str, TTCDist] = {
 ## Attack graph TTC functions
 
 
+def attack_step_ttc_value(
+    node: AttackGraphNode,
+    ttc_dist: TTCDist | None,
+    ttc_mode: TTCMode,
+    rng: np.random.Generator,
+) -> Optional[float]:
+    _ttc_dist = ttc_dist or TTCDist.from_node(node)
+
+    # TODO Make this check comprehensive.
+    if ttc_mode == TTCMode.EXPECTED_VALUE:
+        return _ttc_dist.expected_value
+    elif ttc_mode == TTCMode.PRE_SAMPLE:
+        return _ttc_dist.sample_value(rng)
+    else:
+        return None
+
+
 def attack_step_ttc_values(
     nodes: Iterable[AttackGraphNode],
+    rng: np.random.Generator,
     ttc_mode: TTCMode = TTCMode.DISABLED,
-    rng: Optional[np.random.Generator] = None,
     ttc_dists: Optional[Mapping[AttackGraphNode, TTCDist]] = None,
-) -> dict[AttackGraphNode, float]:
+) -> Mapping[AttackGraphNode, float]:
     """
     Calculate and return attack steps TTCs if settings use
     pre sample or expected value.
     Optionally give overriding `ttc_dists` per node.
     """
 
-    ttc_values = {}
-    for node in nodes:
-        if ttc_dists and node in ttc_dists:
-            ttc_dist = ttc_dists[node]
-        else:
-            ttc_dist = TTCDist.from_node(node)
-
-        if ttc_mode == TTCMode.EXPECTED_VALUE:
-            ttc_values[node] = ttc_dist.expected_value
-        elif ttc_mode == TTCMode.PRE_SAMPLE:
-            ttc_values[node] = ttc_dist.sample_value(rng or np.random.default_rng())
-
-    return ttc_values
+    return {
+        node: x
+        for node in nodes
+        if (
+            x := attack_step_ttc_value(
+                node,
+                ttc_dists[node] if ttc_dists and node in ttc_dists else None,
+                ttc_mode,
+                rng,
+            )
+        )
+        is not None
+    }
 
 
 def get_pre_enabled_defenses(
@@ -327,6 +344,15 @@ def get_pre_enabled_defenses(
     return frozenset(pre_enabled_defenses)
 
 
+def is_impossible_attack_step(
+    node: AttackGraphNode,
+    ttc_dist: TTCDist | None,
+    rng: np.random.Generator,
+) -> bool:
+    _ttc_dist = ttc_dist or TTCDist.from_node(node)
+    return not _ttc_dist.attempt_bernoulli(rng)
+
+
 def get_impossible_attack_steps(
     nodes: Iterable[AttackGraphNode],
     rng: Optional[np.random.Generator] = None,
@@ -337,13 +363,13 @@ def get_impossible_attack_steps(
     infintity TTC in sample which means they are impossible.
     Optionally give overriding `ttc_dists`.
     """
-    impossible_attack_steps = set()
     ttc_dists = ttc_dists or {}
-
-    for node in nodes:
-        ttc_dist = ttc_dists[node] if node in ttc_dists else TTCDist.from_node(node)
-
-        if not ttc_dist.attempt_bernoulli(rng or np.random.default_rng()):
-            impossible_attack_steps.add(node)
-
-    return impossible_attack_steps
+    return frozenset(
+        node
+        for node in nodes
+        if is_impossible_attack_step(
+            node,
+            ttc_dists.get(node, None),
+            rng or np.random.default_rng(),
+        )
+    )

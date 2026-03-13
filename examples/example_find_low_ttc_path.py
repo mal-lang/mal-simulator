@@ -11,7 +11,9 @@ from malsim.mal_simulator import (
     run_simulation,
     TTCMode,
 )
-from malsim.scenario.scenario import Scenario
+from malsim.scenario.scenario import (
+    Scenario,
+)
 
 from malsim.policies import TTCSoftMinAttacker, PassiveAgent
 
@@ -20,21 +22,22 @@ def test_run_scenario_ttc_soft_min_attacker() -> None:
     scenario = Scenario(
         lang_file='tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar',
         model='tests/testdata/models/traininglang_model.yml',
-        agent_settings={
-            'Attacker1': AttackerSettings(
+        agents=(
+            AttackerSettings(
                 name='Attacker1',
-                entry_points={'User:3:phishing', 'Host:0:connect'},
-                goals={'Data:2:read'},
+                entry_points=frozenset({'User:3:phishing', 'Host:0:connect'}),
+                goals=frozenset({'Data:2:read'}),
                 policy=TTCSoftMinAttacker,
-                rewards=NodePropertyRule(by_asset_name={'Host:0': {'access': 10}}),
+                rewards=NodePropertyRule.from_dict(
+                    {'by_asset_name': {'Host:0': {'access': 10}}}
+                ),
             ),
-            'Defender1': DefenderSettings(name='Defender1', policy=PassiveAgent),
-        },
+            DefenderSettings(name='Defender1', policy=PassiveAgent),
+        ),
+        sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.EXPECTED_VALUE),
     )
 
-    mal_simulator = MalSimulator.from_scenario(
-        scenario, sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.EXPECTED_VALUE)
-    )
+    mal_simulator = MalSimulator.from_scenario(scenario)
     paths = run_simulation(mal_simulator)
     print(paths)
 

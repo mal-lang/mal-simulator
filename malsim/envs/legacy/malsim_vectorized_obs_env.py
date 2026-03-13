@@ -30,7 +30,7 @@ ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
 
 
-class MalSimVectorizedObsEnv(ParallelEnv):
+class MalSimVectorizedObsEnv(ParallelEnv[str, dict[str, Any], dict[str, str]]):
     """
     Environment that runs simulation between agents.
     Builds serialized observations.
@@ -104,7 +104,9 @@ class MalSimVectorizedObsEnv(ParallelEnv):
     def get_agent_state(self, agent_name: str) -> MalSimAgentState:
         return self.sim.agent_states[agent_name]
 
-    def _create_blank_observation(self, default_obs_state: int = -1) -> dict[str, Any]:
+    def _create_blank_observation(
+        self, default_obs_state: int = -1, agent_name: str | None = None
+    ) -> dict[str, Any]:
         """Create the initial observation"""
         # For now, an `object` is an attack step
         num_steps = len(self.sim.sim_state.attack_graph.nodes)
@@ -112,12 +114,12 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         observation: dict[str, Any] = {
             # If no observability set for node, assume observable.
             'is_observable': [
-                self.sim.node_is_observable(step)
+                self.sim.node_is_observable(step, agent_name)
                 for step in self.attack_graph.nodes.values()
             ],
             # Same goes for actionable.
             'is_actionable': [
-                self.sim.node_is_actionable(step)
+                self.sim.node_is_actionable(step, agent_name)
                 for step in self.attack_graph.nodes.values()
             ],
             'observed_state': num_steps * [default_obs_state],
@@ -403,18 +405,6 @@ class MalSimVectorizedObsEnv(ParallelEnv):
             nodes = [self.index_to_node(step_idx)]
         return nodes
 
-    def register_attacker(
-        self, attacker_name: str, entry_points: Set[AttackGraphNode] | Set[str]
-    ) -> None:
-        self.sim.register_attacker(attacker_name, entry_points)
-        agent = self.sim.agent_states[attacker_name]
-        self._init_agent(agent)
-
-    def register_defender(self, defender_name: str) -> None:
-        self.sim.register_defender(defender_name)
-        agent = self.sim.agent_states[defender_name]
-        self._init_agent(agent)
-
     def _init_agent(self, agent: MalSimAgentState) -> None:
         # Fill dicts with env specific agent obs/infos
         self._agent_observations[agent.name] = self._create_blank_observation()
@@ -457,7 +447,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         for node in disabled_nodes:
             if (
                 node in attacker_agent.performed_nodes
-                and node not in attacker_agent.entry_points
+                and node not in attacker_agent.settings.entry_points
             ):
                 logger.debug('Disable %s in attacker obs', node.full_name)
                 # Mark attacker compromised steps that were
@@ -567,7 +557,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         infos = self._agent_infos
 
         for agent in self.sim.agent_states.values():
-            rewards[agent.name] = self.sim.agent_reward(agent.name)
+            rewards[agent.name] = self.sim.agent_reward(agent)
             terminations[agent.name] = self.sim.agent_is_terminated(agent.name)
             truncations[agent.name] = self.sim.done()
 
