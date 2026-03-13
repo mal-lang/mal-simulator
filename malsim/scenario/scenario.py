@@ -39,6 +39,10 @@ deprecated_fields = [
     'defender_agent_class',
     'attacker_entry_points',
     'rewards',
+    'observable_steps',
+    'actionable_steps',
+    'false_positive_rates',
+    'false_negative_rates',
 ]
 
 # All required fields in scenario yml file
