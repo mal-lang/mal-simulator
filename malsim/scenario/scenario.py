@@ -160,27 +160,6 @@ class Scenario:
             else asdict(sim_settings)
         )
 
-        # for legacy reasons, also support rewards, false_positive_rates,
-        # and false_negative_rates at the top level of scenario dict
-        if 'rewards' in scenario_dict:
-            logger.warning(
-                "Found 'rewards' in scenario dict. "
-                "This should be moved under 'agent_settings'"
-            )
-            del scenario_dict['rewards']
-        if 'false_positive_rates' in scenario_dict:
-            logger.warning(
-                "Found 'false_positive_rates' in scenario dict. "
-                "This should be moved under 'agent_settings'"
-            )
-            del scenario_dict['false_positive_rates']
-        if 'false_negative_rates' in scenario_dict:
-            logger.warning(
-                "Found 'false_negative_rates' in scenario dict. "
-                "This should be moved under 'agent_settings'"
-            )
-            del scenario_dict['false_negative_rates']
-
         return Scenario(
             lang_file=scenario_dict['lang_file'],
             agents=agent_settings,
