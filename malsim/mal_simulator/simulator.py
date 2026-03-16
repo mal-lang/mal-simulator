@@ -126,7 +126,7 @@ class MalSimulator:
     def __init__(
         self,
         attack_graph: AttackGraph,
-        agents: Iterable[AttackerSettings[AttackGraphNode] | DefenderSettings],
+        agents: Iterable[AttackerSettings[AttackGraphNode | str] | DefenderSettings],
         sim_settings: MalSimulatorSettings = BASE_SETTINGS,
         send_to_api: bool = False,
     ):
@@ -149,7 +149,17 @@ class MalSimulator:
             attack_graph,
             sim_settings,
         )
-        _agent_settings: AgentSettings = {a.name: a for a in agents} or {}
+
+        _attacker_settings = [a for a in agents if isinstance(a, AttackerSettings)]
+        _defender_settings = [a for a in agents if isinstance(a, DefenderSettings)]
+
+        attacker_settings_with_nodes = [
+            a.convert_to_attack_graph_nodes(attack_graph) for a in _attacker_settings
+        ]
+
+        _agent_settings: AgentSettings = {
+            a.name: a for a in (_defender_settings + attacker_settings_with_nodes)
+        } or {}
 
         agent_states, alive_agents, sim_state, recording = reset(
             static_sim_data,
