@@ -1,6 +1,7 @@
 extends: ../traininglang_scenario_extended.yml
 
 agents:
+  'Attacker1': null
   'Defender1':
     type: 'defender'
     rewards:

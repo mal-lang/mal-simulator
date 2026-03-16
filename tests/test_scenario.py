@@ -150,8 +150,10 @@ def test_extend_scenario_deeper() -> None:
             assert reward == 1
     assert num_nodes_with_reward == 7
 
-    # 2 agents are defined in the original scenario
-    assert len(scenario.agent_settings) == 2
+    # 2 agents are defined in the original scenario,
+    # but one is set to null in the final scenario,
+    # so only 1 agent should be present in the final scenario
+    assert len(scenario.agent_settings) == 1
 
 
 def test_extend_scenario_override_lang_model() -> None:

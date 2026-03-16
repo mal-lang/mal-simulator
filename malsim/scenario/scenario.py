@@ -156,6 +156,7 @@ class Scenario:
         agent_settings = [
             agent_settings_from_dict(name, agent_settings_dict)
             for name, agent_settings_dict in scenario_dict['agents'].items()
+            if agent_settings_dict is not None
         ]
 
         model_or_model_file = scenario_dict.get('model') or scenario_dict['model_file']
@@ -253,6 +254,7 @@ def recursive_update(
         and isinstance(new.get(k), Mapping)
         else new.get(k, old.get(k))
         for k, v in old.items()
+        if new.get(k) is not None or old.get(k) is not None
     }
 
 
