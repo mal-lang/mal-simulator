@@ -44,7 +44,7 @@ class AgentRuntimeMixin:
         return self._agent
 
 
-T = TypeVar('T', bound=AttackGraphNode | str)
+T = TypeVar('T', bound=AttackGraphNode | str, covariant=True)
 
 
 @dataclass

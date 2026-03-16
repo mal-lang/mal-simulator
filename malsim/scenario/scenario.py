@@ -12,7 +12,7 @@ A scenario is a combination of:
 """
 
 from __future__ import annotations
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 import os
 from dataclasses import asdict, dataclass
 from typing import Any, Optional, TextIO
@@ -78,6 +78,7 @@ class Scenario:
         self.lang_graph = LanguageGraph.load_from_file(self._lang_file)
 
         self._model_file = None
+
         if isinstance(model, str):
             self._model_file = model
             self.model = Model.load_from_file(self._model_file, self.lang_graph)
@@ -97,7 +98,9 @@ class Scenario:
         defender_settings = [a for a in agents if isinstance(a, DefenderSettings)]
 
         self.attack_graph = attack_graph
-        self.agent_settings = attacker_settings_with_nodes + defender_settings
+        self.agent_settings: Sequence[
+            AttackerSettings[AttackGraphNode] | DefenderSettings
+        ] = [*attacker_settings_with_nodes, *defender_settings]
 
         self.sim_settings = sim_settings or MalSimulatorSettings()
 

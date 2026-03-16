@@ -33,7 +33,8 @@ def defender_step_reward_fn(
         defender_state: MalSimDefenderState,
     ) -> float:
         """
-        Reward function for the defender. Penalizes for enabled defenses and compromised steps.
+        Reward function for the defender.
+        Penalizes for enabled defenses and compromised steps.
         Args:
         - defender_state: the defender state before defenses were enabled
         """
