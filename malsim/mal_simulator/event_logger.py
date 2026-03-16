@@ -16,6 +16,7 @@ class LogEntry:
 
     timestep: int
     detector_name: str
+    detector: Detector
     trigger: AttackGraphNode
     context: dict[str, AttackGraphNode]
     false_positive: bool = False
@@ -34,6 +35,7 @@ def collect_false_positives(
                 LogEntry(
                     timestep=iteration,
                     detector_name=str(detector.name),
+                    detector=detector,
                     trigger=detector.node,
                     context=get_random_context(detector),
                     false_positive=True,
@@ -78,6 +80,7 @@ def collect_logs(
                     LogEntry(
                         timestep=iteration,
                         detector_name=str(detector.name),
+                        detector=detector,
                         trigger=attack_step,
                         context=labeled_steps,
                     )

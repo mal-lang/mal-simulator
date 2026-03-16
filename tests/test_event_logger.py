@@ -23,6 +23,7 @@ def test_logger_attacks() -> None:
         LogEntry(
             timestep=2,
             detector_name='logExploit',
+            detector=sim.get_node('Application:1:exploit').detectors['logExploit'],
             trigger=sim.get_node('Application:1:exploit'),
             context={'computer': sim.get_node('Computer:0:authenticate')},
             false_positive=False,
@@ -30,6 +31,7 @@ def test_logger_attacks() -> None:
         LogEntry(
             timestep=3,
             detector_name='logExploit',
+            detector=sim.get_node('Application:5:exploit').detectors['logExploit'],
             trigger=sim.get_node('Application:5:exploit'),
             context={},
             false_positive=False,
@@ -68,6 +70,7 @@ def test_logger_attacks_false_negative() -> None:
         LogEntry(
             timestep=3,
             detector_name='logExploit',
+            detector=sim.get_node('Application:5:exploit').detectors['logExploit'],
             trigger=sim.get_node('Application:5:exploit'),
             context={},
             false_positive=False,
@@ -112,6 +115,7 @@ def test_logger_attacks_false_positive() -> None:
         LogEntry(
             timestep=1,
             detector_name='logExploit',
+            detector=mocked_detector,
             trigger=sim.get_node('Application:1:exploit'),
             context={'computer': sim.get_node('Computer:0:authenticate')},
             false_positive=True,
@@ -119,6 +123,7 @@ def test_logger_attacks_false_positive() -> None:
         LogEntry(
             timestep=3,
             detector_name='logExploit',
+            detector=mocked_detector,
             trigger=sim.get_node('Application:1:exploit'),
             context={'computer': sim.get_node('Computer:0:authenticate')},
             false_positive=True,
@@ -126,6 +131,7 @@ def test_logger_attacks_false_positive() -> None:
         LogEntry(
             timestep=4,
             detector_name='logExploit',
+            detector=mocked_detector,
             trigger=sim.get_node('Application:1:exploit'),
             context={'computer': sim.get_node('Computer:0:authenticate')},
             false_positive=True,
