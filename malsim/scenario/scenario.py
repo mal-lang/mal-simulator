@@ -247,14 +247,15 @@ def recursive_update(
     old: Mapping[str, Any], new: Mapping[str, Any]
 ) -> Mapping[str, Any]:
     """Recursively update dict d with dict u"""
+    combined_keys = set(old.keys()) | set(new.keys())
+
     return {
         k: recursive_update(old.get(k, {}), new.get(k, {}))
-        if isinstance(v, Mapping)
-        and isinstance(old.get(k), Mapping)
-        and isinstance(new.get(k), Mapping)
+        if isinstance(old.get(k), Mapping) and isinstance(new.get(k), Mapping)
         else new.get(k, old.get(k))
-        for k, v in old.items()
-        if new.get(k) is not None or old.get(k) is not None
+        for k in combined_keys
+        # check for explicit None to allow overriding values to None
+        if not (k in new and new[k] is None)
     }
 
 
