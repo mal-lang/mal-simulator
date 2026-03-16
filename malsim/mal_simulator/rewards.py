@@ -16,17 +16,26 @@ def defender_step_reward_fn(
     enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
     defender_settings: DefenderSettings,
 ) -> Callable[[MalSimDefenderState], float]:
+    """
+    Reward function creator for defender agent.
+    Functions for determining enabled defenses and compromised steps are passed in,
+    as well as defender settings which includes rewards and reward mode.
+    Args:
+        - enabled_defenses_func: function that takes in defender state
+        and returns enabled defenses.
+        - enabled_attacks_func: function that takes in defender state
+        and returns compromised steps.
+        - defender_settings: settings for the defender,
+        including rewards and reward mode
+    """
+
     def defender_step_reward(
         defender_state: MalSimDefenderState,
     ) -> float:
         """
-        Calculate current defender reward either cumulative or one-off.
-        If cumulative, sum previous and one-off reward, otherwise
-        just return the one-off reward.
-
+        Reward function for the defender. Penalizes for enabled defenses and compromised steps.
         Args:
         - defender_state: the defender state before defenses were enabled
-        - reward_mode: which way to calculate reward
         """
         enabled_defenses = enabled_defenses_func(defender_state)
         compromised_nodes = enabled_attacks_func(defender_state)
