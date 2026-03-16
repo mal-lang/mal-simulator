@@ -176,7 +176,7 @@ class Scenario:
 
     @classmethod
     def load_from_file(cls, scenario_file: str, **override_keys: Any) -> Scenario:
-        scenario_dict = load_scenario_dict(scenario_file)
+        scenario_dict = dict(load_scenario_dict(scenario_file))
         return cls.from_dict(scenario_dict | override_keys)
 
 
@@ -230,26 +230,33 @@ def path_relative_to_file_dir(rel_path: str, file: TextIO) -> str:
 
 
 def _extend_scenario(
-    original_scenario_path: str, overriding_scenario: dict[str, Any]
-) -> dict[str, Any]:
+    original_scenario_path: str, overriding_scenario: Mapping[str, Any]
+) -> Mapping[str, Any]:
     """
     Override settings in `original_scenario_path` with settings
     in `overriding_scenario` and return the result.
     """
 
-    original_scenario: dict[str, Any] = load_scenario_dict(original_scenario_path)
-    resulting_scenario = original_scenario.copy()
-    for key, value in overriding_scenario.items():
-        # Override the original scenario with the
-        # overriding scenario key,value pairs
-        if key == 'extends':
-            # The 'extends' key is not needed after extend is done
-            continue
-        resulting_scenario[key] = value
-    return resulting_scenario
+    original_scenario: Mapping[str, Any] = load_scenario_dict(original_scenario_path)
+    resulting_scenario = recursive_update(original_scenario, overriding_scenario)
+    return dict(filter(lambda item: item[0] != 'extends', resulting_scenario.items()))
 
 
-def load_scenario_dict(scenario_file: str) -> dict[str, Any]:
+def recursive_update(
+    old: Mapping[str, Any], new: Mapping[str, Any]
+) -> Mapping[str, Any]:
+    """Recursively update dict d with dict u"""
+    return {
+        k: recursive_update(old.get(k, {}), new.get(k, {}))
+        if isinstance(v, Mapping)
+        and isinstance(old.get(k), Mapping)
+        and isinstance(new.get(k), Mapping)
+        else new.get(k, old.get(k))
+        for k, v in old.items()
+    }
+
+
+def load_scenario_dict(scenario_file: str) -> Mapping[str, Any]:
     """From a scenario file, load a scenario dict.
 
     Extend it with other scenario if `extend` keyword is used.
@@ -261,7 +268,7 @@ def load_scenario_dict(scenario_file: str) -> dict[str, Any]:
             original_scenario_path = path_relative_to_file_dir(
                 scenario['extends'], s_file
             )
-            scenario = _extend_scenario(original_scenario_path, scenario)
+            scenario = dict(_extend_scenario(original_scenario_path, scenario))
 
         # Convert path relative to scenario file
         scenario['lang_file'] = path_relative_to_file_dir(scenario['lang_file'], s_file)
