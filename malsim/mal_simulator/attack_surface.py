@@ -62,31 +62,41 @@ def get_attack_surface(
     """
 
     from_nodes = from_nodes if from_nodes is not None else performed_nodes
-    attack_surface: MutableSet[AttackGraphNode] = set()
 
     skip_compromised = settings.skip_compromised
     skip_unviable = settings.skip_unviable
     skip_unnecessary = settings.skip_unnecessary
 
-    for parent in from_nodes:
-        for child in parent.children:
-            if child.causal_mode == 'effect':
-                # Nodes marked as effects are not actions/attacks
-                continue
+    def uncompromised(node: AttackGraphNode) -> bool:
+        return not (skip_compromised and node in performed_nodes)
 
-            if skip_compromised and child in performed_nodes:
-                continue
+    def viable(node: AttackGraphNode) -> bool:
+        return node_is_viable(sim_state, node)
 
-            if skip_unviable and not node_is_viable(sim_state, child):
-                continue
+    def necessary(node: AttackGraphNode) -> bool:
+        return node_is_necessary(sim_state, node)
 
-            if skip_unnecessary and not node_is_necessary(sim_state, child):
-                continue
+    def actionable(node: AttackGraphNode) -> bool:
+        return node_is_actionable(actionability, node)
 
-            if not node_is_actionable(actionability, child):
-                continue
+    def traversable(node: AttackGraphNode) -> bool:
+        return node_is_traversable(sim_state, performed_nodes, node)
 
-            if node_is_traversable(sim_state, performed_nodes, child):
-                attack_surface.add(child)
+    def in_attack_surface(node: AttackGraphNode) -> bool:
+        # Nodes marked as effects are not actions/attacks
+        is_action = node.causal_mode != 'effect'
+        return (
+            is_action
+            and (uncompromised(node) if skip_compromised else True)
+            and (viable(node) if skip_unviable else True)
+            and (necessary(node) if skip_unnecessary else True)
+            and actionable(node)
+            and traversable(node)
+        )
 
-    return frozenset(attack_surface)
+    return frozenset(
+        node
+        for parent in from_nodes
+        for node in parent.children
+        if in_attack_surface(node)
+    )
