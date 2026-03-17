@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Set
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
@@ -19,11 +19,11 @@ class AgentType(Enum):
 class AgentRuntimeMixin:
     """Provides agent construction for attacker and defender."""
 
-    policy: Optional[type]
+    policy: type | None
     config: dict[str, Any]
-    _agent: Optional[Any] = None
+    _agent: Any | None = None
 
-    def _create_agent(self) -> Optional[Any]:
+    def _create_agent(self) -> Any | None:
         if self.policy:
             return self.policy(self.config)
         return None
@@ -32,7 +32,7 @@ class AgentRuntimeMixin:
         self._agent = self._create_agent()
 
     @property
-    def agent(self) -> Optional[Any]:
+    def agent(self) -> Any | None:
         if self._agent:
             return self._agent
         if self.policy is None:
@@ -48,10 +48,10 @@ class AttackerSettings(AgentRuntimeMixin):
     name: str
     entry_points: Set[str] | Set[AttackGraphNode]
     goals: Set[str] | Set[AttackGraphNode] = field(default_factory=set)
-    policy: Optional[type] = None
-    actionable_steps: Optional[NodePropertyRule] = None
-    rewards: Optional[NodePropertyRule] = None
-    ttc_overrides: Optional[NodePropertyRule] = None
+    policy: type | None = None
+    actionable_steps: NodePropertyRule | None = None
+    rewards: NodePropertyRule | None = None
+    ttc_overrides: NodePropertyRule | None = None
     config: dict[str, Any] = field(default_factory=dict)
     type: AgentType = AgentType.ATTACKER
 
@@ -84,12 +84,12 @@ class DefenderSettings(AgentRuntimeMixin):
     """Settings for a defender in a scenario."""
 
     name: str
-    policy: Optional[type] = None
-    observable_steps: Optional[NodePropertyRule] = None
-    actionable_steps: Optional[NodePropertyRule] = None
-    rewards: Optional[NodePropertyRule] = None
-    false_positive_rates: Optional[NodePropertyRule] = None
-    false_negative_rates: Optional[NodePropertyRule] = None
+    policy: type | None = None
+    observable_steps: NodePropertyRule | None = None
+    actionable_steps: NodePropertyRule | None = None
+    rewards: NodePropertyRule | None = None
+    false_positive_rates: NodePropertyRule | None = None
+    false_negative_rates: NodePropertyRule | None = None
     config: dict[str, Any] = field(default_factory=dict)
     type: AgentType = AgentType.DEFENDER
 

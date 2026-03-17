@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from collections.abc import Set
-from typing import Any, Optional
+from typing import Any
 import functools
 import logging
 import sys
@@ -255,15 +255,15 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         for agent in self.sim.agent_states.values():
             self._agent_infos[agent.name] = self.create_action_mask(agent)
 
-    @functools.lru_cache(maxsize=None)
-    def action_space(self, agent: Optional[str] = None) -> MultiDiscrete:
+    @functools.cache
+    def action_space(self, agent: str | None = None) -> MultiDiscrete:
         num_actions = 2  # two actions: wait or use
         # For now, an `object` is an attack step
         num_steps = len(self.sim.sim_state.attack_graph.nodes)
         return MultiDiscrete([num_actions, num_steps], dtype=np.int64)
 
-    @functools.lru_cache(maxsize=None)
-    def observation_space(self, agent_name: Optional[str] = None) -> Dict:
+    @functools.cache
+    def observation_space(self, agent_name: str | None = None) -> Dict:
         # For now, an `object` is an attack step
         assert self.attack_graph.model, (
             'Attack graph in simulator needs to have a model attached to it'
@@ -486,7 +486,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
             defender_observation['observed_state'][node_idx] = 0
 
     def reset(
-        self, seed: Optional[int] = None, options: Optional[dict[str, Any]] = None
+        self, seed: int | None = None, options: dict[str, Any] | None = None
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Reset simulator and return current
         observation and infos for each agent"""
@@ -532,7 +532,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
                 self._update_defender_obs(compromised_nodes, disabled_nodes, agent)
 
     def step(
-        self, actions: dict[str, tuple[int, Optional[int]]]
+        self, actions: dict[str, tuple[int, int | None]]
     ) -> tuple[
         dict[str, dict[str, Any]],
         dict[str, float],

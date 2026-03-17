@@ -1,6 +1,6 @@
 from collections.abc import Set
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.agent_state import MalSimAgentState
@@ -22,11 +22,11 @@ class MalSimDefenderState(MalSimAgentState):
     step_observed_nodes: Set[AttackGraphNode]
 
     # Agent specific rules for node properties
-    reward_rule: Optional[NodePropertyRule] = None
-    actionability_rule: Optional[NodePropertyRule] = None
-    false_positive_rates_rule: Optional[NodePropertyRule] = None
-    false_negative_rates_rule: Optional[NodePropertyRule] = None
-    observability_rule: Optional[NodePropertyRule] = None
+    reward_rule: NodePropertyRule | None = None
+    actionability_rule: NodePropertyRule | None = None
+    false_positive_rates_rule: NodePropertyRule | None = None
+    false_negative_rates_rule: NodePropertyRule | None = None
+    observability_rule: NodePropertyRule | None = None
 
     # Pickling
     def __getstate__(self) -> dict[str, Any]:

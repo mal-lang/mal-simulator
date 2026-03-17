@@ -94,7 +94,7 @@ select = [
     #"S",  # flake8-bandit
     #"PL", # pylint
     #"I", # isort
-    #"UP", # pyupgrade
+    "UP", # pyupgrade
     #"FBT",
     #"RET",
     #"ARG",

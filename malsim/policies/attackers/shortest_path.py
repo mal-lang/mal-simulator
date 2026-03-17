@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, TYPE_CHECKING, Optional
+from typing import Any, TYPE_CHECKING
 import random
 import logging
 
@@ -29,7 +29,7 @@ class ShortestPathAttacker:
 
     def get_next_action(
         self, agent_state: MalSimAttackerState, **kwargs: Any
-    ) -> Optional[AttackGraphNode]:
+    ) -> AttackGraphNode | None:
         """Sample node from the action surface based on ttc softargmax"""
 
         shortest_paths_per_goal = get_shortest_paths_for_attacker(agent_state)

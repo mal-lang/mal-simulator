@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 from collections.abc import Set, Mapping
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
@@ -31,8 +31,8 @@ class MalSimAttackerState(MalSimAgentState):
     )  # Steps that are impossible to perform
 
     # Agent specific rules for node properties
-    reward_rule: Optional[NodePropertyRule] = None
-    actionability_rule: Optional[NodePropertyRule] = None
+    reward_rule: NodePropertyRule | None = None
+    actionability_rule: NodePropertyRule | None = None
 
     # Picklable
     def __getstate__(self) -> dict[str, Any]:

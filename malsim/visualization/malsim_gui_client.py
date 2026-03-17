@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import requests
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
@@ -30,7 +30,7 @@ class MalSimGUIClient:
         return f'{self.protocol}://{self.host}:{self.port}/{endpoint}'
 
     def _send_request(
-        self, method: str, endpoint: str, json_content: Optional[Any] = None
+        self, method: str, endpoint: str, json_content: Any | None = None
     ) -> requests.Response:
         """Send a request to the REST API"""
         url = self._create_url(endpoint)
