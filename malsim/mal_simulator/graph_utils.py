@@ -22,6 +22,9 @@ def node_is_necessary(
     node = full_name_or_node_to_node(sim_state.attack_graph, node)
     return sim_state.graph_state.necessity_per_node[node]
 
+def is_attack_step(node: AttackGraphNode) -> bool:
+    # Only attack steps have traversability
+    return node.type not in ('defense', 'exist', 'notExist')
 
 def node_is_traversable(
     sim_state: MalSimulatorState,
@@ -42,29 +45,36 @@ def node_is_traversable(
     node            - the node we wish to evalute traversability for
     """
 
-    if not node_is_viable(sim_state, node):
-        return False
-
-    if node.type in ('defense', 'exist', 'notExist'):
-        # Only attack steps have traversability
-        return False
-
-    if not (node.parents & performed_nodes):
+    def parents_reached(node: AttackGraphNode) -> bool:
         # If no parent is reached, the node can not be traversable
-        return False
+        return (node.parents & performed_nodes) != set()
 
-    if node.type == 'or':
-        traversable = any(parent in performed_nodes for parent in node.parents)
-    elif node.type == 'and':
-        traversable = all(
-            parent in performed_nodes or not node_is_necessary(sim_state, parent)
+    def or_traversable(node: AttackGraphNode) -> bool:
+        return any(parent in performed_nodes for parent in node.parents)
+
+    def and_traversable(node: AttackGraphNode) -> bool:
+        return all(
+            parent in performed_nodes
             for parent in node.parents
+            if node_is_necessary(sim_state, parent)
         )
-    else:
-        raise TypeError(
-            f'Node "{node.full_name}"({node.id})has an unknown type "{node.type}".'
-        )
-    return traversable
+
+    def is_and_or_traversable(node: AttackGraphNode) -> bool:
+        if node.type == 'or':
+            return or_traversable(node)
+        elif node.type == 'and':
+            return and_traversable(node)
+        else:
+            raise TypeError(
+                f'Node "{node.full_name}"({node.id})has an unknown type "{node.type}".'
+            )
+
+    return (
+        is_attack_step(node)
+        and node_is_viable(sim_state, node)
+        and parents_reached(node)
+        and is_and_or_traversable(node)
+    )
 
 
 def node_is_actionable(
