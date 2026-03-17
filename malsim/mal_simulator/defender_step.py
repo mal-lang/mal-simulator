@@ -5,7 +5,7 @@ from maltoolbox.attackgraph import AttackGraphNode
 import logging
 
 
-from malsim.mal_simulator.agent_states import get_attacker_agents
+from malsim.mal_simulator.agent_states import attacker_states
 from malsim.mal_simulator.attacker_step import attacker_is_terminated
 from malsim.mal_simulator.graph_processing import make_node_unviable
 from malsim.mal_simulator.simulator_state import MalSimulatorState
@@ -17,14 +17,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def defender_is_terminated(agent_states: AgentStates, alive_agents: Set[str]) -> bool:
+def defender_is_terminated(agent_states: AgentStates) -> bool:
     """Check if defender is terminated
     Can be overridden by subclass for custom termination condition.
     """
     # Defender is terminated if all attackers are terminated
     return all(
-        attacker_is_terminated(a)
-        for a in get_attacker_agents(agent_states, alive_agents)
+        attacker_is_terminated(a) for a in attacker_states(agent_states).values()
     )
 
 

@@ -3,8 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 import logging
 from typing import Any, NamedTuple, Optional
-from collections.abc import Callable, Iterable, Mapping, MutableSet, Set
-from copy import copy
+from collections.abc import Callable, Iterable, Mapping, Set
 import numpy as np
 from numpy.random import default_rng
 
@@ -14,8 +13,8 @@ from malsim.config.agent_settings import defender_settings
 from malsim.config.agent_settings import attacker_settings
 from malsim.mal_simulator.agent_states import (
     AgentStates,
-    get_attacker_agents,
-    get_defender_agents,
+    attacker_states,
+    defender_states,
 )
 from malsim.mal_simulator.attacker_state import MalSimAttackerState
 from malsim.mal_simulator.attacker_step import (
@@ -161,7 +160,7 @@ class MalSimulator:
             a.name: a for a in (_defender_settings + attacker_settings_with_nodes)
         } or {}
 
-        agent_states, alive_agents, sim_state, recording = reset(
+        agent_states, sim_state, recording = reset(
             static_sim_data,
             _agent_settings,
             rng,
@@ -189,7 +188,6 @@ class MalSimulator:
         # Set all instance variables
         self.rng = rng
         self._agent_states = agent_states
-        self._alive_agents = alive_agents
         self.sim_state = sim_state
         self.recording = recording
         self.sim_settings = sim_settings
@@ -223,7 +221,11 @@ class MalSimulator:
         return create_simulator_from_scenario(scenario, send_to_api)
 
     def done(self) -> bool:
-        return done(self._alive_agents)
+        return done(self.alive_agents)
+
+    @property
+    def alive_agents(self) -> Set[str]:
+        return alive_agents(self._agent_states)
 
     def node_ttc_value(
         self, node: AttackGraphNode, agent_name: Optional[str] = None
@@ -290,7 +292,6 @@ class MalSimulator:
         return node_is_enabled_defense(
             self.sim_state.attack_graph,
             self._agent_states,
-            self._alive_agents,
             node,
         )
 
@@ -298,7 +299,6 @@ class MalSimulator:
         return node_is_compromised(
             self.sim_state.attack_graph,
             self._agent_states,
-            self._alive_agents,
             node,
         )
 
@@ -306,7 +306,6 @@ class MalSimulator:
     def compromised_nodes(self) -> Set[AttackGraphNode]:
         return compromised_nodes(
             self._agent_states,
-            self._alive_agents,
         )
 
     def node_is_traversable(
@@ -328,12 +327,11 @@ class MalSimulator:
         return self._agent_reward_from_state(agent_state) or 0.0
 
     def agent_is_terminated(self, agent_name: str) -> bool:
-        return agent_is_terminated(self._agent_states, self._alive_agents, agent_name)
+        return agent_is_terminated(self._agent_states, agent_name)
 
     def reset(self) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
         (
             self._agent_states,
-            self._alive_agents,
             self.sim_state,
             self.recording,
         ) = reset(
@@ -350,7 +348,7 @@ class MalSimulator:
         return self._agent_states
 
     def _defender_is_terminated(self) -> bool:
-        return defender_is_terminated(self._agent_states, self._alive_agents)
+        return defender_is_terminated(self._agent_states)
 
     def _agent_reward_from_state(
         self, state: MalSimAttackerState | MalSimDefenderState
@@ -372,11 +370,10 @@ class MalSimulator:
     def step(
         self, actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]]
     ) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
-        agent_states, recording, sim_state, live_agents = step(
+        agent_states, recording, sim_state = step(
             self.recording,
             self.sim_state,
             self._agent_states,
-            set(self._alive_agents),
             self.rng,
             actions,
             self.rest_api_client,
@@ -384,7 +381,6 @@ class MalSimulator:
         self._agent_states = agent_states
         self.recording = recording
         self.sim_state = sim_state
-        self._alive_agents = live_agents
 
         return self._agent_states
 
@@ -410,15 +406,13 @@ def done(alive_agents: Set[str]) -> bool:
     return len(alive_agents) == 0
 
 
-def agent_is_terminated(
-    agent_states: AgentStates, live_agents: Set[str], agent_name: str
-) -> bool:
+def agent_is_terminated(agent_states: AgentStates, agent_name: str) -> bool:
     """Return True if agent was terminated"""
     agent_state = agent_states[agent_name]
     if isinstance(agent_state, MalSimAttackerState):
         return attacker_is_terminated(agent_state)
     elif isinstance(agent_state, MalSimDefenderState):
-        return defender_is_terminated(agent_states, live_agents)
+        return defender_is_terminated(agent_states)
     else:
         raise TypeError(f'Unknown agent state for {agent_name}')
 
@@ -430,7 +424,6 @@ def reset(
     rest_api_client: Optional[MalSimGUIClient],
 ) -> tuple[
     AgentStates,
-    Set[str],
     MalSimulatorState,
     Recording,
 ]:
@@ -443,7 +436,7 @@ def reset(
     graph_state = compute_initial_graph_state(attack_graph, settings, rng)
     sim_state = create_simulator_state(attack_graph, graph_state, settings)
 
-    agent_states, alive_agents = reset_agents(
+    agent_states = reset_agents(
         sim_state,
         settings,
         agent_settings,
@@ -453,7 +446,7 @@ def reset(
     if rest_api_client:
         rest_api_client.upload_initial_state(attack_graph)
 
-    return agent_states, alive_agents, sim_state, defaultdict(dict)
+    return agent_states, sim_state, defaultdict(dict)
 
 
 def _pre_step_check(
@@ -479,11 +472,10 @@ def step(
     recording: Recording,
     sim_state: MalSimulatorState,
     agent_states: AgentStates,
-    alive_agents: MutableSet[str],
     rng: np.random.Generator,
     actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]],
     rest_api_client: Optional[MalSimGUIClient] = None,
-) -> tuple[AgentStates, Recording, MalSimulatorState, Set[str]]:
+) -> tuple[AgentStates, Recording, MalSimulatorState]:
     """Take a step in the simulation
 
     Args:
@@ -494,7 +486,7 @@ def step(
     - A dictionary containing the agent state views keyed by agent names
     """
 
-    _pre_step_check(agent_states, alive_agents, actions)
+    _pre_step_check(agent_states, alive_agents(agent_states), actions)
 
     # Populate these from the results for all agents' actions.
     step_compromised_nodes: list[AttackGraphNode] = []
@@ -503,7 +495,7 @@ def step(
     current_iteration = 0
 
     # Perform defender actions first
-    for defender_state in get_defender_agents(agent_states, alive_agents):
+    for defender_state in defender_states(agent_states).values():
         agent_actions = list(
             full_names_or_nodes_to_nodes(
                 sim_state.attack_graph, actions.get(defender_state.name, [])
@@ -517,7 +509,7 @@ def step(
         step_nodes_made_unviable |= unviable
 
     # Perform attacker actions afterwards
-    for attacker_state in get_attacker_agents(agent_states, alive_agents):
+    for attacker_state in attacker_states(agent_states).values():
         agent_actions = list(
             full_names_or_nodes_to_nodes(
                 sim_state.attack_graph, actions.get(attacker_state.name, [])
@@ -545,7 +537,7 @@ def step(
         )
 
     # Update defender states and rewards
-    for defender_state in get_defender_agents(agent_states, alive_agents):
+    for defender_state in defender_states(agent_states).values():
         current_iteration = defender_state.iteration
         # Update defender state
         agent_states[defender_state.name] = create_defender_state(
@@ -559,13 +551,6 @@ def step(
             rng=rng,
         )
 
-    # Mark terminated agents as dead
-    for agent_name in copy(alive_agents):
-        # Remove agents that are terminated
-        if agent_is_terminated(agent_states, alive_agents, agent_name):
-            logger.info('Agent %s terminated', agent_name)
-            alive_agents.remove(agent_name)
-
     # the way current_iteration is used here is flawed.
     if rest_api_client:
         rest_api_client.upload_performed_nodes(
@@ -573,4 +558,13 @@ def step(
             current_iteration,
         )
 
-    return agent_states, recording, sim_state, alive_agents
+    return agent_states, recording, sim_state
+
+
+def alive_agents(agent_states: AgentStates) -> Set[str]:
+    """Return a set of alive agents"""
+    return {
+        agent_name
+        for agent_name in agent_states
+        if not agent_is_terminated(agent_states, agent_name)
+    }

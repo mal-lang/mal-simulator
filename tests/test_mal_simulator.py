@@ -18,7 +18,10 @@ from malsim.mal_simulator import (
     RewardMode,
 )
 from malsim.mal_simulator.attacker_step import attacker_is_terminated, attacker_step
-from malsim.mal_simulator.agent_states import get_attacker_agents, get_defender_agents
+from malsim.mal_simulator.agent_states import (
+    attacker_states,
+    defender_states,
+)
 from malsim.mal_simulator.defender_step import defender_is_terminated, defender_step
 from malsim.mal_simulator import TTCDist
 from malsim import Scenario, run_simulation
@@ -58,7 +61,7 @@ def test_init_with_agent_settings(
     assert sim.agent_states.keys() == {'Attacker1', 'Defender1'}
     assert sim.agent_reward_by_name('Attacker1') == 0.0
     assert sim.agent_reward_by_name('Defender1') == 0.0
-    assert sim._alive_agents == {'Attacker1', 'Defender1'}
+    assert sim.alive_agents == {'Attacker1', 'Defender1'}
 
 
 def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
@@ -215,12 +218,8 @@ def test_get_agents() -> None:
     sim = MalSimulator.from_scenario(scenario)
     sim.reset()
 
-    assert [
-        a.name for a in get_attacker_agents(sim.agent_states, sim._alive_agents)
-    ] == ['Attacker1']
-    assert [
-        a.name for a in get_defender_agents(sim.agent_states, sim._alive_agents)
-    ] == ['Defender1']
+    assert list(attacker_states(sim.agent_states)) == ['Attacker1']
+    assert list(defender_states(sim.agent_states)) == ['Defender1']
 
 
 def test_attacker_step(corelang_lang_graph: LanguageGraph, model: Model) -> None:
@@ -591,9 +590,7 @@ def test_simulation_done(corelang_lang_graph: LanguageGraph, model: Model) -> No
     assert isinstance(defender_state, MalSimDefenderState)
 
     assert not sim.done()  # simulation is done because truncated
-    assert not defender_is_terminated(
-        sim._agent_states, sim._alive_agents
-    )  # not terminated
+    assert not defender_is_terminated(sim._agent_states)  # not terminated
     assert not attacker_is_terminated(attacker_state)  # not terminated
 
 
@@ -627,7 +624,7 @@ def test_simulation_terminations(
     assert isinstance(defender_state, MalSimDefenderState)
 
     assert sim.done()  # simulation is done because all agents terminated
-    assert defender_is_terminated(sim._agent_states, sim._alive_agents)
+    assert defender_is_terminated(sim._agent_states)
     assert attacker_is_terminated(attacker_state)
 
 

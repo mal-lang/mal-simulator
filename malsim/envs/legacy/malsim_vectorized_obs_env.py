@@ -94,7 +94,7 @@ class MalSimVectorizedObsEnv(ParallelEnv[str, dict[str, Any], dict[str, str]]):
     @property
     def agents(self) -> list[str]:
         """Required by ParallelEnv"""
-        return list(self.sim._alive_agents)
+        return list(self.sim.alive_agents)
 
     @property
     def possible_agents(self) -> list[str]:
