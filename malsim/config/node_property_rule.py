@@ -1,7 +1,8 @@
 from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Generic, Mapping, Optional, TypeVar
+from typing import Any, Generic, TypeVar
+from collections.abc import Mapping
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
@@ -12,7 +13,7 @@ Y = TypeVar('Y')
 DefaultType = TypeVar('DefaultType')
 
 
-def _lookup(subkey: str, key: str, by_dict: Mapping[str, Any]) -> Optional[Any]:
+def _lookup(subkey: str, key: str, by_dict: Mapping[str, Any]) -> Any | None:
     sub_dict = by_dict.get(key, {})
     if subkey in sub_dict:
         if isinstance(sub_dict, list):
@@ -21,8 +22,8 @@ def _lookup(subkey: str, key: str, by_dict: Mapping[str, Any]) -> Optional[Any]:
     return None
 
 
-def optional(f: Callable[[X], Y]) -> Callable[[Optional[X]], Optional[Y]]:
-    def wrapper(x: X | None) -> Optional[Y]:
+def optional(f: Callable[[X], Y]) -> Callable[[X | None], Y | None]:
+    def wrapper(x: X | None) -> Y | None:
         if x is None:
             return None
         return f(x)
@@ -140,7 +141,7 @@ class NodePropertyRule(Generic[T]):
     @classmethod
     def from_optional_dict(
         cls, node_property_dict: dict[str, dict[str, Any]] | None
-    ) -> Optional[NodePropertyRule[T]]:
+    ) -> NodePropertyRule[T] | None:
         return optional(cls.from_dict)(node_property_dict)
 
     @classmethod

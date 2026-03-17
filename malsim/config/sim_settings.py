@@ -1,7 +1,6 @@
 from __future__ import annotations
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 class TTCMode(Enum):
@@ -57,7 +56,7 @@ class MalSimulatorSettings:
 
     # seed
     # - optionally run deterministic simulations with seed
-    seed: Optional[int] = None
+    seed: int | None = None
 
     attack_surface: AttackSurfaceSettings = field(default_factory=AttackSurfaceSettings)
 

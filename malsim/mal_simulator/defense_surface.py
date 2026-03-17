@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections.abc import Set
 from typing import TYPE_CHECKING
 
 from malsim.config.node_property_rule import NodePropertyRule
@@ -11,7 +12,7 @@ if TYPE_CHECKING:
 
 def get_defense_surface(
     sim_state: MalSimulatorState,
-    agent_actionability_rule: Optional[NodePropertyRule[bool]],
+    agent_actionability_rule: NodePropertyRule[bool] | None,
 ) -> Set[AttackGraphNode]:
     """Get the defense surface.
     All non-suppressed defense steps that are not already enabled.

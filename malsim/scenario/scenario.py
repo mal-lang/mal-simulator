@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 import os
 from dataclasses import asdict
-from typing import Any, Optional, TextIO
+from typing import Any, TextIO
 import logging
 
 import yaml
@@ -84,7 +84,7 @@ class Scenario:
         lang_file: str,
         model: Model | dict[str, Any] | str,
         agents: Iterable[AttackerSettings[str] | DefenderSettings],
-        sim_settings: Optional[MalSimulatorSettings] = BASE_SETTINGS,
+        sim_settings: MalSimulatorSettings | None = BASE_SETTINGS,
     ):
         # Lang file is required
         self._lang_file = lang_file

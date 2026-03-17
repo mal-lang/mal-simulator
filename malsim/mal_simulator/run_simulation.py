@@ -23,7 +23,7 @@ def run_simulation(sim: MalSimulator) -> dict[str, list[AttackGraphNode]]:
 
         # Select actions for each agent
         for agent_name, agent_config in agents.items():
-            decision_agent: Optional[DecisionAgent] = agent_config.agent
+            decision_agent: DecisionAgent | None = agent_config.agent
             if decision_agent is None:
                 print(
                     f'Agent "{agent_name}" has no decision agent class '

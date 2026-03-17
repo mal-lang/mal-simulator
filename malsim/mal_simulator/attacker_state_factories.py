@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from collections.abc import MutableSet, Set, Mapping
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.attack_surface import (
@@ -43,7 +43,7 @@ def create_attacker_state(
     impossible_steps: Set[AttackGraphNode],
     step_attempted_nodes: Set[AttackGraphNode] = frozenset(),
     step_nodes_made_unviable: Set[AttackGraphNode] = frozenset(),
-    previous_state: Optional[MalSimAttackerState] = None,
+    previous_state: MalSimAttackerState | None = None,
 ) -> MalSimAttackerState:
     """
     Update a previous attacker state based on what the agent compromised

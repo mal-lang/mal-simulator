@@ -1,6 +1,5 @@
 from __future__ import annotations
 from collections.abc import Set
-from typing import Optional
 
 import numpy as np
 
@@ -22,9 +21,9 @@ def node_is_observable(
 
 
 def observed_nodes(
-    observable_steps_rule: Optional[NodePropertyRule[bool]],
-    false_positive_rates_rule: Optional[NodePropertyRule[float]],
-    false_negative_rates_rule: Optional[NodePropertyRule[float]],
+    observable_steps_rule: NodePropertyRule[bool] | None,
+    false_positive_rates_rule: NodePropertyRule[float] | None,
+    false_negative_rates_rule: NodePropertyRule[float] | None,
     sim_state: MalSimulatorState,
     rng: np.random.Generator,
     compromised_nodes: Set[AttackGraphNode],

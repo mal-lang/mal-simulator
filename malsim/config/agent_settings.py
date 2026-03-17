@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Set
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, Generic, TypeVar
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
@@ -53,9 +53,9 @@ class AttackerSettings(AgentRuntimeMixin, Generic[T]):
 
     name: str
     entry_points: Set[T]
-    policy: Optional[type] = None
-    actionable_steps: Optional[NodePropertyRule[bool]] = None
-    rewards: Optional[NodePropertyRule[float]] = None
+    policy: type | None = None
+    actionable_steps: NodePropertyRule[bool] | None = None
+    rewards: NodePropertyRule[float] | None = None
     config: dict[str, Any] = field(default_factory=dict)
     type: AgentType = AgentType.ATTACKER
     reward_mode: RewardMode = RewardMode.CUMULATIVE
@@ -117,12 +117,12 @@ class DefenderSettings(AgentRuntimeMixin):
     """Settings for a defender in a scenario."""
 
     name: str
-    policy: Optional[type] = None
-    observable_steps: Optional[NodePropertyRule[bool]] = None
-    actionable_steps: Optional[NodePropertyRule[bool]] = None
-    rewards: Optional[NodePropertyRule[float]] = None
-    false_positive_rates: Optional[NodePropertyRule[float]] = None
-    false_negative_rates: Optional[NodePropertyRule[float]] = None
+    policy: type | None = None
+    observable_steps: NodePropertyRule[bool] | None = None
+    actionable_steps: NodePropertyRule[bool] | None = None
+    rewards: NodePropertyRule[float] | None = None
+    false_positive_rates: NodePropertyRule[float] | None = None
+    false_negative_rates: NodePropertyRule[float] | None = None
     config: dict[str, Any] = field(default_factory=dict)
     type: AgentType = AgentType.DEFENDER
     reward_mode: RewardMode = RewardMode.CUMULATIVE

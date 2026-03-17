@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 import logging
-from typing import Any, NamedTuple, Optional
+from typing import Any, NamedTuple
 from collections.abc import Callable, Iterable, Mapping, Set
 import numpy as np
 from numpy.random import default_rng
@@ -421,7 +421,7 @@ def reset(
     static_data: MALSimulatorStaticData,
     agent_settings: AgentSettings,
     rng: np.random.Generator,
-    rest_api_client: Optional[MalSimGUIClient],
+    rest_api_client: MalSimGUIClient | None,
 ) -> tuple[
     AgentStates,
     MalSimulatorState,
@@ -474,7 +474,7 @@ def step(
     agent_states: AgentStates,
     rng: np.random.Generator,
     actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]],
-    rest_api_client: Optional[MalSimGUIClient] = None,
+    rest_api_client: MalSimGUIClient | None = None,
 ) -> tuple[AgentStates, Recording, MalSimulatorState]:
     """Take a step in the simulation
 

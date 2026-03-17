@@ -20,7 +20,7 @@ def create_defender_state(
     step_compromised_nodes: Set[AttackGraphNode] = frozenset(),
     step_enabled_defenses: Set[AttackGraphNode] = frozenset(),
     step_nodes_made_unviable: Set[AttackGraphNode] = frozenset(),
-    previous_state: Optional[MalSimDefenderState] = None,
+    previous_state: MalSimDefenderState | None = None,
 ) -> MalSimDefenderState:
     """
     Update a previous defender state based on what steps

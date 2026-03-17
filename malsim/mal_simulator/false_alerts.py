@@ -10,7 +10,7 @@ from malsim.config.node_property_rule import NodePropertyRule
 
 def node_false_negative_rate(
     node: AttackGraphNode,
-    false_negative_rates_rule: Optional[NodePropertyRule[float]] = None,
+    false_negative_rates_rule: NodePropertyRule[float] | None = None,
 ) -> float:
     if false_negative_rates_rule:
         return false_negative_rates_rule.value(node, 0.0)
@@ -18,7 +18,7 @@ def node_false_negative_rate(
 
 
 def generate_false_negatives(
-    false_negative_rate_rule: Optional[NodePropertyRule[float]],
+    false_negative_rate_rule: NodePropertyRule[float] | None,
     observed_nodes: Set[AttackGraphNode],
     rng: np.random.Generator,
 ) -> Set[AttackGraphNode]:
@@ -35,7 +35,7 @@ def generate_false_negatives(
 
 def node_false_positive_rate(
     node: AttackGraphNode,
-    false_positive_rates_rule: Optional[NodePropertyRule[float]] = None,
+    false_positive_rates_rule: NodePropertyRule[float] | None = None,
 ) -> float:
     if false_positive_rates_rule:
         # FPR from agent settings
@@ -44,7 +44,7 @@ def node_false_positive_rate(
 
 
 def generate_false_positives(
-    false_positive_rates_rule: Optional[NodePropertyRule[float]],
+    false_positive_rates_rule: NodePropertyRule[float] | None,
     attack_graph: AttackGraph,
     rng: np.random.Generator,
 ) -> Set[AttackGraphNode]:

@@ -257,15 +257,15 @@ class MalSimVectorizedObsEnv(ParallelEnv[str, dict[str, Any], dict[str, str]]):
         for agent in self.sim.agent_states.values():
             self._agent_infos[agent.name] = self.create_action_mask(agent)
 
-    @functools.lru_cache(maxsize=None)
-    def action_space(self, agent: Optional[str] = None) -> MultiDiscrete:
+    @functools.cache
+    def action_space(self, agent: str | None = None) -> MultiDiscrete:
         num_actions = 2  # two actions: wait or use
         # For now, an `object` is an attack step
         num_steps = len(self.sim.sim_state.attack_graph.nodes)
         return MultiDiscrete([num_actions, num_steps], dtype=np.int64)
 
-    @functools.lru_cache(maxsize=None)
-    def observation_space(self, agent_name: Optional[str] = None) -> Dict:
+    @functools.cache
+    def observation_space(self, agent_name: str | None = None) -> Dict:
         # For now, an `object` is an attack step
         assert self.attack_graph.model, (
             'Attack graph in simulator needs to have a model attached to it'

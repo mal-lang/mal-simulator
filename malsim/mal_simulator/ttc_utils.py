@@ -274,7 +274,7 @@ def attack_step_ttc_value(
     ttc_dist: TTCDist | None,
     ttc_mode: TTCMode,
     rng: np.random.Generator,
-) -> Optional[float]:
+) -> float | None:
     _ttc_dist = ttc_dist or TTCDist.from_node(node)
 
     # TODO Make this check comprehensive.
@@ -290,7 +290,7 @@ def attack_step_ttc_values(
     nodes: Iterable[AttackGraphNode],
     rng: np.random.Generator,
     ttc_mode: TTCMode = TTCMode.DISABLED,
-    ttc_dists: Optional[Mapping[AttackGraphNode, TTCDist]] = None,
+    ttc_dists: Mapping[AttackGraphNode, TTCDist] | None = None,
 ) -> Mapping[AttackGraphNode, float]:
     """
     Calculate and return attack steps TTCs if settings use
