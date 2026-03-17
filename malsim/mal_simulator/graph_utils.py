@@ -22,9 +22,11 @@ def node_is_necessary(
     node = full_name_or_node_to_node(sim_state.attack_graph, node)
     return sim_state.graph_state.necessity_per_node[node]
 
+
 def is_attack_step(node: AttackGraphNode) -> bool:
     # Only attack steps have traversability
     return node.type not in ('defense', 'exist', 'notExist')
+
 
 def node_is_traversable(
     sim_state: MalSimulatorState,
