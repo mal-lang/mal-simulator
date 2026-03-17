@@ -14,7 +14,7 @@ A scenario is a combination of:
 from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 import os
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from typing import Any, Optional, TextIO
 import logging
 
@@ -62,7 +62,20 @@ allowed_fields = [
 BASE_SETTINGS = MalSimulatorSettings()
 
 
-@dataclass
+def model_from_multiple_sources(
+    model: Model | dict[str, Any] | str, lang_graph: LanguageGraph
+) -> Model:
+    if isinstance(model, str):
+        model_file = model
+        return Model.load_from_file(model_file, lang_graph)
+    elif isinstance(model, dict):
+        return Model._from_dict(model, lang_graph)
+    elif isinstance(model, Model):
+        return model
+    else:
+        raise ValueError('`model` must be Model, dict, or str (file path)')
+
+
 class Scenario:
     """Scenarios define everything needed to run a simulation"""
 
@@ -77,17 +90,8 @@ class Scenario:
         self._lang_file = lang_file
         self.lang_graph = LanguageGraph.load_from_file(self._lang_file)
 
-        self._model_file = None
-
-        if isinstance(model, str):
-            self._model_file = model
-            self.model = Model.load_from_file(self._model_file, self.lang_graph)
-        elif isinstance(model, dict):
-            self.model = Model._from_dict(model, self.lang_graph)
-        elif isinstance(model, Model):
-            self.model = model
-        else:
-            raise ValueError('`model` must be Model, dict, or str (file path)')
+        self.model = model_from_multiple_sources(model, self.lang_graph)
+        self._model_file = model if isinstance(model, str) else None
 
         attack_graph = create_attack_graph(self.lang_graph, self.model)
 

@@ -1,11 +1,14 @@
-from collections.abc import MutableSet, Set
+from collections.abc import Mapping, Set
+
 
 import numpy as np
 
 from maltoolbox.attackgraph import AttackGraphNode
 
 from malsim.config.sim_settings import MalSimulatorSettings
+from .attacker_state import MalSimAttackerState
 from malsim.mal_simulator.attacker_state_factories import initial_attacker_state
+from .defender_state import MalSimDefenderState
 from malsim.mal_simulator.defender_state_factories import initial_defender_state
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 from malsim.config.agent_settings import (
@@ -21,26 +24,18 @@ def reset_attackers(
     sim_settings: MalSimulatorSettings,
     agent_settings: AgentSettings,
     rng: np.random.Generator,
-) -> tuple[AgentStates, Set[str], Set[AttackGraphNode]]:
+) -> Mapping[str, MalSimAttackerState]:
     """Recreate all attacker agent states"""
 
-    attacker_states: AgentStates = {}
-    alive_attackers: MutableSet[str] = set()
-    pre_compromised_nodes: Set[AttackGraphNode] = set()
-
-    for attacker_settings in get_attacker_settings(agent_settings).values():
-        # Get any overriding ttc settings from attacker settings
-        new_attacker_state = initial_attacker_state(
+    return {
+        name: initial_attacker_state(
             sim_state,
             sim_settings=sim_settings,
             attacker_settings=attacker_settings,
             rng=rng,
         )
-        pre_compromised_nodes |= new_attacker_state.step_performed_nodes
-        alive_attackers.add(attacker_settings.name)
-        attacker_states[attacker_settings.name] = new_attacker_state
-
-    return attacker_states, alive_attackers, pre_compromised_nodes
+        for name, attacker_settings in get_attacker_settings(agent_settings).items()
+    }
 
 
 def reset_defenders(
@@ -48,23 +43,18 @@ def reset_defenders(
     agent_settings: AgentSettings,
     pre_compromised_nodes: Set[AttackGraphNode],
     rng: np.random.Generator,
-) -> tuple[AgentStates, Set[str]]:
+) -> Mapping[str, MalSimDefenderState]:
     """Recreate all defender agent states"""
-    defender_states: AgentStates = {}
-    alive_defenders: MutableSet[str] = set()
-
-    for defender_settings in get_defender_settings(agent_settings).values():
-        new_defender_state = initial_defender_state(
+    return {
+        name: initial_defender_state(
             sim_state,
             defender_settings,
             pre_compromised_nodes,
             sim_state.graph_state.pre_enabled_defenses,
             rng,
         )
-        alive_defenders.add(defender_settings.name)
-        defender_states[defender_settings.name] = new_defender_state
-
-    return defender_states, frozenset(alive_defenders)
+        for name, defender_settings in get_defender_settings(agent_settings).items()
+    }
 
 
 def reset_agents(
@@ -72,18 +62,19 @@ def reset_agents(
     sim_settings: MalSimulatorSettings,
     agent_settings: AgentSettings,
     rng: np.random.Generator,
-) -> tuple[AgentStates, Set[str]]:
+) -> AgentStates:
     """Reset agent states to a fresh start"""
 
-    attacker_states, alive_attackers, pre_compromised_nodes = reset_attackers(
-        sim_state, sim_settings, agent_settings, rng
-    )
+    attacker_states = reset_attackers(sim_state, sim_settings, agent_settings, rng)
 
-    defender_states, alive_defenders = reset_defenders(
+    pre_compromised_nodes: Set[AttackGraphNode] = {
+        node
+        for state in attacker_states.values()
+        for node in state.step_performed_nodes
+    }
+
+    defender_states = reset_defenders(
         sim_state, agent_settings, pre_compromised_nodes, rng
     )
 
-    return (
-        attacker_states | defender_states,
-        alive_attackers | alive_defenders,
-    )
+    return {**attacker_states, **defender_states}
