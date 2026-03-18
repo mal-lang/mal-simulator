@@ -20,7 +20,7 @@ from malsim.mal_simulator import (
     MalSimulatorSettings,
     TTCMode,
     RewardMode,
-    MalSimAttackerState,
+    AttackerState,
 )
 from .serialization import LangSerializer
 from gymnasium.envs.registration import EnvSpec
@@ -244,7 +244,7 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
                     self.lang_serializer,
                     see_defense_steps=self.see_def_steps,
                 )
-                if isinstance(state, MalSimAttackerState)
+                if isinstance(state, AttackerState)
                 else full_obs2defender_obs(self._full_obs, state, self.lang_serializer)
             )
             for agent_name, state in states.items()
@@ -291,7 +291,7 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
                     self.lang_serializer,
                     see_defense_steps=self.see_def_steps,
                 )
-                if isinstance(state, MalSimAttackerState)
+                if isinstance(state, AttackerState)
                 else full_obs2defender_obs(self._full_obs, state, self.lang_serializer)
             )
             for agent_name, state in states.items()
@@ -323,7 +323,7 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
     def observation_space(self, agent: str) -> MALObs:
         return self.observation_spaces[
             'attacker'
-            if isinstance(self.sim.agent_states[agent], MalSimAttackerState)
+            if isinstance(self.sim.agent_states[agent], AttackerState)
             else 'defender'
         ]
 
@@ -332,6 +332,6 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
     ) -> MALObsAttackStepSpace | MALObsDefenseStepSpace:
         return self.action_spaces[
             'attacker'
-            if isinstance(self.sim.agent_states[agent], MalSimAttackerState)
+            if isinstance(self.sim.agent_states[agent], AttackerState)
             else 'defender'
         ]

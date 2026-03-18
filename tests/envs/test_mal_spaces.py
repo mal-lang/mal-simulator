@@ -16,7 +16,7 @@ from malsim.envs.graph.utils import (
 )
 from malsim.config.agent_settings import AgentType
 from malsim.scenario.scenario import Scenario
-from malsim.mal_simulator import MalSimulator, MalSimAttackerState, MalSimDefenderState
+from malsim.mal_simulator import MalSimulator, AttackerState, DefenderState
 
 
 def test_mal_obs() -> None:
@@ -59,7 +59,7 @@ def test_attacker_obs() -> None:
     full_obs = create_full_obs(sim, serializer)
     attacker_obs_space = MALAttackerObs(serializer)
     attacker_state = sim.reset()[attacker_name]
-    assert isinstance(attacker_state, MalSimAttackerState)
+    assert isinstance(attacker_state, AttackerState)
     attacker_obs = full_obs2attacker_obs(full_obs, attacker_state, serializer)
     assert attacker_obs in attacker_obs_space
 
@@ -67,7 +67,7 @@ def test_attacker_obs() -> None:
         attacker_state = sim.step(
             {attacker_name: [next(iter(attacker_state.action_surface))]}
         )[attacker_name]
-        assert isinstance(attacker_state, MalSimAttackerState)
+        assert isinstance(attacker_state, AttackerState)
         attacker_obs = full_obs2attacker_obs(full_obs, attacker_state, serializer)
         assert attacker_obs in attacker_obs_space
 
@@ -147,7 +147,7 @@ def test_defender_obs() -> None:
     full_obs = create_full_obs(sim, serializer)
     defender_obs_space = MALDefenderObs(serializer)
     defender_state = sim.reset()[defender_name]
-    assert isinstance(defender_state, MalSimDefenderState)
+    assert isinstance(defender_state, DefenderState)
     defender_obs = full_obs2defender_obs(full_obs, defender_state, serializer)
     assert defender_obs in defender_obs_space
 
@@ -155,7 +155,7 @@ def test_defender_obs() -> None:
         defender_state = sim.step(
             {defender_name: [next(iter(defender_state.action_surface))]}
         )[defender_name]
-        assert isinstance(defender_state, MalSimDefenderState)
+        assert isinstance(defender_state, DefenderState)
         defender_obs = full_obs2defender_obs(full_obs, defender_state, serializer)
         assert defender_obs in defender_obs_space
 
@@ -176,7 +176,7 @@ def test_jsonable() -> None:
     sim = MalSimulator.from_scenario(scenario)
 
     state = sim.reset()[agent_name]
-    assert isinstance(state, MalSimAttackerState)
+    assert isinstance(state, AttackerState)
     obs = create_full_obs(sim, serializer)
     assert obs in obs_space
 
@@ -212,7 +212,7 @@ def test_asset_then_attacker_action() -> None:
     attacker_asset_action_space = AssetThenAttackerAction(model, serializer)
 
     attacker_state = sim.reset()[attacker_name]
-    assert isinstance(attacker_state, MalSimAttackerState)
+    assert isinstance(attacker_state, AttackerState)
     attacker_obs = full_obs2attacker_obs(full_obs, attacker_state, serializer)
     assert attacker_obs in attacker_obs_space
 
@@ -230,7 +230,7 @@ def test_asset_then_attacker_action() -> None:
         )[-1]
         asset_action = f'{asset.name}:{action_name}'
         attacker_state = sim.step({attacker_name: [asset_action]})[attacker_name]
-        assert isinstance(attacker_state, MalSimAttackerState)
+        assert isinstance(attacker_state, AttackerState)
         attacker_obs = full_obs2attacker_obs(full_obs, attacker_state, serializer)
         assert attacker_obs in attacker_obs_space
         i += 1
@@ -256,7 +256,7 @@ def test_asset_then_defender_action() -> None:
     defender_action_asset_space = AssetThenDefenderAction(model, serializer)
 
     defender_state = sim.reset()[defender_name]
-    assert isinstance(defender_state, MalSimDefenderState)
+    assert isinstance(defender_state, DefenderState)
     defender_obs = full_obs2defender_obs(full_obs, defender_state, serializer)
     assert defender_obs in defender_obs_space
 
@@ -274,7 +274,7 @@ def test_asset_then_defender_action() -> None:
         )[-1]
         asset_action = f'{asset.name}:{action_name}'
         defender_state = sim.step({defender_name: [asset_action]})[defender_name]
-        assert isinstance(defender_state, MalSimDefenderState)
+        assert isinstance(defender_state, DefenderState)
         defender_obs = full_obs2defender_obs(full_obs, defender_state, serializer)
         assert defender_obs in defender_obs_space
         i += 1
@@ -300,7 +300,7 @@ def test_attacker_action_then_asset() -> None:
     attacker_action_asset_space = AttackerActionThenAsset(model, serializer)
 
     attacker_state = sim.reset()[attacker_name]
-    assert isinstance(attacker_state, MalSimAttackerState)
+    assert isinstance(attacker_state, AttackerState)
     attacker_obs = full_obs2attacker_obs(full_obs, attacker_state, serializer)
     assert attacker_obs in attacker_obs_space
 
@@ -318,7 +318,7 @@ def test_attacker_action_then_asset() -> None:
         )[-1]
         asset_action = f'{asset.name}:{action_name}'
         attacker_state = sim.step({attacker_name: [asset_action]})[attacker_name]
-        assert isinstance(attacker_state, MalSimAttackerState)
+        assert isinstance(attacker_state, AttackerState)
         attacker_obs = full_obs2attacker_obs(full_obs, attacker_state, serializer)
         assert attacker_obs in attacker_obs_space
         i += 1
@@ -344,7 +344,7 @@ def test_defender_action_then_asset() -> None:
     defender_action_asset_space = ActionThenAsset(model, serializer)
 
     defender_state = sim.reset()[defender_name]
-    assert isinstance(defender_state, MalSimDefenderState)
+    assert isinstance(defender_state, DefenderState)
     defender_obs = full_obs2defender_obs(full_obs, defender_state, serializer)
     assert defender_obs in defender_obs_space
 
@@ -362,7 +362,7 @@ def test_defender_action_then_asset() -> None:
         )[-1]
         asset_action = f'{asset.name}:{action_name}'
         defender_state = sim.step({defender_name: [asset_action]})[defender_name]
-        assert isinstance(defender_state, MalSimDefenderState)
+        assert isinstance(defender_state, DefenderState)
         defender_obs = full_obs2defender_obs(full_obs, defender_state, serializer)
         assert defender_obs in defender_obs_space
         i += 1

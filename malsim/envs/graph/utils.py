@@ -13,7 +13,7 @@ from .mal_spaces import (
     MALObsInstance,
 )
 from .serialization import LangSerializer
-from malsim.mal_simulator import MalSimAttackerState, MalSimDefenderState, MalSimulator
+from malsim.mal_simulator import AttackerState, DefenderState, MalSimulator
 from maltoolbox.attackgraph import AttackGraphNode
 from maltoolbox.model import ModelAsset
 
@@ -201,7 +201,7 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
 
 def full_obs2attacker_obs(
     full_obs: MALObsInstance,
-    state: MalSimAttackerState,
+    state: AttackerState,
     serializer: LangSerializer,
     see_defense_steps: bool = False,
 ) -> MALObsInstance:
@@ -450,7 +450,7 @@ def full_obs2attacker_obs(
 
 
 def full_obs2defender_obs(
-    full_obs: MALObsInstance, state: MalSimDefenderState, serializer: LangSerializer
+    full_obs: MALObsInstance, state: DefenderState, serializer: LangSerializer
 ) -> MALObsInstance:
     """Create a defender observation from a full observation.
 

@@ -5,9 +5,9 @@ import numpy as np
 
 from maltoolbox.attackgraph import AttackGraphNode
 
-from malsim.mal_simulator.attacker_state import MalSimAttackerState
+from malsim.mal_simulator.attacker_state import AttackerState
 from malsim.mal_simulator.attacker_state_factories import initial_attacker_state
-from malsim.mal_simulator.defender_state import MalSimDefenderState
+from malsim.mal_simulator.defender_state import DefenderState
 from malsim.mal_simulator.defender_state_factories import initial_defender_state
 from malsim.mal_simulator.rewards import attacker_step_reward, defender_step_reward
 from malsim.mal_simulator.simulator_state import MalSimulatorState
@@ -18,7 +18,7 @@ from malsim.types import AgentRewards, AgentStates, AgentSettings
 def reset_attackers(
     sim_state: MalSimulatorState,
     agent_settings: AgentSettings,
-    performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
+    performed_attacks_func: Callable[[AttackerState], Set[AttackGraphNode]],
     rng: np.random.Generator,
 ) -> tuple[AgentStates, Set[str], AgentRewards, Set[AttackGraphNode]]:
     """Recreate all attacker agent states"""
@@ -51,8 +51,8 @@ def reset_defenders(
     sim_state: MalSimulatorState,
     agent_settings: AgentSettings,
     pre_compromised_nodes: Set[AttackGraphNode],
-    enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
-    enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
+    enabled_defenses_func: Callable[[DefenderState], Set[AttackGraphNode]],
+    enabled_attacks_func: Callable[[DefenderState], Set[AttackGraphNode]],
     rng: np.random.Generator,
 ) -> tuple[AgentStates, Set[str], AgentRewards]:
     """Recreate all defender agent states"""
@@ -80,9 +80,9 @@ def reset_defenders(
 def reset_agents(
     sim_state: MalSimulatorState,
     agent_settings: AgentSettings,
-    performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
-    enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
-    enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
+    performed_attacks_func: Callable[[AttackerState], Set[AttackGraphNode]],
+    enabled_defenses_func: Callable[[DefenderState], Set[AttackGraphNode]],
+    enabled_attacks_func: Callable[[DefenderState], Set[AttackGraphNode]],
     rng: np.random.Generator,
 ) -> tuple[AgentStates, Set[str], AgentRewards]:
     """Reset agent states to a fresh start"""

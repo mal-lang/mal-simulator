@@ -3,17 +3,17 @@ from collections.abc import Callable, Set
 from maltoolbox.attackgraph import AttackGraphNode
 import numpy as np
 
-from malsim.mal_simulator.defender_state import MalSimDefenderState
-from malsim.mal_simulator.attacker_state import MalSimAttackerState
+from malsim.mal_simulator.defender_state import DefenderState
+from malsim.mal_simulator.attacker_state import AttackerState
 from malsim.mal_simulator.graph_utils import node_reward
 from malsim.config.sim_settings import RewardMode, TTCMode
 from malsim.mal_simulator.ttc_utils import TTCDist
 
 
 def defender_step_reward(
-    enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
-    enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
-    defender_state: MalSimDefenderState,
+    enabled_defenses_func: Callable[[DefenderState], Set[AttackGraphNode]],
+    enabled_attacks_func: Callable[[DefenderState], Set[AttackGraphNode]],
+    defender_state: DefenderState,
 ) -> float:
     """
     Calculate current defender reward either cumulative or one-off.
@@ -36,8 +36,8 @@ def defender_step_reward(
 
 
 def attacker_step_reward(
-    performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
-    attacker_state: MalSimAttackerState,
+    performed_attacks_func: Callable[[AttackerState], Set[AttackGraphNode]],
+    attacker_state: AttackerState,
     rng: np.random.Generator,
     reward_mode: RewardMode,
     ttc_mode: TTCMode,

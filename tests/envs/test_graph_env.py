@@ -22,7 +22,7 @@ from malsim.mal_simulator import (
     MalSimulatorSettings,
     TTCMode,
     RewardMode,
-    MalSimAttackerState,
+    AttackerState,
 )
 import numpy as np
 from numpy.typing import NDArray
@@ -98,7 +98,7 @@ def test_attacker_episode() -> None:
             attacker_env.action_space.sample(obs.steps.action_mask)
         )
         state = info['state']
-        assert isinstance(state, MalSimAttackerState)
+        assert isinstance(state, AttackerState)
         visible_assets = {node.model_asset for node in state.action_surface} | {
             node.model_asset for node in state.performed_nodes
         }
@@ -146,7 +146,7 @@ def test_attacker_episode() -> None:
             attacker_env.action_space.sample(obs.steps.action_mask)
         )
         state = info['state']
-        assert isinstance(state, MalSimAttackerState)
+        assert isinstance(state, AttackerState)
         visible_assets = {node.model_asset for node in state.action_surface} | {
             node.model_asset for node in state.performed_nodes
         }

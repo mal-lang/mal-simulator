@@ -12,7 +12,7 @@ from malsim.mal_simulator.state_query import node_ttc_value
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
-    from mal_simulator import MalSimAttackerState
+    from mal_simulator import AttackerState
 
 
 class TTCSoftMinAttacker:
@@ -24,7 +24,7 @@ class TTCSoftMinAttacker:
         self.beta = agent_config.get('beta', 1.0)
 
     def get_next_action(
-        self, agent_state: MalSimAttackerState, **kwargs: Any
+        self, agent_state: AttackerState, **kwargs: Any
     ) -> AttackGraphNode | None:
         """Sample node from the action surface based on ttc softargmax"""
 

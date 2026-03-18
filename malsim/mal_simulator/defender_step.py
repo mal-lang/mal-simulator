@@ -12,7 +12,7 @@ from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 if TYPE_CHECKING:
     from malsim.types import AgentStates
-    from malsim.mal_simulator.defender_state import MalSimDefenderState
+    from malsim.mal_simulator.defender_state import DefenderState
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ def defender_is_terminated(agent_states: AgentStates, alive_agents: Set[str]) ->
 
 def defender_step(
     sim_state: MalSimulatorState,
-    agent: MalSimDefenderState,
+    agent: DefenderState,
     nodes: list[AttackGraphNode],
 ) -> tuple[list[AttackGraphNode], Set[AttackGraphNode]]:
     """Enable defense step nodes with defender.

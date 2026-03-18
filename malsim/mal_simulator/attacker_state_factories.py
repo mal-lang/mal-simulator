@@ -9,7 +9,7 @@ from malsim.mal_simulator.attack_surface import (
     get_attack_surface,
     get_effects_of_attack_step,
 )
-from malsim.mal_simulator.attacker_state import MalSimAttackerState
+from malsim.mal_simulator.attacker_state import AttackerState
 from malsim.mal_simulator.node_getters import (
     full_name_dict_to_node_dict,
     full_name_or_node_to_node,
@@ -42,8 +42,8 @@ def create_attacker_state(
     impossible_step_overrides: Set[AttackGraphNode] = frozenset(),
     reward_rule: NodePropertyRule | None = None,
     actionability_rule: NodePropertyRule | None = None,
-    previous_state: MalSimAttackerState | None = None,
-) -> MalSimAttackerState:
+    previous_state: AttackerState | None = None,
+) -> AttackerState:
     """
     Update a previous attacker state based on what the agent compromised
     and what nodes became unviable.
@@ -118,7 +118,7 @@ def create_attacker_state(
     for node in step_attempted_nodes:
         new_num_attempts[node] += 1
 
-    return MalSimAttackerState(
+    return AttackerState(
         name,
         entry_points=frozenset(entry_points),
         goals=frozenset(goals),
@@ -161,7 +161,7 @@ def initial_attacker_state(
     attacker_settings: AttackerSettings,
     ttc_mode: TTCMode,
     rng: np.random.Generator,
-) -> MalSimAttackerState:
+) -> AttackerState:
     """Create an attacker state from attacker settings"""
 
     ttc_overrides, ttc_value_overrides, impossible_steps = (
