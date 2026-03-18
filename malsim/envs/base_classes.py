@@ -4,9 +4,9 @@ from typing import Any
 
 from maltoolbox.attackgraph import AttackGraphNode
 
-from ..mal_simulator.defender_state import MalSimDefenderState
-from ..mal_simulator.attacker_state import MalSimAttackerState
-from ..mal_simulator import MalSimulator, MalSimAgentState
+from ..mal_simulator.defender_state import DefenderState
+from ..mal_simulator.attacker_state import AttackerState
+from ..mal_simulator import MalSimulator, AgentState
 
 
 class MalSimEnv(ABC):
@@ -18,7 +18,7 @@ class MalSimEnv(ABC):
 
     def reset(
         self, seed: int | None = None, options: dict[str, Any] | None = None
-    ) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
+    ) -> dict[str, AttackerState | DefenderState]:
         if seed is not None:
             self.sim.sim_settings.seed = seed
         return self.sim.reset()
@@ -31,7 +31,7 @@ class MalSimEnv(ABC):
     def register_defender(self, defender_name: str) -> None:
         self.sim.register_defender(defender_name)
 
-    def get_agent_state(self, agent_name: str) -> MalSimAgentState:
+    def get_agent_state(self, agent_name: str) -> AgentState:
         return self.sim.agent_states[agent_name]
 
     @abstractmethod

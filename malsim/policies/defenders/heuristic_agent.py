@@ -10,7 +10,7 @@ from malsim.mal_simulator.graph_utils import node_reward
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
-    from ...mal_simulator import MalSimDefenderState
+    from ...mal_simulator import DefenderState
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class DefendCompromisedDefender:
         self.compromised_nodes: Set[AttackGraphNode] = set()
 
     def get_next_action(
-        self, agent_state: MalSimDefenderState, **kwargs: Any
+        self, agent_state: DefenderState, **kwargs: Any
     ) -> AttackGraphNode | None:
         """Return an action that disables a compromised node"""
 
@@ -81,7 +81,7 @@ class DefendFutureCompromisedDefender:
         self.compromised_nodes: Set[AttackGraphNode] = set()
 
     def get_next_action(
-        self, agent_state: MalSimDefenderState, **kwargs: Any
+        self, agent_state: DefenderState, **kwargs: Any
     ) -> AttackGraphNode | None:
         """Return an action that disables a compromised node"""
 

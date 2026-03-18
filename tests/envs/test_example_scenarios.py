@@ -12,8 +12,8 @@ from malsim.mal_simulator import (
     MalSimulatorSettings,
     RewardMode,
     TTCMode,
-    MalSimDefenderState,
-    MalSimAttackerState,
+    DefenderState,
+    AttackerState,
 )
 
 
@@ -69,7 +69,7 @@ def test_bfs_vs_bfs_state_and_reward() -> None:
         states = sim.step(actions)
         attacker_state = states[attacker_agent_name]
         defender_state = states[defender_agent_name]
-        assert isinstance(defender_state, MalSimDefenderState)
+        assert isinstance(defender_state, DefenderState)
 
         # If actions were performed, add them to respective list
         if attacker_node and attacker_node in attacker_state.step_performed_nodes:
@@ -216,10 +216,10 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         }
         states = sim.step(actions)
         attacker_state = states[attacker_agent_name]
-        assert isinstance(attacker_state, MalSimAttackerState)
+        assert isinstance(attacker_state, AttackerState)
         attacker_failed_steps += len(attacker_state.step_attempted_nodes)
         defender_state = states[defender_agent_name]
-        assert isinstance(defender_state, MalSimDefenderState)
+        assert isinstance(defender_state, DefenderState)
 
         # If actions were performed, add them to respective list
         if attacker_node and attacker_node in attacker_state.step_performed_nodes:
@@ -306,7 +306,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
         assert node in defender_state.performed_nodes
 
     # Verify rewards in latest run and total rewards
-    assert isinstance(attacker_state, MalSimAttackerState)
+    assert isinstance(attacker_state, AttackerState)
     assert sim.agent_reward(attacker_state.name) == -len(
         attacker_state.step_attempted_nodes
     )
@@ -360,9 +360,9 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
         states = sim.step(actions)
         defender_state = states[defender_agent_name]
         attacker_state = states[attacker_agent_name]
-        assert isinstance(attacker_state, MalSimAttackerState)
+        assert isinstance(attacker_state, AttackerState)
         attacker_failed_steps += len(attacker_state.step_attempted_nodes)
-        assert isinstance(defender_state, MalSimDefenderState)
+        assert isinstance(defender_state, DefenderState)
 
         # If actions were performed, add them to respective list
         if attacker_node and attacker_node in attacker_state.step_performed_nodes:
@@ -415,7 +415,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
         assert node in defender_state.performed_nodes
 
     # Verify rewards in latest run and total rewards
-    assert isinstance(attacker_state, MalSimAttackerState)
+    assert isinstance(attacker_state, AttackerState)
     assert sim.agent_reward(attacker_state.name) == -len(
         attacker_state.step_attempted_nodes
     )
@@ -471,9 +471,9 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         states = sim.step(actions)
         defender_state = states[defender_agent_name]
         attacker_state = states[attacker_agent_name]
-        assert isinstance(attacker_state, MalSimAttackerState)
+        assert isinstance(attacker_state, AttackerState)
         attacker_failed_steps += len(attacker_state.step_attempted_nodes)
-        assert isinstance(defender_state, MalSimDefenderState)
+        assert isinstance(defender_state, DefenderState)
 
         # If actions were performed, add them to respective list
         if attacker_node and attacker_node in attacker_state.step_performed_nodes:
@@ -526,7 +526,7 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         assert node in defender_state.performed_nodes
 
     # Verify rewards in latest run and total rewards
-    assert isinstance(attacker_state, MalSimAttackerState)
+    assert isinstance(attacker_state, AttackerState)
     assert sim.agent_reward(attacker_state.name) == -len(
         attacker_state.step_attempted_nodes
     )
@@ -588,8 +588,8 @@ def test_traininglang_advanced_agents() -> None:
 
         attacker_state = states[attacker_name]
         defender_state = states[defender_name]
-        assert isinstance(attacker_state, MalSimAttackerState)
-        assert isinstance(defender_state, MalSimDefenderState)
+        assert isinstance(attacker_state, AttackerState)
+        assert isinstance(defender_state, DefenderState)
         if attacker_node and attacker_node in attacker_state.step_performed_nodes:
             attacker_actions.append(attacker_node.full_name)
             assert attacker_node in defender_state.step_compromised_nodes
@@ -623,8 +623,8 @@ def test_traininglang_advanced_agents() -> None:
         assert node in defender_state.performed_nodes
 
     # Verify latest rewards
-    assert isinstance(attacker_state, MalSimAttackerState)
-    assert isinstance(defender_state, MalSimDefenderState)
+    assert isinstance(attacker_state, AttackerState)
+    assert isinstance(defender_state, DefenderState)
     attacker_expected_reward = sum(
         sim.node_reward(node, attacker_name)
         for node in attacker_state.step_performed_nodes
@@ -692,8 +692,8 @@ def test_traininglang_dont_compromise_entrypoints() -> None:
 
         attacker_state = states[attacker_name]
         defender_state = states[defender_name]
-        assert isinstance(attacker_state, MalSimAttackerState)
-        assert isinstance(defender_state, MalSimDefenderState)
+        assert isinstance(attacker_state, AttackerState)
+        assert isinstance(defender_state, DefenderState)
 
         if attacker_node and attacker_node in attacker_state.step_performed_nodes:
             attacker_actions.append(attacker_node.full_name)

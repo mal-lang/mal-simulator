@@ -6,7 +6,7 @@ from .decision_agent import DecisionAgent
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
-    from ..mal_simulator import MalSimAgentState
+    from ..mal_simulator import AgentState
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class KeyboardAgent(DecisionAgent):
         super().__init__(**kwargs)
 
     def get_next_action(
-        self, agent_state: MalSimAgentState, **kwargs: Any
+        self, agent_state: AgentState, **kwargs: Any
     ) -> AttackGraphNode | None:
         """Compute action from action_surface"""
 

@@ -3,13 +3,13 @@ from typing import Any
 from collections.abc import Set, Mapping
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
-from malsim.mal_simulator.agent_state import MalSimAgentState
+from malsim.mal_simulator.agent_state import AgentState
 from malsim.mal_simulator.ttc_utils import TTCDist
 from malsim.types import AgentStates
 
 
 @dataclass(frozen=True)
-class MalSimAttackerState(MalSimAgentState):
+class AttackerState(AgentState):
     """Stores the state of an attacker in the simulator"""
 
     # The starting points of an attacker agent
@@ -50,13 +50,12 @@ class MalSimAttackerState(MalSimAgentState):
 
 def get_attacker_agents(
     agent_states: AgentStates, alive_agents: Set[str], only_alive: bool = False
-) -> list[MalSimAttackerState]:
+) -> list[AttackerState]:
     """Return list of mutable attacker agent states of attackers.
     If `only_alive` is set to True, only return the agents that are alive.
     """
     return [
         a
         for a in agent_states.values()
-        if (a.name in alive_agents or not only_alive)
-        and isinstance(a, MalSimAttackerState)
+        if (a.name in alive_agents or not only_alive) and isinstance(a, AttackerState)
     ]

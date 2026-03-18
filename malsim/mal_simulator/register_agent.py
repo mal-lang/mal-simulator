@@ -4,9 +4,9 @@ from collections.abc import Set
 from maltoolbox.attackgraph import AttackGraphNode
 import numpy as np
 
-from malsim.mal_simulator.attacker_state import MalSimAttackerState
+from malsim.mal_simulator.attacker_state import AttackerState
 from malsim.mal_simulator.attacker_state_factories import initial_attacker_state
-from malsim.mal_simulator.defender_state import MalSimDefenderState, get_defender_agents
+from malsim.mal_simulator.defender_state import DefenderState, get_defender_agents
 from malsim.mal_simulator.defender_state_factories import initial_defender_state
 from malsim.mal_simulator.reset_agent import reset_agents
 from malsim.mal_simulator.rewards import attacker_step_reward, defender_step_reward
@@ -16,7 +16,7 @@ from malsim.types import AgentRewards, AgentStates, AgentSettings
 
 
 def register_attacker_settings(
-    performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
+    performed_attacks_func: Callable[[AttackerState], Set[AttackGraphNode]],
     sim_state: MalSimulatorState,
     alive_agents: MutableSet[str],
     agent_settings: AgentSettings,
@@ -25,8 +25,8 @@ def register_attacker_settings(
     node_rewards: dict[AttackGraphNode, float],
     sim_rng: np.random.Generator,
     attacker_settings: AttackerSettings,
-    enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
-    enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
+    enabled_defenses_func: Callable[[DefenderState], Set[AttackGraphNode]],
+    enabled_attacks_func: Callable[[DefenderState], Set[AttackGraphNode]],
 ) -> tuple[AgentStates, Set[str], AgentRewards, AgentSettings]:
     """Register a mal sim attacker agent"""
     assert attacker_settings.name not in agent_settings, (
@@ -72,9 +72,9 @@ def register_attacker(
     agent_rewards: AgentRewards,
     sim_rng: np.random.Generator,
     entry_points: Set[str] | Set[AttackGraphNode],
-    performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
-    enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
-    enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
+    performed_attacks_func: Callable[[AttackerState], Set[AttackGraphNode]],
+    enabled_defenses_func: Callable[[DefenderState], Set[AttackGraphNode]],
+    enabled_attacks_func: Callable[[DefenderState], Set[AttackGraphNode]],
     goals: Set[str] | Set[AttackGraphNode] | None = None,
 ) -> tuple[AgentStates, Set[str], AgentRewards, AgentSettings]:
     """Register a mal sim attacker agent without settings object"""
@@ -95,8 +95,8 @@ def register_attacker(
 
 
 def register_defender_settings(
-    enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
-    enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
+    enabled_defenses_func: Callable[[DefenderState], Set[AttackGraphNode]],
+    enabled_attacks_func: Callable[[DefenderState], Set[AttackGraphNode]],
     sim_state: MalSimulatorState,
     agent_states: AgentStates,
     alive_agents: MutableSet[str],
@@ -138,8 +138,8 @@ def register_defender_settings(
 
 
 def register_defender(
-    enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
-    enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
+    enabled_defenses_func: Callable[[DefenderState], Set[AttackGraphNode]],
+    enabled_attacks_func: Callable[[DefenderState], Set[AttackGraphNode]],
     sim_state: MalSimulatorState,
     agent_states: AgentStates,
     alive_agents: MutableSet[str],

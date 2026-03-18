@@ -10,12 +10,12 @@ from numpy.random import default_rng
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
-from malsim.mal_simulator.attacker_state import MalSimAttackerState, get_attacker_agents
+from malsim.mal_simulator.attacker_state import AttackerState, get_attacker_agents
 from malsim.mal_simulator.attacker_step import (
     attacker_is_terminated,
     attacker_step,
 )
-from malsim.mal_simulator.defender_state import MalSimDefenderState, get_defender_agents
+from malsim.mal_simulator.defender_state import DefenderState, get_defender_agents
 from malsim.mal_simulator.defender_step import (
     defender_is_terminated,
     defender_step,
@@ -72,7 +72,7 @@ logger = logging.getLogger(__name__)
 
 PERFORMED_ATTACKS_FUNCS: Mapping[
     RewardMode,
-    Callable[[MalSimAttackerState], Set[AttackGraphNode]],
+    Callable[[AttackerState], Set[AttackGraphNode]],
 ] = {
     RewardMode.CUMULATIVE: lambda ds: ds.performed_nodes,
     RewardMode.ONE_OFF: lambda ds: ds.step_performed_nodes,
@@ -81,7 +81,7 @@ PERFORMED_ATTACKS_FUNCS: Mapping[
 }
 
 ENABLED_DEFENSES_FUNCS: Mapping[
-    RewardMode, Callable[[MalSimDefenderState], Set[AttackGraphNode]]
+    RewardMode, Callable[[DefenderState], Set[AttackGraphNode]]
 ] = {
     # all enabled defenses
     RewardMode.CUMULATIVE: lambda ds: ds.performed_nodes,
@@ -93,7 +93,7 @@ ENABLED_DEFENSES_FUNCS: Mapping[
 }
 
 ENABLED_ATTACKS_FUNCS: Mapping[
-    RewardMode, Callable[[MalSimDefenderState], Set[AttackGraphNode]]
+    RewardMode, Callable[[DefenderState], Set[AttackGraphNode]]
 ] = {
     # all performed attacks
     RewardMode.CUMULATIVE: lambda ds: ds.compromised_nodes,
@@ -238,7 +238,7 @@ class MalSimulator:
     ) -> float:
         if agent_name:
             agent = self._agent_states[agent_name]
-            assert isinstance(agent, MalSimAttackerState), (
+            assert isinstance(agent, AttackerState), (
                 'TTC values only apply to attackers'
             )
             return node_ttc_value(agent, node)
@@ -269,7 +269,7 @@ class MalSimulator:
         agent_observability = None
         if agent_name:
             agent = self._agent_states[agent_name]
-            assert isinstance(agent, MalSimDefenderState), (
+            assert isinstance(agent, DefenderState), (
                 'Observability only apply to defenders'
             )
             agent_observability = agent.observability_rule
@@ -284,7 +284,7 @@ class MalSimulator:
         false_positive_rates_rule = None
         if agent_name:
             agent = self._agent_states[agent_name]
-            assert isinstance(agent, MalSimDefenderState), (
+            assert isinstance(agent, DefenderState), (
                 'False positives only apply to defenders'
             )
             false_positive_rates_rule = agent.false_positive_rates_rule
@@ -298,7 +298,7 @@ class MalSimulator:
         false_negative_rates_rule = None
         if agent_name:
             agent = self._agent_states[agent_name]
-            assert isinstance(agent, MalSimDefenderState), (
+            assert isinstance(agent, DefenderState), (
                 'False negatives only apply to defenders'
             )
             false_negative_rates_rule = agent.false_negative_rates_rule
@@ -351,7 +351,7 @@ class MalSimulator:
     def agent_is_terminated(self, agent_name: str) -> bool:
         return agent_is_terminated(self._agent_states, self._alive_agents, agent_name)
 
-    def reset(self) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
+    def reset(self) -> dict[str, AttackerState | DefenderState]:
         (
             self._agent_states,
             self._alive_agents,
@@ -454,7 +454,7 @@ class MalSimulator:
         self.agent_settings = agent_settings
 
     @property
-    def agent_states(self) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
+    def agent_states(self) -> dict[str, AttackerState | DefenderState]:
         """Return read only agent state for all dead and alive agents"""
         return self._agent_states
 
@@ -463,7 +463,7 @@ class MalSimulator:
 
     def step(
         self, actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]]
-    ) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
+    ) -> dict[str, AttackerState | DefenderState]:
         agent_states, recording, sim_state, agent_rewards, live_agents = step(
             self.recording,
             self.sim_state,
@@ -552,9 +552,9 @@ def agent_is_terminated(
 ) -> bool:
     """Return True if agent was terminated"""
     agent_state = agent_states[agent_name]
-    if isinstance(agent_state, MalSimAttackerState):
+    if isinstance(agent_state, AttackerState):
         return attacker_is_terminated(agent_state)
-    elif isinstance(agent_state, MalSimDefenderState):
+    elif isinstance(agent_state, DefenderState):
         return defender_is_terminated(agent_states, live_agents)
     else:
         raise TypeError(f'Unknown agent state for {agent_name}')
@@ -565,9 +565,9 @@ def reset(
     agent_settings: AgentSettings,
     rng: np.random.Generator,
     rest_api_client: MalSimGUIClient | None,
-    performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
-    enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
-    enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
+    performed_attacks_func: Callable[[AttackerState], Set[AttackGraphNode]],
+    enabled_defenses_func: Callable[[DefenderState], Set[AttackGraphNode]],
+    enabled_attacks_func: Callable[[DefenderState], Set[AttackGraphNode]],
 ) -> tuple[
     AgentStates,
     Set[str],
@@ -640,9 +640,9 @@ def step(
     alive_agents: MutableSet[str],
     rng: np.random.Generator,
     agent_rewards: dict[str, float],
-    performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
-    enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
-    enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
+    performed_attacks_func: Callable[[AttackerState], Set[AttackGraphNode]],
+    enabled_defenses_func: Callable[[DefenderState], Set[AttackGraphNode]],
+    enabled_attacks_func: Callable[[DefenderState], Set[AttackGraphNode]],
     actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]],
     rest_api_client: MalSimGUIClient | None = None,
 ) -> tuple[AgentStates, Recording, MalSimulatorState, dict[str, float], Set[str]]:

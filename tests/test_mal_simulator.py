@@ -10,8 +10,8 @@ from maltoolbox.language import LanguageGraphAttackStep
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
-    MalSimDefenderState,
-    MalSimAttackerState,
+    DefenderState,
+    AttackerState,
     TTCMode,
     RewardMode,
 )
@@ -242,7 +242,7 @@ def test_attacker_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
     sim.reset()
 
     attacker_agent = sim._agent_states[attacker_name]
-    assert isinstance(attacker_agent, MalSimAttackerState)
+    assert isinstance(attacker_agent, AttackerState)
 
     # Can not attack the notPresent step
     defense_step = get_node(attack_graph, 'OS App:notPresent')
@@ -264,7 +264,7 @@ def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
     sim.reset()
 
     defender_agent = sim._agent_states[defender_name]
-    assert isinstance(defender_agent, MalSimDefenderState)
+    assert isinstance(defender_agent, DefenderState)
 
     defense_step = get_node(attack_graph, 'OS App:notPresent')
     enabled, made_unviable = defender_step(
@@ -323,13 +323,13 @@ def test_node_full_names_to_simulator(
 
     states = sim.step({attacker_name: [attempt_read]})
     defender_state = states[defender_name]
-    assert isinstance(defender_state, MalSimDefenderState)
+    assert isinstance(defender_state, DefenderState)
     # Make sure observability worked
     assert not defender_state.step_observed_nodes
 
     states = sim.step({attacker_name: [access_network_and_conn]})
     defender_state = states[defender_name]
-    assert isinstance(defender_state, MalSimDefenderState)
+    assert isinstance(defender_state, DefenderState)
     assert {n.full_name for n in defender_state.observed_nodes} == {
         entry_point,
         access_network_and_conn,
@@ -399,7 +399,7 @@ def test_is_traversable(corelang_lang_graph: LanguageGraph, model: Model) -> Non
         or_steps = [
             n for n in sim.agent_states[attacker_name].action_surface if n.type == 'or'
         ]
-    assert isinstance(attacker_state, MalSimAttackerState)
+    assert isinstance(attacker_state, AttackerState)
     children_of_reached_nodes = set()
     for n in attacker_state.performed_nodes:
         children_of_reached_nodes |= n.children
@@ -487,7 +487,7 @@ def test_is_compromised(corelang_lang_graph: LanguageGraph, model: Model) -> Non
         or_steps = [
             n for n in sim.agent_states[attacker_name].action_surface if n.type == 'or'
         ]
-    assert isinstance(attacker_state, MalSimAttackerState)
+    assert isinstance(attacker_state, AttackerState)
 
     for node in sim.sim_state.attack_graph.nodes.values():
         if node in attacker_state.performed_nodes:
@@ -524,9 +524,9 @@ def test_simulation_done(corelang_lang_graph: LanguageGraph, model: Model) -> No
         states = sim.step({})
 
     attacker_state = states[attacker_name]
-    assert isinstance(attacker_state, MalSimAttackerState)
+    assert isinstance(attacker_state, AttackerState)
     defender_state = states[defender_name]
-    assert isinstance(defender_state, MalSimDefenderState)
+    assert isinstance(defender_state, DefenderState)
 
     assert not sim.done()  # simulation is done because truncated
     assert not defender_is_terminated(
@@ -549,7 +549,7 @@ def test_simulation_terminations(
     sim.register_attacker(attacker_name, {entry_point})
     states = sim.reset()
     attacker_state = states[attacker_name]
-    assert isinstance(attacker_state, MalSimAttackerState)
+    assert isinstance(attacker_state, AttackerState)
 
     while attacker_state.action_surface:
         # Perform entire action surface of attacker
@@ -557,9 +557,9 @@ def test_simulation_terminations(
         attacker_state = states[attacker_name]
 
     attacker_state = states[attacker_name]
-    assert isinstance(attacker_state, MalSimAttackerState)
+    assert isinstance(attacker_state, AttackerState)
     defender_state = states[defender_name]
-    assert isinstance(defender_state, MalSimDefenderState)
+    assert isinstance(defender_state, DefenderState)
 
     assert sim.done()  # simulation is done because all agents terminated
     assert defender_is_terminated(sim._agent_states, sim._alive_agents)
@@ -594,14 +594,14 @@ def test_attacker_step_rewards_one_off(
 
     sim.step({attacker_name: [attempt_read]})
     state1 = sim.agent_states[attacker_name]
-    assert isinstance(state1, MalSimAttackerState)
+    assert isinstance(state1, AttackerState)
     assert sim.agent_reward(attacker_name) == rewards[attempt_read.full_name] - float(
         len(state1.step_attempted_nodes)
     )
 
     sim.step({attacker_name: [access_network_and_conn]})
     state2 = sim.agent_states[attacker_name]
-    assert isinstance(state2, MalSimAttackerState)
+    assert isinstance(state2, AttackerState)
     assert sim.agent_reward(attacker_name) == rewards[
         access_network_and_conn.full_name
     ] - float(len(state2.step_attempted_nodes))
@@ -628,7 +628,7 @@ def test_attacker_step_rewards_expected_ttc(
     while not sim.done():
         # Run a simulation and make sure rewards are as they should be
         state = sim.step({attacker_name: list(state.action_surface)})[attacker_name]
-        assert isinstance(state, MalSimAttackerState)
+        assert isinstance(state, AttackerState)
 
         # Penalized with expected ttc value (since ttc mode is disabled)
         ttc_penalty = sum(
@@ -799,8 +799,8 @@ def test_agent_state_views_simple(
     )
     asv = state_views['attacker']
     dsv = state_views['defender']
-    assert isinstance(asv, MalSimAttackerState)
-    assert isinstance(dsv, MalSimDefenderState)
+    assert isinstance(asv, AttackerState)
+    assert isinstance(dsv, DefenderState)
 
     assert asv.step_performed_nodes == {os_app_attempt_deny}
     assert dsv.step_performed_nodes == {program2_not_present}
@@ -822,8 +822,8 @@ def test_agent_state_views_simple(
     state_views = sim.step({'defender': [], 'attacker': [os_app_spec_access]})
     asv = state_views['attacker']
     dsv = state_views['defender']
-    assert isinstance(asv, MalSimAttackerState)
-    assert isinstance(dsv, MalSimDefenderState)
+    assert isinstance(asv, AttackerState)
+    assert isinstance(dsv, DefenderState)
 
     assert asv.step_performed_nodes == {os_app_spec_access}
     assert dsv.step_performed_nodes == set()
@@ -843,8 +843,8 @@ def test_agent_state_views_simple(
     )
     asv = state_views['attacker']
     dsv = state_views['defender']
-    assert isinstance(asv, MalSimAttackerState)
-    assert isinstance(dsv, MalSimDefenderState)
+    assert isinstance(asv, AttackerState)
+    assert isinstance(dsv, DefenderState)
 
     assert asv.step_performed_nodes == set()
     assert dsv.step_performed_nodes == {os_app_not_present}
@@ -979,9 +979,9 @@ def test_simulator_false_positives() -> None:
     run_simulation(sim)
 
     defender_state = sim.agent_states['defender']
-    assert isinstance(defender_state, MalSimDefenderState)
+    assert isinstance(defender_state, DefenderState)
     attacker_state = sim.agent_states['Attacker1']
-    assert isinstance(attacker_state, MalSimAttackerState)
+    assert isinstance(attacker_state, AttackerState)
 
     # Should be false positive in defender state
     assert len(defender_state.observed_nodes) > len(defender_state.compromised_nodes)
@@ -1004,7 +1004,7 @@ def test_simulator_false_positives_after_done() -> None:
     for _ in range(100):
         states = sim.step({})
         defender_state = states['defender']
-        assert isinstance(defender_state, MalSimDefenderState)
+        assert isinstance(defender_state, DefenderState)
         false_positives |= defender_state.observed_nodes
 
     assert false_positives
@@ -1023,7 +1023,7 @@ def test_simulator_false_positives_reset() -> None:
         scenario, sim_settings=MalSimulatorSettings(seed=9)
     )
     defender_state = sim.reset()['defender']
-    assert isinstance(defender_state, MalSimDefenderState)
+    assert isinstance(defender_state, DefenderState)
     # Should be false positive in defender state even on reset
     assert len(defender_state.observed_nodes) > len(defender_state.compromised_nodes)
 
@@ -1042,9 +1042,9 @@ def test_simulator_false_negatives() -> None:
     run_simulation(sim)
 
     defender_state = sim.agent_states['defender']
-    assert isinstance(defender_state, MalSimDefenderState)
+    assert isinstance(defender_state, DefenderState)
     attacker_state = sim.agent_states['Attacker1']
-    assert isinstance(attacker_state, MalSimAttackerState)
+    assert isinstance(attacker_state, AttackerState)
 
     # Should be false negatives in defender state
     assert len(defender_state.observed_nodes) < len(defender_state.compromised_nodes)
@@ -1063,9 +1063,9 @@ def test_simulator_no_fpr_fnr() -> None:
     run_simulation(sim)
 
     defender_state = sim.agent_states['defender']
-    assert isinstance(defender_state, MalSimDefenderState)
+    assert isinstance(defender_state, DefenderState)
     attacker_state = sim.agent_states['Attacker1']
-    assert isinstance(attacker_state, MalSimAttackerState)
+    assert isinstance(attacker_state, AttackerState)
 
     # No false positives or negatives
     assert defender_state.compromised_nodes == attacker_state.performed_nodes
@@ -1267,7 +1267,7 @@ def test_simulator_attacker_override_ttcs_state() -> None:
     assert isinstance(bad_attacker_settings, AttackerSettings)
     assert bad_attacker_settings.ttc_overrides is not None
     bad_attacker_state = states['BadAttacker']
-    assert isinstance(bad_attacker_state, MalSimAttackerState)
+    assert isinstance(bad_attacker_state, AttackerState)
 
     assert set(
         bad_attacker_settings.ttc_overrides.per_node(sim.sim_state.attack_graph)
@@ -1290,7 +1290,7 @@ def test_simulator_attacker_override_ttcs_state() -> None:
     }
 
     good_attacker_state = states['GoodAttacker']
-    assert isinstance(good_attacker_state, MalSimAttackerState)
+    assert isinstance(good_attacker_state, AttackerState)
     assert not good_attacker_state.ttc_value_overrides
     assert not good_attacker_state.impossible_step_overrides
 

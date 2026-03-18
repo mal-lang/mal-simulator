@@ -3,12 +3,12 @@ from dataclasses import dataclass
 from typing import Any
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
-from malsim.mal_simulator.agent_state import MalSimAgentState
+from malsim.mal_simulator.agent_state import AgentState
 from malsim.types import AgentStates
 
 
 @dataclass(frozen=True)
-class MalSimDefenderState(MalSimAgentState):
+class DefenderState(AgentState):
     """Stores the state of a defender in the simulator"""
 
     # Contains all steps performed by any attacker
@@ -47,13 +47,12 @@ class MalSimDefenderState(MalSimAgentState):
 
 def get_defender_agents(
     agent_states: AgentStates, alive_agents: Set[str], only_alive: bool = False
-) -> list[MalSimDefenderState]:
+) -> list[DefenderState]:
     """Return list of mutable defender agent states of defenders.
     If `only_alive` is set to True, only return the agents that are alive.
     """
     return [
         a
         for a in agent_states.values()
-        if (a.name in alive_agents or not only_alive)
-        and isinstance(a, MalSimDefenderState)
+        if (a.name in alive_agents or not only_alive) and isinstance(a, DefenderState)
     ]

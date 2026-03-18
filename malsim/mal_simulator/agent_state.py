@@ -8,7 +8,7 @@ from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 
 @dataclass(frozen=True)
-class MalSimAgentState:
+class AgentState:
     """Stores the state of an agent in the simulator"""
 
     # Identifier of the agent, used in MalSimulator for lookup

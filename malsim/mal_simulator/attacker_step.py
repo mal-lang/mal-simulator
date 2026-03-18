@@ -20,12 +20,12 @@ from malsim.mal_simulator.ttc_utils import (
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 if TYPE_CHECKING:
-    from malsim.mal_simulator.attacker_state import MalSimAttackerState
+    from malsim.mal_simulator.attacker_state import AttackerState
 
 logger = logging.getLogger(__name__)
 
 
-def attacker_is_terminated(attacker_state: MalSimAttackerState) -> bool:
+def attacker_is_terminated(attacker_state: AttackerState) -> bool:
     """Check if attacker is terminated
     Can be overridden by subclass for custom termination condition.
 
@@ -50,7 +50,7 @@ def attacker_is_terminated(attacker_state: MalSimAttackerState) -> bool:
 
 
 def attacker_step_effects(
-    sim_state: MalSimulatorState, agent: MalSimAttackerState, action: AttackGraphNode
+    sim_state: MalSimulatorState, agent: AttackerState, action: AttackGraphNode
 ) -> list[AttackGraphNode]:
     """Perform the effects of an action performed by attacker.
     Return the effects that descend from `action` and can be compromised.
@@ -75,7 +75,7 @@ def attempt_attacker_step(
     sim_state: MalSimulatorState,
     rng: np.random.Generator,
     ttc_mode: TTCMode,
-    agent: MalSimAttackerState,
+    agent: AttackerState,
     node: AttackGraphNode,
 ) -> bool:
     """Attempt a step with a TTC distribution.
@@ -116,7 +116,7 @@ def attempt_attacker_step(
 
 def attacker_step(
     sim_state: MalSimulatorState,
-    agent: MalSimAttackerState,
+    agent: AttackerState,
     nodes: list[AttackGraphNode],
     rng: np.random.Generator,
 ) -> tuple[list[AttackGraphNode], list[AttackGraphNode]]:
