@@ -21,13 +21,13 @@ class AgentState:
     performed_nodes: Set[AttackGraphNode]
     # Contains the order of performed nodes
     performed_nodes_order: Mapping[int, Set[AttackGraphNode]]
-    # Contains the nodes performed successfully in the last step
-    step_performed_nodes: Set[AttackGraphNode]
-    # Contains possible nodes that became available in the last step
-    step_action_surface_additions: Set[AttackGraphNode]
-    # Contains nodes that became unavailable in the last step
-    step_action_surface_removals: Set[AttackGraphNode]
-    # Contains nodes that became unviable in the last step by defender actions
-    step_unviable_nodes: Set[AttackGraphNode]
+
+    unviable_nodes: Set[AttackGraphNode]
+
     # The iteration this state was created in
     iteration: int
+
+    @property
+    def step_unviable_nodes(self):
+        previous_unviable_nodes = self.previous_state.unviable_nodes if self.previous_state else set()
+        return self.unviable_nodes - previous_unviable_nodes
