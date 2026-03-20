@@ -54,7 +54,11 @@ def create_attacker_state(
     previous_performed_nodes_order = previous_state.performed_nodes_order if previous_state else {}
     previous_attempted_nodes = previous_state.attempted_nodes if previous_state else set()
     previous_action_surface = previous_state.action_surface if previous_state else set()
-    previous_num_attempts = previous_state.num_attempts if previous_state else {n: 0 for n in sim_state.attack_graph.attack_steps}
+    previous_num_attempts = (
+        previous_state.num_attempts
+        if previous_state
+        else {n: 0 for n in sim_state.attack_graph.attack_steps}
+    )
     previous_unviable_nodes = previous_state.unviable_nodes if previous_state else set()
 
     performed_nodes = previous_performed_nodes | new_performed_nodes
@@ -82,19 +86,15 @@ def create_attacker_state(
         action_surface_additions |= attacker_settings.entry_points
 
     action_surface_removals = set(
-        (new_unviable_nodes & previous_action_surface)
-        | new_performed_nodes
+        (new_unviable_nodes & previous_action_surface) | new_performed_nodes
     )
     action_surface = frozenset(
-        (previous_action_surface - action_surface_removals)
-        | action_surface_additions
+        (previous_action_surface - action_surface_removals) | action_surface_additions
     )
 
     iteration = previous_state.iteration if previous_state else 0
     if new_performed_nodes:
-        performed_nodes_order[iteration] = frozenset(
-            new_performed_nodes
-        )
+        performed_nodes_order[iteration] = frozenset(new_performed_nodes)
 
     return AttackerState(
         name,
@@ -158,7 +158,6 @@ def initial_attacker_state(
 
     if sim_state.settings.compromise_entrypoints_at_start:
         new_compromised_nodes = get_entrypoint_compromises(sim_state, entry_points)
-
 
     return create_attacker_state(
         sim_state=sim_state,

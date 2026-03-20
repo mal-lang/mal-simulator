@@ -26,11 +26,19 @@ def create_defender_state(
     Update a previous defender state based on what steps
     were enabled/compromised during last step
     """
-    previous_enabled_defenses = previous_state.performed_nodes if previous_state else set()
-    previous_compromised_nodes = previous_state.compromised_nodes if previous_state else set()
-    previous_performed_nodes = previous_state.performed_nodes if previous_state else set()
+    previous_enabled_defenses = (
+        previous_state.performed_nodes if previous_state else set()
+    )
+    previous_compromised_nodes = (
+        previous_state.compromised_nodes if previous_state else set()
+    )
+    previous_performed_nodes = (
+        previous_state.performed_nodes if previous_state else set()
+    )
     previous_observed_nodes = previous_state.observed_nodes if previous_state else set()
-    performed_nodes_order = dict(previous_state.performed_nodes_order) if previous_state else {}
+    performed_nodes_order = (
+        dict(previous_state.performed_nodes_order) if previous_state else {}
+    )
     previous_unviable_nodes = previous_state.unviable_nodes if previous_state else set()
 
     action_surface = (
@@ -42,9 +50,7 @@ def create_defender_state(
 
     iteration = previous_state.iteration if previous_state else 0
     if new_enabled_defenses:
-        performed_nodes_order[iteration] = frozenset(
-            new_enabled_defenses
-        )
+        performed_nodes_order[iteration] = frozenset(new_enabled_defenses)
 
     new_observed_nodes = observed_nodes(
         defender_settings.observable_steps,
@@ -61,9 +67,7 @@ def create_defender_state(
         settings=defender_settings,
         performed_nodes=frozenset(previous_enabled_defenses | new_enabled_defenses),
         unviable_nodes=frozenset(previous_unviable_nodes | new_unviable_nodes),
-        compromised_nodes=frozenset(
-            previous_compromised_nodes | new_compromised_nodes
-        ),
+        compromised_nodes=frozenset(previous_compromised_nodes | new_compromised_nodes),
         observed_nodes=frozenset(previous_observed_nodes | new_observed_nodes),
         action_surface=frozenset(action_surface),
         iteration=iteration + 1,

@@ -29,5 +29,7 @@ class AgentState:
 
     @property
     def step_unviable_nodes(self):
-        previous_unviable_nodes = self.previous_state.unviable_nodes if self.previous_state else set()
+        previous_unviable_nodes = (
+            self.previous_state.unviable_nodes if self.previous_state else set()
+        )
         return self.unviable_nodes - previous_unviable_nodes
