@@ -42,9 +42,7 @@ def create_defender_state(
     previous_unviable_nodes = previous_state.unviable_nodes if previous_state else set()
 
     action_surface = (
-        get_defense_surface(
-            sim_state, defender_settings.actionable_steps
-        )
+        get_defense_surface(sim_state, defender_settings.actionable_steps)
         - previous_performed_nodes
     )
 

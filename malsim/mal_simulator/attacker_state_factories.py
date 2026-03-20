@@ -50,9 +50,15 @@ def create_attacker_state(
     and what nodes became unviable.
     """
 
-    previous_performed_nodes = previous_state.performed_nodes if previous_state else set()
-    previous_performed_nodes_order = previous_state.performed_nodes_order if previous_state else {}
-    previous_attempted_nodes = previous_state.attempted_nodes if previous_state else set()
+    previous_performed_nodes = (
+        previous_state.performed_nodes if previous_state else set()
+    )
+    previous_performed_nodes_order = (
+        previous_state.performed_nodes_order if previous_state else {}
+    )
+    previous_attempted_nodes = (
+        previous_state.attempted_nodes if previous_state else set()
+    )
     previous_action_surface = previous_state.action_surface if previous_state else set()
     previous_num_attempts = (
         previous_state.num_attempts
@@ -99,7 +105,7 @@ def create_attacker_state(
     return AttackerState(
         name,
         sim_state=sim_state,
-        iteration=iteration+1,
+        iteration=iteration + 1,
         performed_nodes_order=performed_nodes_order,
         settings=attacker_settings,
         ttc_values=ttc_values,
