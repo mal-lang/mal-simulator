@@ -1,7 +1,7 @@
 from malsim import MalSimulator, Scenario, MalSimulatorSettings
 from malsim.config.agent_settings import AttackerSettings
 from malsim.config.sim_settings import AttackSurfaceSettings
-from malsim.mal_simulator import TTCMode, MalSimAttackerState
+from malsim.mal_simulator import TTCMode, AttackerState
 from malsim.policies import TTCSoftMinAttacker
 
 
@@ -37,7 +37,7 @@ def test_ttc_avoider() -> None:
 
     while not sim.done():
         # Run the simulation until agents are terminated/truncated
-        assert isinstance(attacker_state, MalSimAttackerState)
+        assert isinstance(attacker_state, AttackerState)
         attacker_node = attacker_agent.get_next_action(attacker_state)
 
         assert attacker_node
@@ -83,7 +83,7 @@ def test_ttc_avoider_low_sharpness() -> None:
     recording = []
     while not sim.done():
         # Run the simulation until agents are terminated/truncated
-        assert isinstance(attacker_state, MalSimAttackerState)
+        assert isinstance(attacker_state, AttackerState)
         attacker_node = attacker_agent.get_next_action(attacker_state)
         assert attacker_node
 

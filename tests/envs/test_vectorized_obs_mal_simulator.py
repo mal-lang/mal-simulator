@@ -6,7 +6,7 @@ from collections.abc import Set
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from malsim.config.agent_settings import AttackerSettings, DefenderSettings
-from malsim.mal_simulator import MalSimulator, MalSimAttackerState
+from malsim.mal_simulator import MalSimulator, AttackerState
 from malsim.envs import MalSimVectorizedObsEnv
 from malsim.scenario.scenario import Scenario
 
@@ -587,7 +587,7 @@ def test_malsimulator_observe_and_reward_attacker_entrypoints(
 
     for index, state in enumerate(obs[attacker_name]['observed_state']):
         attacker_state = env.get_agent_state(attacker_name)
-        assert isinstance(attacker_state, MalSimAttackerState)
+        assert isinstance(attacker_state, AttackerState)
 
         node = env.index_to_node(index)
         if state == -1:

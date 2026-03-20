@@ -6,7 +6,7 @@ from collections.abc import Set
 from maltoolbox.attackgraph import AttackGraphNode
 from maltoolbox.attackgraph import AttackGraph
 
-from malsim.mal_simulator.attacker_state import MalSimAttackerState
+from malsim.mal_simulator.attacker_state import AttackerState
 from malsim.mal_simulator.agent_states import defender_states
 from malsim.mal_simulator.node_getters import full_name_or_node_to_node
 from malsim.config.sim_settings import TTCMode
@@ -49,7 +49,7 @@ def compromised_nodes(
 
 
 def node_ttc_value(
-    attacker_state: MalSimAttackerState,
+    attacker_state: AttackerState,
     node: AttackGraphNode | str,
 ) -> float:
     """Return ttc value of node if it has been sampled"""

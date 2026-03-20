@@ -1,20 +1,20 @@
-from malsim.mal_simulator.attacker_state import MalSimAttackerState
-from malsim.mal_simulator.defender_state import MalSimDefenderState
+from malsim.mal_simulator.attacker_state import AttackerState
+from malsim.mal_simulator.defender_state import DefenderState
 
-AgentStates = dict[str, MalSimAttackerState | MalSimDefenderState]
+AgentStates = dict[str, AttackerState | DefenderState]
 
 
-def defender_states(agent_states: AgentStates) -> dict[str, MalSimDefenderState]:
+def defender_states(agent_states: AgentStates) -> dict[str, DefenderState]:
     return {
         name: state
         for name, state in agent_states.items()
-        if isinstance(state, MalSimDefenderState)
+        if isinstance(state, DefenderState)
     }
 
 
-def attacker_states(agent_states: AgentStates) -> dict[str, MalSimAttackerState]:
+def attacker_states(agent_states: AgentStates) -> dict[str, AttackerState]:
     return {
         name: state
         for name, state in agent_states.items()
-        if isinstance(state, MalSimAttackerState)
+        if isinstance(state, AttackerState)
     }

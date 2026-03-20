@@ -16,12 +16,12 @@ from malsim.mal_simulator.agent_states import (
     attacker_states,
     defender_states,
 )
-from malsim.mal_simulator.attacker_state import MalSimAttackerState
+from malsim.mal_simulator.attacker_state import AttackerState
 from malsim.mal_simulator.attacker_step import (
     attacker_is_terminated,
     attacker_step,
 )
-from malsim.mal_simulator.defender_state import MalSimDefenderState
+from malsim.mal_simulator.defender_state import DefenderState
 from malsim.mal_simulator.defender_step import (
     defender_is_terminated,
     defender_step,
@@ -77,7 +77,7 @@ logger = logging.getLogger(__name__)
 
 PERFORMED_ATTACKS_FUNCS: Mapping[
     RewardMode,
-    Callable[[MalSimAttackerState], Set[AttackGraphNode]],
+    Callable[[AttackerState], Set[AttackGraphNode]],
 ] = {
     RewardMode.CUMULATIVE: lambda ds: ds.performed_nodes,
     RewardMode.ONE_OFF: lambda ds: ds.step_performed_nodes,
@@ -86,7 +86,7 @@ PERFORMED_ATTACKS_FUNCS: Mapping[
 }
 
 ENABLED_DEFENSES_FUNCS: Mapping[
-    RewardMode, Callable[[MalSimDefenderState], Set[AttackGraphNode]]
+    RewardMode, Callable[[DefenderState], Set[AttackGraphNode]]
 ] = {
     # all enabled defenses
     RewardMode.CUMULATIVE: lambda ds: ds.performed_nodes,
@@ -98,7 +98,7 @@ ENABLED_DEFENSES_FUNCS: Mapping[
 }
 
 ENABLED_ATTACKS_FUNCS: Mapping[
-    RewardMode, Callable[[MalSimDefenderState], Set[AttackGraphNode]]
+    RewardMode, Callable[[DefenderState], Set[AttackGraphNode]]
 ] = {
     # all performed attacks
     RewardMode.CUMULATIVE: lambda ds: ds.compromised_nodes,
@@ -232,7 +232,7 @@ class MalSimulator:
     ) -> float:
         if agent_name:
             agent = self._agent_states[agent_name]
-            assert isinstance(agent, MalSimAttackerState), (
+            assert isinstance(agent, AttackerState), (
                 'TTC values only apply to attackers'
             )
             return node_ttc_value(agent, node)
@@ -321,15 +321,13 @@ class MalSimulator:
     def agent_reward_by_name(self, agent_name: str) -> float:
         return self.agent_reward(agent_state=self.agent_states[agent_name])
 
-    def agent_reward(
-        self, agent_state: MalSimAttackerState | MalSimDefenderState
-    ) -> float:
+    def agent_reward(self, agent_state: AttackerState | DefenderState) -> float:
         return self._agent_reward_from_state(agent_state) or 0.0
 
     def agent_is_terminated(self, agent_name: str) -> bool:
         return agent_is_terminated(self._agent_states, agent_name)
 
-    def reset(self) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
+    def reset(self) -> dict[str, AttackerState | DefenderState]:
         (
             self._agent_states,
             self.sim_state,
@@ -343,7 +341,7 @@ class MalSimulator:
         return self._agent_states
 
     @property
-    def agent_states(self) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
+    def agent_states(self) -> dict[str, AttackerState | DefenderState]:
         """Return read only agent state for all dead and alive agents"""
         return self._agent_states
 
@@ -351,7 +349,7 @@ class MalSimulator:
         return defender_is_terminated(self._agent_states)
 
     def _agent_reward_from_state(
-        self, state: MalSimAttackerState | MalSimDefenderState
+        self, state: AttackerState | DefenderState
     ) -> float | None:
         return (
             (
@@ -359,7 +357,7 @@ class MalSimulator:
                 if state.name in self._defender_reward_fns
                 else None
             )
-            if isinstance(state, MalSimDefenderState)
+            if isinstance(state, DefenderState)
             else (
                 self._attacker_reward_fns[state.name](state)
                 if state.name in self._attacker_reward_fns
@@ -369,7 +367,7 @@ class MalSimulator:
 
     def step(
         self, actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]]
-    ) -> dict[str, MalSimAttackerState | MalSimDefenderState]:
+    ) -> dict[str, AttackerState | DefenderState]:
         agent_states, recording, sim_state = step(
             self.recording,
             self.sim_state,
@@ -409,9 +407,9 @@ def done(alive_agents: Set[str]) -> bool:
 def agent_is_terminated(agent_states: AgentStates, agent_name: str) -> bool:
     """Return True if agent was terminated"""
     agent_state = agent_states[agent_name]
-    if isinstance(agent_state, MalSimAttackerState):
+    if isinstance(agent_state, AttackerState):
         return attacker_is_terminated(agent_state)
-    elif isinstance(agent_state, MalSimDefenderState):
+    elif isinstance(agent_state, DefenderState):
         return defender_is_terminated(agent_states)
     else:
         raise TypeError(f'Unknown agent state for {agent_name}')

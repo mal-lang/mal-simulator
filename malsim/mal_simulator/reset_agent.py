@@ -6,9 +6,9 @@ import numpy as np
 from maltoolbox.attackgraph import AttackGraphNode
 
 from malsim.config.sim_settings import MalSimulatorSettings
-from .attacker_state import MalSimAttackerState
+from .attacker_state import AttackerState
 from malsim.mal_simulator.attacker_state_factories import initial_attacker_state
-from .defender_state import MalSimDefenderState
+from .defender_state import DefenderState
 from malsim.mal_simulator.defender_state_factories import initial_defender_state
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 from malsim.config.agent_settings import (
@@ -24,7 +24,7 @@ def reset_attackers(
     sim_settings: MalSimulatorSettings,
     agent_settings: AgentSettings,
     rng: np.random.Generator,
-) -> Mapping[str, MalSimAttackerState]:
+) -> Mapping[str, AttackerState]:
     """Recreate all attacker agent states"""
 
     return {
@@ -43,7 +43,7 @@ def reset_defenders(
     agent_settings: AgentSettings,
     pre_compromised_nodes: Set[AttackGraphNode],
     rng: np.random.Generator,
-) -> Mapping[str, MalSimDefenderState]:
+) -> Mapping[str, DefenderState]:
     """Recreate all defender agent states"""
     return {
         name: initial_defender_state(

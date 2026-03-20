@@ -11,7 +11,7 @@ from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.model import Model
 
 from malsim.config.agent_settings import AttackerSettings, DefenderSettings
-from malsim.mal_simulator import MalSimulator, MalSimDefenderState, MalSimAttackerState
+from malsim.mal_simulator import MalSimulator, DefenderState, AttackerState
 from malsim.policies import BreadthFirstAttacker, DefendFutureCompromisedDefender
 
 
@@ -45,9 +45,9 @@ def test_example_no_scenario() -> None:
     states = sim.reset()
     while not sim.done():
         # Step with attacker and defender
-        attacker_state: MalSimAttackerState = states[attacker_name]  # type: ignore
+        attacker_state: AttackerState = states[attacker_name]  # type: ignore
         attacker_action = attacker_policy.get_next_action(attacker_state)
-        defender_state: MalSimDefenderState = states[defender_name]  # type: ignore
+        defender_state: DefenderState = states[defender_name]  # type: ignore
         defender_action = defender_policy.get_next_action(defender_state)
         states = sim.step(
             {

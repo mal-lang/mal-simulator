@@ -3,11 +3,11 @@ from collections.abc import Mapping, Set
 from typing import Any
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.agent_settings import AttackerSettings
-from malsim.mal_simulator.agent_state import MalSimAgentState
+from malsim.mal_simulator.agent_state import AgentState
 
 
 @dataclass(frozen=True)
-class MalSimAttackerState(MalSimAgentState):
+class AttackerState(AgentState):
     """Stores the state of an attacker in the simulator"""
 
     settings: AttackerSettings[AttackGraphNode]

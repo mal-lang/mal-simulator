@@ -4,18 +4,18 @@ from maltoolbox.attackgraph import AttackGraphNode
 import numpy as np
 
 from malsim.config.agent_settings import AttackerSettings, DefenderSettings
-from malsim.mal_simulator.defender_state import MalSimDefenderState
-from malsim.mal_simulator.attacker_state import MalSimAttackerState
+from malsim.mal_simulator.defender_state import DefenderState
+from malsim.mal_simulator.attacker_state import AttackerState
 from malsim.mal_simulator.graph_utils import node_reward
 from malsim.config.sim_settings import RewardMode, TTCMode
 from malsim.mal_simulator.ttc_utils import TTCDist
 
 
 def defender_step_reward_fn(
-    enabled_defenses_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
-    enabled_attacks_func: Callable[[MalSimDefenderState], Set[AttackGraphNode]],
+    enabled_defenses_func: Callable[[DefenderState], Set[AttackGraphNode]],
+    enabled_attacks_func: Callable[[DefenderState], Set[AttackGraphNode]],
     defender_settings: DefenderSettings,
-) -> Callable[[MalSimDefenderState], float]:
+) -> Callable[[DefenderState], float]:
     """
     Reward function creator for defender agent.
     Functions for determining enabled defenses and compromised steps are passed in,
@@ -30,7 +30,7 @@ def defender_step_reward_fn(
     """
 
     def defender_step_reward(
-        defender_state: MalSimDefenderState,
+        defender_state: DefenderState,
     ) -> float:
         """
         Reward function for the defender.
@@ -53,13 +53,13 @@ def defender_step_reward_fn(
 
 
 def attacker_step_reward_fn(
-    performed_attacks_func: Callable[[MalSimAttackerState], Set[AttackGraphNode]],
+    performed_attacks_func: Callable[[AttackerState], Set[AttackGraphNode]],
     ttc_mode: TTCMode,
     attacker_settings: AttackerSettings[AttackGraphNode],
     rng: np.random.Generator,
-) -> Callable[[MalSimAttackerState], float]:
+) -> Callable[[AttackerState], float]:
     def attacker_step_reward(
-        attacker_state: MalSimAttackerState,
+        attacker_state: AttackerState,
     ) -> float:
         """
         Calculate current attacker reward either cumulative or one-off.

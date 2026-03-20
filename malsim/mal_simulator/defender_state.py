@@ -3,11 +3,11 @@ from dataclasses import dataclass
 from typing import Any
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.agent_settings import DefenderSettings
-from malsim.mal_simulator.agent_state import MalSimAgentState
+from malsim.mal_simulator.agent_state import AgentState
 
 
 @dataclass(frozen=True)
-class MalSimDefenderState(MalSimAgentState):
+class DefenderState(AgentState):
     """Stores the state of a defender in the simulator"""
 
     # Contains all steps performed by any attacker
