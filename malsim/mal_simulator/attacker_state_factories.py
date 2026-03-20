@@ -88,7 +88,6 @@ def create_attacker_state(
     )
 
     if not previous_state and not sim_state.settings.compromise_entrypoints_at_start:
-        # Special case, entrypoint perhaps be sent through an argument to function instead
         action_surface_additions |= attacker_settings.entry_points
 
     action_surface_removals = set(
