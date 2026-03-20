@@ -99,7 +99,7 @@ def create_attacker_state(
     return AttackerState(
         name,
         sim_state=sim_state,
-        iteration=(previous_state.iteration + 1) if previous_state else 1,
+        iteration=iteration+1,
         performed_nodes_order=performed_nodes_order,
         settings=attacker_settings,
         ttc_values=ttc_values,
