@@ -28,7 +28,7 @@ class AgentState:
     iteration: int
 
     @property
-    def step_unviable_nodes(self):
+    def step_unviable_nodes(self) -> Set[AttackGraphNode]:
         previous_unviable_nodes = (
             self.previous_state.unviable_nodes if self.previous_state else set()
         )
