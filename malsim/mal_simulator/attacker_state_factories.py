@@ -57,7 +57,7 @@ def create_attacker_state(
     previous_num_attempts = (
         previous_state.num_attempts
         if previous_state
-        else {n: 0 for n in sim_state.attack_graph.attack_steps}
+        else dict.fromkeys(sim_state.attack_graph.attack_steps, 0)
     )
     previous_unviable_nodes = previous_state.unviable_nodes if previous_state else set()
 
