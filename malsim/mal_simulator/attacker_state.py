@@ -50,28 +50,28 @@ class AttackerState(AgentState):
                 object.__setattr__(self, key, value)
 
     @property
-    def step_attempted_nodes(self):
+    def step_attempted_nodes(self) -> Set[AttackGraphNode]:
         previous_attempted_nodes = (
             self.previous_state.attempted_nodes if self.previous_state else set()
         )
         return self.attempted_nodes - previous_attempted_nodes
 
     @property
-    def step_performed_nodes(self):
+    def step_performed_nodes(self) -> Set[AttackGraphNode]:
         previous_performed_nodes = (
             self.previous_state.performed_nodes if self.previous_state else set()
         )
         return self.performed_nodes - previous_performed_nodes
 
     @property
-    def step_action_surface_additions(self):
+    def step_action_surface_additions(self) -> Set[AttackGraphNode]:
         previous_action_surface = (
             self.previous_state.action_surface if self.previous_state else set()
         )
         return self.action_surface - previous_action_surface
 
     @property
-    def step_action_surface_removals(self):
+    def step_action_surface_removals(self) -> Set[AttackGraphNode]:
         previous_action_surface = (
             self.previous_state.action_surface if self.previous_state else set()
         )
