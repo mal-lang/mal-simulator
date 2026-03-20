@@ -2,7 +2,6 @@ from __future__ import annotations
 from collections.abc import Mapping, Set
 from dataclasses import dataclass
 
-
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
@@ -26,10 +25,3 @@ class AgentState:
 
     # The iteration this state was created in
     iteration: int
-
-    @property
-    def step_unviable_nodes(self) -> Set[AttackGraphNode]:
-        previous_unviable_nodes = (
-            self.previous_state.unviable_nodes if self.previous_state else set()
-        )
-        return self.unviable_nodes - previous_unviable_nodes
