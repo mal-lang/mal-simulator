@@ -56,7 +56,7 @@ def compute_initial_graph_state(
         impossible_attack_steps = get_impossible_attack_steps(graph.attack_steps, rng)
 
     viability_per_node = calculate_viability(
-        graph, enabled_defenses, impossible_attack_steps
+        graph, enabled_defenses, impossible_attack_steps, set()
     )
     necessity_per_node = calculate_necessity(graph, enabled_defenses)
 

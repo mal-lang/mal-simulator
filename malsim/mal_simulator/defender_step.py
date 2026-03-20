@@ -66,10 +66,11 @@ def defender_step(
             enabled_defenses.append(node)
             sim_state.graph_state.viability_per_node, made_unviable = (
                 make_node_unviable(
-                    node,
+                    node=node,
                     # TODO make this immutable
-                    dict(sim_state.graph_state.viability_per_node),
-                    sim_state.graph_state.impossible_attack_steps,
+                    viability_per_node=dict(sim_state.graph_state.viability_per_node),
+                    impossible_attacksteps=sim_state.graph_state.impossible_attack_steps,
+                    compromised_nodes=agent.compromised_nodes,
                 )
             )
             attack_steps_made_unviable |= made_unviable

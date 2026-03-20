@@ -118,6 +118,7 @@ def _propagate_viability_from_node(
     node: AttackGraphNode,
     viability_per_node: dict[AttackGraphNode, bool],
     impossible_attack_steps: Set[AttackGraphNode],
+    compromised_nodes: Set[AttackGraphNode],
 ) -> Set[AttackGraphNode]:
     """
     Update viability of children of node given as parameter. Propagate
@@ -137,10 +138,10 @@ def _propagate_viability_from_node(
         is_viable = evaluate_viability(
             child, viability_per_node, frozenset(), impossible_attack_steps
         )
-        if is_viable != viability_per_node[child]:
+        if is_viable != viability_per_node[child] and child not in compromised_nodes:
             viability_per_node[child] = is_viable
             changed_nodes |= {child} | _propagate_viability_from_node(
-                child, viability_per_node, impossible_attack_steps
+                child, viability_per_node, impossible_attack_steps, compromised_nodes
             )
     return frozenset(changed_nodes)
 
@@ -198,6 +199,7 @@ def calculate_viability(
     graph: AttackGraph,
     enabled_defenses: Set[AttackGraphNode],
     impossible_attack_steps: Set[AttackGraphNode],
+    compromised_nodes: Set[AttackGraphNode],
 ) -> Mapping[AttackGraphNode, bool]:
     """Calculate viability for an attack graph
 
@@ -214,7 +216,7 @@ def calculate_viability(
         )
         if not viability_per_node[node]:
             _propagate_viability_from_node(
-                node, viability_per_node, impossible_attack_steps
+                node, viability_per_node, impossible_attack_steps, compromised_nodes
             )
     return viability_per_node
 
@@ -223,6 +225,7 @@ def make_node_unviable(
     node: AttackGraphNode,
     viability_per_node: dict[AttackGraphNode, bool],
     impossible_attacksteps: Set[AttackGraphNode],
+    compromised_nodes: Set[AttackGraphNode],
 ) -> tuple[dict[AttackGraphNode, bool], Set[AttackGraphNode]]:
     """Make a node unviable
 
@@ -231,7 +234,7 @@ def make_node_unviable(
     """
     viability_per_node[node] = False
     nodes_made_unviable = _propagate_viability_from_node(
-        node, viability_per_node, impossible_attacksteps
+        node, viability_per_node, impossible_attacksteps, compromised_nodes
     )
     return viability_per_node, nodes_made_unviable
 

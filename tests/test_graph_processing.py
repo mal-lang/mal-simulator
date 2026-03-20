@@ -56,7 +56,7 @@ def test_viability_viable_nodes(dummy_lang_graph: LanguageGraph) -> None:
 
     # Make sure viable
     enabled_defenses: Set[AttackGraphNode] = set()
-    viable_nodes = calculate_viability(attack_graph, enabled_defenses, set())
+    viable_nodes = calculate_viability(attack_graph, enabled_defenses, set(), set())
     assert exist_node in viable_nodes
     assert not_exist_node in viable_nodes
     assert defense_step_node in viable_nodes
@@ -109,7 +109,7 @@ def test_viability_unviable_nodes(dummy_lang_graph: LanguageGraph) -> None:
     # Make sure unviable
     enabled_defenses = {defense_step_node}
     viability_per_node = calculate_viability(
-        attack_graph, enabled_defenses, impossible_attack_steps
+        attack_graph, enabled_defenses, impossible_attack_steps, set()
     )
 
     assert not viability_per_node[unviable_or_node_parent]
@@ -227,7 +227,7 @@ def test_analyzers_apriori_prune_unviable_and_unnecessary_nodes(model: Model) ->
         node for node in example_attackgraph.nodes.values() if node.type == 'and'
     )
 
-    viability_per_node = calculate_viability(example_attackgraph, set(), set())
+    viability_per_node = calculate_viability(example_attackgraph, set(), set(), set())
     necessity_per_node = calculate_necessity(example_attackgraph, set())
     mutable_necessity_per_node = dict(necessity_per_node)
     mutable_viability_per_node = dict(viability_per_node)
@@ -278,7 +278,7 @@ def test_analyzers_apriori_propagate_viability(dummy_lang_graph: LanguageGraph) 
     uvp1.children = {or_1vp, or_2uvp, and_1uvp}
     uvp2.children = {or_2uvp}
 
-    viability_per_node = calculate_viability(attack_graph, set(), set())
+    viability_per_node = calculate_viability(attack_graph, set(), set(), set())
     # TODO Make this work with immutable viability per node
     mutable_viability_per_node = dict(viability_per_node)
 
@@ -289,7 +289,7 @@ def test_analyzers_apriori_propagate_viability(dummy_lang_graph: LanguageGraph) 
     changed_nodes: Set[AttackGraphNode] = set()
     for parent in [vp1, vp2, uvp1, uvp2]:
         changed_nodes |= _propagate_viability_from_node(
-            parent, mutable_viability_per_node, set()
+            parent, mutable_viability_per_node, set(), set()
         )
 
     assert changed_nodes == {or_2uvp, and_1uvp}
