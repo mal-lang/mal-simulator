@@ -3,7 +3,7 @@ from collections.abc import MutableSet
 from maltoolbox.language import LanguageGraphAssociation
 import numpy as np
 
-from malsim.mal_simulator.attacker_state import get_attacker_agents
+from malsim.mal_simulator.agent_states import attacker_states
 
 from .mal_spaces import (
     Assets,
@@ -25,13 +25,13 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
     def get_total_attempts(node: AttackGraphNode) -> int:
         return sum(
             state.num_attempts.get(node, 0)
-            for state in get_attacker_agents(sim.agent_states, sim._alive_agents)
+            for state in attacker_states(sim.agent_states).values()
         )
 
     def is_traversable_by_any(node: AttackGraphNode) -> bool:
         return any(
             sim.node_is_traversable(state.performed_nodes, node)
-            for state in get_attacker_agents(sim.agent_states, sim._alive_agents)
+            for state in attacker_states(sim.agent_states).values()
         )
 
     # NOTE: Sorting is for defender

@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
-from collections.abc import Set
 from typing import Any
 
-from maltoolbox.attackgraph import AttackGraphNode
 
 from ..mal_simulator.defender_state import DefenderState
 from ..mal_simulator.attacker_state import AttackerState
@@ -22,14 +20,6 @@ class MalSimEnv(ABC):
         if seed is not None:
             self.sim.sim_settings.seed = seed
         return self.sim.reset()
-
-    def register_attacker(
-        self, attacker_name: str, entry_points: Set[AttackGraphNode]
-    ) -> None:
-        self.sim.register_attacker(attacker_name, entry_points)
-
-    def register_defender(self, defender_name: str) -> None:
-        self.sim.register_defender(defender_name)
 
     def get_agent_state(self, agent_name: str) -> AgentState:
         return self.sim.agent_states[agent_name]

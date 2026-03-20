@@ -38,11 +38,13 @@ class AttackerEnv(gym.Env[Any, Any]):
 
         # Create a simulator from the scenario given
         scenario = Scenario.load_from_file(scenario_file, **kwargs)
-        self.sim = MalSimVectorizedObsEnv(MalSimulator(scenario.attack_graph))
+        self.sim = MalSimVectorizedObsEnv(
+            MalSimulator.from_scenario(scenario, **kwargs)
+        )
 
         attacker_agents = [
             agent
-            for agent in scenario.agent_settings.values()
+            for agent in scenario.agent_settings
             if isinstance(agent, AttackerSettings)
         ]
 
@@ -54,9 +56,6 @@ class AttackerEnv(gym.Env[Any, Any]):
         attacker_config = attacker_agents[0]
         self.attacker_agent_name = attacker_config.name
 
-        self.sim.register_attacker(
-            self.attacker_agent_name, attacker_config.entry_points
-        )
         self.sim.reset()
 
         self.observation_space = self.sim.observation_space(self.attacker_agent_name)
@@ -111,34 +110,22 @@ class DefenderEnv(gym.Env[Any, Any]):
         self.randomize = kwargs.pop('randomize_attacker_behavior', False)
         self.render_mode = kwargs.pop('render_mode', None)
 
-        scenario = Scenario.load_from_file(scenario_file)
+        scenario = Scenario.load_from_file(scenario_file, **kwargs)
 
         self.scenario_agents = scenario.agent_settings
-        self.sim = MalSimVectorizedObsEnv(
-            MalSimulator(
-                scenario.attack_graph,
-            ),
-        )
+        self.sim = MalSimVectorizedObsEnv(MalSimulator.from_scenario(scenario))
 
         # Register attacker agents from scenario
-        self._register_attacker_agents(self.scenario_agents)
+        # self._register_attacker_agents(self.scenario_agents)
         self.attacker_decision_agents: dict[str, DecisionAgent] = {}
 
         # Register defender agent
-        self.defender_agent_name = 'DefenderEnvAgent'
-        self.sim.register_defender(self.defender_agent_name)
+        self.defender_agent_name = next(iter(scenario.defender_settings.keys()))
+        # self.sim.register_defender(self.defender_agent_name)
         self.sim.reset()
 
         self.observation_space = self.sim.observation_space(self.defender_agent_name)
         self.action_space = self.sim.action_space(self.defender_agent_name)
-
-    def _register_attacker_agents(
-        self, agents: dict[str, AttackerSettings | DefenderSettings]
-    ) -> None:
-        """Register attackers in simulator"""
-        for agent_config in agents.values():
-            if isinstance(agent_config, AttackerSettings):
-                self.sim.register_attacker(agent_config.name, agent_config.entry_points)
 
     def _create_attacker_decision_agents(
         self,
@@ -148,7 +135,7 @@ class DefenderEnv(gym.Env[Any, Any]):
         """Create decision agents for each attacker"""
 
         attacker_agents = {}
-        for agent_config in agents.values():
+        for agent_config in agents:
             if agent_config.type == AgentType.ATTACKER and agent_config.policy:
                 agent_name = agent_config.name
                 attacker_agents[agent_name] = agent_config.policy(

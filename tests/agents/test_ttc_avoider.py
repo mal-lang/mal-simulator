@@ -1,4 +1,6 @@
 from malsim import MalSimulator, Scenario, MalSimulatorSettings
+from malsim.config.agent_settings import AttackerSettings
+from malsim.config.sim_settings import AttackSurfaceSettings
 from malsim.mal_simulator import TTCMode, AttackerState
 from malsim.policies import TTCSoftMinAttacker
 
@@ -8,18 +10,27 @@ def test_ttc_avoider() -> None:
 
     scenario_file = 'tests/testdata/scenarios/ttc_lang_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file)
+    attack_graph = scenario.attack_graph
+    attacker_agent_name = 'TTCAvoidingAttacker'
+    entry_point = attack_graph.get_node_by_full_name('Net1:easyAccess')
+    goal = attack_graph.get_node_by_full_name('DataD:read')
+    goals = frozenset({goal})
     sim = MalSimulator(
         scenario.attack_graph,
         sim_settings=MalSimulatorSettings(
-            seed=48, ttc_mode=TTCMode.PRE_SAMPLE, attack_surface_skip_unnecessary=False
+            seed=48,
+            ttc_mode=TTCMode.PRE_SAMPLE,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
+        ),
+        agents=(
+            AttackerSettings(
+                name=attacker_agent_name,
+                entry_points={entry_point},
+                goals=goals,
+            ),
         ),
     )
-
-    attacker_agent_name = 'TTCAvoidingAttacker'
     attacker_agent = TTCSoftMinAttacker({})
-    entry_point = sim.get_node('Net1:easyAccess')
-    goal = sim.get_node('DataD:read')
-    sim.register_attacker(attacker_agent_name, {entry_point}, {goal})
 
     states = sim.agent_states
     attacker_state = states[attacker_agent_name]
@@ -31,7 +42,7 @@ def test_ttc_avoider() -> None:
 
         assert attacker_node
         # Should always pick the easy path or the goal
-        assert 'easy' in attacker_node.name or attacker_node == goal
+        assert 'easy' in attacker_node.name or attacker_node in goals
 
         # Step
         actions = {attacker_agent_name: [attacker_node] if attacker_node else []}
@@ -44,18 +55,27 @@ def test_ttc_avoider_low_sharpness() -> None:
 
     scenario_file = 'tests/testdata/scenarios/ttc_lang_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file)
+    attack_graph = scenario.attack_graph
     sim = MalSimulator(
         scenario.attack_graph,
         sim_settings=MalSimulatorSettings(
-            seed=48, ttc_mode=TTCMode.PRE_SAMPLE, attack_surface_skip_unnecessary=False
+            seed=48,
+            ttc_mode=TTCMode.PRE_SAMPLE,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
+        ),
+        agents=(
+            AttackerSettings(
+                'TTCAvoidingAttacker',
+                entry_points=frozenset(
+                    {attack_graph.get_node_by_full_name('Net1:easyAccess')}
+                ),
+                goals=frozenset({attack_graph.get_node_by_full_name('DataD:read')}),
+            ),
         ),
     )
 
     attacker_agent_name = 'TTCAvoidingAttacker'
     attacker_agent = TTCSoftMinAttacker({'beta': 0.1, 'seed': 1})
-    entry_point = sim.get_node('Net1:easyAccess')
-    goal = sim.get_node('DataD:read')
-    sim.register_attacker(attacker_agent_name, {entry_point}, {goal})
 
     states = sim.agent_states
     attacker_state = states[attacker_agent_name]

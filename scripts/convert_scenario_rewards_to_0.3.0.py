@@ -8,7 +8,9 @@ from typing import Any
 import yaml
 
 
-def _get_new_rewards_config(rewards: dict[str, float]) -> dict[str, Any]:
+def _get_new_rewards_config(
+    rewards: dict[str, float],
+) -> dict[str, dict[str, dict[str, float]]]:
     # Set the rewards according to new format
     new_rewards: dict[str, Any] = {'by_asset_name': {}}
     for attack_step_full_name, reward in rewards.items():
@@ -22,7 +24,9 @@ def _get_new_rewards_config(rewards: dict[str, float]) -> dict[str, Any]:
     return new_rewards
 
 
-def _convert_scenario_rewards_to_0_3_0(scenario_file: str) -> dict[str, Any]:
+def _convert_scenario_rewards_to_0_3_0(
+    scenario_file: str,
+) -> dict[str, dict[str, dict[str, float]]]:
     """
     Convert scenario rewards from the old format to the new format.
     The old format is a dictionary with attack step full names as keys and

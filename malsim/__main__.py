@@ -4,6 +4,8 @@ from __future__ import annotations
 import argparse
 import logging
 
+from malsim.config.sim_settings import AttackSurfaceSettings
+
 from .mal_simulator import MalSimulator, MalSimulatorSettings, run_simulation, TTCMode
 from .scenario.scenario import Scenario
 
@@ -47,14 +49,16 @@ def main() -> None:
         help='If set, simulator will send actions to malsim-gui',
     )
     args = parser.parse_args()
-    scenario = Scenario.load_from_file(args.scenario_file)
-    sim = MalSimulator.from_scenario(
-        scenario,
-        MalSimulatorSettings(
+    scenario = Scenario.load_from_file(
+        args.scenario_file,
+        sim_settings=MalSimulatorSettings(
             seed=args.seed,
             ttc_mode=TTCMode(args.ttc_mode),
-            attack_surface_skip_unnecessary=False,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
         ),
+    )
+    sim = MalSimulator.from_scenario(
+        scenario,
         send_to_api=args.send_to_gui,
     )
 

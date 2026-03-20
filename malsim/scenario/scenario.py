@@ -12,8 +12,9 @@ A scenario is a combination of:
 """
 
 from __future__ import annotations
+from collections.abc import Iterable, Mapping, Sequence
 import os
-from dataclasses import dataclass
+from dataclasses import asdict
 from typing import Any, TextIO
 import logging
 
@@ -21,14 +22,14 @@ import yaml
 
 from maltoolbox.model import Model
 from maltoolbox.language import LanguageGraph
-from maltoolbox.attackgraph import create_attack_graph
+from maltoolbox.attackgraph import AttackGraphNode, create_attack_graph
 
 from malsim.config import (
     DefenderSettings,
     AttackerSettings,
 )
 from malsim.config.agent_settings_factories import agent_settings_from_dict
-from malsim.config.node_property_rule import NodePropertyRule
+from malsim.config.sim_settings import MalSimulatorSettings
 
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,11 @@ deprecated_fields = [
     'attacker_agent_class',
     'defender_agent_class',
     'attacker_entry_points',
+    'rewards',
+    'observable_steps',
+    'actionable_steps',
+    'false_positive_rates',
+    'false_negative_rates',
 ]
 
 # All required fields in scenario yml file
@@ -50,15 +56,26 @@ required_fields: list[str | tuple[str, str]] = [
 # All allowed fields in scenario yml fild
 allowed_fields = [
     *required_fields,
-    'rewards',
-    'observable_steps',
-    'actionable_steps',
-    'false_positive_rates',
-    'false_negative_rates',
+    'sim_settings',
 ]
 
+BASE_SETTINGS = MalSimulatorSettings()
 
-@dataclass
+
+def model_from_multiple_sources(
+    model: Model | dict[str, Any] | str, lang_graph: LanguageGraph
+) -> Model:
+    if isinstance(model, str):
+        model_file = model
+        return Model.load_from_file(model_file, lang_graph)
+    elif isinstance(model, dict):
+        return Model._from_dict(model, lang_graph)
+    elif isinstance(model, Model):
+        return model
+    else:
+        raise ValueError('`model` must be Model, dict, or str (file path)')
+
+
 class Scenario:
     """Scenarios define everything needed to run a simulation"""
 
@@ -66,41 +83,46 @@ class Scenario:
         self,
         lang_file: str,
         model: Model | dict[str, Any] | str,
-        agent_settings: dict[str, AttackerSettings | DefenderSettings],
-        rewards: dict[str, Any] | None = None,
-        false_positive_rates: dict[str, Any] | None = None,
-        false_negative_rates: dict[str, Any] | None = None,
-        observable_steps: dict[str, Any] | None = None,
-        actionable_steps: dict[str, Any] | None = None,
+        agents: Iterable[AttackerSettings[str] | DefenderSettings],
+        sim_settings: MalSimulatorSettings | None = BASE_SETTINGS,
     ):
         # Lang file is required
         self._lang_file = lang_file
         self.lang_graph = LanguageGraph.load_from_file(self._lang_file)
 
-        self._model_file = None
-        if isinstance(model, str):
-            self._model_file = model
-            self.model = Model.load_from_file(self._model_file, self.lang_graph)
-        elif isinstance(model, dict):
-            self.model = Model._from_dict(model, self.lang_graph)
-        elif isinstance(model, Model):
-            self.model = model
-        else:
-            raise ValueError('`model` must be Model, dict, or str (file path)')
+        self.model = model_from_multiple_sources(model, self.lang_graph)
+        self._model_file = model if isinstance(model, str) else None
 
-        self.attack_graph = create_attack_graph(self.lang_graph, self.model)
-        self.agent_settings = agent_settings
+        attack_graph = create_attack_graph(self.lang_graph, self.model)
 
-        # Wrap dicts in NodePropertyRule if given
-        self.rewards = NodePropertyRule.from_optional_dict(rewards)
-        self.false_positive_rates = NodePropertyRule.from_optional_dict(
-            false_positive_rates
-        )
-        self.false_negative_rates = NodePropertyRule.from_optional_dict(
-            false_negative_rates
-        )
-        self.is_observable = NodePropertyRule.from_optional_dict(observable_steps)
-        self.is_actionable = NodePropertyRule.from_optional_dict(actionable_steps)
+        attacker_settings = [a for a in agents if isinstance(a, AttackerSettings)]
+        attacker_settings_with_nodes = [
+            a.convert_to_attack_graph_nodes(attack_graph) for a in attacker_settings
+        ]
+        defender_settings = [a for a in agents if isinstance(a, DefenderSettings)]
+
+        self.attack_graph = attack_graph
+        self.agent_settings: Sequence[
+            AttackerSettings[AttackGraphNode] | DefenderSettings
+        ] = [*attacker_settings_with_nodes, *defender_settings]
+
+        self.sim_settings = sim_settings or MalSimulatorSettings()
+
+    @property
+    def attacker_settings(self) -> Mapping[str, AttackerSettings[AttackGraphNode]]:
+        return {
+            settings.name: settings
+            for settings in self.agent_settings
+            if isinstance(settings, AttackerSettings)
+        }
+
+    @property
+    def defender_settings(self) -> Mapping[str, DefenderSettings]:
+        return {
+            settings.name: settings
+            for settings in self.agent_settings
+            if isinstance(settings, DefenderSettings)
+        }
 
     def to_dict(self) -> dict[str, Any]:
         assert self._lang_file, (
@@ -109,21 +131,9 @@ class Scenario:
         scenario_dict = {
             # 'version': ?
             'lang_file': self._lang_file,
-            'agents': {
-                name: agent.to_dict() for name, agent in self.agent_settings.items()
-            },
+            'agents': {agent.name: agent.to_dict() for agent in self.agent_settings},
         }
 
-        if self.rewards:
-            scenario_dict['rewards'] = self.rewards.to_dict()
-        if self.false_positive_rates:
-            scenario_dict['false_positive_rates'] = self.false_positive_rates.to_dict()
-        if self.false_negative_rates:
-            scenario_dict['false_negative_rates'] = self.false_negative_rates.to_dict()
-        if self.is_observable:
-            scenario_dict['observable_steps'] = self.is_observable.to_dict()
-        if self.is_actionable:
-            scenario_dict['actionable_steps'] = self.is_actionable.to_dict()
         if self._model_file:
             # Use model file name instead of full model if model file was given at init
             scenario_dict['model_file'] = self._model_file
@@ -142,29 +152,33 @@ class Scenario:
         """Create a scenario object from a scenario dictionary"""
         _validate_scenario_dict(scenario_dict)
 
-        agent_settings = {}
         # Load agent settings from dict
-        for name, agent_settings_dict in scenario_dict['agents'].items():
-            agent_settings[str(name)] = agent_settings_from_dict(
-                name, agent_settings_dict
-            )
+        agent_settings = [
+            agent_settings_from_dict(name, agent_settings_dict)
+            for name, agent_settings_dict in scenario_dict['agents'].items()
+            if agent_settings_dict is not None
+        ]
 
         model_or_model_file = scenario_dict.get('model') or scenario_dict['model_file']
+
+        sim_settings = scenario_dict.get('sim_settings', {})
+        sim_settings = (
+            asdict(MalSimulatorSettings(**sim_settings))
+            if not isinstance(sim_settings, MalSimulatorSettings)
+            else asdict(sim_settings)
+        )
+
         return Scenario(
             lang_file=scenario_dict['lang_file'],
-            agent_settings=agent_settings,
+            agents=agent_settings,
             model=model_or_model_file,
-            rewards=scenario_dict.get('rewards'),
-            false_positive_rates=scenario_dict.get('false_positive_rates'),
-            false_negative_rates=scenario_dict.get('false_negative_rates'),
-            observable_steps=scenario_dict.get('observable_steps'),
-            actionable_steps=scenario_dict.get('actionable_steps'),
+            sim_settings=MalSimulatorSettings(**sim_settings),
         )
 
     @classmethod
-    def load_from_file(cls, scenario_file: str) -> Scenario:
-        scenario_dict = load_scenario_dict(scenario_file)
-        return cls.from_dict(scenario_dict)
+    def load_from_file(cls, scenario_file: str, **override_keys: Any) -> Scenario:
+        scenario_dict = dict(load_scenario_dict(scenario_file))
+        return cls.from_dict(scenario_dict | override_keys)
 
 
 def _validate_scenario_dict(scenario_dict: dict[str, Any]) -> None:
@@ -217,26 +231,35 @@ def path_relative_to_file_dir(rel_path: str, file: TextIO) -> str:
 
 
 def _extend_scenario(
-    original_scenario_path: str, overriding_scenario: dict[str, Any]
-) -> dict[str, Any]:
+    original_scenario_path: str, overriding_scenario: Mapping[str, Any]
+) -> Mapping[str, Any]:
     """
     Override settings in `original_scenario_path` with settings
     in `overriding_scenario` and return the result.
     """
 
-    original_scenario: dict[str, Any] = load_scenario_dict(original_scenario_path)
-    resulting_scenario = original_scenario.copy()
-    for key, value in overriding_scenario.items():
-        # Override the original scenario with the
-        # overriding scenario key,value pairs
-        if key == 'extends':
-            # The 'extends' key is not needed after extend is done
-            continue
-        resulting_scenario[key] = value
-    return resulting_scenario
+    original_scenario: Mapping[str, Any] = load_scenario_dict(original_scenario_path)
+    resulting_scenario = recursive_update(original_scenario, overriding_scenario)
+    return dict(filter(lambda item: item[0] != 'extends', resulting_scenario.items()))
 
 
-def load_scenario_dict(scenario_file: str) -> dict[str, Any]:
+def recursive_update(
+    old: Mapping[str, Any], new: Mapping[str, Any]
+) -> Mapping[str, Any]:
+    """Recursively update dict d with dict u"""
+    combined_keys = set(old.keys()) | set(new.keys())
+
+    return {
+        k: recursive_update(old.get(k, {}), new.get(k, {}))
+        if isinstance(old.get(k), Mapping) and isinstance(new.get(k), Mapping)
+        else new.get(k, old.get(k))
+        for k in combined_keys
+        # check for explicit None to allow overriding values to None
+        if not (k in new and new[k] is None)
+    }
+
+
+def load_scenario_dict(scenario_file: str) -> Mapping[str, Any]:
     """From a scenario file, load a scenario dict.
 
     Extend it with other scenario if `extend` keyword is used.
@@ -248,7 +271,7 @@ def load_scenario_dict(scenario_file: str) -> dict[str, Any]:
             original_scenario_path = path_relative_to_file_dir(
                 scenario['extends'], s_file
             )
-            scenario = _extend_scenario(original_scenario_path, scenario)
+            scenario = dict(_extend_scenario(original_scenario_path, scenario))
 
         # Convert path relative to scenario file
         scenario['lang_file'] = path_relative_to_file_dir(scenario['lang_file'], s_file)

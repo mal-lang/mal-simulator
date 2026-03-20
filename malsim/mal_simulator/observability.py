@@ -14,48 +14,38 @@ from malsim.mal_simulator.false_alerts import (
 
 
 def node_is_observable(
-    agent_observability_rule: NodePropertyRule | None,
-    global_observability: dict[AttackGraphNode, bool],
+    agent_observability_rule: NodePropertyRule[bool],
     node: AttackGraphNode,
 ) -> bool:
-    if agent_observability_rule:
-        # Observability from agent settings
-        return bool(agent_observability_rule.value(node, False))
-    if global_observability:
-        # Observability from global settings
-        return global_observability.get(node, False)
-    return True
+    return bool(agent_observability_rule.value(node, False))
 
 
-def defender_observed_nodes(
-    observability_rule: NodePropertyRule | None,
-    false_positive_rates_rule: NodePropertyRule | None,
-    false_negative_rates_rule: NodePropertyRule | None,
+def observed_nodes(
+    observable_steps_rule: NodePropertyRule[bool] | None,
+    false_positive_rates_rule: NodePropertyRule[float] | None,
+    false_negative_rates_rule: NodePropertyRule[float] | None,
     sim_state: MalSimulatorState,
     rng: np.random.Generator,
     compromised_nodes: Set[AttackGraphNode],
 ) -> Set[AttackGraphNode]:
     """Generate set of observed compromised nodes
-    From set of compromised nodes, generate observed nodes for a defender
+    From set of compromised nodes, generate observed nodes for an agent
     in regards to observability, false negatives and false positives.
     """
-    observable_steps = {
-        n
-        for n in compromised_nodes
-        if node_is_observable(observability_rule, sim_state.global_observability, n)
-    }
+    observable_steps = (
+        {n for n in compromised_nodes if node_is_observable(observable_steps_rule, n)}
+        if observable_steps_rule
+        else compromised_nodes
+    )
     false_negatives = generate_false_negatives(
         false_negative_rates_rule,
-        sim_state.global_false_negative_rates,
         compromised_nodes,
         rng,
     )
     false_positives = generate_false_positives(
         false_positive_rates_rule,
-        sim_state.global_false_positive_rates,
         sim_state.attack_graph,
         rng,
     )
 
-    observed_nodes = (observable_steps - false_negatives) | false_positives
-    return observed_nodes
+    return (observable_steps - false_negatives) | false_positives

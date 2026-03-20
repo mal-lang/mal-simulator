@@ -8,6 +8,7 @@ from maltoolbox.language import (
     LanguageGraphAttackStep,
     LanguageGraphAsset,
 )
+from malsim.config.agent_settings import AttackerSettings, DefenderSettings
 from malsim.mal_simulator import MalSimulator
 from malsim.envs import MalSimVectorizedObsEnv
 
@@ -41,12 +42,16 @@ def fixture_env() -> MalSimVectorizedObsEnv:
     attack_graph_file_name = path.join('/tmp', 'attack_graph.json')
     attack_graph = create_attack_graph(lang_file_name, model_file_name)
     attack_graph.save_to_file(attack_graph_file_name)
-    env = MalSimVectorizedObsEnv(MalSimulator(attack_graph))
-    env.register_defender('defender')
-
     os_app_fa = get_node(attack_graph, 'OS App:fullAccess')
-    env.register_attacker('attacker', {os_app_fa})
-
+    env = MalSimVectorizedObsEnv(
+        MalSimulator(
+            attack_graph,
+            agents=(
+                DefenderSettings(name='defender'),
+                AttackerSettings(name='attacker', entry_points=frozenset({os_app_fa})),
+            ),
+        )
+    )
     return env
 
 
