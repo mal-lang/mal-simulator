@@ -48,7 +48,7 @@ class Steps(NamedTuple):
     id: NDArray[np.int64]
     logic_class: NDArray[np.int64]
     tags: NDArray[np.int64]
-    ttc: NDArray[np.float64]
+    ttc: NDArray[np.int64]
     compromised: NDArray[np.bool_]
     observable: NDArray[np.bool_]
     attempts: NDArray[np.int64] | None
