@@ -1,25 +1,26 @@
 lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
 model_file: ../models/network_app_data_model.yml
 
-# Rewards for each attack step
-rewards:
-  by_asset_name:
-    Linux system:
-      notPresent: 50
-    Secret data:
-      read: 100
-
 agents:
   'attacker1':
     agent_class: BreadthFirstAttacker
     type: attacker
     config:
-      seed: 1
+      action_ordering: sorted
     entry_points:
       - 'Internet:accessUninspected'
+    rewards:
+      by_asset_name:
+        Secret data:
+          read: 100
 
   'defender1':
     agent_class: BreadthFirstAttacker
     type: defender
     config:
+      action_ordering: sorted
       seed: 1
+    rewards:
+      by_asset_name:
+        Linux system:
+          notPresent: 50

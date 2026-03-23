@@ -1,9 +1,10 @@
 from __future__ import annotations
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from collections import deque
-from collections.abc import Set
+from collections.abc import MutableSet, Set
 
 from malsim.config.node_property_rule import NodePropertyRule
+from malsim.config.sim_settings import AttackSurfaceSettings
 from malsim.mal_simulator.graph_utils import (
     node_is_actionable,
     node_is_necessary,
@@ -13,7 +14,6 @@ from malsim.mal_simulator.graph_utils import (
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
-    from malsim.config.sim_settings import MalSimulatorSettings
     from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 
@@ -21,10 +21,10 @@ def get_effects_of_attack_step(
     sim_state: MalSimulatorState,
     attack_step: AttackGraphNode,
     performed_nodes: Set[AttackGraphNode],
-) -> set[AttackGraphNode]:
+) -> Set[AttackGraphNode]:
     """Get nodes performed as a consequence of `attack_step` being compromised"""
     performed = set(performed_nodes) | {attack_step}
-    effects: set[AttackGraphNode] = set()
+    effects: MutableSet[AttackGraphNode] = set()
     potential_effects = deque(
         n for n in attack_step.children if n.causal_mode == 'effect'
     )
@@ -38,17 +38,16 @@ def get_effects_of_attack_step(
             potential_effects += (
                 n for n in effect.children if n.causal_mode == 'effect'
             )
-    return effects
+    return frozenset(effects)
 
 
 def get_attack_surface(
-    sim_settings: MalSimulatorSettings,
+    settings: AttackSurfaceSettings,
     sim_state: MalSimulatorState,
-    agent_actionability_rule: Optional[NodePropertyRule],
-    global_actionability: dict[AttackGraphNode, bool],
+    actionability: NodePropertyRule[bool] | None,
     performed_nodes: Set[AttackGraphNode],
-    from_nodes: Optional[Set[AttackGraphNode]] = None,
-) -> frozenset[AttackGraphNode]:
+    from_nodes: Set[AttackGraphNode] | None = None,
+) -> Set[AttackGraphNode]:
     """
     Calculate the attack surface of the attacker.
     If from_nodes are provided only calculate the attack surface
@@ -63,33 +62,41 @@ def get_attack_surface(
     """
 
     from_nodes = from_nodes if from_nodes is not None else performed_nodes
-    attack_surface: set[AttackGraphNode] = set()
 
-    skip_compromised = sim_settings.attack_surface_skip_compromised
-    skip_unviable = sim_settings.attack_surface_skip_unviable
-    skip_unnecessary = sim_settings.attack_surface_skip_unnecessary
+    skip_compromised = settings.skip_compromised
+    skip_unviable = settings.skip_unviable
+    skip_unnecessary = settings.skip_unnecessary
 
-    for parent in from_nodes:
-        for child in parent.children:
-            if child.causal_mode == 'effect':
-                # Nodes marked as effects are not actions/attacks
-                continue
+    def uncompromised(node: AttackGraphNode) -> bool:
+        return not (skip_compromised and node in performed_nodes)
 
-            if skip_compromised and child in performed_nodes:
-                continue
+    def viable(node: AttackGraphNode) -> bool:
+        return node_is_viable(sim_state, node)
 
-            if skip_unviable and not node_is_viable(sim_state, child):
-                continue
+    def necessary(node: AttackGraphNode) -> bool:
+        return node_is_necessary(sim_state, node)
 
-            if skip_unnecessary and not node_is_necessary(sim_state, child):
-                continue
+    def actionable(node: AttackGraphNode) -> bool:
+        return node_is_actionable(actionability, node)
 
-            if not node_is_actionable(
-                agent_actionability_rule, global_actionability, child
-            ):
-                continue
+    def traversable(node: AttackGraphNode) -> bool:
+        return node_is_traversable(sim_state, performed_nodes, node)
 
-            if node_is_traversable(sim_state, performed_nodes, child):
-                attack_surface.add(child)
+    def in_attack_surface(node: AttackGraphNode) -> bool:
+        # Nodes marked as effects are not actions/attacks
+        is_action = node.causal_mode != 'effect'
+        return (
+            is_action
+            and (uncompromised(node) if skip_compromised else True)
+            and (viable(node) if skip_unviable else True)
+            and (necessary(node) if skip_unnecessary else True)
+            and actionable(node)
+            and traversable(node)
+        )
 
-    return frozenset(attack_surface)
+    return frozenset(
+        node
+        for parent in from_nodes
+        for node in parent.children
+        if in_attack_surface(node)
+    )

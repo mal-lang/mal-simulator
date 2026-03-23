@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import Any, Optional, TYPE_CHECKING
+from collections.abc import Set
+from typing import Any, TYPE_CHECKING
 import logging
 import math
 
@@ -9,7 +10,7 @@ from malsim.mal_simulator.graph_utils import node_reward
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
-    from ...mal_simulator import MalSimDefenderState
+    from ...mal_simulator import DefenderState
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,11 @@ class DefendCompromisedDefender:
         self.rng = (
             np.random.default_rng(seed) if agent_config.get('randomize') else None
         )
-        self.compromised_nodes: set[AttackGraphNode] = set()
+        self.compromised_nodes: Set[AttackGraphNode] = set()
 
     def get_next_action(
-        self, agent_state: MalSimDefenderState, **kwargs: Any
-    ) -> Optional[AttackGraphNode]:
+        self, agent_state: DefenderState, **kwargs: Any
+    ) -> AttackGraphNode | None:
         """Return an action that disables a compromised node"""
 
         self.compromised_nodes |= agent_state.step_observed_nodes
@@ -47,7 +48,7 @@ class DefendCompromisedDefender:
             if node in self.compromised_nodes:
                 continue
 
-            node_cost = node_reward(agent_state, node)
+            node_cost = node_reward(node, agent_state.settings.rewards)
 
             # Strategy:
             # - Enabled the cheapest defense node
@@ -77,11 +78,11 @@ class DefendFutureCompromisedDefender:
         self.rng = (
             np.random.default_rng(seed) if agent_config.get('randomize') else None
         )
-        self.compromised_nodes: set[AttackGraphNode] = set()
+        self.compromised_nodes: Set[AttackGraphNode] = set()
 
     def get_next_action(
-        self, agent_state: MalSimDefenderState, **kwargs: Any
-    ) -> Optional[AttackGraphNode]:
+        self, agent_state: DefenderState, **kwargs: Any
+    ) -> AttackGraphNode | None:
         """Return an action that disables a compromised node"""
 
         self.compromised_nodes |= agent_state.step_observed_nodes
@@ -97,7 +98,7 @@ class DefendFutureCompromisedDefender:
             if node in self.compromised_nodes:
                 continue
 
-            node_cost = node_reward(agent_state, node)
+            node_cost = node_reward(node, agent_state.settings.rewards)
 
             # Strategy:
             # - Enabled the cheapest defense node

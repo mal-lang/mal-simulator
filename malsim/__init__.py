@@ -1,4 +1,3 @@
-# -*- encoding: utf-8 -*-
 # MAL Simulator v2.3.0
 # Copyright 2025, Andrei Buhaiu.
 #

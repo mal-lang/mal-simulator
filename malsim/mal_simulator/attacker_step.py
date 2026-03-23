@@ -10,7 +10,6 @@ from malsim.mal_simulator.attack_surface import get_effects_of_attack_step
 from malsim.mal_simulator.graph_utils import (
     node_is_traversable,
     node_is_viable,
-    node_reward,
 )
 from malsim.mal_simulator.state_query import node_ttc_value
 from malsim.config.sim_settings import TTCMode
@@ -20,12 +19,12 @@ from malsim.mal_simulator.ttc_utils import (
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 if TYPE_CHECKING:
-    from malsim.mal_simulator.attacker_state import MalSimAttackerState
+    from malsim.mal_simulator.attacker_state import AttackerState
 
 logger = logging.getLogger(__name__)
 
 
-def attacker_is_terminated(attacker_state: MalSimAttackerState) -> bool:
+def attacker_is_terminated(attacker_state: AttackerState) -> bool:
     """Check if attacker is terminated
     Can be overridden by subclass for custom termination condition.
 
@@ -39,18 +38,16 @@ def attacker_is_terminated(attacker_state: MalSimAttackerState) -> bool:
             'Attacker "%s" action surface is empty, terminate', attacker_state.name
         )
         return True
-    if attacker_state.goals:
+    goals = attacker_state.settings.goals
+    if goals:
         # Attacker is terminated if it has goals and all goals are met
-        return (
-            attacker_state.goals & attacker_state.performed_nodes
-            == attacker_state.goals
-        )
+        return goals & attacker_state.performed_nodes == goals
     # Otherwise not terminated
     return False
 
 
 def attacker_step_effects(
-    sim_state: MalSimulatorState, agent: MalSimAttackerState, action: AttackGraphNode
+    sim_state: MalSimulatorState, agent: AttackerState, action: AttackGraphNode
 ) -> list[AttackGraphNode]:
     """Perform the effects of an action performed by attacker.
     Return the effects that descend from `action` and can be compromised.
@@ -75,7 +72,7 @@ def attempt_attacker_step(
     sim_state: MalSimulatorState,
     rng: np.random.Generator,
     ttc_mode: TTCMode,
-    agent: MalSimAttackerState,
+    agent: AttackerState,
     node: AttackGraphNode,
 ) -> bool:
     """Attempt a step with a TTC distribution.
@@ -85,9 +82,9 @@ def attempt_attacker_step(
 
     num_attempts = agent.num_attempts[node] + 1
 
-    if node in agent.ttc_overrides:
+    if agent.settings.ttc_dists and node in agent.settings.ttc_dists:
         # If this agent has custom ttc distribution set for this node, use it
-        ttc_dist = agent.ttc_overrides[node]
+        ttc_dist = agent.settings.ttc_dists[node]
     else:
         ttc_dist = TTCDist.from_node(node)
 
@@ -116,7 +113,7 @@ def attempt_attacker_step(
 
 def attacker_step(
     sim_state: MalSimulatorState,
-    agent: MalSimAttackerState,
+    agent: AttackerState,
     nodes: list[AttackGraphNode],
     rng: np.random.Generator,
 ) -> tuple[list[AttackGraphNode], list[AttackGraphNode]]:
@@ -140,12 +137,14 @@ def attacker_step(
             'comes from the agents action surface.'
         )
 
-        if node in agent.entry_points:
+        if node in agent.settings.entry_points:
             # Entrypoints can be compromised as long as they are viable
             can_compromise = node_is_viable(sim_state, node)
         else:
-            # Otherwise it is limited by traversability
-            can_compromise = node_is_traversable(sim_state, agent.performed_nodes, node)
+            # Otherwise it is limited by action surface and traversability
+            can_compromise = node in agent.action_surface and node_is_traversable(
+                sim_state, agent.performed_nodes, node
+            )
 
         if can_compromise:
             if attempt_attacker_step(
@@ -153,10 +152,7 @@ def attacker_step(
             ):
                 successful_compromises.append(node)
                 logger.info(
-                    'Attacker agent "%s" compromised "%s" (reward: %d).',
-                    agent.name,
-                    node.full_name,
-                    node_reward(agent, node),
+                    'Attacker agent "%s" compromised "%s"', agent.name, node.full_name
                 )
                 # Run effects as a compromise of performing `node`
                 successful_compromises += attacker_step_effects(sim_state, agent, node)

@@ -7,7 +7,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from collections.abc import Set
+from typing import Any
 import functools
 import logging
 import sys
@@ -19,9 +20,9 @@ from maltoolbox.attackgraph import AttackGraphNode
 
 from ...mal_simulator import (
     MalSimulator,
-    MalSimAgentState,
-    MalSimAttackerState,
-    MalSimDefenderState,
+    AgentState,
+    AttackerState,
+    DefenderState,
 )
 
 
@@ -29,7 +30,7 @@ ITERATIONS_LIMIT = int(1e9)
 logger = logging.getLogger(__name__)
 
 
-class MalSimVectorizedObsEnv(ParallelEnv):
+class MalSimVectorizedObsEnv(ParallelEnv[str, dict[str, Any], dict[str, str]]):
     """
     Environment that runs simulation between agents.
     Builds serialized observations.
@@ -93,17 +94,19 @@ class MalSimVectorizedObsEnv(ParallelEnv):
     @property
     def agents(self) -> list[str]:
         """Required by ParallelEnv"""
-        return list(self.sim._alive_agents)
+        return list(self.sim.alive_agents)
 
     @property
     def possible_agents(self) -> list[str]:
         """Required by ParallelEnv"""
         return list(self.sim._agent_states.keys())
 
-    def get_agent_state(self, agent_name: str) -> MalSimAgentState:
+    def get_agent_state(self, agent_name: str) -> AgentState:
         return self.sim.agent_states[agent_name]
 
-    def _create_blank_observation(self, default_obs_state: int = -1) -> dict[str, Any]:
+    def _create_blank_observation(
+        self, default_obs_state: int = -1, agent_name: str | None = None
+    ) -> dict[str, Any]:
         """Create the initial observation"""
         # For now, an `object` is an attack step
         num_steps = len(self.sim.sim_state.attack_graph.nodes)
@@ -111,12 +114,12 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         observation: dict[str, Any] = {
             # If no observability set for node, assume observable.
             'is_observable': [
-                self.sim.node_is_observable(step)
+                self.sim.node_is_observable(step, agent_name)
                 for step in self.attack_graph.nodes.values()
             ],
             # Same goes for actionable.
             'is_actionable': [
-                self.sim.node_is_actionable(step)
+                self.sim.node_is_actionable(step, agent_name)
                 for step in self.attack_graph.nodes.values()
             ],
             'observed_state': num_steps * [default_obs_state],
@@ -212,7 +215,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         }
         return np_obs
 
-    def create_action_mask(self, agent_state: MalSimAgentState) -> dict[str, Any]:
+    def create_action_mask(self, agent_state: AgentState) -> dict[str, Any]:
         """
         Create an action mask for an agent based on its action_surface.
 
@@ -224,18 +227,18 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         """
 
         available_actions = [0] * len(self.sim.sim_state.attack_graph.nodes)
-        can_wait = 1 if isinstance(agent_state, MalSimDefenderState) else 0
+        can_wait = 1 if isinstance(agent_state, DefenderState) else 0
         can_act = 0
 
         for node in agent_state.action_surface:
-            if isinstance(agent_state, MalSimDefenderState):
+            if isinstance(agent_state, DefenderState):
                 # Defender can act on its whole action surface
                 index = self._id_to_index[node.id]
                 available_actions[index] = 1
                 can_act = 1
 
             if (
-                isinstance(agent_state, MalSimAttackerState)
+                isinstance(agent_state, AttackerState)
                 and node not in agent_state.performed_nodes
             ):
                 # Attacker can only act on nodes that are not compromised
@@ -254,15 +257,15 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         for agent in self.sim.agent_states.values():
             self._agent_infos[agent.name] = self.create_action_mask(agent)
 
-    @functools.lru_cache(maxsize=None)
-    def action_space(self, agent: Optional[str] = None) -> MultiDiscrete:
+    @functools.cache
+    def action_space(self, agent: str | None = None) -> MultiDiscrete:
         num_actions = 2  # two actions: wait or use
         # For now, an `object` is an attack step
         num_steps = len(self.sim.sim_state.attack_graph.nodes)
         return MultiDiscrete([num_actions, num_steps], dtype=np.int64)
 
-    @functools.lru_cache(maxsize=None)
-    def observation_space(self, agent_name: Optional[str] = None) -> Dict:
+    @functools.cache
+    def observation_space(self, agent_name: str | None = None) -> Dict:
         # For now, an `object` is an attack step
         assert self.attack_graph.model, (
             'Attack graph in simulator needs to have a model attached to it'
@@ -402,19 +405,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
             nodes = [self.index_to_node(step_idx)]
         return nodes
 
-    def register_attacker(
-        self, attacker_name: str, entry_points: set[AttackGraphNode] | set[str]
-    ) -> None:
-        self.sim.register_attacker(attacker_name, entry_points)
-        agent = self.sim.agent_states[attacker_name]
-        self._init_agent(agent)
-
-    def register_defender(self, defender_name: str) -> None:
-        self.sim.register_defender(defender_name)
-        agent = self.sim.agent_states[defender_name]
-        self._init_agent(agent)
-
-    def _init_agent(self, agent: MalSimAgentState) -> None:
+    def _init_agent(self, agent: AgentState) -> None:
         # Fill dicts with env specific agent obs/infos
         self._agent_observations[agent.name] = self._create_blank_observation()
 
@@ -422,9 +413,9 @@ class MalSimVectorizedObsEnv(ParallelEnv):
 
     def _update_attacker_obs(
         self,
-        compromised_nodes: set[AttackGraphNode],
-        disabled_nodes: set[AttackGraphNode],
-        attacker_agent: MalSimAttackerState,
+        compromised_nodes: Set[AttackGraphNode],
+        disabled_nodes: Set[AttackGraphNode],
+        attacker_agent: AttackerState,
     ) -> None:
         """Update the observation of the serialized obs attacker"""
 
@@ -456,7 +447,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         for node in disabled_nodes:
             if (
                 node in attacker_agent.performed_nodes
-                and node not in attacker_agent.entry_points
+                and node not in attacker_agent.settings.entry_points
             ):
                 logger.debug('Disable %s in attacker obs', node.full_name)
                 # Mark attacker compromised steps that were
@@ -466,9 +457,9 @@ class MalSimVectorizedObsEnv(ParallelEnv):
 
     def _update_defender_obs(
         self,
-        compromised_nodes: set[AttackGraphNode],
-        disabled_nodes: set[AttackGraphNode],
-        defender_agent: MalSimDefenderState,
+        compromised_nodes: Set[AttackGraphNode],
+        disabled_nodes: Set[AttackGraphNode],
+        defender_agent: DefenderState,
     ) -> None:
         """Update the observation of the defender"""
 
@@ -485,7 +476,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
             defender_observation['observed_state'][node_idx] = 0
 
     def reset(
-        self, seed: Optional[int] = None, options: Optional[dict[str, Any]] = None
+        self, seed: int | None = None, options: dict[str, Any] | None = None
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Reset simulator and return current
         observation and infos for each agent"""
@@ -498,7 +489,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
             'Attack graph in simulator needs to have a model attached to it'
         )
 
-        pre_enabled_nodes: set[AttackGraphNode] = set()
+        pre_enabled_nodes: Set[AttackGraphNode] = set()
         for agent in self.sim.agent_states.values():
             # Reset observation and action mask for agents
             self._agent_observations[agent.name] = self._create_blank_observation()
@@ -512,8 +503,8 @@ class MalSimVectorizedObsEnv(ParallelEnv):
 
     def _update_observations(
         self,
-        compromised_nodes: set[AttackGraphNode],
-        disabled_nodes: set[AttackGraphNode],
+        compromised_nodes: Set[AttackGraphNode],
+        disabled_nodes: Set[AttackGraphNode],
     ) -> None:
         """Update observations of all agents"""
 
@@ -525,13 +516,13 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         logger.debug('Disable:\n\t%s', [n.full_name for n in disabled_nodes])
 
         for agent in self.sim.agent_states.values():
-            if isinstance(agent, MalSimAttackerState):
+            if isinstance(agent, AttackerState):
                 self._update_attacker_obs(compromised_nodes, disabled_nodes, agent)
-            elif isinstance(agent, MalSimDefenderState):
+            elif isinstance(agent, DefenderState):
                 self._update_defender_obs(compromised_nodes, disabled_nodes, agent)
 
     def step(
-        self, actions: dict[str, tuple[int, Optional[int]]]
+        self, actions: dict[str, tuple[int, int | None]]
     ) -> tuple[
         dict[str, dict[str, Any]],
         dict[str, float],
@@ -566,7 +557,7 @@ class MalSimVectorizedObsEnv(ParallelEnv):
         infos = self._agent_infos
 
         for agent in self.sim.agent_states.values():
-            rewards[agent.name] = self.sim.agent_reward(agent.name)
+            rewards[agent.name] = self.sim.agent_reward(agent)
             terminations[agent.name] = self.sim.agent_is_terminated(agent.name)
             truncations[agent.name] = self.sim.done()
 

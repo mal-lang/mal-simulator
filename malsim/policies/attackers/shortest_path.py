@@ -1,12 +1,12 @@
 from __future__ import annotations
-from typing import Any, TYPE_CHECKING, Optional
+from typing import Any, TYPE_CHECKING
 import random
 import logging
 
 from ..utils.path_finding import get_shortest_paths_for_attacker
 
 if TYPE_CHECKING:
-    from malsim.mal_simulator import MalSimAttackerState
+    from malsim.mal_simulator import AttackerState
     from maltoolbox.attackgraph import AttackGraphNode
 
 logger = logging.getLogger(__name__)
@@ -28,8 +28,8 @@ class ShortestPathAttacker:
         self.rng = random.Random(seed)
 
     def get_next_action(
-        self, agent_state: MalSimAttackerState, **kwargs: Any
-    ) -> Optional[AttackGraphNode]:
+        self, agent_state: AttackerState, **kwargs: Any
+    ) -> AttackGraphNode | None:
         """Sample node from the action surface based on ttc softargmax"""
 
         shortest_paths_per_goal = get_shortest_paths_for_attacker(agent_state)

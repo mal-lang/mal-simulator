@@ -1,7 +1,9 @@
+from collections.abc import MutableSet
+
 from maltoolbox.language import LanguageGraphAssociation
 import numpy as np
 
-from malsim.mal_simulator.attacker_state import get_attacker_agents
+from malsim.mal_simulator.agent_states import attacker_states
 
 from .mal_spaces import (
     Assets,
@@ -11,7 +13,7 @@ from .mal_spaces import (
     MALObsInstance,
 )
 from .serialization import LangSerializer
-from malsim.mal_simulator import MalSimAttackerState, MalSimDefenderState, MalSimulator
+from malsim.mal_simulator import AttackerState, DefenderState, MalSimulator
 from maltoolbox.attackgraph import AttackGraphNode
 from maltoolbox.model import ModelAsset
 
@@ -23,13 +25,13 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
     def get_total_attempts(node: AttackGraphNode) -> int:
         return sum(
             state.num_attempts.get(node, 0)
-            for state in get_attacker_agents(sim.agent_states, sim._alive_agents)
+            for state in attacker_states(sim.agent_states).values()
         )
 
     def is_traversable_by_any(node: AttackGraphNode) -> bool:
         return any(
             sim.node_is_traversable(state.performed_nodes, node)
-            for state in get_attacker_agents(sim.agent_states, sim._alive_agents)
+            for state in attacker_states(sim.agent_states).values()
         )
 
     # NOTE: Sorting is for defender
@@ -142,12 +144,12 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
             ]
         )
     )
-    assoc2asset: set[tuple[int, int]] = set()
+    assoc2asset: MutableSet[tuple[int, int]] = set()
     for i, (_, asset1, asset2) in enumerate(sorted_associations):
         assoc2asset.add((i, sorted_assets.index(asset1)))
         assoc2asset.add((i, sorted_assets.index(asset2)))
 
-    asset2asset: set[tuple[int, int]] = set()
+    asset2asset: MutableSet[tuple[int, int]] = set()
     for _, asset1, asset2 in sorted_associations:
         asset1_idx = sorted_assets.index(asset1)
         asset2_idx = sorted_assets.index(asset2)
@@ -166,8 +168,8 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         ),
         id=np.array([node.id for node in sorted_and_or_steps], dtype=np.int64),
     )
-    step2logic: set[tuple[int, int]] = set()
-    logic2step: set[tuple[int, int]] = set()
+    step2logic: MutableSet[tuple[int, int]] = set()
+    logic2step: MutableSet[tuple[int, int]] = set()
     for logic_gate_id, node in enumerate(sorted_and_or_steps):
         logic2step.add((logic_gate_id, node.id))
         for child in node.children:
@@ -205,7 +207,7 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
 
 def full_obs2attacker_obs(
     full_obs: MALObsInstance,
-    state: MalSimAttackerState,
+    state: AttackerState,
     serializer: LangSerializer,
     see_defense_steps: bool = False,
 ) -> MALObsInstance:
@@ -455,7 +457,7 @@ def full_obs2attacker_obs(
 
 
 def full_obs2defender_obs(
-    full_obs: MALObsInstance, state: MalSimDefenderState, serializer: LangSerializer
+    full_obs: MALObsInstance, state: DefenderState, serializer: LangSerializer
 ) -> MALObsInstance:
     """Create a defender observation from a full observation.
 

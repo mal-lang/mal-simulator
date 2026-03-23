@@ -1,12 +1,12 @@
 from __future__ import annotations
 import logging
-from typing import TYPE_CHECKING, Optional, Any
+from typing import TYPE_CHECKING, Any
 
 from .decision_agent import DecisionAgent
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
-    from ..mal_simulator import MalSimAgentState
+    from ..mal_simulator import AgentState
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +18,8 @@ class KeyboardAgent(DecisionAgent):
         super().__init__(**kwargs)
 
     def get_next_action(
-        self, agent_state: MalSimAgentState, **kwargs: Any
-    ) -> Optional[AttackGraphNode]:
+        self, agent_state: AgentState, **kwargs: Any
+    ) -> AttackGraphNode | None:
         """Compute action from action_surface"""
 
         def valid_action(user_input: str) -> bool:
@@ -33,7 +33,7 @@ class KeyboardAgent(DecisionAgent):
 
             return 0 <= node <= len(agent_state.action_surface)
 
-        def get_action_object(user_input: str) -> Optional[int]:
+        def get_action_object(user_input: str) -> int | None:
             node = int(user_input) if user_input != '' else None
             return node
 

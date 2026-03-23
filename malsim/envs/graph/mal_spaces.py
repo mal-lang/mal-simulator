@@ -3,7 +3,8 @@ from gymnasium import spaces
 
 from maltoolbox.model import Model
 import numpy as np
-from typing import Any, NamedTuple, Sequence
+from typing import Any, NamedTuple
+from collections.abc import Sequence
 from numpy.typing import NDArray
 from .serialization import LangSerializer
 from malsim.mal_simulator import MalSimulator

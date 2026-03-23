@@ -1,7 +1,8 @@
 """Dataclass and function to store and create graph state used in the simulator"""
 
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from collections.abc import Set, Mapping
+
 from dataclasses import dataclass
 from numpy.random import Generator
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
@@ -15,19 +16,19 @@ from malsim.mal_simulator.graph_processing import (
     calculate_necessity,
 )
 
-if TYPE_CHECKING:
-    from malsim.config.sim_settings import MalSimulatorSettings
+
+from malsim.config.sim_settings import MalSimulatorSettings
 
 
 @dataclass
 class GraphState:
     """Dataclass containing simulator specific graph state"""
 
-    ttc_values: dict[AttackGraphNode, float]
-    pre_enabled_defenses: set[AttackGraphNode]
-    impossible_attack_steps: set[AttackGraphNode]
-    viability_per_node: dict[AttackGraphNode, bool]
-    necessity_per_node: dict[AttackGraphNode, bool]
+    ttc_values: Mapping[AttackGraphNode, float]
+    pre_enabled_defenses: Set[AttackGraphNode]
+    impossible_attack_steps: Set[AttackGraphNode]
+    viability_per_node: Mapping[AttackGraphNode, bool]
+    necessity_per_node: Mapping[AttackGraphNode, bool]
 
 
 def compute_initial_graph_state(
@@ -41,13 +42,15 @@ def compute_initial_graph_state(
 
     # TTC (Time to compromise) for each attack step
     # will only be set if TTCMode PRE_SAMLE/EXPECTED_VALUE is used
-    ttc_values = attack_step_ttc_values(graph.attack_steps, settings.ttc_mode, rng)
+    ttc_values = attack_step_ttc_values(
+        graph.attack_steps, rng=rng, ttc_mode=settings.ttc_mode
+    )
     # These steps will be enabled from the start of the simulation
     # depending on if bernoullis are sampled or not
     enabled_defenses = get_pre_enabled_defenses(
         graph.defense_steps, settings.run_defense_step_bernoullis, rng
     )
-    impossible_attack_steps = set()
+    impossible_attack_steps: Set[AttackGraphNode] = frozenset()
     if settings.run_attack_step_bernoullis:
         # These steps will not be traversable
         impossible_attack_steps = get_impossible_attack_steps(graph.attack_steps, rng)

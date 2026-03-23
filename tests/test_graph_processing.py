@@ -1,5 +1,7 @@
 """Tests for analyzers"""
 
+from collections.abc import MutableSet, Set
+
 from malsim.mal_simulator.graph_processing import (
     _propagate_viability_from_node,
     _propagate_necessity_from_node,
@@ -53,7 +55,7 @@ def test_viability_viable_nodes(dummy_lang_graph: LanguageGraph) -> None:
     and_node2.parents = {and_node_parent1, and_node_parent2}
 
     # Make sure viable
-    enabled_defenses: set[AttackGraphNode] = set()
+    enabled_defenses: Set[AttackGraphNode] = set()
     viable_nodes = calculate_viability(attack_graph, enabled_defenses, set())
     assert exist_node in viable_nodes
     assert not_exist_node in viable_nodes
@@ -203,7 +205,7 @@ def test_necessity_unnecessary(dummy_lang_graph: LanguageGraph) -> None:
     and_node.parents.add(disabled_defense_step)
     disabled_defense_step.children.add(and_node)
 
-    enabled_defenses: set[AttackGraphNode] = set()
+    enabled_defenses: Set[AttackGraphNode] = set()
     necessity_per_node = calculate_necessity(attack_graph, enabled_defenses)
 
     # Calculate necessity and make sure unneccessary
@@ -227,11 +229,13 @@ def test_analyzers_apriori_prune_unviable_and_unnecessary_nodes(model: Model) ->
 
     viability_per_node = calculate_viability(example_attackgraph, set(), set())
     necessity_per_node = calculate_necessity(example_attackgraph, set())
-    necessity_per_node[node_to_make_unnecessary] = False
-    viability_per_node[node_to_make_unviable] = False
+    mutable_necessity_per_node = dict(necessity_per_node)
+    mutable_viability_per_node = dict(viability_per_node)
+    mutable_necessity_per_node[node_to_make_unnecessary] = False
+    mutable_viability_per_node[node_to_make_unviable] = False
 
     prune_unviable_and_unnecessary_nodes(
-        example_attackgraph, viability_per_node, necessity_per_node
+        example_attackgraph, mutable_viability_per_node, mutable_necessity_per_node
     )
 
     # Make sure the node was pruned
@@ -275,24 +279,26 @@ def test_analyzers_apriori_propagate_viability(dummy_lang_graph: LanguageGraph) 
     uvp2.children = {or_2uvp}
 
     viability_per_node = calculate_viability(attack_graph, set(), set())
+    # TODO Make this work with immutable viability per node
+    mutable_viability_per_node = dict(viability_per_node)
 
     # Make unviable
-    viability_per_node[uvp1] = False
-    viability_per_node[uvp2] = False
+    mutable_viability_per_node[uvp1] = False
+    mutable_viability_per_node[uvp2] = False
 
-    changed_nodes = set()
+    changed_nodes: Set[AttackGraphNode] = set()
     for parent in [vp1, vp2, uvp1, uvp2]:
         changed_nodes |= _propagate_viability_from_node(
-            parent, viability_per_node, set()
+            parent, mutable_viability_per_node, set()
         )
 
     assert changed_nodes == {or_2uvp, and_1uvp}
 
     for node in [vp1, vp2, or_1vp, and_2vp]:
-        assert viability_per_node[node]
+        assert mutable_viability_per_node[node]
 
     for node in [uvp1, uvp2, or_2uvp, and_1uvp]:
-        assert not viability_per_node[node]
+        assert not mutable_viability_per_node[node]
 
 
 def test_analyzers_apriori_propagate_necessity(dummy_lang_graph: LanguageGraph) -> None:
@@ -328,17 +334,21 @@ def test_analyzers_apriori_propagate_necessity(dummy_lang_graph: LanguageGraph) 
     unp2.children = {and_2unp}
 
     necessity_per_node = calculate_necessity(attack_graph, set())
+    mutable_necessity_per_node = dict(necessity_per_node)
     # Make unnecessary
-    necessity_per_node[unp1] = False
-    necessity_per_node[unp2] = False
+    # TODO make this work with immutable necessity per node
+    mutable_necessity_per_node[unp1] = False
+    mutable_necessity_per_node[unp2] = False
 
-    changed_nodes = set()
+    changed_nodes: MutableSet[AttackGraphNode] = set()
     for parent in [np1, np2, unp1, unp2]:
-        changed_nodes |= _propagate_necessity_from_node(parent, necessity_per_node)
+        changed_nodes |= _propagate_necessity_from_node(
+            parent, mutable_necessity_per_node
+        )
     assert changed_nodes == {or_1unp, and_2unp}
 
     for node in [np1, np2, or_2np, and_1np]:
-        assert necessity_per_node[node]
+        assert mutable_necessity_per_node[node]
 
     for node in [unp1, unp2, or_1unp, and_2unp]:
-        assert not necessity_per_node[node]
+        assert not mutable_necessity_per_node[node]

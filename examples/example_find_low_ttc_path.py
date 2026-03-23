@@ -3,6 +3,8 @@ Attacker agents can have goals, and we can use the TTCSoftMinAttacker
 to find a 'cheap' path to the goal.
 """
 
+from malsim.config.agent_settings import AttackerSettings, DefenderSettings
+from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator import (
     MalSimulator,
     MalSimulatorSettings,
@@ -11,9 +13,6 @@ from malsim.mal_simulator import (
 )
 from malsim.scenario.scenario import (
     Scenario,
-    AttackerSettings,
-    DefenderSettings,
-    NodePropertyRule,
 )
 
 from malsim.policies import TTCSoftMinAttacker, PassiveAgent
@@ -23,22 +22,23 @@ def test_run_scenario_ttc_soft_min_attacker() -> None:
     scenario = Scenario(
         lang_file='tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar',
         model='tests/testdata/models/traininglang_model.yml',
-        agent_settings={
-            'Attacker1': AttackerSettings(
+        agents=(
+            AttackerSettings(
                 name='Attacker1',
-                entry_points={'User:3:phishing', 'Host:0:connect'},
-                goals={'Data:2:read'},
+                entry_points=frozenset({'User:3:phishing', 'Host:0:connect'}),
+                goals=frozenset({'Data:2:read'}),
                 policy=TTCSoftMinAttacker,
-                rewards=NodePropertyRule(by_asset_name={'Host:0': {'access': 10}}),
+                rewards=NodePropertyRule.from_dict(
+                    {'by_asset_name': {'Host:0': {'access': 10}}}
+                ),
             ),
-            'Defender1': DefenderSettings(name='Defender1', policy=PassiveAgent),
-        },
+            DefenderSettings(name='Defender1', policy=PassiveAgent),
+        ),
+        sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.EXPECTED_VALUE),
     )
 
-    mal_simulator = MalSimulator.from_scenario(
-        scenario, sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.EXPECTED_VALUE)
-    )
-    paths = run_simulation(mal_simulator, scenario.agent_settings)
+    mal_simulator = MalSimulator.from_scenario(scenario)
+    paths = run_simulation(mal_simulator)
     print(paths)
 
 

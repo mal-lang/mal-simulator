@@ -1,5 +1,6 @@
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.language import LanguageGraph
+from malsim.config.agent_settings import AttackerSettings
 from malsim.mal_simulator import MalSimulator
 from malsim.policies import BreadthFirstAttacker, DepthFirstAttacker
 
@@ -33,9 +34,16 @@ def test_breadth_first_traversal_simple(dummy_lang_graph: LanguageGraph) -> None
     node2.children.add(node3)
     node3.parents.add(node2)
 
-    sim = MalSimulator(ag)
+    sim = MalSimulator(
+        ag,
+        agents=(
+            AttackerSettings(
+                name='bfs',
+                entry_points=frozenset({node0}),
+            ),
+        ),
+    )
 
-    sim.register_attacker('bfs', {node0})
     agent_state = sim.agent_states['bfs']
 
     # Configure BreadthFirstAttacker
@@ -108,9 +116,16 @@ def test_breadth_first_traversal_complicated(dummy_lang_graph: LanguageGraph) ->
     node2.children.add(node6)
     node6.parents.add(node2)
 
-    sim = MalSimulator(ag)
+    sim = MalSimulator(
+        ag,
+        agents=(
+            AttackerSettings(
+                name='bfs',
+                entry_points=frozenset({node0}),
+            ),
+        ),
+    )
 
-    sim.register_attacker('bfs', {node0})
     agent_state = sim.agent_states['bfs']
 
     # Configure BreadthFirstAttacker
@@ -183,12 +198,19 @@ def test_depth_first_traversal_complicated(dummy_lang_graph: LanguageGraph) -> N
     node2.children.add(node6)
     node6.parents.add(node2)
 
-    sim = MalSimulator(ag)
+    sim = MalSimulator(
+        ag,
+        agents=(
+            AttackerSettings(
+                name='dfs',
+                entry_points=frozenset({node0}),
+            ),
+        ),
+    )
 
-    sim.register_attacker('dfs', {node0})
     agent_state = sim.agent_states['dfs']
 
-    # Configure BreadthFirstAttacker
+    # Configure DepthFirstAttacker
     agent_config = {'seed': 42, 'randomize': False}
     attacker_ai = DepthFirstAttacker(agent_config)
 

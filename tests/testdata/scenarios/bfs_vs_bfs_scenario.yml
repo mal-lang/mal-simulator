@@ -1,23 +1,14 @@
 lang_file: ../langs/org.mal-lang.coreLang-1.0.0.mar
 model_file: ../models/basic_model.yml
 
-# Rewards for each attack step
-rewards:
-  by_asset_name:
-    Program 1:
-      notPresent: 2
-      supplyChainAuditing: 7
-    Program 2:
-      notPresent: 3
-      supplyChainAuditing: 7
-
 agents:
   'attacker1':
     agent_class: BreadthFirstAttacker
     type: attacker
+    reward_mode: ONE_OFF
     config:
       seed: 1
-      randomize: True
+      action_ordering: random
     entry_points:
       - 'Program 1:fullAccess'
 
@@ -26,4 +17,12 @@ agents:
     type: defender
     config:
       seed: 1
-      randomize: True
+      action_ordering: random
+    rewards:
+      by_asset_name:
+        Program 1:
+          notPresent: 2
+          supplyChainAuditing: 7
+        Program 2:
+          notPresent: 3
+          supplyChainAuditing: 7

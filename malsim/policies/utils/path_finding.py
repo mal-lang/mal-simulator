@@ -14,7 +14,7 @@ from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from malsim.mal_simulator.state_query import node_ttc_value
 
 if TYPE_CHECKING:
-    from malsim.mal_simulator import MalSimAttackerState
+    from malsim.mal_simulator import AttackerState
 
 
 def attack_graph_to_nx_graph(
@@ -135,7 +135,7 @@ def get_shortest_path_to(
 
 
 def get_shortest_paths_for_attacker(
-    attacker_state: MalSimAttackerState,
+    attacker_state: AttackerState,
 ) -> dict[AttackGraphNode, list[AttackGraphNode]]:
     """Return shortest path for each of the attackers goals"""
     ttc_values = {
@@ -145,8 +145,10 @@ def get_shortest_paths_for_attacker(
     }
 
     shortest_paths = {}
-    assert attacker_state.goals, 'Attacker needs goal set for shortest path calculation'
-    for goal in attacker_state.goals:
+    assert attacker_state.settings.goals, (
+        'Attacker needs goal set for shortest path calculation'
+    )
+    for goal in attacker_state.settings.goals:
         shortest_paths[goal] = get_shortest_path_to(
             attacker_state.sim_state.attack_graph,
             list(attacker_state.performed_nodes),

@@ -1,32 +1,25 @@
+from collections.abc import Set
 from dataclasses import dataclass
-from types import MappingProxyType
-from typing import Any, Optional
+from typing import Any
 from maltoolbox.attackgraph import AttackGraphNode
-from malsim.config.node_property_rule import NodePropertyRule
-from malsim.mal_simulator.agent_state import MalSimAgentState
-from malsim.types import AgentStates
+from malsim.config.agent_settings import DefenderSettings
+from malsim.mal_simulator.agent_state import AgentState
 
 
 @dataclass(frozen=True)
-class MalSimDefenderState(MalSimAgentState):
+class DefenderState(AgentState):
     """Stores the state of a defender in the simulator"""
 
     # Contains all steps performed by any attacker
-    compromised_nodes: frozenset[AttackGraphNode]
+    compromised_nodes: Set[AttackGraphNode]
     # Contains steps performed by any attacker in last step
-    step_compromised_nodes: frozenset[AttackGraphNode]
+    step_compromised_nodes: Set[AttackGraphNode]
     # Contains all observed steps by any attacker
     # in regards to false positives/negatives and observability
-    observed_nodes: frozenset[AttackGraphNode]
+    observed_nodes: Set[AttackGraphNode]
     # Contains observed steps made by any attacker in last step
-    step_observed_nodes: frozenset[AttackGraphNode]
-
-    # Agent specific rules for node properties
-    reward_rule: Optional[NodePropertyRule] = None
-    actionability_rule: Optional[NodePropertyRule] = None
-    false_positive_rates_rule: Optional[NodePropertyRule] = None
-    false_negative_rates_rule: Optional[NodePropertyRule] = None
-    observability_rule: Optional[NodePropertyRule] = None
+    step_observed_nodes: Set[AttackGraphNode]
+    settings: DefenderSettings
 
     # Pickling
     def __getstate__(self) -> dict[str, Any]:
@@ -38,22 +31,8 @@ class MalSimDefenderState(MalSimAgentState):
         object.__setattr__(
             self,
             'performed_nodes_order',
-            MappingProxyType(state['performed_nodes_order']),
+            state['performed_nodes_order'],
         )
         for key, value in state.items():
             if key not in ('performed_nodes_order'):
                 object.__setattr__(self, key, value)
-
-
-def get_defender_agents(
-    agent_states: AgentStates, alive_agents: set[str], only_alive: bool = False
-) -> list[MalSimDefenderState]:
-    """Return list of mutable defender agent states of defenders.
-    If `only_alive` is set to True, only return the agents that are alive.
-    """
-    return [
-        a
-        for a in agent_states.values()
-        if (a.name in alive_agents or not only_alive)
-        and isinstance(a, MalSimDefenderState)
-    ]
