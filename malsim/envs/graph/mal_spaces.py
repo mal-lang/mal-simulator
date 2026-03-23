@@ -34,6 +34,9 @@ class Steps(NamedTuple):
         id: The IDs of the steps in the attack graph.
         logic_class: One of {'and', 'or', 'defense', 'exist', 'notExist'}.
         tags: The first @-tags of the steps.
+        ttc: The TTC distribution specified in the language.
+            NOTE: This information may trivialize part of the problem.
+            It may or may not make sense to include this in an observation.
         compromised: Whether the steps are observed as compromised.
         observable: Whether the steps can be observed to be compromised.
         attempts: The number of times the steps have been performed.
@@ -45,6 +48,7 @@ class Steps(NamedTuple):
     id: NDArray[np.int64]
     logic_class: NDArray[np.int64]
     tags: NDArray[np.int64]
+    ttc: NDArray[np.int64]
     compromised: NDArray[np.bool_]
     observable: NDArray[np.bool_]
     attempts: NDArray[np.int64] | None
@@ -130,6 +134,7 @@ class MALObs(Space[MALObsInstance]):
         self.attack_step_tags = Discrete(
             max(set(lang_serializer.step_tag.values())) + 1
         )
+        self.ttc = Discrete(max(set(lang_serializer.ttc_dist.values())) + 1)
 
         # TODO: Move this into the lang serializer
         self.logic_gate_type = Discrete(2)  # 0 for AND, 1 for OR
@@ -182,6 +187,7 @@ class MALObs(Space[MALObsInstance]):
             seeds = {
                 'self': super().seed(None),
                 'attack_step_tags': self.attack_step_tags.seed(None),
+                'ttc': self.ttc.seed(None),
                 'asset_type': self.asset_type.seed(None),
                 'attack_step_type': self.attack_step_type.seed(None),
                 'attack_step_class': self.attack_step_class.seed(None),
@@ -204,6 +210,7 @@ class MALObs(Space[MALObsInstance]):
             seeds = {
                 'self': super_seed,
                 'attack_step_tags': self.attack_step_tags.seed(node_seed),
+                'ttc': self.ttc.seed(node_seed),
                 'asset_type': self.asset_type.seed(node_seed),
                 'attack_step_type': self.attack_step_type.seed(node_seed),
                 'attack_step_class': self.attack_step_class.seed(node_seed),
@@ -223,7 +230,11 @@ class MALObs(Space[MALObsInstance]):
     def contains(self, x: MALObsInstance) -> bool:
         """Return boolean specifying if x is a valid member of this space."""
         if isinstance(x, MALObsInstance):
-            attack_step_tags_valid = self.attack_step_tags.contains(x.steps.tags[0])
+            attack_step_tags_valid = all(
+                x.steps.tags[i] in self.attack_step_tags
+                for i in range(len(x.steps.tags))
+            )
+            ttc_valid = all(x.steps.ttc[i] in self.ttc for i in range(len(x.steps.ttc)))
             if isinstance(x.logic_gates, LogicGates) and len(x.logic_gates.type) > 0:
                 logic_gate_type_valid = all(
                     x.logic_gates.type[i] in self.logic_gate_type
@@ -292,6 +303,7 @@ class MALObs(Space[MALObsInstance]):
                 and association_type_valid
                 and logic_gate_type_valid
                 and attack_step_tags_valid
+                and ttc_valid
             )
 
             # Edges
@@ -431,6 +443,7 @@ class MALObs(Space[MALObsInstance]):
                 'asset_action_mask': sample.assets.action_mask.tolist(),
                 'step_type': sample.steps.type.tolist(),
                 'step_tags': sample.steps.tags.tolist(),
+                'step_ttc': sample.steps.ttc.tolist(),
                 'step_id': sample.steps.id.tolist(),
                 'step_class': sample.steps.logic_class.tolist(),
                 'step_observable': sample.steps.observable.tolist(),
@@ -464,6 +477,7 @@ class MALObs(Space[MALObsInstance]):
                     sample['step_class'], dtype=self.attack_step_class.dtype
                 ),
                 tags=np.array(sample['step_tags'], dtype=self.attack_step_tags.dtype),
+                ttc=np.array(sample['step_ttc'], dtype=self.ttc.dtype),
                 compromised=np.array(
                     sample['step_compromised'],
                     dtype=self.attack_step_compromised.dtype,
