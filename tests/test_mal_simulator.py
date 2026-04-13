@@ -32,6 +32,7 @@ from dataclasses import asdict
 import numpy as np
 import pytest
 
+from malsim.mal_simulator.graph_utils import node_is_blocked
 from malsim.policies.random_agent import RandomAgent
 from .conftest import get_node
 
@@ -462,11 +463,11 @@ def test_is_traversable(corelang_lang_graph: LanguageGraph, model: Model) -> Non
                     p in attacker_state.performed_nodes
                     for p in node.parents
                     if p.type in ('or', 'and')
-                ) or not sim.node_is_viable(node)
+                ) or sim.node_is_blocked(node)
             if node.type == 'or' and not sim.node_is_traversable(
                 attacker_state.performed_nodes, node
             ):
-                assert not sim.node_is_viable(node)
+                assert sim.node_is_blocked(node)
         else:
             assert not sim.node_is_traversable(attacker_state.performed_nodes, node)
 
@@ -523,6 +524,13 @@ def test_not_initial_compromise_entrypoints_unviable_step(
     attacker_state = sim.step(
         {attacker_name: ['OS App:fullAccess'], defender_name: ['OS App:notPresent']}
     )[attacker_name]
+
+    node = attack_graph.get_node_by_full_name('OS App:fullAccess')
+    assert (
+        node_is_blocked(sim.sim_state, node)
+        or node not in attacker_state.action_surface
+    )
+
     assert attacker_state.performed_nodes == set()
     assert attacker_state.action_surface == set()
 

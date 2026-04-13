@@ -9,7 +9,7 @@ from malsim.mal_simulator.graph_utils import (
     node_is_actionable,
     node_is_necessary,
     node_is_traversable,
-    node_is_viable,
+    node_is_blocked,
 )
 
 if TYPE_CHECKING:
@@ -71,7 +71,7 @@ def get_attack_surface(
         return not (skip_compromised and node in performed_nodes)
 
     def viable(node: AttackGraphNode) -> bool:
-        return node_is_viable(sim_state, node)
+        return not node_is_blocked(sim_state, node)
 
     def necessary(node: AttackGraphNode) -> bool:
         return node_is_necessary(sim_state, node)

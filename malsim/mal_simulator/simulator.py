@@ -56,13 +56,14 @@ from malsim.mal_simulator.defender_state_factories import create_defender_state
 from malsim.mal_simulator.simulator_state import (
     MalSimulatorState,
     create_simulator_state,
+    update_simulator_state,
 )
 from malsim.config.sim_settings import MalSimulatorSettings, RewardMode
 from malsim.mal_simulator.graph_utils import (
     node_is_actionable,
     node_is_necessary,
     node_is_traversable,
-    node_is_viable,
+    node_is_blocked,
     node_reward,
 )
 from malsim.mal_simulator.state_query import (
@@ -282,8 +283,8 @@ class MalSimulator:
             false_negative_rates_rule = agent.false_negative_rates
         return node_false_negative_rate(node, false_negative_rates_rule)
 
-    def node_is_viable(self, node: AttackGraphNode | str) -> bool:
-        return node_is_viable(self.sim_state, node)
+    def node_is_blocked(self, node: AttackGraphNode | str) -> bool:
+        return node_is_blocked(self.sim_state, node)
 
     def node_is_necessary(self, node: AttackGraphNode | str) -> bool:
         return node_is_necessary(self.sim_state, node)
@@ -440,6 +441,7 @@ def reset(
         agent_settings,
         rng,
     )
+
     # Upload initial state to the REST API
     if rest_api_client:
         rest_api_client.upload_initial_state(attack_graph)
@@ -505,6 +507,8 @@ def step(
         recording[current_iteration][defender_state.name] = list(enabled)
         step_enabled_defenses += enabled
         step_nodes_made_unviable |= unviable
+
+    sim_state = update_simulator_state(sim_state, set(step_enabled_defenses))
 
     # Perform attacker actions afterwards
     for attacker_state in attacker_states(agent_states).values():
