@@ -498,7 +498,7 @@ def test_not_initial_compromise_entrypoints(
     assert attacker_state.action_surface == set(entry_point.children)
 
 
-def test_not_initial_compromise_entrypoints_unviable_step(
+def test_not_initial_compromise_entrypoints_can_not_be_blocked(
     corelang_lang_graph: LanguageGraph, model: Model
 ) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
@@ -520,7 +520,8 @@ def test_not_initial_compromise_entrypoints_unviable_step(
 
     attacker_state = sim.reset()[attacker_name]
 
-    # Step should not succeed if defender defended the entrypoint
+    # Step will succeed even if defender defended the entrypoint.
+    # Entry points can always be compromised.
     attacker_state = sim.step(
         {attacker_name: ['OS App:fullAccess'], defender_name: ['OS App:notPresent']}
     )[attacker_name]
@@ -531,8 +532,8 @@ def test_not_initial_compromise_entrypoints_unviable_step(
         or node not in attacker_state.action_surface
     )
 
-    assert attacker_state.performed_nodes == set()
-    assert attacker_state.action_surface == set()
+    assert attacker_state.performed_nodes == {node}
+    assert attacker_state.action_surface == set(node.children)
 
 
 def test_is_compromised(corelang_lang_graph: LanguageGraph, model: Model) -> None:
