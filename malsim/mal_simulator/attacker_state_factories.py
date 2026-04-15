@@ -38,95 +38,83 @@ def create_attacker_state(
     attack_surface_settings: AttackSurfaceSettings,
     attacker_settings: AttackerSettings[AttackGraphNode],
     name: str,
-    step_compromised_nodes: Set[AttackGraphNode],
+    new_performed_nodes: Set[AttackGraphNode],
     ttc_values: Mapping[AttackGraphNode, float],
     impossible_steps: Set[AttackGraphNode],
-    step_attempted_nodes: Set[AttackGraphNode] = frozenset(),
-    step_nodes_made_unviable: Set[AttackGraphNode] = frozenset(),
+    new_attempted_nodes: Set[AttackGraphNode] = frozenset(),
+    new_unviable_nodes: Set[AttackGraphNode] = frozenset(),
     previous_state: AttackerState | None = None,
 ) -> AttackerState:
     """
     Update a previous attacker state based on what the agent compromised
     and what nodes became unviable.
     """
-    entry_points = attacker_settings.entry_points
-    if previous_state is None:
-        # Initial compromised nodes are just the step compromised nodes
-        compromised_nodes = step_compromised_nodes
 
-        # Create an initial attack surface
-        new_action_surface = get_attack_surface(
+    previous_performed_nodes = (
+        previous_state.performed_nodes if previous_state else set()
+    )
+    previous_performed_nodes_order = (
+        previous_state.performed_nodes_order if previous_state else {}
+    )
+    previous_attempted_nodes = (
+        previous_state.attempted_nodes if previous_state else set()
+    )
+    previous_action_surface = previous_state.action_surface if previous_state else set()
+    previous_num_attempts = (
+        previous_state.num_attempts
+        if previous_state
+        else dict.fromkeys(sim_state.attack_graph.attack_steps, 0)
+    )
+    previous_unviable_nodes = previous_state.unviable_nodes if previous_state else set()
+
+    performed_nodes = previous_performed_nodes | new_performed_nodes
+    performed_nodes_order = dict(previous_performed_nodes_order)
+    unviable_nodes = previous_unviable_nodes | new_unviable_nodes
+    attempted_nodes = previous_attempted_nodes | new_attempted_nodes
+    num_attempts = dict(previous_num_attempts)
+    for node in new_attempted_nodes:
+        num_attempts[node] += 1
+
+    # Build on previous attack surface (for performance)
+    action_surface_additions = (
+        get_attack_surface(
             attack_surface_settings,
             sim_state,
             attacker_settings.actionable_steps,
-            compromised_nodes,
+            previous_performed_nodes | new_performed_nodes,
+            from_nodes=new_performed_nodes,
         )
-        action_surface_removals: Set[AttackGraphNode] = set()
-        action_surface_additions = new_action_surface
-        performed_nodes_order: dict[int, Set[AttackGraphNode]] = {}
+        - previous_action_surface
+    )
 
-        if sim_state.settings.compromise_entrypoints_at_start:
-            performed_nodes_order[0] = frozenset(entry_points)
-        else:
-            # If entrypoints not compromised at start,
-            # we need to put them in action surface
-            new_action_surface |= entry_points
-            action_surface_additions |= entry_points
+    if not previous_state and not sim_state.settings.compromise_entrypoints_at_start:
+        action_surface_additions |= attacker_settings.entry_points
 
-        previous_num_attempts: Mapping[AttackGraphNode, int] = dict.fromkeys(
-            sim_state.attack_graph.attack_steps, 0
-        )
+    action_surface_removals = set(
+        (new_unviable_nodes & previous_action_surface) | new_performed_nodes
+    )
+    action_surface = frozenset(
+        (previous_action_surface - action_surface_removals) | action_surface_additions
+    )
 
-    else:
-        compromised_nodes = previous_state.performed_nodes | step_compromised_nodes
-        performed_nodes_order = dict(previous_state.performed_nodes_order)
-
-        if step_compromised_nodes:
-            performed_nodes_order[previous_state.iteration] = frozenset(
-                step_compromised_nodes
-            )
-
-        # Build on previous attack surface (for performance)
-        action_surface_additions = (
-            get_attack_surface(
-                attack_surface_settings,
-                sim_state,
-                attacker_settings.actionable_steps,
-                compromised_nodes | step_compromised_nodes,
-                from_nodes=step_compromised_nodes,
-            )
-            - previous_state.action_surface
-        )
-        action_surface_removals = set(
-            (step_nodes_made_unviable & previous_state.action_surface)
-            | step_compromised_nodes
-        )
-        new_action_surface = frozenset(
-            (previous_state.action_surface - action_surface_removals)
-            | action_surface_additions
-        )
-        previous_num_attempts = previous_state.num_attempts
-
-    new_num_attempts = dict(previous_num_attempts)
-    for node in step_attempted_nodes:
-        new_num_attempts[node] += 1
+    iteration = previous_state.iteration if previous_state else 0
+    if new_performed_nodes:
+        performed_nodes_order[iteration] = frozenset(new_performed_nodes)
 
     return AttackerState(
         name,
         sim_state=sim_state,
-        performed_nodes=frozenset(compromised_nodes | step_compromised_nodes),
-        action_surface=new_action_surface,
-        step_action_surface_additions=action_surface_additions,
-        step_action_surface_removals=frozenset(action_surface_removals),
-        step_performed_nodes=frozenset(step_compromised_nodes),
-        step_unviable_nodes=frozenset(step_nodes_made_unviable),
-        step_attempted_nodes=frozenset(step_attempted_nodes),
-        num_attempts=new_num_attempts,
-        iteration=(previous_state.iteration + 1) if previous_state else 1,
+        iteration=iteration + 1,
         performed_nodes_order=performed_nodes_order,
         settings=attacker_settings,
         ttc_values=ttc_values,
         impossible_steps=impossible_steps,
+        unviable_nodes=unviable_nodes,
+        performed_nodes=frozenset(performed_nodes),
+        attempted_nodes=frozenset(attempted_nodes),
+        action_surface=action_surface,
+        num_attempts=num_attempts,
+        previous_state=previous_state,
     )
 
 
@@ -171,19 +159,19 @@ def initial_attacker_state(
             sim_state.attack_graph, attacker_settings.entry_points
         )
     )
+    new_compromised_nodes: Set[AttackGraphNode] = set()
 
-    step_compromised_nodes: Set[AttackGraphNode] = set()
     if sim_state.settings.compromise_entrypoints_at_start:
-        step_compromised_nodes = get_entrypoint_compromises(sim_state, entry_points)
+        new_compromised_nodes = get_entrypoint_compromises(sim_state, entry_points)
 
     return create_attacker_state(
         sim_state=sim_state,
         attack_surface_settings=sim_settings.attack_surface,
-        name=attacker_settings.name,
         attacker_settings=attacker_settings,
-        step_compromised_nodes=step_compromised_nodes,
+        name=attacker_settings.name,
         ttc_values=ttc_values,
         impossible_steps=impossible_steps,
+        new_performed_nodes=new_compromised_nodes,
     )
 
 

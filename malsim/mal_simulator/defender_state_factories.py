@@ -17,75 +17,60 @@ def create_defender_state(
     name: str,
     rng: np.random.Generator,
     defender_settings: DefenderSettings,
-    step_compromised_nodes: Set[AttackGraphNode] = frozenset(),
-    step_enabled_defenses: Set[AttackGraphNode] = frozenset(),
-    step_nodes_made_unviable: Set[AttackGraphNode] = frozenset(),
+    new_compromised_nodes: Set[AttackGraphNode] = frozenset(),
+    new_enabled_defenses: Set[AttackGraphNode] = frozenset(),
+    new_unviable_nodes: Set[AttackGraphNode] = frozenset(),
     previous_state: DefenderState | None = None,
 ) -> DefenderState:
     """
     Update a previous defender state based on what steps
     were enabled/compromised during last step
     """
-
-    if previous_state is None:
-        # Initialize
-        action_surface = get_defense_surface(
-            sim_state, defender_settings.actionable_steps
-        )
-        previous_enabled_defenses: Set[AttackGraphNode] = frozenset()
-        previous_compromised_nodes: Set[AttackGraphNode] = frozenset()
-        previous_observed_nodes: Set[AttackGraphNode] = frozenset()
-        action_surface_additions: Set[AttackGraphNode] = action_surface
-        action_surface_removals: Set[AttackGraphNode] = frozenset()
-        performed_nodes_order: dict[int, Set[AttackGraphNode]] = {}
-
-        if step_enabled_defenses:
-            # Pre enabled defenses go into iteration 0
-            performed_nodes_order[0] = frozenset(step_enabled_defenses)
-    else:
-        # Initialize
-        action_surface = (
-            get_defense_surface(sim_state, defender_settings.actionable_steps)
-            - previous_state.performed_nodes
-        )
-
-        previous_enabled_defenses = previous_state.performed_nodes
-        previous_compromised_nodes = previous_state.compromised_nodes
-        previous_observed_nodes = previous_state.observed_nodes
-        action_surface_additions = frozenset()
-        action_surface_removals = step_enabled_defenses
-        performed_nodes_order = dict(previous_state.performed_nodes_order)
-        if step_enabled_defenses:
-            performed_nodes_order[previous_state.iteration] = frozenset(
-                step_enabled_defenses
-            )
-
-    step_observed_nodes = observed_nodes(
-        sim_state=sim_state,
-        observable_steps_rule=defender_settings.observable_steps,
-        false_positive_rates_rule=defender_settings.false_positive_rates,
-        rng=rng,
-        false_negative_rates_rule=defender_settings.false_negative_rates,
-        compromised_nodes=step_compromised_nodes,
+    previous_enabled_defenses = (
+        previous_state.performed_nodes if previous_state else set()
     )
+    previous_compromised_nodes = (
+        previous_state.compromised_nodes if previous_state else set()
+    )
+    previous_performed_nodes = (
+        previous_state.performed_nodes if previous_state else set()
+    )
+    previous_observed_nodes = previous_state.observed_nodes if previous_state else set()
+    performed_nodes_order = (
+        dict(previous_state.performed_nodes_order) if previous_state else {}
+    )
+    previous_unviable_nodes = previous_state.unviable_nodes if previous_state else set()
+
+    action_surface = (
+        get_defense_surface(sim_state, defender_settings.actionable_steps)
+        - previous_performed_nodes
+    )
+
+    iteration = previous_state.iteration if previous_state else 0
+    if new_enabled_defenses:
+        performed_nodes_order[iteration] = frozenset(new_enabled_defenses)
+
+    new_observed_nodes = observed_nodes(
+        defender_settings.observable_steps,
+        defender_settings.false_positive_rates,
+        defender_settings.false_negative_rates,
+        sim_state,
+        rng,
+        new_compromised_nodes,
+    )
+
     return DefenderState(
         name,
         sim_state=sim_state,
-        performed_nodes=frozenset(previous_enabled_defenses | step_enabled_defenses),
-        compromised_nodes=frozenset(
-            previous_compromised_nodes | step_compromised_nodes
-        ),
-        step_compromised_nodes=frozenset(step_compromised_nodes),
-        observed_nodes=frozenset(previous_observed_nodes | step_observed_nodes),
-        step_observed_nodes=frozenset(step_observed_nodes),
-        step_action_surface_additions=frozenset(action_surface_additions),
-        step_action_surface_removals=frozenset(action_surface_removals),
-        action_surface=frozenset(action_surface),
-        step_performed_nodes=frozenset(step_enabled_defenses),
-        step_unviable_nodes=frozenset(step_nodes_made_unviable),
-        iteration=(previous_state.iteration + 1) if previous_state else 1,
-        performed_nodes_order=performed_nodes_order,
         settings=defender_settings,
+        performed_nodes=frozenset(previous_enabled_defenses | new_enabled_defenses),
+        unviable_nodes=frozenset(previous_unviable_nodes | new_unviable_nodes),
+        compromised_nodes=frozenset(previous_compromised_nodes | new_compromised_nodes),
+        observed_nodes=frozenset(previous_observed_nodes | new_observed_nodes),
+        action_surface=frozenset(action_surface),
+        iteration=iteration + 1,
+        performed_nodes_order=performed_nodes_order,
+        previous_state=previous_state,
     )
 
 
@@ -100,8 +85,8 @@ def initial_defender_state(
     return create_defender_state(
         sim_state=sim_state,
         name=defender_settings.name,
-        step_compromised_nodes=pre_compromised_nodes,
-        step_enabled_defenses=pre_enabled_defenses,
+        new_compromised_nodes=pre_compromised_nodes,
+        new_enabled_defenses=pre_enabled_defenses,
         rng=rng,
         defender_settings=defender_settings,
     )
