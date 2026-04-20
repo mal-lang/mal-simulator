@@ -31,7 +31,7 @@ def node_is_blocked(sim_state: MalSimulatorState, node: AttackGraphNode | str) -
             _node_blocks_children(parent) for parent in node.parents
         )
     elif node.type == 'or':
-        return node in sim_state.graph_state.impossible_attack_steps or any(
+        return node in sim_state.graph_state.impossible_attack_steps or all(
             _node_blocks_children(parent) for parent in node.parents
         )
     else:

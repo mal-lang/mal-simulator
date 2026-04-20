@@ -4,8 +4,8 @@ MAL Simulator Attack Graph Processing Submodule
 This submodule is meant to process the attack graph before running the
 simulation.
 Currently it adds the following information to nodes:
-- Viability (deprecated) = Determine if a node can be traversed under any circumstances or
-  if the model structure, defenses or ttcs makes it unviable.
+- Viability (deprecated) = Determine if a node can be traversed under any circumstances
+  or if the model structure, defenses or ttcs makes it unviable.
 - Necessity = Determine if a node is necessary for the attacker or if the
   model structure means it is not needed (it behaves as if it were already
   compromised) to compromise children attack steps.

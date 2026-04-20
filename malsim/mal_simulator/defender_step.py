@@ -1,5 +1,4 @@
 from __future__ import annotations
-from collections.abc import Set
 from typing import TYPE_CHECKING
 from maltoolbox.attackgraph import AttackGraphNode
 import logging

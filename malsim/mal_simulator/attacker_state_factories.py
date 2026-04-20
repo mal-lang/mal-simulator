@@ -57,7 +57,6 @@ def create_attacker_state(
     previous_attempted_nodes = (
         previous_state.attempted_nodes if previous_state else set()
     )
-    previous_action_surface = previous_state.action_surface if previous_state else set()
     previous_num_attempts = (
         previous_state.num_attempts
         if previous_state

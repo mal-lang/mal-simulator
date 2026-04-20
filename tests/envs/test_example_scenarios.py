@@ -83,8 +83,8 @@ def test_bfs_vs_bfs_state_and_reward_first() -> None:
         total_reward_defender += sim.agent_reward(defender_state)
         total_reward_attacker += sim.agent_reward(attacker_state)
 
-    assert defender_state.iteration == 41
-    assert attacker_state.iteration == 41
+    assert defender_state.iteration == 45
+    assert attacker_state.iteration == 45
 
     # Make sure the actions performed were as expected
     assert attacker_actions == [
@@ -92,7 +92,8 @@ def test_bfs_vs_bfs_state_and_reward_first() -> None:
         'Internet:networkForwardingUninspected',
         'Internet:deny',
         'Internet:accessNetworkData',
-        'ConnectionRule Internet->Linux System:attemptConnectToApplicationsUninspected',
+        'ConnectionRule Internet->Linux '
+        'System:attemptConnectToApplicationsUninspected',
         'Internet:reverseReach',
         'Internet:networkForwardingInspected',
         'ConnectionRule Internet->Linux System:attemptAccessNetworksUninspected',
@@ -111,6 +112,8 @@ def test_bfs_vs_bfs_state_and_reward_first() -> None:
         'Internet:successfulEavesdrop',
         'Internet:bypassAdversaryInTheMiddleDefense',
         'Internet:successfulAdversaryInTheMiddle',
+        'ConnectionRule Internet->Linux System:restrictedBypassed',
+        'ConnectionRule Internet->Linux System:payloadInspectionBypassed',
         'Linux system:networkConnectUninspected',
         'Linux system:networkConnectInspected',
         'ConnectionRule Internet->Linux System:reverseReach',
@@ -118,7 +121,9 @@ def test_bfs_vs_bfs_state_and_reward_first() -> None:
         'ConnectionRule Internet->Linux System:connectToApplicationsInspected',
         'ConnectionRule Internet->Linux System:accessNetworksUninspected',
         'Linux system:denyFromNetworkingAsset',
+        'Internet:eavesdropDefenseBypassed',
         'Internet:eavesdrop',
+        'Internet:adversaryInTheMiddleDefenseBypassed',
         'Internet:adversaryInTheMiddle',
         'Linux system:attemptUseVulnerability',
         'Linux system:networkConnect',
@@ -127,7 +132,7 @@ def test_bfs_vs_bfs_state_and_reward_first() -> None:
         'Linux system:attemptReverseReach',
         'ConnectionRule Internet->Linux System:accessNetworksInspected',
         'Linux system:attemptDeny',
-        'Internet:accessInspected',
+        'Internet:accessInspected'
     ]
 
     assert defender_actions == [
@@ -156,7 +161,7 @@ def test_bfs_vs_bfs_state_and_reward_first() -> None:
     assert sim.agent_reward(defender_state) == -50
 
     assert total_reward_attacker == 0
-    assert total_reward_defender == -2000
+    assert total_reward_defender == -2200
 
 
 def test_bfs_vs_bfs_state_and_reward_per_step_ttc() -> None:
@@ -875,6 +880,8 @@ def test_traininglang_dont_compromise_entrypoints() -> None:
         'ConnectionRule:1:successfulAccessNetworksInspected',
         'ConnectionRule:1:connectToApplicationsInspected',
         'ConnectionRule:1:accessNetworksUninspected',
+        'ConnectionRule:1:restrictedBypassed',
+        'ConnectionRule:1:payloadInspectionBypassed',
         'Program 1:networkConnectUninspected',
         'Program 1:networkConnectInspected',
         'ConnectionRule:1:accessNetworksInspected',
@@ -906,6 +913,8 @@ def test_traininglang_dont_compromise_entrypoints() -> None:
         'ConnectionRule:1:attemptReverseReach',
         'Program 2:networkConnectUninspected',
         'Program 2:networkConnectInspected',
+        'ConnectionRule:3:restrictedBypassed',
+        'ConnectionRule:3:payloadInspectionBypassed',
         'ConnectionRule:3:deny',
         'ConnectionRule:1:deny',
         'Network:2:successfulAdversaryInTheMiddle',
@@ -923,11 +932,13 @@ def test_traininglang_dont_compromise_entrypoints() -> None:
         'Program 2:denyFromNetworkingAsset',
         'Program 1:denyFromNetworkingAsset',
         'Network:2:adversaryInTheMiddle',
+        'Network:2:adversaryInTheMiddleDefenseBypassed',
+        'Network:2:eavesdropDefenseBypassed',
         'Network:2:eavesdrop',
         'ConnectionRule:3:accessNetworksInspected',
         'Program 2:attemptReverseReach',
         'Program 1:attemptReverseReach',
-        'Program 2:attemptDeny',
+        'Program 2:attemptDeny'
     ]
     assert defender_actions == [
         'Network:2:adversaryInTheMiddleDefense',

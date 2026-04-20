@@ -489,9 +489,6 @@ class MalSimVectorizedObsEnv(ParallelEnv[str, dict[str, Any], dict[str, str]]):
     ) -> None:
         """Update observations of all agents"""
 
-        if not self.sim.sim_settings.uncompromise_untraversable_steps:
-            disabled_nodes = set()
-
         # TODO: Is this correct? All attackers get the same compromised_nodes?
         logger.debug('Enable:\n\t%s', [n.full_name for n in compromised_nodes])
 
