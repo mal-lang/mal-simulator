@@ -21,7 +21,5 @@ class AgentState:
     # Contains the order of performed nodes
     performed_nodes_order: Mapping[int, Set[AttackGraphNode]]
 
-    unviable_nodes: Set[AttackGraphNode]
-
     # The iteration this state was created in
     iteration: int

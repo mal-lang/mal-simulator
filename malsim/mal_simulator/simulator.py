@@ -491,7 +491,6 @@ def step(
     # Populate these from the results for all agents' actions.
     step_compromised_nodes: list[AttackGraphNode] = []
     step_enabled_defenses: list[AttackGraphNode] = []
-    step_nodes_made_unviable: Set[AttackGraphNode] = set()
     current_iteration = 0
 
     # Perform defender actions first
@@ -501,12 +500,11 @@ def step(
                 sim_state.attack_graph, actions.get(defender_state.name, [])
             )
         )
-        enabled, unviable = defender_step(sim_state, defender_state, agent_actions)
+        enabled = defender_step(sim_state, defender_state, agent_actions)
         current_iteration = defender_state.iteration
 
         recording[current_iteration][defender_state.name] = list(enabled)
         step_enabled_defenses += enabled
-        step_nodes_made_unviable |= unviable
 
     sim_state = update_simulator_state(sim_state, set(step_enabled_defenses))
 
@@ -532,7 +530,6 @@ def step(
             name=attacker_state.name,
             new_performed_nodes=frozenset(agent_compromised),
             new_attempted_nodes=frozenset(agent_attempted),
-            new_unviable_nodes=step_nodes_made_unviable,
             previous_state=attacker_state,
             ttc_values=attacker_state.ttc_values,
             impossible_steps=attacker_state.impossible_steps,
@@ -548,7 +545,6 @@ def step(
             defender_settings=defender_state.settings,
             new_compromised_nodes=set(step_compromised_nodes),
             new_enabled_defenses=set(step_enabled_defenses),
-            new_unviable_nodes=step_nodes_made_unviable,
             previous_state=defender_state,
             rng=rng,
         )

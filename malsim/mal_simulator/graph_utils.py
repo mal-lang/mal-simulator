@@ -16,7 +16,7 @@ def node_is_blocked(sim_state: MalSimulatorState, node: AttackGraphNode | str) -
         match node.type:
             case 'exist':
                 assert isinstance(node.existence_status, bool)
-                return node.existence_status
+                return not node.existence_status
             case 'notExist':
                 assert isinstance(node.existence_status, bool)
                 return node.existence_status
@@ -27,9 +27,15 @@ def node_is_blocked(sim_state: MalSimulatorState, node: AttackGraphNode | str) -
 
     node = full_name_or_node_to_node(sim_state.attack_graph, node)
     if node.type == 'and':
-        return any(_node_blocks_children(parent) for parent in node.parents)
+        return (
+            node in sim_state.graph_state.impossible_attack_steps or
+            any(_node_blocks_children(parent) for parent in node.parents)
+        )
     elif node.type == 'or':
-        return all(_node_blocks_children(parent) for parent in node.parents)
+        return (
+            node in sim_state.graph_state.impossible_attack_steps or
+            any(_node_blocks_children(parent) for parent in node.parents)
+        )
     else:
         return False
 

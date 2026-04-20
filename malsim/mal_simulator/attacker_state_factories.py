@@ -42,12 +42,10 @@ def create_attacker_state(
     ttc_values: Mapping[AttackGraphNode, float],
     impossible_steps: Set[AttackGraphNode],
     new_attempted_nodes: Set[AttackGraphNode] = frozenset(),
-    new_unviable_nodes: Set[AttackGraphNode] = frozenset(),
     previous_state: AttackerState | None = None,
 ) -> AttackerState:
     """
     Update a previous attacker state based on what the agent compromised
-    and what nodes became unviable.
     """
 
     previous_performed_nodes = (
@@ -65,37 +63,23 @@ def create_attacker_state(
         if previous_state
         else dict.fromkeys(sim_state.attack_graph.attack_steps, 0)
     )
-    previous_unviable_nodes = previous_state.unviable_nodes if previous_state else set()
 
     performed_nodes = previous_performed_nodes | new_performed_nodes
     performed_nodes_order = dict(previous_performed_nodes_order)
-    unviable_nodes = previous_unviable_nodes | new_unviable_nodes
     attempted_nodes = previous_attempted_nodes | new_attempted_nodes
     num_attempts = dict(previous_num_attempts)
     for node in new_attempted_nodes:
         num_attempts[node] += 1
 
-    # Build on previous attack surface (for performance)
-    action_surface_additions = (
-        get_attack_surface(
-            attack_surface_settings,
-            sim_state,
-            attacker_settings.actionable_steps,
-            previous_performed_nodes | new_performed_nodes,
-            from_nodes=new_performed_nodes,
-        )
-        - previous_action_surface
+    action_surface = get_attack_surface(
+        attack_surface_settings,
+        sim_state,
+        attacker_settings.actionable_steps,
+        previous_performed_nodes | new_performed_nodes,
     )
 
     if not previous_state and not sim_state.settings.compromise_entrypoints_at_start:
-        action_surface_additions |= attacker_settings.entry_points
-
-    action_surface_removals = set(
-        (new_unviable_nodes & previous_action_surface) | new_performed_nodes
-    )
-    action_surface = frozenset(
-        (previous_action_surface - action_surface_removals) | action_surface_additions
-    )
+        action_surface |= attacker_settings.entry_points
 
     iteration = previous_state.iteration if previous_state else 0
     if new_performed_nodes:
@@ -109,7 +93,6 @@ def create_attacker_state(
         settings=attacker_settings,
         ttc_values=ttc_values,
         impossible_steps=impossible_steps,
-        unviable_nodes=unviable_nodes,
         performed_nodes=frozenset(performed_nodes),
         attempted_nodes=frozenset(attempted_nodes),
         action_surface=action_surface,

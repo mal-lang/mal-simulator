@@ -64,14 +64,10 @@ def get_attack_surface(
     from_nodes = from_nodes if from_nodes is not None else performed_nodes
 
     skip_compromised = settings.skip_compromised
-    skip_unviable = settings.skip_unviable
     skip_unnecessary = settings.skip_unnecessary
 
     def uncompromised(node: AttackGraphNode) -> bool:
         return not (skip_compromised and node in performed_nodes)
-
-    def viable(node: AttackGraphNode) -> bool:
-        return not node_is_blocked(sim_state, node)
 
     def necessary(node: AttackGraphNode) -> bool:
         return node_is_necessary(sim_state, node)
@@ -87,8 +83,8 @@ def get_attack_surface(
         is_action = node.causal_mode != 'effect'
         return (
             is_action
+            and not node_is_blocked(sim_state, node)
             and (uncompromised(node) if skip_compromised else True)
-            and (viable(node) if skip_unviable else True)
             and (necessary(node) if skip_unnecessary else True)
             and actionable(node)
             and traversable(node)

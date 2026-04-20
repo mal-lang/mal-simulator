@@ -85,8 +85,8 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
         ),
     )
 
-    viability_before = {
-        n.full_name: v for n, v in sim.sim_state.graph_state.viability_per_node.items()
+    blocked_before = {
+        n.full_name: node_is_blocked(sim.sim_state, n) for n in sim.sim_state.attack_graph.nodes.values()
     }
     necessity_before = {
         n.full_name: v for n, v in sim.sim_state.graph_state.necessity_per_node.items()
@@ -124,9 +124,9 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     sim = MalSimulator(
         attack_graph, sim_settings=MalSimulatorSettings(seed=10), agents=()
     )
-    for node, viable in sim.sim_state.graph_state.viability_per_node.items():
-        # viability is the same after reset
-        assert viability_before[node.full_name] == viable
+    for node in sim.sim_state.attack_graph.nodes.values():
+        # blocked is the same after reset
+        assert blocked_before[node.full_name] == node_is_blocked(sim.sim_state, node)
 
     for node, necessary in sim.sim_state.graph_state.necessity_per_node.items():
         # necessity is the same after reset
@@ -264,24 +264,23 @@ def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
     assert isinstance(defender_agent, DefenderState)
 
     defense_step = get_node(attack_graph, 'OS App:notPresent')
-    enabled, made_unviable = defender_step(
+    enabled = defender_step(
         sim.sim_state,
         defender_agent,
         [defense_step],
     )
     assert enabled == [defense_step]
-    assert made_unviable
 
     # Can not defend attack_step
     attack_step = get_node(attack_graph, 'OS App:attemptUseVulnerability')
     assert attack_step
-    enabled, made_unviable = defender_step(
+    enabled = defender_step(
         sim.sim_state,
         defender_agent,
         [attack_step],
     )
     assert enabled == []
-    assert not made_unviable
+
 
 
 def test_node_full_names_to_simulator(
@@ -936,7 +935,6 @@ def test_agent_state_views_simple(
     assert os_app_attempt_deny not in asv.action_surface
     assert dsv.step_action_surface_removals == {program2_not_present}
     assert dsv.step_compromised_nodes == {os_app_attempt_deny}
-    assert len(dsv.step_unviable_nodes) == 48
 
     # Go through an attack step that already has some children in the attack
     # surface(OS App:accessNetworkAndConnections in this case)
@@ -956,7 +954,6 @@ def test_agent_state_views_simple(
     assert os_app_spec_access not in asv.action_surface
     assert dsv.step_action_surface_removals == set()
     assert dsv.step_compromised_nodes == {os_app_spec_access}
-    assert len(dsv.step_unviable_nodes) == 0
 
     # Evaluate the agent state views after stepping through an attack step and
     # a defense that would prevent it from occurring
@@ -973,23 +970,10 @@ def test_agent_state_views_simple(
     assert asv.step_action_surface_additions == set()
     assert dsv.step_action_surface_additions == set()
     assert {a.full_name for a in asv.step_action_surface_removals} == {
-        'OS App:accessNetworkAndConnections',
-        'OS App:attemptApplicationRespondConnectThroughData',
-        'OS App:attemptAuthorizedApplicationRespondConnectThroughData',
-        'OS App:attemptModify',
-        'OS App:attemptRead',
-        'OS App:specificAccessDelete',
-        'OS App:specificAccessModify',
-        # 'OS App:bypassContainerization',
-        'OS App:specificAccessRead',
         'OS App:successfulDeny',
-        'Program 1:localConnect',
-        'Program 2:localConnect',
-        # 'IDPS 1:localConnect',
     }
     assert dsv.step_action_surface_removals == {os_app_not_present}
     assert dsv.step_compromised_nodes == set()
-    assert len(dsv.step_unviable_nodes) == 53
 
     # Recording of the simulation
     assert sim.recording == {
@@ -1474,7 +1458,6 @@ def test_simulator_seed_setting() -> None:
             seed=100,
             attack_surface=AttackSurfaceSettings(
                 skip_compromised=True,
-                skip_unviable=True,
                 skip_unnecessary=False,
             ),
             run_defense_step_bernoullis=False,
