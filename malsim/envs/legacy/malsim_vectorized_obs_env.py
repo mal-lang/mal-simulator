@@ -443,7 +443,6 @@ class MalSimVectorizedObsEnv(ParallelEnv[str, dict[str, Any], dict[str, str]]):
                 logger.debug('Enable %s in attacker obs', node.full_name)
                 _enable_node(node, attacker_observation)
 
-
     def _update_defender_obs(
         self,
         compromised_nodes: Set[AttackGraphNode],

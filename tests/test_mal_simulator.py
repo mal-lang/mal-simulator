@@ -86,7 +86,8 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     )
 
     blocked_before = {
-        n.full_name: node_is_blocked(sim.sim_state, n) for n in sim.sim_state.attack_graph.nodes.values()
+        n.full_name: node_is_blocked(sim.sim_state, n)
+        for n in sim.sim_state.attack_graph.nodes.values()
     }
     necessity_before = {
         n.full_name: v for n, v in sim.sim_state.graph_state.necessity_per_node.items()
@@ -280,7 +281,6 @@ def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
         [attack_step],
     )
     assert enabled == []
-
 
 
 def test_node_full_names_to_simulator(

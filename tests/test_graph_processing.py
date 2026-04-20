@@ -404,7 +404,9 @@ def test_node_is_blocked(dummy_lang_graph: LanguageGraph) -> None:
 
     # Or node with any parent that is not blocking will not be blocked
     or_node_not_blocked = attack_graph.add_node(or_attack_step_type)
-    or_node_not_blocked.parents.add(and_node_blocked_by_defense) # the and node is blocked but not the or node
+    or_node_not_blocked.parents.add(
+        and_node_blocked_by_defense
+    )  # the and node is blocked but not the or node
 
     impossible_and_node = attack_graph.add_node(and_attack_step_type)
     impossible_attack_steps.add(impossible_and_node)
@@ -417,7 +419,7 @@ def test_node_is_blocked(dummy_lang_graph: LanguageGraph) -> None:
         attack_graph=attack_graph,
         settings=MalSimulatorSettings(),
         graph_state=GraphState({}, enabled_defenses, impossible_attack_steps, {}),
-        enabled_defenses=enabled_defenses
+        enabled_defenses=enabled_defenses,
     )
 
     assert node_is_blocked(sim_state, and_node_blocked_by_defense)
