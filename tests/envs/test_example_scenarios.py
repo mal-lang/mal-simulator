@@ -92,8 +92,7 @@ def test_bfs_vs_bfs_state_and_reward_first() -> None:
         'Internet:networkForwardingUninspected',
         'Internet:deny',
         'Internet:accessNetworkData',
-        'ConnectionRule Internet->Linux '
-        'System:attemptConnectToApplicationsUninspected',
+        'ConnectionRule Internet->Linux System:attemptConnectToApplicationsUninspected',
         'Internet:reverseReach',
         'Internet:networkForwardingInspected',
         'ConnectionRule Internet->Linux System:attemptAccessNetworksUninspected',
@@ -132,7 +131,7 @@ def test_bfs_vs_bfs_state_and_reward_first() -> None:
         'Linux system:attemptReverseReach',
         'ConnectionRule Internet->Linux System:accessNetworksInspected',
         'Linux system:attemptDeny',
-        'Internet:accessInspected'
+        'Internet:accessInspected',
     ]
 
     assert defender_actions == [
@@ -938,7 +937,7 @@ def test_traininglang_dont_compromise_entrypoints() -> None:
         'ConnectionRule:3:accessNetworksInspected',
         'Program 2:attemptReverseReach',
         'Program 1:attemptReverseReach',
-        'Program 2:attemptDeny'
+        'Program 2:attemptDeny',
     ]
     assert defender_actions == [
         'Network:2:adversaryInTheMiddleDefense',
