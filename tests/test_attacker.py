@@ -8,7 +8,7 @@ from malsim.mal_simulator.simulator import MalSimulator
 from malsim.scenario.scenario import Scenario
 
 
-def test_attack_surface_traininglang():
+def test_attack_surface_traininglang() -> None:
     """
     Run defender to block attack surface and check
     that attack surface is updated accordingly.
@@ -47,7 +47,9 @@ def test_attack_surface_traininglang():
     assert sim.agent_is_terminated('Attacker1')
 
 
-def _validate_attack_surface(sim: MalSimulator, attack_surface: Set[AttackGraphNode]):
+def _validate_attack_surface(
+    sim: MalSimulator, attack_surface: Set[AttackGraphNode]
+) -> None:
     for node in attack_surface:
         one_parent_is_enabled_defense = any(
             sim.node_is_enabled_defense(parent_node) for parent_node in node.parents
@@ -74,10 +76,10 @@ def _validate_attack_surface(sim: MalSimulator, attack_surface: Set[AttackGraphN
         )
 
 
-def test_attack_surface_coreLang():
-    scenario = 'tests/testdata/scenarios/simple_scenario.yml'
+def test_attack_surface_coreLang() -> None:
+    scenario_file = 'tests/testdata/scenarios/simple_scenario.yml'
     scenario = Scenario.load_from_file(
-        scenario, sim_settings=MalSimulatorSettings(seed=42)
+        scenario_file, sim_settings=MalSimulatorSettings(seed=42)
     )
     sim = MalSimulator.from_scenario(scenario)
 

@@ -2,7 +2,7 @@ from malsim.mal_simulator.defense_surface import get_defense_surface
 from malsim.mal_simulator.simulator import MalSimulator
 
 
-def test_defense_surface():
+def test_defense_surface() -> None:
     """
     Run defender and check that defense surface is updated accordingly.
     """
