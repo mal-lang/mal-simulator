@@ -216,7 +216,6 @@ class MalSimulator:
 
         Args:
             scenario - a Scenario object or a path to a scenario file
-            sim_settings - settings to use in the simulator
             send_to_api - whether to send data to GUI REST API or not
         """
         return create_simulator_from_scenario(scenario, send_to_api)
