@@ -1,4 +1,3 @@
-from malsim.mal_simulator.defense_surface import get_defense_surface
 from malsim.mal_simulator.simulator import MalSimulator
 
 
@@ -16,15 +15,22 @@ def test_defense_surface() -> None:
         sim.get_node('Data:2:notPresent'),
         sim.get_node('User:3:notPresent'),
     }
-    defense_surface = get_defense_surface(
-        sim.sim_state,
-        sim.agent_states['Defender1'].settings.actionable_steps,
-    )
-    assert defense_surface == expected_defense_surface
+    assert sim.agent_states['Defender1'].action_surface == expected_defense_surface
 
-    # TODO: should defender action surface shrink when nodes are performed?
+    expected_defense_surface = {
+        sim.get_node('Host:1:notPresent'),
+        sim.get_node('Data:2:notPresent'),
+        sim.get_node('User:3:notPresent'),
+    }
     sim.step({'Defender1': [sim.get_node('Host:0:notPresent')]})
-    assert defense_surface == expected_defense_surface
+    assert sim.agent_states['Defender1'].action_surface == expected_defense_surface
+    assert sim.get_node('Host:0:notPresent') in sim.sim_state.enabled_defenses
 
+    expected_defense_surface = {
+        sim.get_node('Host:1:notPresent'),
+        sim.get_node('Data:2:notPresent'),
+    }
     sim.step({'Defender1': [sim.get_node('User:3:notPresent')]})
-    assert defense_surface == expected_defense_surface
+    assert sim.agent_states['Defender1'].action_surface == expected_defense_surface
+    assert sim.get_node('Host:0:notPresent') in sim.sim_state.enabled_defenses
+    assert sim.get_node('User:3:notPresent') in sim.sim_state.enabled_defenses
