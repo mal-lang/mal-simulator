@@ -20,7 +20,7 @@ For in-depth documentation, refer to:
 - The CI pipeline runs `pytest`, `mypy` and `ruff format && ruff check` for linting and type checking. PRs will only be merged if pipeline succeeds.
 
 ## Making a release
-- Make a PR where you change to the new version number in `pyproject.toml` and `malsim/__init__.py`.
+- Make a release PR (called `release-x.y.z`) with your changes. Update version number in `pyproject.toml` and `malsim/__init__.py`.
 - Merge the PR after the pipeline suceeds
 - Tag the latest commit with the new version number
 - Push the tag
