@@ -486,14 +486,15 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
     assert rew[defender_agent_name] == -rew[attacker_name]
 
     # Step defender and attacker
-    # Attacker wont be able to traverse Data:2:read since
-    # Host:0:notPresent is activated before
+    # Attacker will be able to traverse Data:2:read since
+    # attack steps are persistent
     obs, rew, _, _, _ = env.step(
         {
             defender_agent_name: (1, env.node_to_index(host_0_notPresent)),
             attacker_name: (1, env.node_to_index(data_2_read)),
         }
     )
+    attacker_reached_steps.append(data_2_read.id)
     defender_enabled_steps.append(host_0_notPresent.id)
 
     # Attacker obs state should look the same as before
@@ -507,9 +508,10 @@ def test_malsimulator_observe_and_reward_attacker_defender() -> None:
         attacker_reached_steps + defender_enabled_steps,
     )
 
+    rew_data_2_read = 5
     # Verify rewards
     reward_host_0_not_present = 2
-    assert rew[attacker_name] == reward_host_0_access  # no additional reward
+    assert rew[attacker_name] == reward_host_0_access + rew_data_2_read
     assert rew[defender_agent_name] == -rew[attacker_name] - reward_host_0_not_present
 
 

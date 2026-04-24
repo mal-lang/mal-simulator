@@ -32,6 +32,7 @@ from dataclasses import asdict
 import numpy as np
 import pytest
 
+from malsim.mal_simulator.graph_utils import node_is_blocked
 from malsim.policies.random_agent import RandomAgent
 from .conftest import get_node
 
@@ -84,8 +85,9 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
         ),
     )
 
-    viability_before = {
-        n.full_name: v for n, v in sim.sim_state.graph_state.viability_per_node.items()
+    blocked_before = {
+        n.full_name: node_is_blocked(sim.sim_state, n)
+        for n in sim.sim_state.attack_graph.nodes.values()
     }
     necessity_before = {
         n.full_name: v for n, v in sim.sim_state.graph_state.necessity_per_node.items()
@@ -123,9 +125,9 @@ def test_reset(corelang_lang_graph: LanguageGraph, model: Model) -> None:
     sim = MalSimulator(
         attack_graph, sim_settings=MalSimulatorSettings(seed=10), agents=()
     )
-    for node, viable in sim.sim_state.graph_state.viability_per_node.items():
-        # viability is the same after reset
-        assert viability_before[node.full_name] == viable
+    for node in sim.sim_state.attack_graph.nodes.values():
+        # blocked is the same after reset
+        assert blocked_before[node.full_name] == node_is_blocked(sim.sim_state, node)
 
     for node, necessary in sim.sim_state.graph_state.necessity_per_node.items():
         # necessity is the same after reset
@@ -263,24 +265,22 @@ def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None
     assert isinstance(defender_agent, DefenderState)
 
     defense_step = get_node(attack_graph, 'OS App:notPresent')
-    enabled, made_unviable = defender_step(
+    enabled = defender_step(
         sim.sim_state,
         defender_agent,
         [defense_step],
     )
     assert enabled == [defense_step]
-    assert made_unviable
 
     # Can not defend attack_step
     attack_step = get_node(attack_graph, 'OS App:attemptUseVulnerability')
     assert attack_step
-    enabled, made_unviable = defender_step(
+    enabled = defender_step(
         sim.sim_state,
         defender_agent,
         [attack_step],
     )
     assert enabled == []
-    assert not made_unviable
 
 
 def test_node_full_names_to_simulator(
@@ -462,11 +462,11 @@ def test_is_traversable(corelang_lang_graph: LanguageGraph, model: Model) -> Non
                     p in attacker_state.performed_nodes
                     for p in node.parents
                     if p.type in ('or', 'and')
-                ) or not sim.node_is_viable(node)
+                ) or sim.node_is_blocked(node)
             if node.type == 'or' and not sim.node_is_traversable(
                 attacker_state.performed_nodes, node
             ):
-                assert not sim.node_is_viable(node)
+                assert sim.node_is_blocked(node)
         else:
             assert not sim.node_is_traversable(attacker_state.performed_nodes, node)
 
@@ -497,7 +497,7 @@ def test_not_initial_compromise_entrypoints(
     assert attacker_state.action_surface == set(entry_point.children)
 
 
-def test_not_initial_compromise_entrypoints_unviable_step(
+def test_not_initial_compromise_entrypoints_can_not_be_blocked(
     corelang_lang_graph: LanguageGraph, model: Model
 ) -> None:
     attack_graph = AttackGraph(corelang_lang_graph, model)
@@ -519,12 +519,20 @@ def test_not_initial_compromise_entrypoints_unviable_step(
 
     attacker_state = sim.reset()[attacker_name]
 
-    # Step should not succeed if defender defended the entrypoint
+    # Step will succeed even if defender defended the entrypoint.
+    # Entry points can always be compromised.
     attacker_state = sim.step(
         {attacker_name: ['OS App:fullAccess'], defender_name: ['OS App:notPresent']}
     )[attacker_name]
-    assert attacker_state.performed_nodes == set()
-    assert attacker_state.action_surface == set()
+
+    node = attack_graph.get_node_by_full_name('OS App:fullAccess')
+    assert (
+        node_is_blocked(sim.sim_state, node)
+        or node not in attacker_state.action_surface
+    )
+
+    assert attacker_state.performed_nodes == {node}
+    assert attacker_state.action_surface == set(node.children)
 
 
 def test_is_compromised(corelang_lang_graph: LanguageGraph, model: Model) -> None:
@@ -927,7 +935,6 @@ def test_agent_state_views_simple(
     assert os_app_attempt_deny not in asv.action_surface
     assert dsv.step_action_surface_removals == {program2_not_present}
     assert dsv.step_compromised_nodes == {os_app_attempt_deny}
-    assert len(dsv.step_unviable_nodes) == 48
 
     # Go through an attack step that already has some children in the attack
     # surface(OS App:accessNetworkAndConnections in this case)
@@ -947,7 +954,6 @@ def test_agent_state_views_simple(
     assert os_app_spec_access not in asv.action_surface
     assert dsv.step_action_surface_removals == set()
     assert dsv.step_compromised_nodes == {os_app_spec_access}
-    assert len(dsv.step_unviable_nodes) == 0
 
     # Evaluate the agent state views after stepping through an attack step and
     # a defense that would prevent it from occurring
@@ -964,23 +970,10 @@ def test_agent_state_views_simple(
     assert asv.step_action_surface_additions == set()
     assert dsv.step_action_surface_additions == set()
     assert {a.full_name for a in asv.step_action_surface_removals} == {
-        'OS App:accessNetworkAndConnections',
-        'OS App:attemptApplicationRespondConnectThroughData',
-        'OS App:attemptAuthorizedApplicationRespondConnectThroughData',
-        'OS App:attemptModify',
-        'OS App:attemptRead',
-        'OS App:specificAccessDelete',
-        'OS App:specificAccessModify',
-        # 'OS App:bypassContainerization',
-        'OS App:specificAccessRead',
         'OS App:successfulDeny',
-        'Program 1:localConnect',
-        'Program 2:localConnect',
-        # 'IDPS 1:localConnect',
     }
     assert dsv.step_action_surface_removals == {os_app_not_present}
     assert dsv.step_compromised_nodes == set()
-    assert len(dsv.step_unviable_nodes) == 53
 
     # Recording of the simulation
     assert sim.recording == {
@@ -1465,7 +1458,6 @@ def test_simulator_seed_setting() -> None:
             seed=100,
             attack_surface=AttackSurfaceSettings(
                 skip_compromised=True,
-                skip_unviable=True,
                 skip_unnecessary=False,
             ),
             run_defense_step_bernoullis=False,

@@ -31,9 +31,6 @@ class AttackSurfaceSettings:
     # attack_surface_skip_compromised
     # - if true do not add already compromised nodes to the attack surface
     skip_compromised: bool = True
-    # attack_surface_skip_unviable
-    # - if true do not add unviable nodes to the attack surface
-    skip_unviable: bool = True
     # attack_surface_skip_unnecessary
     # - if true do not add unnecessary nodes to the attack surface
     skip_unnecessary: bool = True

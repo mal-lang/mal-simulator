@@ -99,6 +99,7 @@ def dummy_lang_graph(corelang_lang_graph: LanguageGraph) -> LanguageGraph:
     LanguageGraphAsset and LanguageGraphAttackStep
     """
     lang_graph = LanguageGraph()
+    lang_graph.metadata = {}
     dummy_asset = LanguageGraphAsset(name='DummyAsset')
     lang_graph.assets['DummyAsset'] = dummy_asset
     dummy_or_attack_step_node = LanguageGraphAttackStep(
