@@ -76,10 +76,3 @@ class AttackerState(AgentState):
             self.previous_state.action_surface if self.previous_state else set()
         )
         return previous_action_surface - self.action_surface
-
-    @property
-    def step_unviable_nodes(self) -> Set[AttackGraphNode]:
-        previous_unviable_nodes = (
-            self.previous_state.unviable_nodes if self.previous_state else set()
-        )
-        return self.unviable_nodes - previous_unviable_nodes

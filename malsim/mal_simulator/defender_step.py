@@ -1,5 +1,4 @@
 from __future__ import annotations
-from collections.abc import Set
 from typing import TYPE_CHECKING
 from maltoolbox.attackgraph import AttackGraphNode
 import logging
@@ -7,7 +6,6 @@ import logging
 
 from malsim.mal_simulator.agent_states import attacker_states
 from malsim.mal_simulator.attacker_step import attacker_is_terminated
-from malsim.mal_simulator.graph_processing import make_node_unviable
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 if TYPE_CHECKING:
@@ -31,7 +29,7 @@ def defender_step(
     sim_state: MalSimulatorState,
     agent: DefenderState,
     nodes: list[AttackGraphNode],
-) -> tuple[list[AttackGraphNode], Set[AttackGraphNode]]:
+) -> list[AttackGraphNode]:
     """Enable defense step nodes with defender.
 
     Args:
@@ -39,12 +37,10 @@ def defender_step(
     nodes - the defense step nodes to enable
 
     Returns a tuple of a list and a set, `enabled_defenses`
-    and `attack_steps_made_unviable`.
     """
 
     logger.debug('Stepping with %s', agent.name)
     enabled_defenses: list[AttackGraphNode] = []
-    attack_steps_made_unviable: Set[AttackGraphNode] = set()
 
     for node in nodes:
         assert node == sim_state.attack_graph.nodes[node.id], (
@@ -64,19 +60,10 @@ def defender_step(
             )
         else:
             enabled_defenses.append(node)
-            sim_state.graph_state.viability_per_node, made_unviable = (
-                make_node_unviable(
-                    node,
-                    # TODO make this immutable
-                    dict(sim_state.graph_state.viability_per_node),
-                    sim_state.graph_state.impossible_attack_steps,
-                )
-            )
-            attack_steps_made_unviable |= made_unviable
             logger.info(
                 'Defender agent "%s" enabled "%s"',
                 agent.name,
                 node.full_name,
             )
 
-    return enabled_defenses, attack_steps_made_unviable
+    return enabled_defenses
