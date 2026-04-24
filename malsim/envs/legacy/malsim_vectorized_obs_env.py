@@ -414,7 +414,6 @@ class MalSimVectorizedObsEnv(ParallelEnv[str, dict[str, Any], dict[str, str]]):
     def _update_attacker_obs(
         self,
         compromised_nodes: Set[AttackGraphNode],
-        disabled_nodes: Set[AttackGraphNode],
         attacker_agent: AttackerState,
     ) -> None:
         """Update the observation of the serialized obs attacker"""
@@ -444,21 +443,9 @@ class MalSimVectorizedObsEnv(ParallelEnv[str, dict[str, Any], dict[str, str]]):
                 logger.debug('Enable %s in attacker obs', node.full_name)
                 _enable_node(node, attacker_observation)
 
-        for node in disabled_nodes:
-            if (
-                node in attacker_agent.performed_nodes
-                and node not in attacker_agent.settings.entry_points
-            ):
-                logger.debug('Disable %s in attacker obs', node.full_name)
-                # Mark attacker compromised steps that were
-                # disabled by a defense as disabled in obs
-                node_idx = self.node_to_index(node)
-                attacker_observation['observed_state'][node_idx] = 0
-
     def _update_defender_obs(
         self,
         compromised_nodes: Set[AttackGraphNode],
-        disabled_nodes: Set[AttackGraphNode],
         defender_agent: DefenderState,
     ) -> None:
         """Update the observation of the defender"""
@@ -469,11 +456,6 @@ class MalSimVectorizedObsEnv(ParallelEnv[str, dict[str, Any], dict[str, str]]):
             logger.debug('Enable %s in defender obs', node.full_name)
             node_idx = self.node_to_index(node)
             defender_observation['observed_state'][node_idx] = 1
-
-        for node in disabled_nodes:
-            logger.debug('Disable %s in defender obs', node.full_name)
-            node_idx = self.node_to_index(node)
-            defender_observation['observed_state'][node_idx] = 0
 
     def reset(
         self, seed: int | None = None, options: dict[str, Any] | None = None
@@ -496,7 +478,7 @@ class MalSimVectorizedObsEnv(ParallelEnv[str, dict[str, Any], dict[str, str]]):
             self._agent_infos[agent.name] = self.create_action_mask(agent)
             pre_enabled_nodes |= agent.performed_nodes
 
-        self._update_observations(pre_enabled_nodes, set())
+        self._update_observations(pre_enabled_nodes)
 
         # TODO: should we return copies instead so they are not modified externally?
         return self._agent_observations, self._agent_infos
@@ -504,22 +486,17 @@ class MalSimVectorizedObsEnv(ParallelEnv[str, dict[str, Any], dict[str, str]]):
     def _update_observations(
         self,
         compromised_nodes: Set[AttackGraphNode],
-        disabled_nodes: Set[AttackGraphNode],
     ) -> None:
         """Update observations of all agents"""
 
-        if not self.sim.sim_settings.uncompromise_untraversable_steps:
-            disabled_nodes = set()
-
         # TODO: Is this correct? All attackers get the same compromised_nodes?
         logger.debug('Enable:\n\t%s', [n.full_name for n in compromised_nodes])
-        logger.debug('Disable:\n\t%s', [n.full_name for n in disabled_nodes])
 
         for agent in self.sim.agent_states.values():
             if isinstance(agent, AttackerState):
-                self._update_attacker_obs(compromised_nodes, disabled_nodes, agent)
+                self._update_attacker_obs(compromised_nodes, agent)
             elif isinstance(agent, DefenderState):
-                self._update_defender_obs(compromised_nodes, disabled_nodes, agent)
+                self._update_defender_obs(compromised_nodes, agent)
 
     def step(
         self, actions: dict[str, tuple[int, int | None]]
@@ -545,10 +522,9 @@ class MalSimVectorizedObsEnv(ParallelEnv[str, dict[str, Any], dict[str, str]]):
         all_actioned = {
             n for state in states.values() for n in state.step_performed_nodes
         }
-        disabled_nodes = next(iter(states.values())).step_unviable_nodes
 
         self._update_agent_infos()  # Update action masks
-        self._update_observations(all_actioned, set(disabled_nodes))
+        self._update_observations(all_actioned)
 
         observations = self._agent_observations
         rewards = {}

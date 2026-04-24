@@ -56,13 +56,14 @@ from malsim.mal_simulator.defender_state_factories import create_defender_state
 from malsim.mal_simulator.simulator_state import (
     MalSimulatorState,
     create_simulator_state,
+    update_simulator_state,
 )
 from malsim.config.sim_settings import MalSimulatorSettings, RewardMode
 from malsim.mal_simulator.graph_utils import (
     node_is_actionable,
     node_is_necessary,
     node_is_traversable,
-    node_is_viable,
+    node_is_blocked,
     node_reward,
 )
 from malsim.mal_simulator.state_query import (
@@ -216,7 +217,6 @@ class MalSimulator:
 
         Args:
             scenario - a Scenario object or a path to a scenario file
-            sim_settings - settings to use in the simulator
             send_to_api - whether to send data to GUI REST API or not
         """
         return create_simulator_from_scenario(scenario, send_to_api, sim_settings)
@@ -283,8 +283,8 @@ class MalSimulator:
             false_negative_rates_rule = agent.false_negative_rates
         return node_false_negative_rate(node, false_negative_rates_rule)
 
-    def node_is_viable(self, node: AttackGraphNode | str) -> bool:
-        return node_is_viable(self.sim_state, node)
+    def node_is_blocked(self, node: AttackGraphNode | str) -> bool:
+        return node_is_blocked(self.sim_state, node)
 
     def node_is_necessary(self, node: AttackGraphNode | str) -> bool:
         return node_is_necessary(self.sim_state, node)
@@ -442,6 +442,7 @@ def reset(
         agent_settings,
         rng,
     )
+
     # Upload initial state to the REST API
     if rest_api_client:
         rest_api_client.upload_initial_state(attack_graph)
@@ -491,7 +492,6 @@ def step(
     # Populate these from the results for all agents' actions.
     step_compromised_nodes: list[AttackGraphNode] = []
     step_enabled_defenses: list[AttackGraphNode] = []
-    step_nodes_made_unviable: Set[AttackGraphNode] = set()
     current_iteration = 0
 
     # Perform defender actions first
@@ -501,12 +501,13 @@ def step(
                 sim_state.attack_graph, actions.get(defender_state.name, [])
             )
         )
-        enabled, unviable = defender_step(sim_state, defender_state, agent_actions)
+        enabled = defender_step(sim_state, defender_state, agent_actions)
         current_iteration = defender_state.iteration
 
         recording[current_iteration][defender_state.name] = list(enabled)
         step_enabled_defenses += enabled
-        step_nodes_made_unviable |= unviable
+
+    sim_state = update_simulator_state(sim_state, set(step_enabled_defenses))
 
     # Perform attacker actions afterwards
     for attacker_state in attacker_states(agent_states).values():
@@ -530,7 +531,6 @@ def step(
             name=attacker_state.name,
             new_performed_nodes=frozenset(agent_compromised),
             new_attempted_nodes=frozenset(agent_attempted),
-            new_unviable_nodes=step_nodes_made_unviable,
             previous_state=attacker_state,
             ttc_values=attacker_state.ttc_values,
             impossible_steps=attacker_state.impossible_steps,
@@ -546,7 +546,6 @@ def step(
             defender_settings=defender_state.settings,
             new_compromised_nodes=set(step_compromised_nodes),
             new_enabled_defenses=set(step_enabled_defenses),
-            new_unviable_nodes=step_nodes_made_unviable,
             previous_state=defender_state,
             rng=rng,
         )
