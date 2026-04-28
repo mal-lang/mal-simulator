@@ -1,10 +1,14 @@
 from collections.abc import Set
 
-from maltoolbox.attackgraph import AttackGraphNode
+from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
+from malsim.config.agent_settings import AttackerSettings
 from malsim.config.sim_settings import AttackSurfaceSettings, MalSimulatorSettings
+from malsim.mal_simulator import run_simulation
 from malsim.mal_simulator.attack_surface import get_attack_surface
 from malsim.mal_simulator.simulator import MalSimulator
+from malsim.policies.attackers.searchers import BreadthFirstAttacker
+from malsim.policies.random_agent import RandomAgent
 from malsim.scenario.scenario import Scenario
 
 
@@ -138,7 +142,7 @@ def _validate_attack_surface(
                 )
 
 
-def test_attack_surface_coreLang() -> None:
+def test_attack_surface_coreLang_include_unnecessary() -> None:
     scenario_file = 'tests/testdata/scenarios/simple_scenario.yml'
     scenario = Scenario.load_from_file(
         scenario_file,
@@ -162,3 +166,90 @@ def test_attack_surface_coreLang() -> None:
             break
 
     assert sim.agent_states['Attacker1'].iteration == 99
+
+def test_necessity_pattern_coreLang_creds_exist_not_reached(model) -> None:
+    data = model.add_asset('Data', 'Data1')
+    app = model.add_asset('Application', 'App1')
+    creds = model.add_asset('Credentials', 'Creds1')
+    
+    app.add_associated_assets('containedData', {data})
+    data.add_associated_assets('encryptCreds', {creds})
+
+    attack_graph = AttackGraph(model.lang_graph, model)
+    sim = MalSimulator(
+        attack_graph=attack_graph,
+        sim_settings=MalSimulatorSettings(
+            seed=42, attack_surface=AttackSurfaceSettings(skip_unnecessary=False)
+        ),
+        agents=(
+            AttackerSettings(
+                name='Attacker1', entry_points={'App1:fullAccess'}, policy=BreadthFirstAttacker
+            ),
+        )
+    )
+
+    # dataEncrypted is a notExist step, and should be necessary
+    # since the data exists. This should also make accessUnencryptedData necessary 
+    assert sim.sim_state.graph_state.necessity_per_node[sim.get_node('Data1:dataEncrypted')]
+    assert sim.sim_state.graph_state.necessity_per_node[sim.get_node('Data1:accessUnencryptedData')]
+
+    recording = run_simulation(sim)
+    assert sim.get_node('Data1:accessDecryptedData') not in recording['Attacker1']
+    assert sim.get_node('Data1:read') not in recording['Attacker1']
+
+def test_necessity_pattern_coreLang_creds_exist_reached(model) -> None:
+    data = model.add_asset('Data', 'Data1')
+    app = model.add_asset('Application', 'App1')
+    creds = model.add_asset('Credentials', 'Creds1')
+    
+    app.add_associated_assets('containedData', {data})
+    data.add_associated_assets('encryptCreds', {creds})
+
+    attack_graph = AttackGraph(model.lang_graph, model)
+    sim = MalSimulator(
+        attack_graph=attack_graph,
+        sim_settings=MalSimulatorSettings(
+            seed=42, attack_surface=AttackSurfaceSettings(skip_unnecessary=False)
+        ),
+        agents=(
+            AttackerSettings(
+                name='Attacker1', entry_points={'App1:fullAccess', 'Creds1:read'}, policy=BreadthFirstAttacker
+            ),
+        )
+    )
+
+    # dataEncrypted is a notExist step, and should be necessary
+    # since the data exists. This should also make accessUnencryptedData necessary 
+    assert sim.sim_state.graph_state.necessity_per_node[sim.get_node('Data1:dataEncrypted')]
+    assert sim.sim_state.graph_state.necessity_per_node[sim.get_node('Data1:accessUnencryptedData')]
+
+    recording = run_simulation(sim)
+    assert sim.get_node('Data1:accessDecryptedData') in recording['Attacker1']
+    assert sim.get_node('Data1:read') in recording['Attacker1']
+
+def test_necessity_pattern_coreLang_creds_dont_exist(model) -> None:
+    data = model.add_asset('Data', 'Data1')
+    app = model.add_asset('Application', 'App1')
+    app.add_associated_assets('containedData', {data})
+
+    attack_graph = AttackGraph(model.lang_graph, model)
+    sim = MalSimulator(
+        attack_graph=attack_graph,
+        sim_settings=MalSimulatorSettings(
+            seed=42, attack_surface=AttackSurfaceSettings(skip_unnecessary=False)
+        ),
+        agents=(
+            AttackerSettings(
+                name='Attacker1', entry_points={'App1:fullAccess'}, policy=BreadthFirstAttacker
+            ),
+        )
+    )
+    recording = run_simulation(sim)
+
+    # dataEncrypted is a notExist step, and should be unnecessary
+    # since the data doesn't exist. This should also make accessUnencryptedData unnecessary.
+    assert not sim.sim_state.graph_state.necessity_per_node[sim.get_node('Data1:dataEncrypted')]
+    assert not sim.sim_state.graph_state.necessity_per_node[sim.get_node('Data1:accessUnencryptedData')]
+
+    assert sim.get_node('Data1:accessDecryptedData') not in recording['Attacker1']
+    assert sim.get_node('Data1:read') in recording['Attacker1']
