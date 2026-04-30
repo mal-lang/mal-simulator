@@ -1,6 +1,7 @@
 from collections.abc import Set
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+from maltoolbox.model import Model
 
 from malsim.config.agent_settings import AttackerSettings
 from malsim.config.sim_settings import AttackSurfaceSettings, MalSimulatorSettings
@@ -8,7 +9,6 @@ from malsim.mal_simulator import run_simulation
 from malsim.mal_simulator.attack_surface import get_attack_surface
 from malsim.mal_simulator.simulator import MalSimulator
 from malsim.policies.attackers.searchers import BreadthFirstAttacker
-from malsim.policies.random_agent import RandomAgent
 from malsim.scenario.scenario import Scenario
 
 
@@ -167,89 +167,84 @@ def test_attack_surface_coreLang_include_unnecessary() -> None:
 
     assert sim.agent_states['Attacker1'].iteration == 99
 
-def test_necessity_pattern_coreLang_creds_exist_not_reached(model) -> None:
+
+def _make_sim(model: Model, entry_points: set[str]) -> MalSimulator:
+    return MalSimulator(
+        attack_graph=AttackGraph(model.lang_graph, model),
+        sim_settings=MalSimulatorSettings(
+            seed=42,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
+        ),
+        agents=(
+            AttackerSettings(
+                name='Attacker1',
+                entry_points=entry_points,
+                policy=BreadthFirstAttacker,
+            ),
+        ),
+    )
+
+
+def _necessity(sim: MalSimulator, node: str) -> bool:
+    return sim.sim_state.graph_state.necessity_per_node[sim.get_node(node)]
+
+
+def _ran(
+    sim: MalSimulator, recording: dict[str, list[AttackGraphNode]], node: str
+) -> bool:
+    return sim.get_node(node) in recording['Attacker1']
+
+
+def test_coreLang_necessity_pattern_creds_exist_not_reached(model: Model) -> None:
     data = model.add_asset('Data', 'Data1')
     app = model.add_asset('Application', 'App1')
     creds = model.add_asset('Credentials', 'Creds1')
-    
+
     app.add_associated_assets('containedData', {data})
     data.add_associated_assets('encryptCreds', {creds})
 
-    attack_graph = AttackGraph(model.lang_graph, model)
-    sim = MalSimulator(
-        attack_graph=attack_graph,
-        sim_settings=MalSimulatorSettings(
-            seed=42, attack_surface=AttackSurfaceSettings(skip_unnecessary=False)
-        ),
-        agents=(
-            AttackerSettings(
-                name='Attacker1', entry_points={'App1:fullAccess'}, policy=BreadthFirstAttacker
-            ),
-        )
-    )
+    sim = _make_sim(model, {'App1:fullAccess'})
 
-    # dataEncrypted is a notExist step, and should be necessary
-    # since the data exists. This should also make accessUnencryptedData necessary 
-    assert sim.sim_state.graph_state.necessity_per_node[sim.get_node('Data1:dataEncrypted')]
-    assert sim.sim_state.graph_state.necessity_per_node[sim.get_node('Data1:accessUnencryptedData')]
+    assert _necessity(sim, 'Data1:dataEncrypted')
+    assert _necessity(sim, 'Data1:accessUnencryptedData')
 
-    recording = run_simulation(sim)
-    assert sim.get_node('Data1:accessDecryptedData') not in recording['Attacker1']
-    assert sim.get_node('Data1:read') not in recording['Attacker1']
+    rec = run_simulation(sim)
 
-def test_necessity_pattern_coreLang_creds_exist_reached(model) -> None:
+    assert not _ran(sim, rec, 'Data1:accessDecryptedData')
+    assert not _ran(sim, rec, 'Data1:read')
+
+
+def test_coreLang_necessity_pattern_creds_exist_reached(model: Model) -> None:
     data = model.add_asset('Data', 'Data1')
     app = model.add_asset('Application', 'App1')
     creds = model.add_asset('Credentials', 'Creds1')
-    
+
     app.add_associated_assets('containedData', {data})
     data.add_associated_assets('encryptCreds', {creds})
 
-    attack_graph = AttackGraph(model.lang_graph, model)
-    sim = MalSimulator(
-        attack_graph=attack_graph,
-        sim_settings=MalSimulatorSettings(
-            seed=42, attack_surface=AttackSurfaceSettings(skip_unnecessary=False)
-        ),
-        agents=(
-            AttackerSettings(
-                name='Attacker1', entry_points={'App1:fullAccess', 'Creds1:read'}, policy=BreadthFirstAttacker
-            ),
-        )
-    )
+    sim = _make_sim(model, {'App1:fullAccess', 'Creds1:read'})
 
-    # dataEncrypted is a notExist step, and should be necessary
-    # since the data exists. This should also make accessUnencryptedData necessary 
-    assert sim.sim_state.graph_state.necessity_per_node[sim.get_node('Data1:dataEncrypted')]
-    assert sim.sim_state.graph_state.necessity_per_node[sim.get_node('Data1:accessUnencryptedData')]
+    assert _necessity(sim, 'Data1:dataEncrypted')
+    assert _necessity(sim, 'Data1:accessUnencryptedData')
 
-    recording = run_simulation(sim)
-    assert sim.get_node('Data1:accessDecryptedData') in recording['Attacker1']
-    assert sim.get_node('Data1:read') in recording['Attacker1']
+    rec = run_simulation(sim)
 
-def test_necessity_pattern_coreLang_creds_dont_exist(model) -> None:
+    assert _ran(sim, rec, 'Data1:accessDecryptedData')
+    assert _ran(sim, rec, 'Data1:read')
+
+
+def test_coreLang_necessity_pattern_creds_do_not_exist(model: Model) -> None:
     data = model.add_asset('Data', 'Data1')
     app = model.add_asset('Application', 'App1')
+
     app.add_associated_assets('containedData', {data})
 
-    attack_graph = AttackGraph(model.lang_graph, model)
-    sim = MalSimulator(
-        attack_graph=attack_graph,
-        sim_settings=MalSimulatorSettings(
-            seed=42, attack_surface=AttackSurfaceSettings(skip_unnecessary=False)
-        ),
-        agents=(
-            AttackerSettings(
-                name='Attacker1', entry_points={'App1:fullAccess'}, policy=BreadthFirstAttacker
-            ),
-        )
-    )
-    recording = run_simulation(sim)
+    sim = _make_sim(model, {'App1:fullAccess'})
 
-    # dataEncrypted is a notExist step, and should be unnecessary
-    # since the data doesn't exist. This should also make accessUnencryptedData unnecessary.
-    assert not sim.sim_state.graph_state.necessity_per_node[sim.get_node('Data1:dataEncrypted')]
-    assert not sim.sim_state.graph_state.necessity_per_node[sim.get_node('Data1:accessUnencryptedData')]
+    assert not _necessity(sim, 'Data1:dataEncrypted')
+    assert not _necessity(sim, 'Data1:accessUnencryptedData')
 
-    assert sim.get_node('Data1:accessDecryptedData') not in recording['Attacker1']
-    assert sim.get_node('Data1:read') in recording['Attacker1']
+    rec = run_simulation(sim)
+
+    assert not _ran(sim, rec, 'Data1:accessDecryptedData')
+    assert _ran(sim, rec, 'Data1:read')
