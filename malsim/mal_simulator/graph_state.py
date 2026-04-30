@@ -11,10 +11,7 @@ from malsim.mal_simulator.ttc_utils import (
     get_pre_enabled_defenses,
     get_impossible_attack_steps,
 )
-from malsim.mal_simulator.graph_processing import (
-    calculate_viability,
-    calculate_necessity,
-)
+from malsim.mal_simulator.graph_processing import calculate_necessity
 
 
 from malsim.config.sim_settings import MalSimulatorSettings
@@ -27,7 +24,6 @@ class GraphState:
     ttc_values: Mapping[AttackGraphNode, float]
     pre_enabled_defenses: Set[AttackGraphNode]
     impossible_attack_steps: Set[AttackGraphNode]
-    viability_per_node: Mapping[AttackGraphNode, bool]
     necessity_per_node: Mapping[AttackGraphNode, bool]
 
 
@@ -36,8 +32,8 @@ def compute_initial_graph_state(
 ) -> GraphState:
     """Compute attack graph initial state based on probabilities and settings
 
-    Compute ttc values, enabled defenses, impossible attack steps,
-    viability and necessity for an attack graph based on given settings.
+    Compute ttc values, enabled defenses, impossible attack steps
+    and necessity for an attack graph based on given settings.
     """
 
     # TTC (Time to compromise) for each attack step
@@ -55,15 +51,11 @@ def compute_initial_graph_state(
         # These steps will not be traversable
         impossible_attack_steps = get_impossible_attack_steps(graph.attack_steps, rng)
 
-    viability_per_node = calculate_viability(
-        graph, enabled_defenses, impossible_attack_steps
-    )
     necessity_per_node = calculate_necessity(graph, enabled_defenses)
 
     return GraphState(
         ttc_values=ttc_values,
         pre_enabled_defenses=enabled_defenses,
         impossible_attack_steps=impossible_attack_steps,
-        viability_per_node=viability_per_node,
         necessity_per_node=necessity_per_node,
     )
