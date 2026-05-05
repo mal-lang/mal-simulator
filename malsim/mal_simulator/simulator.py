@@ -210,6 +210,7 @@ class MalSimulator:
         cls,
         scenario: Scenario | str,
         send_to_api: bool = False,
+        sim_settings: MalSimulatorSettings | None = None,
     ) -> MalSimulator:
         """Create a MalSimulator object from a Scenario object or file
 
@@ -218,7 +219,7 @@ class MalSimulator:
             sim_settings - settings to use in the simulator
             send_to_api - whether to send data to GUI REST API or not
         """
-        return create_simulator_from_scenario(scenario, send_to_api)
+        return create_simulator_from_scenario(scenario, send_to_api, sim_settings)
 
     def done(self) -> bool:
         return done(self.alive_agents)
@@ -386,6 +387,7 @@ class MalSimulator:
 def create_simulator_from_scenario(
     scenario: str | Scenario,
     send_to_api: bool = False,
+    sim_settings: MalSimulatorSettings | None = None,
 ) -> MalSimulator:
     if isinstance(scenario, str):
         # Load scenario if file was given
@@ -393,7 +395,7 @@ def create_simulator_from_scenario(
 
     return MalSimulator(
         scenario.attack_graph,
-        sim_settings=scenario.sim_settings,
+        sim_settings=sim_settings or scenario.sim_settings,
         send_to_api=send_to_api,
         agents=scenario.agent_settings,
     )
