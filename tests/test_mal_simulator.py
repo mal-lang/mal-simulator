@@ -1724,3 +1724,18 @@ def test_actions_effects() -> None:
 
         for effect_node in effect_nodes:
             assert effect_node.lg_attack_step in all_effect_children
+
+
+def test_simulator_sim_settings_from_scenario(
+    corelang_lang_graph: LanguageGraph, model: Model
+) -> None:
+    """Test _initialize_agents"""
+
+    scenario = Scenario.load_from_file('tests/testdata/scenarios/simple_scenario.yml')
+    sim = MalSimulator.from_scenario(
+        scenario, sim_settings=MalSimulatorSettings(seed=100)
+    )
+    assert sim.sim_settings.seed == 100
+
+    sim = MalSimulator.from_scenario(scenario)
+    assert sim.sim_settings.seed is None
