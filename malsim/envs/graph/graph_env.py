@@ -92,7 +92,7 @@ class AttackerGraphEnv(gym.Env[MALObsInstance, np.int64]):
             scenario = Scenario.load_from_file(str(scenario), sim_settings=sim_settings)
 
         self.scenario = scenario
-        self.sim = MalSimulator.from_scenario(scenario)
+        self.sim = MalSimulator.from_scenario(scenario, sim_settings=sim_settings)
         self.multi_env = MalSimGraph(self.sim, attacker_visible_defense_steps=False)
         self.agent_name = get_agent_name(scenario, AgentType.ATTACKER)
         self.observation_space = self.multi_env.observation_space(self.agent_name)
@@ -158,7 +158,7 @@ class DefenderGraphEnv(gym.Env[MALObsInstance, np.int64]):
             scenario = Scenario.load_from_file(str(scenario), sim_settings=sim_settings)
 
         self.scenario = scenario
-        self.sim = MalSimulator.from_scenario(scenario)
+        self.sim = MalSimulator.from_scenario(scenario, sim_settings=sim_settings)
         self.multi_env = MalSimGraph(self.sim, attacker_visible_defense_steps=True)
         self.agent_name = get_agent_name(scenario, AgentType.DEFENDER)
         self.observation_space = self.multi_env.observation_space(self.agent_name)
