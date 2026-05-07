@@ -333,7 +333,7 @@ def test_node_full_names_to_simulator(
                     {attack_graph.get_node_by_full_name(entry_point_full_name)}
                 ),
                 rewards=rewards,
-                reward_mode=RewardMode.CUMULATIVE
+                reward_mode=RewardMode.CUMULATIVE,
             ),
         ),
     )
