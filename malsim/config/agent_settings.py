@@ -58,7 +58,7 @@ class AttackerSettings(AgentRuntimeMixin, Generic[T]):
     rewards: NodePropertyRule[float] | None = None
     config: dict[str, Any] = field(default_factory=dict)
     type: AgentType = AgentType.ATTACKER
-    reward_mode: RewardMode = RewardMode.CUMULATIVE
+    reward_mode: RewardMode = RewardMode.ONE_OFF
     # Goals affect simulation termination but is optional
     goals: Set[T] = field(default_factory=frozenset)
     # TTC distributions that override TTCs set in language
