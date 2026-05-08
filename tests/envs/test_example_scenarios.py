@@ -349,6 +349,7 @@ def test_bfs_vs_bfs_state_and_reward_per_step_effort_based() -> None:
         sim_settings=MalSimulatorSettings(
             seed=100,
             ttc_mode=TTCMode.EFFORT_BASED_PER_STEP_SAMPLE,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=True),
         ),
     )
     sim = MalSimulator.from_scenario(scenario)
@@ -518,6 +519,7 @@ def test_bfs_vs_bfs_state_and_reward_expected_value_ttc() -> None:
         sim_settings=MalSimulatorSettings(
             seed=1,
             ttc_mode=TTCMode.EXPECTED_VALUE,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=True),
         ),
     )
 
