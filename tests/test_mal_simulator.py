@@ -1732,3 +1732,28 @@ def test_simulator_sim_settings_from_scenario(
 
     sim = MalSimulator.from_scenario(scenario)
     assert sim.sim_settings.seed is None
+
+
+def test_simulator_multiple_entry_point_sets_in_attacker_settings(model: Model) -> None:
+    """
+    Test that if an attacker has multiple entry point sets,
+    one set is picked when initializing the simulator
+    """
+    attacker_settings = AttackerSettings(
+        name='Attacker1',
+        entry_points=({'OS App:fullAccess', 'Program 2:fullAccess'}, {'Data:5:read'}),
+    )
+
+    corelang_file_name = 'tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar'
+    scenario = Scenario(
+        corelang_file_name,
+        model,
+        agents=(attacker_settings,),
+        sim_settings=MalSimulatorSettings(seed=100),
+    )
+    sim = MalSimulator.from_scenario(scenario)
+    assert (
+        sim.agent_states['Attacker1'].entry_points
+        in sim.agent_settings['Attacker1'].entry_points
+    )
+    assert sim.agent_states['Attacker1'].entry_points == {sim.get_node('Data:5:read')}
