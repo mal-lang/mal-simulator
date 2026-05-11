@@ -127,7 +127,7 @@ def get_entry_points(
     If multiple sets of entry points are given, sample one set from the options.
     """
 
-    if isinstance(attacker_settings.entry_points, set):
+    if isinstance(attacker_settings.entry_points, Set):
         return frozenset(
             full_names_or_nodes_to_nodes(
                 sim_state.attack_graph, attacker_settings.entry_points
@@ -136,7 +136,6 @@ def get_entry_points(
     else:
         # Multiple potential entry point sets given
         # - sample one set of entry points from the options
-        assert isinstance(attacker_settings.entry_points, tuple)
         chosen_entry_points = rng.choice(attacker_settings.entry_points)
         return set(
             full_names_or_nodes_to_nodes(sim_state.attack_graph, chosen_entry_points)
