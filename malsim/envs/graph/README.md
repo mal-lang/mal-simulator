@@ -6,6 +6,10 @@ The Graphical Gym Interface provides a graph-structured observation and action s
 
 The interface represents the attack graph as a structured observation with nodes (assets, steps, associations, logic gates) and edges (relationships between nodes). This graph structure is encoded using Coordinate (COO) format for efficient representation and processing.
 
+### Scenario settings
+
+**Important**: To be able to use any of the wrappers here with a [scenario](https://github.com/mal-lang/mal-simulator/wiki/Scenarios), you need to set `agent_class: null` in the YAML file. Or if creating it programatically, the policy/agent's class need to be `None`. Otherwise it will be assumed to be a heuristic agent.
+
 ## Core Concepts
 
 ### Observation Structure (`MALObsInstance`)
