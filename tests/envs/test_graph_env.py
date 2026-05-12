@@ -63,7 +63,7 @@ from malsim.envs.graph.wrapper import ActionThenAssetWrapper, AssetThenActionWra
     ],
 )
 def test_check_graph_env(sim_settings: MalSimulatorSettings) -> None:
-    scenario_file = 'tests/testdata/scenarios/simple_scenario.yml'
+    scenario_file = 'tests/testdata/scenarios/simple_ai_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file)
     register_graph_envs(scenario, sim_settings=sim_settings)
     env: Any = AttackerGraphEnv(scenario, sim_settings=sim_settings)
@@ -74,7 +74,7 @@ def test_check_graph_env(sim_settings: MalSimulatorSettings) -> None:
 
 
 def test_attacker_episode() -> None:
-    scenario_file = 'tests/testdata/scenarios/traininglang_scenario_with_model.yml'
+    scenario_file = 'tests/testdata/scenarios/traininglang_ai_scenario_with_model.yml'
     scenario = Scenario.load_from_file(scenario_file)
     attacker_env = AttackerGraphEnv(
         scenario,
@@ -217,7 +217,7 @@ def test_defender_episode() -> None:
 
 
 def test_pettingzoo_api_check() -> None:
-    scenario_file = 'tests/testdata/scenarios/traininglang_scenario_with_model.yml'
+    scenario_file = 'tests/testdata/scenarios/traininglang_ai_scenario_with_model.yml'
     scenario = Scenario.load_from_file(scenario_file)
     sim = MalSimulator.from_scenario(scenario)
     env = MalSimGraph(sim)
@@ -225,7 +225,7 @@ def test_pettingzoo_api_check() -> None:
 
 
 def test_asset_then_action_wrapper() -> None:
-    scenario_file = 'tests/testdata/scenarios/traininglang_scenario_with_model.yml'
+    scenario_file = 'tests/testdata/scenarios/traininglang_ai_scenario_with_model.yml'
     scenario = Scenario.load_from_file(scenario_file)
     attacker_env = AttackerGraphEnv(
         scenario,
@@ -286,7 +286,7 @@ def test_asset_then_action_wrapper() -> None:
 
 
 def test_action_then_asset_wrapper() -> None:
-    scenario_file = 'tests/testdata/scenarios/traininglang_scenario_with_model.yml'
+    scenario_file = 'tests/testdata/scenarios/traininglang_ai_scenario_with_model.yml'
     scenario = Scenario.load_from_file(scenario_file)
     attacker_env = AttackerGraphEnv(
         scenario,
@@ -343,7 +343,7 @@ def test_action_then_asset_wrapper() -> None:
 
 
 def test_async_vector_env() -> None:
-    scenario_file = 'tests/testdata/scenarios/traininglang_scenario_with_model.yml'
+    scenario_file = 'tests/testdata/scenarios/traininglang_ai_scenario_with_model.yml'
     scenario = Scenario.load_from_file(scenario_file)
 
     def thunk() -> AttackerGraphEnv:
@@ -382,3 +382,69 @@ def test_async_vector_env() -> None:
         actions = env.action_space.sample(padded_vec_action_mask)
         vec_obs, _reward, terminated, truncated, _info = env.step(actions)
         done |= terminated | truncated
+
+
+def test_attacker_episode_with_heuristic_defender() -> None:
+    scenario_file = (
+        'tests/testdata/scenarios/simple_ai_scenario_with_heuristic_defender.yml'
+    )
+    scenario = Scenario.load_from_file(scenario_file)
+    attacker_env = AttackerGraphEnv(
+        scenario,
+        sim_settings=MalSimulatorSettings(
+            ttc_mode=TTCMode.PER_STEP_SAMPLE,
+            run_defense_step_bernoullis=False,
+            run_attack_step_bernoullis=False,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
+        ),
+    )
+
+    done = False
+    steps = 0
+    obs, info = attacker_env.reset()
+    while not done:
+        obs, _, terminated, truncated, info = attacker_env.step(
+            attacker_env.action_space.sample(obs.steps.action_mask)
+        )
+        done = terminated or truncated
+        steps += 1
+        if len(attacker_env.sim.recording[steps]['Defender1']) > 0:
+            break
+    steps_performed_by_defender = sum(
+        map(
+            len,
+            [attacker_env.sim.recording[i]['Defender1'] for i in range(1, steps + 1)],
+        )
+    )
+    assert steps_performed_by_defender > 0, 'Heuristic defender not active'
+
+    scenario_file = 'tests/testdata/scenarios/simple_ai_scenario.yml'
+    scenario = Scenario.load_from_file(scenario_file)
+    attacker_env = AttackerGraphEnv(
+        scenario,
+        sim_settings=MalSimulatorSettings(
+            ttc_mode=TTCMode.PER_STEP_SAMPLE,
+            run_defense_step_bernoullis=False,
+            run_attack_step_bernoullis=False,
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
+        ),
+    )
+
+    done = False
+    steps = 0
+    obs, info = attacker_env.reset()
+    while not done:
+        obs, _, terminated, truncated, info = attacker_env.step(
+            attacker_env.action_space.sample(obs.steps.action_mask)
+        )
+        done = terminated or truncated
+        steps += 1
+        if len(attacker_env.sim.recording[steps]['Defender1']) > 0:
+            break
+    steps_performed_by_defender = sum(
+        map(
+            len,
+            [attacker_env.sim.recording[i]['Defender1'] for i in range(1, steps + 1)],
+        )
+    )
+    assert steps_performed_by_defender == 0, 'Heuristic defender is active'
