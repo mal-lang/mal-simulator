@@ -47,6 +47,21 @@ class AgentRuntimeMixin:
 T = TypeVar('T', bound=AttackGraphNode | str, covariant=True)
 
 
+def _entry_points_to_dict(
+    entry_points: tuple[Set[T], ...] | Set[T],
+) -> list[Set[str]] | set[str]:
+    if isinstance(entry_points, Set):
+        return {
+            ep.full_name if isinstance(ep, AttackGraphNode) else ep
+            for ep in entry_points
+        }
+    else:
+        return [
+            {ep.full_name if isinstance(ep, AttackGraphNode) else ep for ep in eps}
+            for eps in entry_points
+        ]
+
+
 @dataclass
 class AttackerSettings(AgentRuntimeMixin, Generic[T]):
     """Settings for an attacker in a scenario."""
@@ -67,18 +82,7 @@ class AttackerSettings(AgentRuntimeMixin, Generic[T]):
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
             'type': AgentType.ATTACKER.value,
-            'entry_points': [
-                {
-                    n.full_name if isinstance(n, AttackGraphNode) else n
-                    for n in self.entry_points
-                }
-            ]
-            if isinstance(self.entry_points, Set)
-            else {
-                n.full_name if isinstance(n, AttackGraphNode) else n
-                for entry_points in self.entry_points
-                for n in entry_points
-            },
+            'entry_points': _entry_points_to_dict(self.entry_points),
         }
         if self.goals:
             d['goals'] = {

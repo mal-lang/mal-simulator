@@ -1752,8 +1752,22 @@ def test_simulator_multiple_entry_point_sets_in_attacker_settings(model: Model) 
         sim_settings=MalSimulatorSettings(seed=100),
     )
     sim = MalSimulator.from_scenario(scenario)
-    assert (
-        sim.agent_states['Attacker1'].entry_points
-        in sim.agent_settings['Attacker1'].entry_points
+    attacker_state = sim.agent_states['Attacker1']
+    assert isinstance(attacker_state, AttackerState)
+    assert isinstance(attacker_settings.entry_points, tuple)
+    assert attacker_state.entry_points == {sim.get_node('Data:5:read')}
+
+    scenario = Scenario(
+        corelang_file_name,
+        model,
+        agents=(attacker_settings,),
+        sim_settings=MalSimulatorSettings(seed=7),
     )
-    assert sim.agent_states['Attacker1'].entry_points == {sim.get_node('Data:5:read')}
+    sim = MalSimulator.from_scenario(scenario)
+    attacker_state = sim.agent_states['Attacker1']
+    assert isinstance(attacker_state, AttackerState)
+    assert isinstance(attacker_settings.entry_points, tuple)
+    assert attacker_state.entry_points == {
+        sim.get_node('OS App:fullAccess'),
+        sim.get_node('Program 2:fullAccess'),
+    }
