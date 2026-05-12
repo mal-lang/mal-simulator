@@ -331,9 +331,7 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
             agent_name: self.sim.agent_is_terminated(agent_name)
             for agent_name in self.gym_agents
         }
-        truncations = {
-            agent_name: self.sim.done() for agent_name in self.gym_agents
-        }
+        truncations = {agent_name: self.sim.done() for agent_name in self.gym_agents}
         return (
             self._obs,
             rewards,
