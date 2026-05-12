@@ -1773,7 +1773,7 @@ def test_simulator_multiple_entry_point_sets_in_attacker_settings(model: Model) 
     }
 
 
-def test_simulator_multiple_entry_point_sets_scenario():
+def test_simulator_multiple_entry_point_sets_scenario() -> None:
     """
     Test that if a scenario has an attacker with multiple entry point sets,
     one set is picked when initializing the simulator
@@ -1782,14 +1782,16 @@ def test_simulator_multiple_entry_point_sets_scenario():
         'tests/testdata/scenarios/bfs_vs_bfs_scenario_multiple_entrypoint_sets.yml'
     )
 
-    chosen_entry_points = list()
+    chosen_entry_points = set()
     for i in range(10):
-        sim = MalSimulator.from_scenario(scenario, sim_settings=MalSimulatorSettings(seed=i))
+        sim = MalSimulator.from_scenario(
+            scenario, sim_settings=MalSimulatorSettings(seed=i)
+        )
         attacker_state = sim.agent_states['attacker1']
         assert isinstance(attacker_state, AttackerState)
-        chosen_entry_points.append(attacker_state.entry_points)
+        chosen_entry_points.add(frozenset(attacker_state.entry_points))
 
     # Make sure not all entrypoints are the same across all runs
-    assert len(set(frozenset(e) for e in chosen_entry_points)) == 2, (
+    assert len(chosen_entry_points) == 2, (
         'Entry points are the same across all runs, expected some variability'
     )
