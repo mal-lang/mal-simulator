@@ -434,7 +434,7 @@ def test_attacker_episode_with_heuristic_defender() -> None:
     steps = 0
     obs, info = attacker_env.reset()
     while not done:
-        obs, _, terminated, truncated, info = attacker_env.step(
+        obs, _, terminated, truncated, _info = attacker_env.step(
             attacker_env.action_space.sample(obs.steps.action_mask)
         )
         done = terminated or truncated

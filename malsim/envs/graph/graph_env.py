@@ -296,7 +296,7 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
             else []
             for agent_name, action_idx in actions.items()
         }
-        for agent_name in self.non_gym_agents.keys():
+        for agent_name in self.non_gym_agents:
             agent: DecisionAgent = self.non_gym_agents[agent_name].agent  # type: ignore
             action = agent.get_next_action(self.sim.agent_states[agent_name])
             action_nodes[agent_name] = [action] if action is not None else []
@@ -317,22 +317,22 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
                     self.lang_serializer,
                 )
             )
-            for agent_name in self.gym_agents.keys()
+            for agent_name in self.gym_agents
         }
         for agent_name, obs in self._obs.items():
             self.action_space(agent_name)._mask = obs.steps.action_mask
         rewards = {
             agent_name: x
-            for agent_name in self.gym_agents.keys()
+            for agent_name in self.gym_agents
             if (x := self.sim.agent_reward(self.sim.agent_states[agent_name]))
             is not None
         }
         terminations = {
             agent_name: self.sim.agent_is_terminated(agent_name)
-            for agent_name in self.gym_agents.keys()
+            for agent_name in self.gym_agents
         }
         truncations = {
-            agent_name: self.sim.done() for agent_name in self.gym_agents.keys()
+            agent_name: self.sim.done() for agent_name in self.gym_agents
         }
         return (
             self._obs,
