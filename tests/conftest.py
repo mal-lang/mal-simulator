@@ -2,14 +2,12 @@ from os import path
 import pytest
 
 from maltoolbox.model import Model
-from maltoolbox.attackgraph import AttackGraph, AttackGraphNode, create_attack_graph
+from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from maltoolbox.language import (
     LanguageGraph,
     LanguageGraphAttackStep,
     LanguageGraphAsset,
 )
-from malsim.config.agent_settings import AttackerSettings, DefenderSettings
-from malsim.mal_simulator import MalSimulator
 
 ## Helpers
 
