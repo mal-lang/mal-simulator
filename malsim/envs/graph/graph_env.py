@@ -2,6 +2,7 @@ import gymnasium as gym
 from typing import Any
 
 from malsim.config.sim_settings import AttackSurfaceSettings
+from malsim.policies.decision_agent import DecisionAgent
 
 from .mal_spaces import (
     MALObsAttackStepSpace,
@@ -16,6 +17,7 @@ from os import PathLike
 
 from malsim.scenario.scenario import Scenario
 from malsim.config.agent_settings import AgentType
+from malsim.config.agent_settings import AgentSettings
 
 from malsim.mal_simulator import (
     MalSimulator,
@@ -234,6 +236,17 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
         self.possible_agents = list(self.sim.agent_states)
         self.agents = list(self.sim.alive_agents)
 
+        self.internal_agents: AgentSettings = {
+            agent_name: settings
+            for agent_name, settings in self.sim.agent_settings.items()
+            if settings.policy is not None
+        }
+        self.external_agents: AgentSettings = {
+            agent_name: settings
+            for agent_name, settings in self.sim.agent_settings.items()
+            if settings.policy is None
+        }
+
     def reset(
         self, seed: int | None = None, options: dict[str, Any] | None = None
     ) -> tuple[dict[str, MALObsInstance], dict[str, dict[str, Any]]]:
@@ -283,33 +296,44 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
             else []
             for agent_name, action_idx in actions.items()
         }
+        for agent_name in self.internal_agents:
+            agent: DecisionAgent = self.internal_agents[agent_name].agent  # type: ignore
+            action = agent.get_next_action(self.sim.agent_states[agent_name])
+            action_nodes[agent_name] = [action] if action is not None else []
         states = self.sim.step(action_nodes)
         self.agents = list(self.sim.alive_agents)
         self._obs = {
             agent_name: (
                 full_obs2attacker_obs(
                     self._full_obs,
-                    state,
+                    self.sim.agent_states[agent_name],  # type: ignore
                     self.lang_serializer,
                     see_defense_steps=self.see_def_steps,
                 )
-                if isinstance(state, AttackerState)
-                else full_obs2defender_obs(self._full_obs, state, self.lang_serializer)
+                if isinstance(self.sim.agent_states[agent_name], AttackerState)
+                else full_obs2defender_obs(
+                    self._full_obs,
+                    self.sim.agent_states[agent_name],  # type: ignore
+                    self.lang_serializer,
+                )
             )
-            for agent_name, state in states.items()
+            for agent_name in self.external_agents
         }
         for agent_name, obs in self._obs.items():
             self.action_space(agent_name)._mask = obs.steps.action_mask
         rewards = {
             agent_name: x
-            for agent_name, state in states.items()
-            if (x := self.sim.agent_reward(state)) is not None
+            for agent_name in self.external_agents
+            if (x := self.sim.agent_reward(self.sim.agent_states[agent_name]))
+            is not None
         }
         terminations = {
             agent_name: self.sim.agent_is_terminated(agent_name)
-            for agent_name in states
+            for agent_name in self.external_agents
         }
-        truncations = {agent_name: self.sim.done() for agent_name in states}
+        truncations = {
+            agent_name: self.sim.done() for agent_name in self.external_agents
+        }
         return (
             self._obs,
             rewards,
