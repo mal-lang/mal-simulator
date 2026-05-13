@@ -236,12 +236,12 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
         self.possible_agents = list(self.sim.agent_states)
         self.agents = list(self.sim.alive_agents)
 
-        self.non_gym_agents: AgentSettings = {
+        self.internal_agents: AgentSettings = {
             agent_name: settings
             for agent_name, settings in self.sim.agent_settings.items()
             if settings.policy is not None
         }
-        self.gym_agents: AgentSettings = {
+        self.external_agents: AgentSettings = {
             agent_name: settings
             for agent_name, settings in self.sim.agent_settings.items()
             if settings.policy is None
@@ -296,8 +296,8 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
             else []
             for agent_name, action_idx in actions.items()
         }
-        for agent_name in self.non_gym_agents:
-            agent: DecisionAgent = self.non_gym_agents[agent_name].agent  # type: ignore
+        for agent_name in self.internal_agents:
+            agent: DecisionAgent = self.internal_agents[agent_name].agent  # type: ignore
             action = agent.get_next_action(self.sim.agent_states[agent_name])
             action_nodes[agent_name] = [action] if action is not None else []
         states = self.sim.step(action_nodes)
@@ -317,21 +317,23 @@ class MalSimGraph(ParallelEnv[str, MALObsInstance, np.int64]):
                     self.lang_serializer,
                 )
             )
-            for agent_name in self.gym_agents
+            for agent_name in self.external_agents
         }
         for agent_name, obs in self._obs.items():
             self.action_space(agent_name)._mask = obs.steps.action_mask
         rewards = {
             agent_name: x
-            for agent_name in self.gym_agents
+            for agent_name in self.external_agents
             if (x := self.sim.agent_reward(self.sim.agent_states[agent_name]))
             is not None
         }
         terminations = {
             agent_name: self.sim.agent_is_terminated(agent_name)
-            for agent_name in self.gym_agents
+            for agent_name in self.external_agents
         }
-        truncations = {agent_name: self.sim.done() for agent_name in self.gym_agents}
+        truncations = {
+            agent_name: self.sim.done() for agent_name in self.external_agents
+        }
         return (
             self._obs,
             rewards,
