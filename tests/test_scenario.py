@@ -560,6 +560,7 @@ def test_scenario_advanced_agent_settings() -> None:
     assert attacker.type == AgentType.ATTACKER
 
     # entry points
+    assert isinstance(attacker.entry_points, frozenset)
     assert {n.full_name for n in attacker.entry_points} == {
         'User:3:phishing',
         'Host:0:connect',

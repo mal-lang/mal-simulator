@@ -1,3 +1,4 @@
+from collections.abc import Set
 from typing import Any
 
 
@@ -59,6 +60,28 @@ def _validate_agent_dict(d: dict[str, Any]) -> dict[str, Any]:
     return d
 
 
+def _load_entry_points(d: Any) -> tuple[Set[str], ...] | Set[str]:
+    if d is None:
+        return frozenset()
+    elif isinstance(d, set):
+        return frozenset(d)
+    elif isinstance(d, (list, tuple)):
+        # Can be a list of strings or a list of sets/lists with strings
+        if all(isinstance(ep, str) for ep in d):
+            return frozenset(d)
+        elif all(isinstance(ep, (set, list)) for ep in d):
+            return tuple(frozenset(ep) for ep in d)
+        else:
+            raise ValueError(
+                'entry_points list must contain either '
+                'all strings or all sets/lists of strings'
+            )
+    else:
+        raise ValueError(
+            f'entry_points must be a set or list of strings, got {type(d)}'
+        )
+
+
 def agent_settings_from_dict(
     name: str,
     d: dict[str, Any],
@@ -84,7 +107,7 @@ def agent_settings_from_dict(
     if agent_type == AgentType.ATTACKER:
         return AttackerSettings(
             name=name,
-            entry_points=frozenset(d['entry_points']),
+            entry_points=_load_entry_points(d.get('entry_points')),
             goals=frozenset(d.get('goals', [])),
             ttc_dists=NodePropertyRule.from_optional_dict(d.get('ttc_overrides')),
             policy=policy,

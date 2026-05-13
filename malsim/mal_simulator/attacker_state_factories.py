@@ -38,6 +38,7 @@ def create_attacker_state(
     attack_surface_settings: AttackSurfaceSettings,
     attacker_settings: AttackerSettings[AttackGraphNode],
     name: str,
+    entry_points: Set[AttackGraphNode],
     new_performed_nodes: Set[AttackGraphNode],
     ttc_values: Mapping[AttackGraphNode, float],
     impossible_steps: Set[AttackGraphNode],
@@ -78,7 +79,7 @@ def create_attacker_state(
     )
 
     if not previous_state and not sim_state.settings.compromise_entrypoints_at_start:
-        action_surface |= attacker_settings.entry_points
+        action_surface |= entry_points
 
     iteration = previous_state.iteration if previous_state else 0
     if new_performed_nodes:
@@ -86,6 +87,7 @@ def create_attacker_state(
 
     return AttackerState(
         name,
+        entry_points=entry_points,
         sim_state=sim_state,
         iteration=iteration + 1,
         performed_nodes_order=performed_nodes_order,
@@ -115,6 +117,31 @@ def get_entrypoint_compromises(
     return step_compromised_nodes
 
 
+def get_entry_points(
+    sim_state: MalSimulatorState,
+    attacker_settings: AttackerSettings[AttackGraphNode],
+    rng: np.random.Generator,
+) -> Set[AttackGraphNode]:
+    """
+    Get entry points as set of AttackGraphNodes from attacker settings.
+    If multiple sets of entry points are given, sample one set from the options.
+    """
+
+    if isinstance(attacker_settings.entry_points, Set):
+        return frozenset(
+            full_names_or_nodes_to_nodes(
+                sim_state.attack_graph, attacker_settings.entry_points
+            )
+        )
+    else:
+        # Multiple potential entry point sets given
+        # - sample one set of entry points from the options
+        chosen_entry_points = rng.choice(list(attacker_settings.entry_points))  # type: ignore
+        return set(
+            full_names_or_nodes_to_nodes(sim_state.attack_graph, chosen_entry_points)
+        )
+
+
 def initial_attacker_state(
     sim_state: MalSimulatorState,
     sim_settings: MalSimulatorSettings,
@@ -136,11 +163,7 @@ def initial_attacker_state(
             sim_state.graph_state.impossible_attack_steps,
         )
     )
-    entry_points = set(
-        full_names_or_nodes_to_nodes(
-            sim_state.attack_graph, attacker_settings.entry_points
-        )
-    )
+    entry_points = get_entry_points(sim_state, attacker_settings, rng)
     new_compromised_nodes: Set[AttackGraphNode] = set()
 
     if sim_state.settings.compromise_entrypoints_at_start:
@@ -154,6 +177,7 @@ def initial_attacker_state(
         ttc_values=ttc_values,
         impossible_steps=impossible_steps,
         new_performed_nodes=new_compromised_nodes,
+        entry_points=entry_points,
     )
 
 

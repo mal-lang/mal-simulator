@@ -12,6 +12,7 @@ class AttackerState(AgentState):
     """Stores the state of an attacker in the simulator"""
 
     settings: AttackerSettings[AttackGraphNode]
+    entry_points: Set[AttackGraphNode]
     # Number of attempts to compromise a step (used for ttc caculations)
     num_attempts: Mapping[AttackGraphNode, int]
     # Steps attempted but not succeeded (because of TTC value)
