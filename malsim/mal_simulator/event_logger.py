@@ -30,7 +30,7 @@ def collect_false_positives(
     """Generates logs for false positives from given detectors."""
     logs = []
     for detector in detectors:
-        if detector.fprate >= rng.random():
+        if detector.fprate and detector.fprate >= rng.random():
             logs.append(
                 LogEntry(
                     timestep=iteration,
@@ -75,7 +75,7 @@ def collect_logs(
                 previous_compromised_nodes,
             )
             assert attack_step.model_asset is not None, 'Attack step has no model asset'
-            if detector.tprate >= rng.random():
+            if detector.tprate and detector.tprate >= rng.random():
                 logs.append(
                     LogEntry(
                         timestep=iteration,
