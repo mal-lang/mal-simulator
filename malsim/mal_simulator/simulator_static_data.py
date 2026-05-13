@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
 from malsim.config.sim_settings import MalSimulatorSettings
@@ -7,12 +7,12 @@ from malsim.config.sim_settings import MalSimulatorSettings
 class MALSimulatorStaticData(NamedTuple):
     attack_graph: AttackGraph
     sim_settings: MalSimulatorSettings
-    rewards: Optional[dict[str, float] | dict[AttackGraphNode, float]] = None
-    false_positive_rates: Optional[dict[str, float] | dict[AttackGraphNode, float]] = (
+    rewards: dict[str, float] | dict[AttackGraphNode, float] | None = None
+    false_positive_rates: dict[str, float] | dict[AttackGraphNode, float] | None = (
         None
     )
-    false_negative_rates: Optional[dict[str, float] | dict[AttackGraphNode, float]] = (
+    false_negative_rates: dict[str, float] | dict[AttackGraphNode, float] | None = (
         None
     )
-    node_actionabilities: Optional[dict[str, bool] | dict[AttackGraphNode, bool]] = None
-    node_observabilities: Optional[dict[str, bool] | dict[AttackGraphNode, bool]] = None
+    node_actionabilities: dict[str, bool] | dict[AttackGraphNode, bool] | None = None
+    node_observabilities: dict[str, bool] | dict[AttackGraphNode, bool] | None = None

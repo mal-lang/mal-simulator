@@ -1,5 +1,5 @@
 from malsim.config.sim_settings import MalSimulatorSettings
-from malsim.mal_simulator.defender_state import MalSimDefenderState
+from malsim.mal_simulator.defender_state import DefenderState
 from malsim.mal_simulator.event_logger import LogEntry
 from malsim.mal_simulator.simulator import MalSimulator
 from malsim.mal_simulator import run_simulation
@@ -16,9 +16,9 @@ def test_logger_attacks() -> None:
     sim = MalSimulator.from_scenario(
         scenario, sim_settings=MalSimulatorSettings(seed=10)
     )
-    run_simulation(sim, sim._agent_settings)
+    run_simulation(sim)
     defender_state = sim.agent_states['Defender']
-    assert isinstance(defender_state, MalSimDefenderState)
+    assert isinstance(defender_state, DefenderState)
     assert defender_state.logs == (
         LogEntry(
             timestep=2,
@@ -59,10 +59,10 @@ def test_logger_attacks_false_negative() -> None:
         tprate=0.1,
     )
 
-    run_simulation(sim, sim._agent_settings)
+    run_simulation(sim)
 
     defender_state = sim.agent_states['Defender']
-    assert isinstance(defender_state, MalSimDefenderState)
+    assert isinstance(defender_state, DefenderState)
     assert app1_exploit in defender_state.compromised_nodes
     assert defender_state.logs == (
         # No logs for Application 1 since it had too low TPRATE,
@@ -108,12 +108,20 @@ def test_logger_attacks_false_positive() -> None:
         sim.step({})
 
     defender_state = sim.agent_states['Defender']
-    assert isinstance(defender_state, MalSimDefenderState)
+    assert isinstance(defender_state, DefenderState)
     assert app1_exploit not in defender_state.compromised_nodes
     assert defender_state.logs
     assert defender_state.logs == (
         LogEntry(
-            timestep=1,
+            timestep=0,
+            detector_name='logExploit',
+            detector=mocked_detector,
+            trigger=sim.get_node('Application:1:exploit'),
+            context={'computer': sim.get_node('Computer:0:authenticate')},
+            false_positive=True,
+        ),
+        LogEntry(
+            timestep=2,
             detector_name='logExploit',
             detector=mocked_detector,
             trigger=sim.get_node('Application:1:exploit'),
@@ -125,11 +133,13 @@ def test_logger_attacks_false_positive() -> None:
             detector_name='logExploit',
             detector=mocked_detector,
             trigger=sim.get_node('Application:1:exploit'),
-            context={'computer': sim.get_node('Computer:0:authenticate')},
+            context={
+                'computer': sim.get_node('Computer:0:authenticate'),
+            },
             false_positive=True,
         ),
         LogEntry(
-            timestep=4,
+            timestep=5,
             detector_name='logExploit',
             detector=mocked_detector,
             trigger=sim.get_node('Application:1:exploit'),
