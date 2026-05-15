@@ -121,6 +121,14 @@ def test_logger_attacks_false_positive() -> None:
             false_positive=True,
         ),
         LogEntry(
+            timestep=1,
+            detector_name='logExploit',
+            detector=mocked_detector,
+            trigger=sim.get_node('Application:1:exploit'),
+            context={'computer': sim.get_node('Computer:0:authenticate')},
+            false_positive=True,
+        ),
+        LogEntry(
             timestep=2,
             detector_name='logExploit',
             detector=mocked_detector,
@@ -129,13 +137,11 @@ def test_logger_attacks_false_positive() -> None:
             false_positive=True,
         ),
         LogEntry(
-            timestep=3,
+            timestep=4,
             detector_name='logExploit',
             detector=mocked_detector,
             trigger=sim.get_node('Application:1:exploit'),
-            context={
-                'computer': sim.get_node('Computer:0:authenticate'),
-            },
+            context={'computer': sim.get_node('Computer:0:authenticate')},
             false_positive=True,
         ),
         LogEntry(

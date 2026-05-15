@@ -75,7 +75,7 @@ def collect_logs(
                 previous_compromised_nodes,
             )
             assert attack_step.model_asset is not None, 'Attack step has no model asset'
-            if detector.tprate and detector.tprate >= rng.random():
+            if not detector.tprate or detector.tprate >= rng.random():
                 logs.append(
                     LogEntry(
                         timestep=iteration,
