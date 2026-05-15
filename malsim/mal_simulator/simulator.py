@@ -529,6 +529,7 @@ def step(
             attack_surface_settings=sim_state.settings.attack_surface,
             attacker_settings=attacker_state.settings,
             name=attacker_state.name,
+            entry_points=attacker_state.entry_points,
             new_performed_nodes=frozenset(agent_compromised),
             new_attempted_nodes=frozenset(agent_attempted),
             previous_state=attacker_state,

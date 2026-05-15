@@ -47,12 +47,27 @@ class AgentRuntimeMixin:
 T = TypeVar('T', bound=AttackGraphNode | str, covariant=True)
 
 
+def _entry_points_to_dict(
+    entry_points: tuple[Set[T], ...] | Set[T],
+) -> list[Set[str]] | set[str]:
+    if isinstance(entry_points, Set):
+        return {
+            ep.full_name if isinstance(ep, AttackGraphNode) else ep
+            for ep in entry_points
+        }
+    else:
+        return [
+            {ep.full_name if isinstance(ep, AttackGraphNode) else ep for ep in eps}
+            for eps in entry_points
+        ]
+
+
 @dataclass
 class AttackerSettings(AgentRuntimeMixin, Generic[T]):
     """Settings for an attacker in a scenario."""
 
     name: str
-    entry_points: Set[T]
+    entry_points: tuple[Set[T], ...] | Set[T]
     policy: type | None = None
     actionable_steps: NodePropertyRule[bool] | None = None
     rewards: NodePropertyRule[float] | None = None
@@ -67,10 +82,7 @@ class AttackerSettings(AgentRuntimeMixin, Generic[T]):
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
             'type': AgentType.ATTACKER.value,
-            'entry_points': {
-                n.full_name if isinstance(n, AttackGraphNode) else n
-                for n in self.entry_points
-            },
+            'entry_points': _entry_points_to_dict(self.entry_points),
         }
         if self.goals:
             d['goals'] = {
@@ -90,6 +102,23 @@ class AttackerSettings(AgentRuntimeMixin, Generic[T]):
         if isinstance(self.reward_mode, str):
             self.reward_mode = RewardMode[self.reward_mode]
 
+    def _convert_entry_points_to_nodes(
+        self, attack_graph: AttackGraph, entry_points: tuple[Set[T], ...] | Set[T]
+    ) -> tuple[Set[AttackGraphNode], ...] | Set[AttackGraphNode]:
+        """
+        Convert entry points from full names to nodes,
+        handling both single and multiple entry point sets
+        """
+        if isinstance(entry_points, Set):
+            return frozenset(
+                full_name_or_node_to_node(attack_graph, ep) for ep in entry_points
+            )
+        else:
+            return tuple(
+                frozenset(full_name_or_node_to_node(attack_graph, ep) for ep in eps)
+                for eps in entry_points
+            )
+
     def convert_to_attack_graph_nodes(
         self, attack_graph: AttackGraph
     ) -> AttackerSettings[AttackGraphNode]:
@@ -98,8 +127,8 @@ class AttackerSettings(AgentRuntimeMixin, Generic[T]):
             goals=frozenset(
                 full_name_or_node_to_node(attack_graph, g) for g in self.goals
             ),
-            entry_points=frozenset(
-                full_name_or_node_to_node(attack_graph, ep) for ep in self.entry_points
+            entry_points=self._convert_entry_points_to_nodes(
+                attack_graph, self.entry_points
             ),
             name=self.name,
             policy=self.policy,
