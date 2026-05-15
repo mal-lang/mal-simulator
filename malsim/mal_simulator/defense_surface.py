@@ -3,7 +3,7 @@ from collections.abc import Set
 from typing import TYPE_CHECKING
 
 from malsim.config.node_property_rule import NodePropertyRule
-from malsim.mal_simulator.graph_utils import node_is_actionable, node_is_viable
+from malsim.mal_simulator.graph_utils import node_is_actionable, node_is_blocked
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
@@ -25,6 +25,7 @@ def get_defense_surface(
         node
         for node in sim_state.attack_graph.defense_steps
         if node_is_actionable(agent_actionability_rule, node)
-        and node_is_viable(sim_state, node)
+        and not node_is_blocked(sim_state, node)
+        and node not in sim_state.enabled_defenses
         and 'suppress' not in node.tags
     }

@@ -56,9 +56,7 @@ from malsim.envs.graph.wrapper import ActionThenAssetWrapper, AssetThenActionWra
             ttc_mode=TTCMode.DISABLED,
             run_defense_step_bernoullis=False,
             run_attack_step_bernoullis=False,
-            attack_surface=AttackSurfaceSettings(
-                skip_unnecessary=False, skip_unviable=False
-            ),
+            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
         ),
     ],
 )

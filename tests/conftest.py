@@ -2,15 +2,12 @@ from os import path
 import pytest
 
 from maltoolbox.model import Model
-from maltoolbox.attackgraph import AttackGraph, AttackGraphNode, create_attack_graph
+from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from maltoolbox.language import (
     LanguageGraph,
     LanguageGraphAttackStep,
     LanguageGraphAsset,
 )
-from malsim.config.agent_settings import AttackerSettings, DefenderSettings
-from malsim.mal_simulator import MalSimulator
-from malsim.envs import MalSimVectorizedObsEnv
 
 ## Helpers
 
@@ -32,27 +29,6 @@ def path_testdata(filename: str) -> str:
 
 
 ## Fixtures
-
-
-@pytest.fixture(scope='session', name='env')
-def fixture_env() -> MalSimVectorizedObsEnv:
-    model_file_name = 'tests/testdata/models/simple_test_model.yml'
-    lang_file_name = 'tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar'
-
-    attack_graph_file_name = path.join('/tmp', 'attack_graph.json')
-    attack_graph = create_attack_graph(lang_file_name, model_file_name)
-    attack_graph.save_to_file(attack_graph_file_name)
-    os_app_fa = get_node(attack_graph, 'OS App:fullAccess')
-    env = MalSimVectorizedObsEnv(
-        MalSimulator(
-            attack_graph,
-            agents=(
-                DefenderSettings(name='defender'),
-                AttackerSettings(name='attacker', entry_points=frozenset({os_app_fa})),
-            ),
-        )
-    )
-    return env
 
 
 @pytest.fixture
@@ -99,6 +75,7 @@ def dummy_lang_graph(corelang_lang_graph: LanguageGraph) -> LanguageGraph:
     LanguageGraphAsset and LanguageGraphAttackStep
     """
     lang_graph = LanguageGraph()
+    lang_graph.metadata = {}
     dummy_asset = LanguageGraphAsset(name='DummyAsset')
     lang_graph.assets['DummyAsset'] = dummy_asset
     dummy_or_attack_step_node = LanguageGraphAttackStep(
