@@ -15,7 +15,7 @@ def get_defense_surface(
     agent_actionability_rule: NodePropertyRule[bool] | None,
 ) -> Set[AttackGraphNode]:
     """Get the defense surface.
-    All non-suppressed defense steps that are not already enabled.
+    All defense steps that are not already enabled.
 
     Arguments:
     graph       - the attack graph
@@ -27,5 +27,4 @@ def get_defense_surface(
         if node_is_actionable(agent_actionability_rule, node)
         and not node_is_blocked(sim_state, node)
         and node not in sim_state.enabled_defenses
-        and 'suppress' not in node.tags
     }
