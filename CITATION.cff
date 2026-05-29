@@ -1,0 +1,46 @@
+cff-version: 1.2.0
+title: mal-simulator
+message: "If you use this software, please cite it using the metadata from this file."
+type: software
+
+abstract: >-
+  MAL Simulator is a simulation framework for systems modeled in the
+  Meta Attack Language (MAL). It supports attacker and defender agent
+  simulations, attack graph execution, and cybersecurity experimentation.
+
+license: Apache-2.0
+
+repository-code: "https://github.com/mal-lang/mal-simulator"
+url: "https://github.com/mal-lang/mal-simulator"
+repository-artifact: "https://pypi.org/project/mal-simulator/"
+
+keywords:
+  - cybersecurity
+  - threat-modeling
+  - attack-graphs
+  - simulation
+  - MAL
+  - Meta Attack Language
+  - reinforcement-learning
+
+authors:
+  - family-names: Loxdal
+    given-names: Joakim
+  - family-names: Nyberg
+    given-names: Jakob
+  - family-names: Buhaiu
+    given-names: Andrei
+  - family-names: Kakouros
+    given-names: Nikolaos
+  - family-names: Berglund
+    given-names: Sandor
+  - family-names: Navas
+    given-names: Aurora
+  - family-names: Rodriguez
+    given-names: Eduardo Santos
+
+preferred-citation:
+  type: software
+  title: mal-simulator
+  year: 2026
+  url: "https://github.com/mal-lang/mal-simulator"
