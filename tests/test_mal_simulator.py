@@ -637,6 +637,45 @@ def test_simulation_terminations(
     assert attacker_is_terminated(attacker_state)
 
 
+def test_attacker_step_attempts_register(
+    corelang_lang_graph: LanguageGraph, model: Model
+) -> None:
+    attack_graph = AttackGraph(corelang_lang_graph, model)
+
+    entry_point = get_node(attack_graph, 'OS App:fullAccess')
+
+    assert entry_point.model_asset
+
+    attacker_name = 'Test Attacker'
+    sim = MalSimulator(
+        attack_graph,
+        sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.PRE_SAMPLE, seed=1),
+        agents=(
+            AttackerSettings(
+                name=attacker_name,
+                reward_mode=RewardMode.ONE_OFF,
+                entry_points=frozenset({entry_point}),
+            ),
+        ),
+    )
+
+    agent_states = sim.reset()
+    attacker_state = agent_states[attacker_name]
+
+    nodes_with_ttc = {n for n in attacker_state.action_surface if n.ttc}
+    while not nodes_with_ttc:
+        agent_states = sim.step({attacker_name: list(attacker_state.action_surface)})
+        attacker_state = agent_states[attacker_name]
+        nodes_with_ttc = {n for n in attacker_state.action_surface if n.ttc}
+
+    node_with_ttc = nodes_with_ttc.pop()
+    ttc_value = sim.node_ttc_value(node_with_ttc)
+    assert round(ttc_value) == 4
+
+    agent_states = sim.step({attacker_name: [node_with_ttc]})
+    attacker_state = agent_states[attacker_name]
+
+
 def test_attacker_step_rewards_one_off(
     corelang_lang_graph: LanguageGraph, model: Model
 ) -> None:
