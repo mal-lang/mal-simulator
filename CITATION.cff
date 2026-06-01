@@ -45,16 +45,18 @@ preferred-citation:
   year: 2026
   url: "https://github.com/mal-lang/mal-simulator"
   authors:
+    - family-names: Ekstedt
+      given-names: Mathias
     - family-names: Loxdal
       given-names: Joakim
     - family-names: Nyberg
       given-names: Jakob
     - family-names: Buhaiu
+    - family-names: Berglund
+      given-names: Sandor
       given-names: Andrei
     - family-names: Kakouros
       given-names: Nikolaos
-    - family-names: Berglund
-      given-names: Sandor
     - family-names: Navas
       given-names: Aurora
     - family-names: Santos Rodriguez
