@@ -9,7 +9,6 @@ from malsim.mal_simulator.graph_utils import (
     node_is_actionable,
     node_is_necessary,
     node_is_traversable,
-    node_is_blocked,
 )
 
 if TYPE_CHECKING:
