@@ -36,11 +36,26 @@ authors:
     given-names: Sandor
   - family-names: Navas
     given-names: Aurora
-  - family-names: Rodriguez
-    given-names: Eduardo Santos
+  - family-names: Santos Rodriguez
+    given-names: Eduardo
 
 preferred-citation:
   type: software
   title: mal-simulator
   year: 2026
   url: "https://github.com/mal-lang/mal-simulator"
+  authors:
+    - family-names: Loxdal
+      given-names: Joakim
+    - family-names: Nyberg
+      given-names: Jakob
+    - family-names: Buhaiu
+      given-names: Andrei
+    - family-names: Kakouros
+      given-names: Nikolaos
+    - family-names: Berglund
+      given-names: Sandor
+    - family-names: Navas
+      given-names: Aurora
+    - family-names: Santos Rodriguez
+      given-names: Eduardo
