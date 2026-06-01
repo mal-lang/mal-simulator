@@ -59,3 +59,7 @@ preferred-citation:
       given-names: Aurora
     - family-names: Santos Rodriguez
       given-names: Eduardo
+
+identifiers:
+  - type: doi
+    value: 10.71775/kth.hp777-8rw38
