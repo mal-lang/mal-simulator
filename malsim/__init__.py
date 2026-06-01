@@ -1,4 +1,4 @@
-# MAL Simulator v3.0.0
+# MAL Simulator v3.0.1
 # Copyright 2025, Andrei Buhaiu.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +26,7 @@ from malsim.scenario import Scenario
 from malsim.config import AttackerSettings, DefenderSettings
 
 __title__ = 'malsim'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 __authors__ = [
     'Andrei Buhaiu',
     'Joakim Loxdal',
