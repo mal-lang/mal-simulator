@@ -83,7 +83,6 @@ def get_attack_surface(
         is_action = node.causal_mode != 'effect'
         return (
             is_action
-            and not node_is_blocked(sim_state, node)
             and (uncompromised(node) if skip_compromised else True)
             and (necessary(node) if skip_unnecessary else True)
             and actionable(node)

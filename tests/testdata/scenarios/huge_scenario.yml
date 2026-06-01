@@ -1,0 +1,13 @@
+lang_file: ../langs/org.mal-lang.tyrLang-0.0.8.mar
+model_file: ../models/huge_model.yml
+
+agents:
+  attacker:
+    type: attacker
+    entry_points:
+    - App0OnNetwork0:fullAccess
+    goals:
+    - DataOnApp8OnNetwork1:read
+    policy: RandomAgent
+    config:
+      beta: 0.1

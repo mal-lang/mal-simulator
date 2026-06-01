@@ -145,7 +145,6 @@ def attacker_step(
             # Otherwise attacker is limited by attack surface and traversability
             can_compromise = (
                 node in agent.action_surface
-                and not node_is_blocked(sim_state, node)
                 and node_is_traversable(sim_state, agent.performed_nodes, node)
             )
 
