@@ -24,3 +24,50 @@ agents:
       by_asset_name:
         Linux system:
           notPresent: 50
+    actionable_steps:
+      by_asset_type:
+        'Application':
+          - 'notPresent'
+          - 'supplyChainAuditing'
+        'ConnectionRule':
+          - 'payloadInspection'
+          - 'restricted'
+        'Credentials':
+          - 'notDisclosed'
+          - 'notGuessable'
+          - 'notPhishable'
+          - 'unique'
+        'Data':
+          - 'notPresent'
+        'Group':
+          - 'notPresent'
+        'Hardware':
+          - 'hardwareModificationsProtection'
+          - 'supplyChainAuditing'
+        'HardwareVulnerability':
+          - 'notPresent'
+        'IAMObject':
+          - 'notPresent'
+        'IDPS':
+          - 'effectiveness'
+          - 'notPresent'
+          - 'supplyChainAuditing'
+        'Identity':
+          - 'notPresent'
+        'Network':
+          - 'adversaryInTheMiddleDefense'
+          - 'eavesdropDefense'
+          - 'networkAccessControl'
+        'Privileges':
+          - 'notPresent'
+        'RoutingFirewall':
+          - 'notPresent'
+          - 'supplyChainAuditing'
+        'SoftwareVulnerability':
+          - 'notPresent'
+        'User':
+          - 'noPasswordReuse'
+          - 'noRemovableMediaUsage'
+          - 'securityAwareness'
+        'Vulnerability':
+          - 'notPresent'
