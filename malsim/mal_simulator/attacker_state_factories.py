@@ -99,6 +99,7 @@ def create_attacker_state(
         action_surface=action_surface,
         num_attempts=num_attempts,
         previous_state=previous_state,
+        goals=attacker_settings.goals,
     )
 
 
