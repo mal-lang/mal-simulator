@@ -14,6 +14,8 @@ For in-depth documentation, refer to:
 - The official **[Wiki](https://github.com/mal-lang/mal-simulator/wiki)**.
 - The official MAL infrastructure **[tutorials](https://github.com/mal-lang/mal-tutorials)**.
 
+The simulator also has a DOI at the KTH Open and FAIR Data repository for easier referencing: [10.71775/kth.gx42q-9m748](https://doi.org/10.71775/kth.gx42q-9m748)
+
 ## Contributing
 
 - Use [Conventional commits](https://www.conventionalcommits.org/en/v1.0.0/)
