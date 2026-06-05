@@ -328,7 +328,13 @@ class MalSimulator:
     def agent_is_terminated(self, agent_name: str) -> bool:
         return agent_is_terminated(self._agent_states, agent_name)
 
-    def reset(self) -> dict[str, AttackerState | DefenderState]:
+    def reset(
+        self, seed: int | None = None
+    ) -> dict[str, AttackerState | DefenderState]:
+        """
+        Reset the simulator to the initial state.
+        Optionally, a seed can be provided to re-seed the random number generator.
+        """
         (
             self._agent_states,
             self.sim_state,
@@ -339,6 +345,10 @@ class MalSimulator:
             self.rng,
             self.rest_api_client,
         )
+
+        if seed is not None:
+            self.rng = default_rng(seed)
+
         return self._agent_states
 
     @property
