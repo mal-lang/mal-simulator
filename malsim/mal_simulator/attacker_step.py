@@ -9,7 +9,6 @@ from maltoolbox.attackgraph import AttackGraphNode
 from malsim.mal_simulator.attack_surface import get_effects_of_attack_step
 from malsim.mal_simulator.graph_utils import (
     node_is_traversable,
-    node_is_blocked,
 )
 from malsim.mal_simulator.state_query import node_ttc_value
 from malsim.config.sim_settings import TTCMode
@@ -143,10 +142,8 @@ def attacker_step(
             can_compromise = True
         else:
             # Otherwise attacker is limited by attack surface and traversability
-            can_compromise = (
-                node in agent.action_surface
-                and not node_is_blocked(sim_state, node)
-                and node_is_traversable(sim_state, agent.performed_nodes, node)
+            can_compromise = node in agent.action_surface and node_is_traversable(
+                sim_state, agent.performed_nodes, node
             )
 
         if can_compromise:

@@ -9,7 +9,6 @@ from malsim.mal_simulator.graph_utils import (
     node_is_actionable,
     node_is_necessary,
     node_is_traversable,
-    node_is_blocked,
 )
 
 if TYPE_CHECKING:
@@ -83,7 +82,6 @@ def get_attack_surface(
         is_action = node.causal_mode != 'effect'
         return (
             is_action
-            and not node_is_blocked(sim_state, node)
             and (uncompromised(node) if skip_compromised else True)
             and (necessary(node) if skip_unnecessary else True)
             and actionable(node)
