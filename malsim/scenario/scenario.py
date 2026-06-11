@@ -273,8 +273,11 @@ def load_scenario_dict(scenario_file: str) -> Mapping[str, Any]:
             )
             scenario = dict(_extend_scenario(original_scenario_path, scenario))
 
-        # Convert path relative to scenario file
-        scenario['lang_file'] = path_relative_to_file_dir(scenario['lang_file'], s_file)
+        # Convert path relative to scenario file if lang_file is a local file
+        if not scenario['lang_file'].startswith('git@'):
+            scenario['lang_file'] = path_relative_to_file_dir(
+                scenario['lang_file'], s_file
+            )
 
         if 'model_file' in scenario:
             scenario['model_file'] = path_relative_to_file_dir(
