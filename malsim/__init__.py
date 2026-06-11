@@ -1,4 +1,4 @@
-# MAL Simulator v3.3.0
+# MAL Simulator v3.2.0
 # Copyright 2025, Andrei Buhaiu.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
