@@ -63,7 +63,8 @@ def test_load_scenario_git_url_as_lang() -> None:
         path_relative_to_tests('./testdata/scenarios/simple_scenario_git_url.yml')
     )
 
-    # Once loaded, the results should be the same as if we had loaded the scenario with a local lang file
+    # Once loaded, the results should be the same as if we had 
+    # loaded the scenario with a local lang file
     assert scenario.defender_settings['Defender1'].rewards
     rewards_per_node = scenario.defender_settings['Defender1'].rewards
     assert rewards_per_node.by_asset_name
