@@ -56,6 +56,7 @@ def test_load_scenario() -> None:
     assert scenario.defender_settings['Defender1'].policy == PassiveAgent
 
 
+@pytest.mark.integration
 def test_load_scenario_git_url_as_lang() -> None:
     """Make sure we can load a scenario with git url as lang file"""
 
