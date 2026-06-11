@@ -55,6 +55,36 @@ def test_load_scenario() -> None:
     assert scenario.attacker_settings['Attacker1'].policy == BreadthFirstAttacker
     assert scenario.defender_settings['Defender1'].policy == PassiveAgent
 
+def test_load_scenario_git_url_as_lang() -> None:
+    """Make sure we can load a scenario with git url as lang file"""
+
+    # Load the scenario
+    scenario = Scenario.load_from_file(
+        path_relative_to_tests('./testdata/scenarios/simple_scenario_git_url.yml')
+    )
+
+    # Once loaded, the results should be the same as if we had loaded the scenario with a local lang file
+    assert scenario.defender_settings['Defender1'].rewards
+    rewards_per_node = scenario.defender_settings['Defender1'].rewards
+    assert rewards_per_node.by_asset_name
+    # Verify rewards were added as defined in './testdata/simple_scenario_git_url.yml'
+    assert rewards_per_node.by_asset_name['OS App']['notPresent'] == 2
+    assert rewards_per_node.by_asset_name['OS App']['supplyChainAuditing'] == 7
+    assert rewards_per_node.by_asset_name['Program 1']['notPresent'] == 3
+    assert rewards_per_node.by_asset_name['Program 1']['supplyChainAuditing'] == 7
+    assert rewards_per_node.by_asset_name['SoftwareVulnerability:4']['notPresent'] == 4
+    assert rewards_per_node.by_asset_name['Data:5']['notPresent'] == 1
+    assert rewards_per_node.by_asset_name['Credentials:6']['notPhishable'] == 7
+    assert rewards_per_node.by_asset_name['Identity:11']['notPresent'] == 3.5
+
+    # Verify attacker entrypoint was added
+    attack_step = get_node(scenario.attack_graph, 'OS App:fullAccess')
+    attacker1 = scenario.attacker_settings['Attacker1']
+    assert isinstance(attacker1, AttackerSettings)
+    assert attack_step in attacker1.entry_points
+
+    assert scenario.attacker_settings['Attacker1'].policy == BreadthFirstAttacker
+    assert scenario.defender_settings['Defender1'].policy == PassiveAgent
 
 def test_save_scenario(model: Model, tmp_path: Any) -> None:
     """Make sure we can load and save a scenario"""
