@@ -55,6 +55,7 @@ def test_load_scenario() -> None:
     assert scenario.attacker_settings['Attacker1'].policy == BreadthFirstAttacker
     assert scenario.defender_settings['Defender1'].policy == PassiveAgent
 
+
 def test_load_scenario_git_url_as_lang() -> None:
     """Make sure we can load a scenario with git url as lang file"""
 
@@ -85,6 +86,7 @@ def test_load_scenario_git_url_as_lang() -> None:
 
     assert scenario.attacker_settings['Attacker1'].policy == BreadthFirstAttacker
     assert scenario.defender_settings['Defender1'].policy == PassiveAgent
+
 
 def test_save_scenario(model: Model, tmp_path: Any) -> None:
     """Make sure we can load and save a scenario"""
