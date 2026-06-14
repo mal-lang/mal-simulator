@@ -876,9 +876,18 @@ def test_defender_step_rewards_one_off(
     assert sim.agent_reward(defender_state) == -rewards[access_network_and_conn]
 
 
-# TODO: Some of the assert values in this test have changed when updating the
-# attacker logic. We should check to see if the behaviour is the new behaviour
-# is correct.
+def defender_supressed_actionability(
+    lang_graph: LanguageGraph,
+) -> dict[str, dict[str, bool]]:
+    by_asset_type: dict[str, dict[str, bool]] = {}
+    for asset_type in lang_graph.assets.values():
+        by_asset_type[asset_type.name] = {}
+        for step in asset_type.attack_steps.values():
+            if step.type == 'defense':
+                by_asset_type[asset_type.name][step.name] = 'suppress' not in step.tags
+    return by_asset_type
+
+
 def test_agent_state_views_simple(
     corelang_lang_graph: LanguageGraph, model: Model
 ) -> None:
@@ -888,13 +897,18 @@ def test_agent_state_views_simple(
     mss = MalSimulatorSettings(seed=13, ttc_mode=TTCMode.PER_STEP_SAMPLE)
     attacker_name = 'attacker'
     defender_name = 'defender'
+    defender_actionability = NodePropertyRule(
+        by_asset_type=defender_supressed_actionability(corelang_lang_graph)
+    )
     # Create simulator and register agents
     sim = MalSimulator(
         attack_graph,
         sim_settings=mss,
         agents=(
             AttackerSettings(name=attacker_name, entry_points=frozenset({entry_point})),
-            DefenderSettings(name=defender_name),
+            DefenderSettings(
+                name=defender_name, actionable_steps=defender_actionability
+            ),
         ),
     )
 
