@@ -35,7 +35,7 @@ from pettingzoo import ParallelEnv
 logger = logging.getLogger(__name__)
 
 DEFAULT_SIM_SETTINGS = MalSimulatorSettings(
-    ttc_mode=TTCMode.PER_STEP_SAMPLE,
+    ttc_mode=TTCMode.EFFORT_BASED_PER_STEP_SAMPLE,
     run_defense_step_bernoullis=False,
     run_attack_step_bernoullis=False,
     attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
@@ -74,7 +74,7 @@ class AttackerGraphEnv(gym.Env[MALObsInstance, np.int64]):
         nondeterministic=True,
         kwargs={
             'sim_settings': MalSimulatorSettings(
-                ttc_mode=TTCMode.PER_STEP_SAMPLE,
+                ttc_mode=TTCMode.EFFORT_BASED_PER_STEP_SAMPLE,
                 run_defense_step_bernoullis=False,
                 run_attack_step_bernoullis=False,
                 attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
@@ -140,7 +140,7 @@ class DefenderGraphEnv(gym.Env[MALObsInstance, np.int64]):
         nondeterministic=True,
         kwargs={
             'sim_settings': MalSimulatorSettings(
-                ttc_mode=TTCMode.PER_STEP_SAMPLE,
+                ttc_mode=TTCMode.EFFORT_BASED_PER_STEP_SAMPLE,
                 run_defense_step_bernoullis=False,
                 run_attack_step_bernoullis=False,
                 attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
