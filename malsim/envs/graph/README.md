@@ -136,14 +136,14 @@ from malsim.envs.graph.wrapper import AssetThenActionWrapper
 from malsim.scenario import Scenario
 
 # Create environment
-scenario = Scenario.load_from_file("scenario.yml")
+scenario = Scenario.load_from_file('scenario.yml')
 env = AttackerGraphEnv(scenario, sim_settings)
 
 # Wrap to use asset-action tuple space
 wrapped_env = AssetThenActionWrapper(
     env,
     model=env.sim.sim_state.attack_graph.model,
-    lang_serializer=env.multi_env.lang_serializer
+    lang_serializer=env.multi_env.lang_serializer,
 )
 
 # Reset and step
