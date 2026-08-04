@@ -176,7 +176,7 @@ class MALObs(Space[MALObsInstance]):
         return False
 
     def _generate_sample_space(
-        self, base_space: None | Box | Discrete, num: int
+        self, base_space: Box | Discrete | None, num: int
     ) -> Box | MultiDiscrete | None:
         raise NotImplementedError(
             'Sample space generation is not implemented for MALObs'

@@ -137,9 +137,9 @@ def get_entry_points(
     else:
         # Multiple potential entry point sets given
         # - sample one set of entry points from the options
-        chosen_entry_points = rng.choice(list(attacker_settings.entry_points))  # type: ignore
+        chosen_entry_points = rng.choice(list(attacker_settings.entry_points))
         return set(
-            full_names_or_nodes_to_nodes(sim_state.attack_graph, chosen_entry_points)
+            full_names_or_nodes_to_nodes(sim_state.attack_graph, chosen_entry_points)  # type: ignore
         )
 
 

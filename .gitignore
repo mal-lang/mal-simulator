@@ -181,3 +181,6 @@ uv.lock
 prof/*
 
 *.sh
+
+# Claude
+.claude
