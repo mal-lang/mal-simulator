@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 import logging
-from typing import NamedTuple
+from typing import Any, NamedTuple
 from collections.abc import Callable, Iterable, Mapping, Set
 import numpy as np
 from numpy.random import default_rng
@@ -12,7 +12,6 @@ from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from malsim.config.agent_settings import defender_settings
 from malsim.config.agent_settings import attacker_settings
 from malsim.dyna_mal_simulator.model_state import (
-    AssetSnapshot,
     reset_model_effects,
     snapshot_model,
 )
@@ -263,7 +262,7 @@ def dyna_create_simulator_from_scenario(
 
 
 def dyna_reset(
-    model_snapshot: dict[int, AssetSnapshot],
+    model_snapshot: dict[int, dict[str, Any]],
     attack_graph: AttackGraph,
     settings: MalSimulatorSettings,
     agent_settings: AgentSettings,

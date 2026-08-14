@@ -316,7 +316,7 @@ def test_apply_model_effect(wiperLang_attack_graph: AttackGraph) -> None:
 
 
 def test_reconcile_model_to_snapshot(wiperLang_attack_graph: AttackGraph) -> None:
-    """Test the reset/undo machinery (model_reset.py) directly, without
+    """Test the reset/undo machinery (model_state.py) directly, without
     going through DynaMalSimulator.step()/reset() at all.
     """
     model = wiperLang_attack_graph.model

@@ -58,7 +58,7 @@ model:
 agents:
   Attacker1:
     type: attacker
-    agent_class: null
+    agent_class: RandomAgent
     entry_points:
     - Dice:1:startingPoint
   Defender1:
