@@ -7,6 +7,7 @@ from typing import Any
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.model import Model, ModelAsset
 
+
 def reconcile_model_to_snapshot(
     model: Model, snapshot: dict[str, Any]
 ) -> tuple[

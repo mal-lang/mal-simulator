@@ -11,9 +11,7 @@ from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
 from malsim.config.agent_settings import defender_settings
 from malsim.config.agent_settings import attacker_settings
-from malsim.dyna_mal_simulator.model_state import (
-    reset_model_effects
-)
+from malsim.dyna_mal_simulator.model_state import reset_model_effects
 from malsim.mal_simulator.agent_states import (
     AgentStates,
     attacker_states,

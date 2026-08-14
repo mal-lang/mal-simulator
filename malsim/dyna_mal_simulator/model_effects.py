@@ -93,23 +93,35 @@ def target_op(
         )
 
         removal_assets: set[ModelAsset] = set()
-        for left_asset, field_name, right_asset in removal_info:
-            try:
-                left_asset.remove_associated_assets(field_name, {right_asset})
-                modification_record.append(
-                    AssocOp(
-                        type=ModelEffectType.SUBTRACTIVE,
-                        assoc=(left_asset, field_name, right_asset),
+        for _left_asset, _field_name, right_asset in removal_info:
+            # Snapshot both the dict and its sets: remove_associated_assets()
+            # mutates the live associated_assets sets in place, and we still
+            # need the pre-removal members to build the modification record.
+            associations_snapshot = {
+                field_name: set(assoc_assets)
+                for field_name, assoc_assets in right_asset.associated_assets.items()
+            }
+            for field_name, assoc_assets in associations_snapshot.items():
+                try:
+                    right_asset.remove_associated_assets(field_name, assoc_assets)
+                    modification_record.extend(
+                        [
+                            AssocOp(
+                                type=ModelEffectType.SUBTRACTIVE,
+                                assoc=(right_asset, field_name, assoc_asset),
+                            )
+                            for assoc_asset in assoc_assets
+                        ]
                     )
-                )
-                removal_assets.add(right_asset)
-            except ValueError as exception:
-                logger.error(
-                    f'Failed to remove a {field_name} asset from '
-                    f'{left_asset.name}: {exception}\n'
-                    f'Skipping removal of {field_name}.'
-                )
-                continue
+                except ValueError as exception:
+                    logger.error(
+                        f'Failed to remove associations for {right_asset.name} through'
+                        f' {field_name}: {exception}\n'
+                        f'Skipping removal of {field_name}.'
+                    )
+                    continue
+            removal_assets.add(right_asset)
+
         for removal_asset in removal_assets:
             model.remove_asset(removal_asset)
             modification_record.append(
