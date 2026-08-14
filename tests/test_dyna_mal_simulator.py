@@ -16,7 +16,6 @@ from malsim.dyna_mal_simulator.model_effects import (
 )
 from malsim.dyna_mal_simulator.model_state import (
     reconcile_model_to_snapshot,
-    snapshot_model,
 )
 from malsim.dyna_mal_simulator.process_assoc_traversal import traverse_association_chain
 from malsim.dyna_mal_simulator.simulator_state import AssetOp, AssocOp
@@ -321,7 +320,7 @@ def test_reconcile_model_to_snapshot(wiperLang_attack_graph: AttackGraph) -> Non
     """
     model = wiperLang_attack_graph.model
     assert model
-    original_snapshot = snapshot_model(model)
+    original_snapshot = model.to_dict()
     original_asset_count = len(model.assets)
 
     infected_device = model.get_asset_by_name('InfectedDevice')
@@ -359,7 +358,7 @@ def test_reconcile_model_to_snapshot(wiperLang_attack_graph: AttackGraph) -> Non
     ) in new_associations
 
     # The model must now match the snapshot exactly.
-    assert snapshot_model(model) == original_snapshot
+    assert model.to_dict() == original_snapshot
     assert len(model.assets) == original_asset_count
     assert model.get_asset_by_name('Wiper') is None
     assert_no_dangling_associations(model)
@@ -573,15 +572,11 @@ def test_int_dynamic_test_lang6_transfer_apple_multi_step_and_reset(
     assert Counter(sim.sim_state.modification_record) == Counter(
         [
             AssetOp(type=ModelEffectType.ADDITIVE, asset=new_apple),
-            AssocOp(
-                type=ModelEffectType.ADDITIVE, assoc=(bowl1, 'apples', new_apple)
-            ),
+            AssocOp(type=ModelEffectType.ADDITIVE, assoc=(bowl1, 'apples', new_apple)),
             AssocOp(
                 type=ModelEffectType.SUBTRACTIVE, assoc=(bowl1, 'apples', new_apple)
             ),
-            AssocOp(
-                type=ModelEffectType.SUBTRACTIVE, assoc=(bowl1, 'apples', apple1)
-            ),
+            AssocOp(type=ModelEffectType.SUBTRACTIVE, assoc=(bowl1, 'apples', apple1)),
         ]
     )
 
@@ -712,11 +707,7 @@ def test_int_dynamic_test_lang12_create_and_destroy_asset_within_one_record(
     step('Table:1:testAddLeftUnionTwo')
     assert bowl1.associated_assets['apples'] == {
         apple1,
-        next(
-            a
-            for a in bowl1.associated_assets['apples']
-            if a is not apple1
-        ),
+        next(a for a in bowl1.associated_assets['apples'] if a is not apple1),
     }
     assert len(model.assets) == 11
 

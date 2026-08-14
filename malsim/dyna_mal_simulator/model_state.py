@@ -1,40 +1,14 @@
 """Restoring the instance model (and the attack graph derived from it) to a
-previously captured pristine state.
+previous state.
 """
 
-from typing import Any, cast
+from typing import Any
 
 from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.model import Model, ModelAsset
 
-
-def snapshot_model(model: Model) -> dict[int, dict[str, Any]]:
-    """Capture model.to_dict()'s per-asset representation, by asset id."""
-    return cast('dict[int, dict[str, Any]]', model.to_dict()['assets'])
-
-
-def _add_asset_with_id(
-    model: Model, asset_type: str, name: str, asset_id: int
-) -> ModelAsset:
-    """Like model.add_asset(..., asset_id=asset_id), but also works for
-    asset_id=0 (Model.add_asset resolves `asset_id or self.next_id`, which
-    silently ignores an explicit 0).
-    """
-    if asset_id != 0:
-        return model.add_asset(asset_type=asset_type, name=name, asset_id=asset_id)
-
-    next_id_before = model.next_id
-    model.next_id = 0
-    try:
-        asset = model.add_asset(asset_type=asset_type, name=name)
-    finally:
-        model.next_id = max(model.next_id, next_id_before)
-    assert asset.id == 0
-    return asset
-
-
 def reconcile_model_to_snapshot(
-    model: Model, snapshot: dict[int, dict[str, Any]]
+    model: Model, snapshot: dict[str, Any]
 ) -> tuple[
     set[ModelAsset],
     set[ModelAsset],
@@ -50,7 +24,7 @@ def reconcile_model_to_snapshot(
     removed_assets: set[ModelAsset] = set()
 
     current_ids = set(model.assets.keys())
-    target_ids = set(snapshot.keys())
+    target_ids = set(snapshot['assets'].keys())
 
     for asset_id in current_ids - target_ids:
         asset = model.assets[asset_id]
@@ -58,9 +32,8 @@ def reconcile_model_to_snapshot(
         model.remove_asset(asset)
 
     for asset_id in target_ids - current_ids:
-        asset_dict = snapshot[asset_id]
-        new_asset = _add_asset_with_id(
-            model,
+        asset_dict = snapshot['assets'][asset_id]
+        new_asset = model.add_asset(
             asset_type=asset_dict['type'],
             name=asset_dict['name'],
             asset_id=asset_id,
@@ -70,7 +43,7 @@ def reconcile_model_to_snapshot(
     new_associations: set[tuple[ModelAsset, str, ModelAsset]] = set()
     removed_associations: set[tuple[ModelAsset, str, ModelAsset]] = set()
 
-    for asset_id, asset_dict in snapshot.items():
+    for asset_id, asset_dict in snapshot['assets'].items():
         asset = model.assets[asset_id]
         current_associations = {
             field_name: frozenset(other.id for other in others)
@@ -102,7 +75,7 @@ def reconcile_model_to_snapshot(
 
 
 def reset_model_effects(
-    attack_graph: AttackGraph, model_snapshot: dict[int, dict[str, Any]]
+    attack_graph: AttackGraph, model_snapshot: dict[str, Any]
 ) -> None:
     assert attack_graph.model, 'AttackGraph needs to have the model object available.'
     new_assets, removed_assets, new_associations, removed_associations = (

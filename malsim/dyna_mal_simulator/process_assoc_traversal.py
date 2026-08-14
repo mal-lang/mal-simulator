@@ -186,9 +186,9 @@ def parse_addition(
 
                 if len(asset.lg_asset.associations_to(node.model_asset.lg_asset)) == 0:
                     raise ValueError(
-                        f"{asset.name} does not have a valid association"
+                        f'{asset.name} does not have a valid association'
                         f" to the node's model asset {node.model_asset.name},"
-                        " so cannot traverse to self."
+                        ' so cannot traverse to self.'
                     )
                 for field_name, associated_assets in asset.associated_assets.items():
                     if node.model_asset in associated_assets:

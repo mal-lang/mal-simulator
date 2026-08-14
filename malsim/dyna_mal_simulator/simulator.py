@@ -12,8 +12,7 @@ from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from malsim.config.agent_settings import defender_settings
 from malsim.config.agent_settings import attacker_settings
 from malsim.dyna_mal_simulator.model_state import (
-    reset_model_effects,
-    snapshot_model,
+    reset_model_effects
 )
 from malsim.mal_simulator.agent_states import (
     AgentStates,
@@ -143,7 +142,7 @@ class DynaMalSimulator(MalSimulator):
             a.name: a for a in (_defender_settings + attacker_settings_with_nodes)
         } or {}
 
-        model_snapshot = snapshot_model(attack_graph.model)
+        model_snapshot = attack_graph.model.to_dict()
 
         agent_states, sim_state, recording = dyna_reset(
             model_snapshot=model_snapshot,
@@ -262,7 +261,7 @@ def dyna_create_simulator_from_scenario(
 
 
 def dyna_reset(
-    model_snapshot: dict[int, dict[str, Any]],
+    model_snapshot: dict[str, Any],
     attack_graph: AttackGraph,
     settings: MalSimulatorSettings,
     agent_settings: AgentSettings,
