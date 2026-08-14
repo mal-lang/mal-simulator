@@ -1,0 +1,66 @@
+lang_file: ../../../langs/dynamal_example_langs/advanced/diceLang.mal
+model:
+  metadata:
+    name: diceLang
+    langVersion: 0.1.0
+    langID: diceLang
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: One:1
+      type: One
+      associated_assets:
+        collection:
+          6: Dice:1
+    1:
+      name: Two:1
+      type: Two
+      associated_assets:
+        collection:
+          6: Dice:1
+    2:
+      name: Three:1
+      type: Three
+      associated_assets:
+        collection:
+          6: Dice:1
+    3:
+      name: Four:1
+      type: Four
+      associated_assets:
+        collection:
+          6: Dice:1
+    4:
+      name: Five:1
+      type: Five
+      associated_assets:
+        collection:
+          6: Dice:1
+    5:
+      name: Six:1
+      type: Six
+      associated_assets:
+        collection:
+          6: Dice:1
+    6:
+      name: Dice:1
+      type: Dice
+      associated_assets:
+        die:
+          1: Two:1
+          5: Six:1
+          3: Four:1
+          0: One:1
+          4: Five:1
+          2: Three:1
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: null
+    entry_points:
+    - Dice:1:startingPoint
+  Defender1:
+    type: defender
+    agent_class: null

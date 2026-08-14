@@ -1,0 +1,21 @@
+lang_file: ../langs/dynamic_remove_add.mal
+model:
+  assets:
+    0:
+      associated_assets: {}
+      name: Start
+      type: Start
+  metadata:
+    MAL-Toolbox Version: 0.3.11
+    info: Created by Sandor Berglund manually.
+    langID: org.mal-lang.dynamicRemoveAdd
+    langVersion: 1.0.0
+    malVersion: 0.1.0-SNAPSHOT
+    name: Dynamic Add Remove Model
+
+agents:
+  'Attacker':
+    agent_class: null
+    type: attacker
+    entry_points:
+      - 'Start:access'

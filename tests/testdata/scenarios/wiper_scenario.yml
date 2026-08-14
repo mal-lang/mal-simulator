@@ -1,0 +1,15 @@
+lang_file: ../langs/wiperLang.mal
+model_file: ../models/wiper_model.yml
+
+sim_settings:
+  compromise_entrypoints_at_start: false
+
+agents:
+  'WiperController':
+    agent_class: null
+    type: attacker
+    entry_points:
+      - 'InfectedDevice:infect'
+      - 'C2Server:accessData'
+    goals:
+      - 'InfectedData:read'
