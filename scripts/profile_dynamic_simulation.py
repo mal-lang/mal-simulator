@@ -1,0 +1,57 @@
+"""
+CLI to profile simulations in MAL Simulator using scenario files
+Run this file with <scenario_file> and it will output a cProfile file.
+"""
+
+from __future__ import annotations
+import argparse
+import logging
+import cProfile
+import pstats
+
+from malsim.dyna_mal_simulator.simulator import DynaMalSimulator
+from malsim.scenario.scenario import Scenario
+from malsim.mal_simulator import run_simulation
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logging.getLogger().setLevel(logging.INFO)
+
+
+def main() -> None:
+    """Entrypoint function for profiling simulation with CLI"""
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'scenario_file',
+        type=str,
+        help='Can be found in https://github.com/mal-lang/malsim-scenarios/',
+    )
+    parser.add_argument(
+        '--profile_output',
+        type=str,
+        default='prof/dynamic_simulation_profile.prof',
+        help='File to save profiling results',
+    )
+
+    args = parser.parse_args()
+    scenario = Scenario.load_from_file(args.scenario_file)
+    sim = DynaMalSimulator.from_scenario(scenario)
+
+    # Run the profiler
+    profiler = cProfile.Profile()
+    profiler.enable()
+
+    run_simulation(sim)
+
+    profiler.disable()
+
+    # Save profiling results
+    with open(args.profile_output, 'w', encoding='utf-8') as f:
+        stats = pstats.Stats(profiler, stream=f)
+        stats.strip_dirs().sort_stats('cumulative').print_stats()
+
+    print(f'Profiling results saved to {args.profile_output}')
+
+
+if __name__ == '__main__':
+    main()
