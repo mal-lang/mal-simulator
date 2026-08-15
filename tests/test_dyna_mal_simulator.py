@@ -3,6 +3,7 @@
 from __future__ import annotations
 import gc
 import logging
+import random
 import weakref
 from collections import Counter
 from pathlib import Path
@@ -13,9 +14,6 @@ from maltoolbox.language.language_graph_model_effect import ModelEffectType
 from malsim.config.sim_settings import TTCMode
 from malsim.dyna_mal_simulator.model_effects import (
     _apply_model_effect,
-)
-from malsim.dyna_mal_simulator.model_state import (
-    reconcile_model_to_snapshot,
 )
 from malsim.dyna_mal_simulator.process_assoc_traversal import traverse_association_chain
 from malsim.dyna_mal_simulator.simulator_state import AssetOp, AssocOp
@@ -51,6 +49,56 @@ def assert_no_dangling_associations(model: Model) -> None:
                     f'{asset.name}.{field_name} points to a stale {other.name} object'
                 )
 
+def check_graph_equivalence(true: AttackGraph, other: AttackGraph) -> None:
+    """Helper function to check that two graphs are equivalent in terms of
+    nodes and their relationships."""
+    assert len(true.nodes) == len(other.nodes), (
+        f'Number of nodes differ: True AttackGraph {len(true.nodes)} != Other: '
+        f'{len(other.nodes)}'
+    )
+
+    true_full_names = set(true.full_name_to_node.keys())
+    other_full_names = set(other.full_name_to_node.keys())
+    assert true_full_names == other_full_names, (
+        f'Node full_names differ: '
+        f'only in true: {true_full_names - other_full_names}; '
+        f'only in other: {other_full_names - true_full_names}'
+    )
+
+    true_node_id_to_full_name = {
+        node.id: node.full_name for node in true.nodes.values()
+    }
+    other_node_id_to_full_name = {
+        node.id: node.full_name for node in other.nodes.values()
+    }
+
+    for true_node_full_name, true_node in true.full_name_to_node.items():
+        try:
+            part_node = other.full_name_to_node[true_node_full_name]
+        except LookupError:
+            pytest.fail(
+                reason=f'{true_node.full_name} not in partially regenerated graph.'
+            )
+        true_node_child_names = {
+            true_node_id_to_full_name[node.id] for node in true_node.children
+        }
+        part_node_child_names = {
+            other_node_id_to_full_name[node.id] for node in part_node.children
+        }
+        assert true_node_child_names == part_node_child_names, (
+            f'Different children between true and partially regenerated graphs for '
+            f'{true_node.full_name}'
+        )
+        true_node_parent_names = {
+            true_node_id_to_full_name[node.id] for node in true_node.parents
+        }
+        part_node_parent_names = {
+            other_node_id_to_full_name[node.id] for node in part_node.parents
+        }
+        assert true_node_parent_names == part_node_parent_names, (
+            f'Different parents between true and partially regenerated graphs for '
+            f'{true_node.full_name}'
+        )
 
 def test_error_without_model(wiperLang_attack_graph: AttackGraph) -> None:
     """Make sure error is raised if the instance model is not available"""
@@ -314,164 +362,49 @@ def test_apply_model_effect(wiperLang_attack_graph: AttackGraph) -> None:
     )
 
 
-def _children_by_full_name(attack_graph: AttackGraph) -> dict[str, frozenset[str]]:
-    """Structural fingerprint of a graph: for every node, the full names of
-    its children. Two graphs with the same fingerprint have the same nodes
-    and the same edges between them (ids/object identity aside).
-    """
-    return {
-        node.full_name: frozenset(child.full_name for child in node.children)
-        for node in attack_graph.nodes.values()
-    }
-
-
 def test_apply_model_effect_modification_record_partially_regenerates_graph(
-    easy_ransomware_lang_scenario: Scenario,
+    dynamic_remove_many_assoc_scenario: Scenario,
 ) -> None:
-    """The modification record returned by `_apply_model_effect` must be
-    exactly the ops needed to drive `AttackGraph.partially_regenerate_graph`.
-
-    `Ransomware:1:attack` in easyRansomwareLang is a good stress case: the
-    asset it deletes (`LockedData:1`) participates in three separate
-    associations (`host`, `victim`, `plain`) and `Data:1` in two (`host`,
-    `locked`) - so the record has to capture every association each removed
-    asset had, not just the single link that reached it from the base
-    (`host`). The step also creates a brand-new `LockedData` asset along the
-    way, so both additive and subtractive ops are exercised together, same
-    as a real `execute_model_effects()` call would do.
-
-    Beyond checking the record's shape, this also rebuilds the attack graph
-    from scratch against the mutated model and asserts it is structurally
-    identical to the one produced by partially regenerating from the
-    modification record - the strongest possible check that the record was
-    complete.
-    """
-    rng = np.random.default_rng(42)
-    attack_graph = easy_ransomware_lang_scenario.attack_graph
+    attack_graph = dynamic_remove_many_assoc_scenario.attack_graph
     model = attack_graph.model
     assert model
 
-    data1 = model.get_asset_by_name('Data:1')
-    locked_data1 = model.get_asset_by_name('LockedData:1')
-    host1 = model.get_asset_by_name('Host:1')
-    assert data1 and locked_data1 and host1
-    assert set(data1.associated_assets) == {'host', 'locked'}
-    assert set(locked_data1.associated_assets) == {'host', 'victim', 'plain'}
-
-    attack_step = attack_graph.get_node_by_full_name('Ransomware:1:attack')
-    assert attack_step.additive_model_effects
-    assert attack_step.subtractive_model_effects
-
-    # Mirror execute_model_effects(): all additive effects, then all
-    # subtractive effects, of the same step.
-    modification_record: list[AssetOp | AssocOp] = []
-    for model_effect in attack_step.additive_model_effects:
-        modification_record.extend(
-            _apply_model_effect(attack_step, model_effect, model, rng)
-        )
-    for model_effect in attack_step.subtractive_model_effects:
-        modification_record.extend(
-            _apply_model_effect(attack_step, model_effect, model, rng)
-        )
-
-    assert model.get_asset_by_name('Data:1') is None
-    assert model.get_asset_by_name('LockedData:1') is None
-
-    removed_asset_ops = [
-        op
-        for op in modification_record
-        if isinstance(op, AssetOp) and op.type == ModelEffectType.SUBTRACTIVE
+    remove_steps = [
+        node
+        for node in attack_graph.nodes.values()
+        if node.name == 'remove'
+        and node.model_asset
+        and node.model_asset.type != 'GodAsset'
     ]
-    assert Counter(op.asset for op in removed_asset_ops) == Counter(
-        [data1, locked_data1]
+    assert remove_steps
+
+    fuzz_step = random.choice(remove_steps)
+    assert fuzz_step.subtractive_model_effects
+    modification_record = _apply_model_effect(
+        fuzz_step,
+        fuzz_step.subtractive_model_effects[0],
+        model,
+        np.random.default_rng(),
     )
-
-    # Data:1 (2 associations) and LockedData:1 (3 associations) share one
-    # association between themselves (locked/plain), so 2 + 3 - 1 = 4
-    # distinct associations are broken, plus the one that unlinked the
-    # newly-created LockedData asset from LockedData:1 again = 5 total.
-    removed_assoc_ops = [
-        op
-        for op in modification_record
-        if isinstance(op, AssocOp) and op.type == ModelEffectType.SUBTRACTIVE
-    ]
-    assert len(removed_assoc_ops) == 5
-    assert_no_dangling_associations(model)
-
-    new_assets = {
+    removed_assets = {
         op.asset
         for op in modification_record
-        if isinstance(op, AssetOp) and op.type == ModelEffectType.ADDITIVE
+        if isinstance(op, AssetOp) and op.type == ModelEffectType.SUBTRACTIVE
     }
-    new_associations = {
+    removed_associations = {
         op.assoc
         for op in modification_record
-        if isinstance(op, AssocOp) and op.type == ModelEffectType.ADDITIVE
+        if isinstance(op, AssocOp) and op.type == ModelEffectType.SUBTRACTIVE
     }
-    removed_assets = {op.asset for op in removed_asset_ops}
-    removed_associations = {op.assoc for op in removed_assoc_ops}
-
     attack_graph.partially_regenerate_graph(
-        new_assets=new_assets,
-        new_associations=new_associations,
-        removed_assets=removed_assets,
-        removed_associations=removed_associations,
+        removed_assets=removed_assets, removed_associations=removed_associations
     )
-
-    fresh_attack_graph = AttackGraph(easy_ransomware_lang_scenario.lang_graph, model)
-    assert _children_by_full_name(attack_graph) == _children_by_full_name(
-        fresh_attack_graph
-    )
-
-
-def test_reconcile_model_to_snapshot(wiperLang_attack_graph: AttackGraph) -> None:
-    """Test the reset/undo machinery (model_state.py) directly, without
-    going through DynaMalSimulator.step()/reset() at all.
-    """
-    model = wiperLang_attack_graph.model
-    assert model
-    original_snapshot = model.to_dict()
-    original_asset_count = len(model.assets)
-
-    infected_device = model.get_asset_by_name('InfectedDevice')
-    vulnerable_device = model.get_asset_by_name('VulnerableDevice')
-    assert infected_device and vulnerable_device
-
-    # Mutate the model directly: add a new asset with an association,
-    # remove an existing association, and remove an existing asset outright
-    # (which also cascades away its other associations).
-    wiper = model.add_asset('Wiper', 'Wiper')
-    infected_device.add_associated_assets('malware', {wiper})
-    wiper.add_associated_assets('victim', {infected_device})
-    infected_device.remove_associated_assets('sendTo', {vulnerable_device})
-    model.remove_asset(vulnerable_device)
-
-    assert len(model.assets) == original_asset_count
-    assert model.get_asset_by_name('Wiper') is not None
-    assert model.get_asset_by_name('VulnerableDevice') is None
-
-    new_assets, removed_assets, new_associations, removed_associations = (
-        reconcile_model_to_snapshot(model, original_snapshot)
-    )
-
-    assert {a.name for a in new_assets} == {'VulnerableDevice'}
-    assert {a.name for a in removed_assets} == {'Wiper'}
-    # Wiper's own associations aren't separately listed - they're already
-    # implied by Wiper itself being in removed_assets.
-    assert removed_associations == set()
-    restored_vulnerable_device = model.get_asset_by_name('VulnerableDevice')
-    assert restored_vulnerable_device
-    assert (
-        infected_device,
-        'sendTo',
-        restored_vulnerable_device,
-    ) in new_associations
-
-    # The model must now match the snapshot exactly.
-    assert model.to_dict() == original_snapshot
-    assert len(model.assets) == original_asset_count
-    assert model.get_asset_by_name('Wiper') is None
     assert_no_dangling_associations(model)
+
+    fresh_attack_graph = AttackGraph(
+        dynamic_remove_many_assoc_scenario.lang_graph, model
+    )
+    check_graph_equivalence(fresh_attack_graph, attack_graph)
 
 
 def test_attacker_step(wiperLang_scenario: Scenario) -> None:

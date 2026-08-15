@@ -237,10 +237,7 @@ def parse_removal(
                     f'Node {node.name} does not have a model asset, '
                     'so cannot traverse to self.'
                 )
-                for (
-                    field_name,
-                    associated_assets,
-                ) in node.model_asset.associated_assets.items():
+                for field_name, associated_assets in asset.associated_assets.items():
                     if node.model_asset in associated_assets:
                         removals.add((asset, field_name, node.model_asset))
 

@@ -192,3 +192,12 @@ def easy_ransomware_lang_scenario() -> Scenario:
         'scenarios/dynamal_example_scenarios/basic/easyRansomwareLang_scenario.yml'
     )
     return Scenario.load_from_file(scenario_file_path)
+
+
+@pytest.fixture
+def dynamic_remove_many_assoc_scenario() -> Scenario:
+    """Fixture for the dynamic_remove_many_assoc example"""
+    scenario_file_path = path_testdata(
+        'scenarios/dynamic_remove_many_assoc_scenario.yml'
+    )
+    return Scenario.load_from_file(scenario_file_path)
