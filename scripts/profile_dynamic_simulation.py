@@ -7,7 +7,6 @@ from __future__ import annotations
 import argparse
 import logging
 import cProfile
-import pstats
 
 from malsim.dyna_mal_simulator.simulator import DynaMalSimulator
 from malsim.scenario.scenario import Scenario
@@ -41,14 +40,15 @@ def main() -> None:
     profiler = cProfile.Profile()
     profiler.enable()
 
-    run_simulation(sim)
+    for _ in range(100):
+        run_simulation(sim)
 
     profiler.disable()
 
-    # Save profiling results
-    with open(args.profile_output, 'w', encoding='utf-8') as f:
-        stats = pstats.Stats(profiler, stream=f)
-        stats.strip_dirs().sort_stats('cumulative').print_stats()
+    # Save profiling results in a format snakeviz can visualize
+    # (`snakeviz <profile_output>`)
+    # or gprof2dot -f pstats file.prof | xdot -
+    profiler.dump_stats(args.profile_output)
 
     print(f'Profiling results saved to {args.profile_output}')
 
