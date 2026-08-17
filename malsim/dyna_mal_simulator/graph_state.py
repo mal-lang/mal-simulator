@@ -17,7 +17,7 @@ from malsim.mal_simulator.graph_state import GraphState
 from malsim.config.sim_settings import MalSimulatorSettings
 
 
-def update_graph_state(
+def add_new_nodes_to_graph_state(
     graph_state: GraphState,
     sim_settings: MalSimulatorSettings,
     attack_graph: AttackGraph,

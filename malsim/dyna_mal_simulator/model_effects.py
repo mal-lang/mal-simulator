@@ -9,7 +9,7 @@ import numpy as np
 from maltoolbox.attackgraph import AttackGraphNode
 from maltoolbox.model import ModelAsset
 from maltoolbox.model import Model
-from malsim.dyna_mal_simulator.graph_state import update_graph_state
+from malsim.dyna_mal_simulator.graph_state import add_new_nodes_to_graph_state
 from malsim.dyna_mal_simulator.process_assoc_traversal import (
     parse_addition,
     parse_removal,
@@ -322,7 +322,7 @@ def execute_model_effects(
             if isinstance(op, AssocOp) and op.type == ModelEffectType.SUBTRACTIVE
         },
     )
-    new_graph_state, new_enabled_defenses = update_graph_state(
+    new_graph_state, new_enabled_defenses = add_new_nodes_to_graph_state(
         sim_state.graph_state,
         sim_state.settings,
         sim_state.attack_graph,
