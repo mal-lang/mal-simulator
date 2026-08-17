@@ -49,6 +49,7 @@ def assert_no_dangling_associations(model: Model) -> None:
                     f'{asset.name}.{field_name} points to a stale {other.name} object'
                 )
 
+
 def check_graph_equivalence(true: AttackGraph, other: AttackGraph) -> None:
     """Helper function to check that two graphs are equivalent in terms of
     nodes and their relationships."""
@@ -99,6 +100,7 @@ def check_graph_equivalence(true: AttackGraph, other: AttackGraph) -> None:
             f'Different parents between true and partially regenerated graphs for '
             f'{true_node.full_name}'
         )
+
 
 def test_error_without_model(wiperLang_attack_graph: AttackGraph) -> None:
     """Make sure error is raised if the instance model is not available"""
