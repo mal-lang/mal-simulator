@@ -872,9 +872,7 @@ def test_rand_multiplicity_scenario(rand_multiplicity_scenario: Scenario) -> Non
 
     A = model.get_asset_by_name('A')
     OtherA = model.get_asset_by_name('OtherA')
-    assert A and OtherA, (
-        'A and OtherA assets should exist in the model for scenario'
-    )
+    assert A and OtherA, 'A and OtherA assets should exist in the model for scenario'
 
     original_A2B = copy(A.associated_assets.get('children', set()))
     original_OtherA2B = copy(OtherA.associated_assets.get('children', set()))
