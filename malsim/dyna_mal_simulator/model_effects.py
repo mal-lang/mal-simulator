@@ -11,8 +11,10 @@ from maltoolbox.model import ModelAsset
 from maltoolbox.model import Model
 from malsim.dyna_mal_simulator.graph_state import add_new_nodes_to_graph_state
 from malsim.dyna_mal_simulator.process_assoc_traversal import (
+    _apply_quantity_filter,
     parse_addition,
     parse_removal,
+    sample_size,
     traverse_association_chain,
 )
 from malsim.dyna_mal_simulator.simulator_state import (
@@ -40,58 +42,64 @@ def target_op(
     ) -> list[AssetOp | AssocOp]:
         assert node.model_asset, 'AttackGraph needs to have the model object available.'
         modification_record: list[AssetOp | AssocOp] = []
-        addition_info = parse_addition(
+        addition_info, quantity = parse_addition(
             node=node,
             instigating_assets=base,
             assoc_traversals=target.assoc_traversal,
             rng=rng,
         )
+        size = sample_size(quantity, rng)
         for left_asset, field_name, right_asset in addition_info:
-            if isinstance(right_asset, ModelAsset):
-                if not (right_asset == node.model_asset):
-                    raise ValueError(
-                        'Cannot add an existing asset'
-                        f' ({right_asset.name}) to the model.'
-                        ' It already exists in the model!'
-                    )
+            for _ in range(size):
+                if isinstance(right_asset, ModelAsset):
+                    if not (right_asset == node.model_asset):
+                        raise ValueError(
+                            'Cannot add an existing asset'
+                            f' ({right_asset.name}) to the model.'
+                            ' It already exists in the model!'
+                        )
+                    else:
+                        raise ValueError(
+                            f'Cannot add `self` ({right_asset.name}) to the model.'
+                            ' It already exists in the model!'
+                        )
                 else:
-                    raise ValueError(
-                        f'Cannot add `self` ({right_asset.name}) to the model.'
-                        ' It already exists in the model!'
+                    new_asset = model.add_asset(
+                        asset_type=right_asset.name, name=right_asset.name
                     )
-            else:
-                new_asset = model.add_asset(
-                    asset_type=right_asset.name, name=right_asset.name
-                )
-                added_asset_op = AssetOp(type=ModelEffectType.ADDITIVE, asset=new_asset)
-                try:
-                    left_asset.add_associated_assets(field_name, {new_asset})
-                    added_assoc_op = AssocOp(
-                        type=ModelEffectType.ADDITIVE,
-                        assoc=(left_asset, field_name, new_asset),
+                    added_asset_op = AssetOp(
+                        type=ModelEffectType.ADDITIVE, asset=new_asset
                     )
-                    modification_record.extend([added_asset_op, added_assoc_op])
-                except ValueError as exception:
-                    logger.error(
-                        f'Failed to add a {field_name} asset to '
-                        f'{left_asset.name}: {exception}\n'
-                        f'Skipping addition of {field_name}.'
-                    )
-                    model.remove_asset(new_asset)
-                    continue
+                    try:
+                        left_asset.add_associated_assets(field_name, {new_asset})
+                        added_assoc_op = AssocOp(
+                            type=ModelEffectType.ADDITIVE,
+                            assoc=(left_asset, field_name, new_asset),
+                        )
+                        modification_record.extend([added_asset_op, added_assoc_op])
+                    except ValueError as exception:
+                        logger.error(
+                            f'Failed to add a {field_name} asset to '
+                            f'{left_asset.name}: {exception}\n'
+                            f'Skipping addition of {field_name}.'
+                        )
+                        model.remove_asset(new_asset)
+                        continue
         return modification_record
 
     def remove_asset(
         base: set[ModelAsset], target: DynTarget, model: Model, rng: np.random.Generator
     ) -> list[AssetOp | AssocOp]:
         modification_record: list[AssetOp | AssocOp] = []
-        removal_info = parse_removal(
+        removal_info, quantity = parse_removal(
             node=node,
             instigating_assets=base,
             assoc_traversals=target.assoc_traversal,
             rng=rng,
         )
-
+        if quantity is not None:
+            # raise ValueError("Quantity filtering not supported for asset removal.")
+            removal_info = _apply_quantity_filter(removal_info, quantity, rng)
         removal_assets: set[ModelAsset] = set()
         for _left_asset, _field_name, right_asset in removal_info:
             # Snapshot both the dict and its sets: remove_associated_assets()
@@ -134,12 +142,14 @@ def target_op(
     ) -> list[AssetOp | AssocOp]:
         assert node.model_asset, 'AttackGraph needs to have the model object available.'
         modification_record: list[AssetOp | AssocOp] = []
-        addition_info = parse_addition(
+        addition_info, quantity = parse_addition(
             node=node,
             instigating_assets={node.model_asset},
             assoc_traversals=target.assoc_traversal,
             rng=rng,
         )
+        if quantity is not None:
+            addition_info = _apply_quantity_filter(addition_info, quantity, rng)
         for left_asset, field_name, right_asset in addition_info:
             if isinstance(right_asset, ModelAsset):
                 # Check if the association already exists
@@ -186,12 +196,15 @@ def target_op(
         base: set[ModelAsset], target: DynTarget, model: Model, rng: np.random.Generator
     ) -> list[AssetOp | AssocOp]:
         modification_record: list[AssetOp | AssocOp] = []
-        removal_info = parse_removal(
+        removal_info, quantity = parse_removal(
             node=node,
             instigating_assets=base,
             assoc_traversals=target.assoc_traversal,
             rng=rng,
         )
+        if quantity is not None:
+            # raise ValueError("Quantity filtering not supported for assoc removal.")
+            removal_info = _apply_quantity_filter(removal_info, quantity, rng)
         for left_asset, field_name, right_asset in removal_info:
             if field_name in left_asset.associated_assets:
                 left_asset.remove_associated_assets(field_name, {right_asset})
@@ -255,12 +268,6 @@ def _apply_model_effect(
     modification_record = []
     base_set = traverse_association_chain({node.model_asset}, model_effect.base, rng)
     for dyn_target in model_effect.targets:
-        # is_edge_addition = (
-        #     dyn_target.assoc_op
-        #     and model_effect.model_effect_type == ModelEffectType.ADDITIVE
-        # )
-        # instigating_assets = {node.model_asset} if is_edge_addition else base_set
-
         if len(dyn_target.assoc_traversal) == 0:
             raise ValueError(
                 f'Target association traversal cannot be empty for step '

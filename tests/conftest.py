@@ -201,3 +201,10 @@ def dynamic_remove_many_assoc_scenario() -> Scenario:
         'scenarios/dynamic_remove_many_assoc_scenario.yml'
     )
     return Scenario.load_from_file(scenario_file_path)
+
+
+@pytest.fixture
+def rand_multiplicity_scenario() -> Scenario:
+    """Fixture for the multiplicity example scenario"""
+    scenario_file_path = path_testdata('scenarios/rand_multiplicity_scenario.yml')
+    return Scenario.load_from_file(scenario_file_path)

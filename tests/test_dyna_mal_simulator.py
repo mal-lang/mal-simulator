@@ -1,6 +1,7 @@
 """Test DynaMalSimulator class"""
 
 from __future__ import annotations
+from copy import copy
 import gc
 import logging
 import random
@@ -10,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from maltoolbox.attackgraph import AttackGraph
+from maltoolbox.model import Model, ModelAsset
 from maltoolbox.language.language_graph_model_effect import ModelEffectType
 from malsim.config.sim_settings import TTCMode
 from malsim.dyna_mal_simulator.model_effects import (
@@ -27,6 +29,7 @@ from malsim.config.agent_settings import AttackerSettings
 
 import numpy as np
 import pytest
+from scipy.stats import chisquare
 
 from malsim.mal_simulator.graph_utils import node_is_blocked
 from malsim.policies.attackers.searchers import BreadthFirstAttacker, DepthFirstAttacker
@@ -841,6 +844,116 @@ def test_easy_ransomware_lang_attack_and_reset(
     }
     assert {n.full_name for n in state.action_surface} == {'Host:1:connect'}
     assert_no_dangling_associations(model)
+
+
+def assert_uniform_over_interval(
+    counts: np.ndarray, low: int, high: int, alpha: float = 0.05
+) -> None:
+    """Assert `counts` (integer samples) look uniformly distributed over [low, high]."""
+    assert int(counts.min()) >= low and int(counts.max()) <= high, (
+        f'counts must be in [{low}, {high}], '
+        f'but got min={int(counts.min())}, max={int(counts.max())}'
+    )
+    observed = np.bincount(counts - low, minlength=high - low + 1)
+    expected = np.full(high - low + 1, len(counts) / (high - low + 1))
+    _, p_value = chisquare(observed, expected)
+    assert p_value > alpha, (
+        f'counts do not look uniform over [{low}, {high}]: '
+        f'observed={observed.tolist()}, p={p_value}'
+    )
+
+
+def test_rand_multiplicity_scenario(rand_multiplicity_scenario: Scenario) -> None:
+    """Test the multiplicity scenario"""
+    sim = DynaMalSimulator.from_scenario(rand_multiplicity_scenario)
+    attack_graph = rand_multiplicity_scenario.attack_graph
+    model = attack_graph.model
+    assert model is not None
+
+    A = model.get_asset_by_name('A')
+    OtherA = model.get_asset_by_name('OtherA')
+    assert A and OtherA, (
+        'A and OtherA assets should exist in the model for scenario'
+    )
+
+    original_A2B = copy(A.associated_assets.get('children', set()))
+    original_OtherA2B = copy(OtherA.associated_assets.get('children', set()))
+
+    num_runs = 1000
+    addRandB = np.zeros(num_runs, dtype=int)
+    addRandB2OtherA = np.zeros(num_runs, dtype=int)
+    linkBfromOtherA = np.zeros(num_runs, dtype=int)
+    removeRandB = np.zeros(num_runs, dtype=int)
+    unlinkRandB = np.zeros(num_runs, dtype=int)
+
+    def addB(model: Model, A: ModelAsset) -> None:
+        """Add a new B asset and associate it to A"""
+        new_B = model.add_asset(name=f'B:{model.next_id}', asset_type='B')
+        A.add_associated_assets('children', {new_B})
+
+    for i in range(num_runs):
+        sim.reset()['TestAttacker']
+
+        sim.step({'TestAttacker': [attack_graph.get_node_by_full_name('A:addRandB')]})[
+            'TestAttacker'
+        ]
+        own_new_Bs = set(A.associated_assets['children'] - original_A2B)
+        addRandB[i] = len(own_new_Bs)
+
+        sim.step(
+            {'TestAttacker': [attack_graph.get_node_by_full_name('A:addRandB2OtherA')]}
+        )['TestAttacker']
+        addRandB2OtherA[i] = len(
+            OtherA.associated_assets['children'] - original_OtherA2B
+        )
+
+        sim.reset()['TestAttacker']
+        for _ in range(20):
+            addB(model, A)
+            addB(model, OtherA)
+        pre_linked_Bs = copy(A.associated_assets.get('children', set()))
+        sim.step(
+            {'TestAttacker': [attack_graph.get_node_by_full_name('A:linkBfromOtherA')]}
+        )['TestAttacker']
+        shared_new_Bs = copy(A.associated_assets.get('children', set())) - pre_linked_Bs
+        assert all(
+            b in OtherA.associated_assets.get('children', set()) for b in shared_new_Bs
+        )
+        linkBfromOtherA[i] = len(shared_new_Bs)
+
+        sim.reset()['TestAttacker']
+        for _ in range(20):
+            addB(model, A)
+            addB(model, OtherA)
+        pre_removed_Bs = copy(A.associated_assets.get('children', set()))
+        sim.step(
+            {'TestAttacker': [attack_graph.get_node_by_full_name('A:removeRandB')]}
+        )['TestAttacker']
+        removed_Bs = pre_removed_Bs - A.associated_assets.get('children', set())
+        assert all(b not in set(model.assets.values()) for b in removed_Bs)
+        removeRandB[i] = len(removed_Bs)
+
+        sim.reset()['TestAttacker']
+        for _ in range(20):
+            addB(model, A)
+            addB(model, OtherA)
+        pre_unlinked_Bs = copy(OtherA.associated_assets.get('children', set()))
+        sim.step(
+            {'TestAttacker': [attack_graph.get_node_by_full_name('A:unlinkRandB')]}
+        )['TestAttacker']
+        unlinked_Bs = pre_unlinked_Bs - OtherA.associated_assets.get('children', set())
+        assert all(b in set(model.assets.values()) for b in unlinked_Bs)
+        assert all(
+            b not in OtherA.associated_assets.get('children', set())
+            for b in unlinked_Bs
+        )
+        unlinkRandB[i] = len(unlinked_Bs)
+
+    assert_uniform_over_interval(addRandB, 4, 10)
+    assert_uniform_over_interval(addRandB2OtherA, 8, 12)
+    assert_uniform_over_interval(linkBfromOtherA, 2, 5)
+    assert_uniform_over_interval(removeRandB, 2, 10)
+    assert_uniform_over_interval(unlinkRandB, 1, 3)
 
 
 def test_no_memory_leak_on_teardown() -> None:

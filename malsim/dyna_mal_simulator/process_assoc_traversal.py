@@ -22,7 +22,37 @@ from maltoolbox.language.language_graph_model_effect import (
 
 logger = logging.getLogger(__name__)
 
-RightAsset = TypeVar('RightAsset', bound=object)
+AssetTypeOrInstance = TypeVar('AssetTypeOrInstance', bound=object)
+
+Quantity = int | tuple[int, int] | None
+
+T = TypeVar('T', bound=object)
+
+
+def sample_size(
+    quantity: Quantity, rng: np.random.Generator, max_size: int | float = float('inf')
+) -> int:
+    if quantity is None:
+        size = 1
+    elif isinstance(quantity, int):
+        size = int(min(quantity, max_size))
+    else:
+        high = int(min(quantity[1], max_size))
+        low = int(min(quantity[0], high))
+        size = int(rng.integers(low, high, endpoint=True))
+    return size
+
+
+def _apply_quantity_filter(
+    objects: set[T],
+    quantity: Quantity,
+    rng: np.random.Generator,
+) -> set[T]:
+    size = sample_size(quantity, rng, len(objects))
+    sorted_objects = list(objects)
+    indicies = np.arange(len(sorted_objects))
+    chosen_indicies: list[int] = rng.choice(indicies, size=size, replace=False).tolist()
+    return {sorted_objects[i] for i in chosen_indicies}
 
 
 def _assoc_traversal(
@@ -35,7 +65,7 @@ def _assoc_traversal(
     next_assets = set()
     for asset in instigating_assets:
         if assoc_traversal.field_name not in asset.associated_assets:
-            logger.warning(
+            logger.error(
                 f"Asset {asset.name} doesn't have any "
                 f'`{assoc_traversal.field_name}` associated. '
                 'Skipping this asset in the association traversal.'
@@ -49,12 +79,8 @@ def _assoc_traversal(
                 if asset.lg_asset.name == assoc_traversal.asset_filter.name
             }
         if assoc_traversal.quantity_filter:
-            candidate_assets = set(
-                rng.choice(
-                    list(candidate_assets),
-                    size=assoc_traversal.quantity_filter,
-                    replace=False,
-                )
+            candidate_assets = _apply_quantity_filter(
+                candidate_assets, assoc_traversal.quantity_filter, rng
             )
         next_assets.update(candidate_assets)
     return next_assets
@@ -75,6 +101,10 @@ def _glob_assoc_traversal(
         if len(new_assets.difference(next_assets)) == 0:
             break
         next_assets = new_assets
+    if glob_assoc_traversal.quantity_filter:
+        next_assets = _apply_quantity_filter(
+            next_assets, glob_assoc_traversal.quantity_filter, rng
+        )
     return next_assets
 
 
@@ -93,6 +123,10 @@ def _assoc_set_traversal(
     else:
         raise ValueError(
             f'Unknown set operation {assoc_set.set_op} in association set traversal.'
+        )
+    if assoc_set.quantity_filter:
+        candidate_assets = _apply_quantity_filter(
+            candidate_assets, assoc_set.quantity_filter, rng
         )
     return candidate_assets
 
@@ -122,9 +156,10 @@ def _resolve_terminal_traversal(
     assoc_traversals: AssocTraversalChain,
     rng: np.random.Generator,
     terminate: Callable[
-        [set[ModelAsset], AssocTraversal], set[tuple[ModelAsset, str, RightAsset]]
+        [set[ModelAsset], AssocTraversal],
+        tuple[set[tuple[ModelAsset, str, AssetTypeOrInstance]], Quantity],
     ],
-) -> set[tuple[ModelAsset, str, RightAsset]]:
+) -> tuple[set[tuple[ModelAsset, str, AssetTypeOrInstance]], Quantity]:
     """Traverse `assoc_traversals` like `traverse_association_chain`, except
     the very last `AssocTraversal` reached (however deep inside nested
     `GlobAssocTraversal`/`AssocSet` structures) is resolved via `terminate`
@@ -148,18 +183,28 @@ def _resolve_terminal_traversal(
         # is whatever the pattern itself terminates in.
         return _resolve_terminal_traversal(current_assets, last.pattern, rng, terminate)
     elif isinstance(last, AssocSet):
-        left = _resolve_terminal_traversal(current_assets, last.left, rng, terminate)
-        right = _resolve_terminal_traversal(current_assets, last.right, rng, terminate)
+        left, left_quantity = _resolve_terminal_traversal(
+            current_assets, last.left, rng, terminate
+        )
+        right, right_quantity = _resolve_terminal_traversal(
+            current_assets, last.right, rng, terminate
+        )
+        if left_quantity is not None or right_quantity is not None:
+            raise NotImplementedError(
+                'Quantity filtering is not supported set operations in terminal fields.'
+            )
+        terminal: set[tuple[ModelAsset, str, AssetTypeOrInstance]] = set()
         if last.set_op == SetOperation.UNION:
-            return left | right
+            terminal = left | right
         elif last.set_op == SetOperation.DIFFERENCE:
-            return left - right
+            terminal = left - right
         elif last.set_op == SetOperation.INTERSECTION:
-            return left & right
+            terminal = left & right
         else:
             raise ValueError(
                 f'Unknown set operation {last.set_op} in association set traversal.'
             )
+        return terminal, None
     else:
         raise ValueError(f'Unknown association traversal type: {type(last)}')
 
@@ -169,13 +214,13 @@ def parse_addition(
     instigating_assets: set[ModelAsset],
     assoc_traversals: AssocTraversalChain,
     rng: np.random.Generator,
-) -> set[tuple[ModelAsset, str, LanguageGraphAsset | ModelAsset]]:
+) -> tuple[set[tuple[ModelAsset, str, LanguageGraphAsset | ModelAsset]], Quantity]:
 
     def _parse_terminating_expr(
         node: AttackGraphNode,
         instigating_assets: set[ModelAsset],
         assoc_traversal: AssocTraversal,
-    ) -> set[tuple[ModelAsset, str, LanguageGraphAsset | ModelAsset]]:
+    ) -> tuple[set[tuple[ModelAsset, str, LanguageGraphAsset | ModelAsset]], Quantity]:
         additions: set[tuple[ModelAsset, str, LanguageGraphAsset | ModelAsset]] = set()
         for asset in instigating_assets:
             if assoc_traversal.field_name == 'self':
@@ -207,8 +252,14 @@ def parse_addition(
                         assoc.get_field(assoc_traversal.field_name).asset,
                     )
                 )
-            # TODO: Do something with the quantity filter?
-        return additions
+
+        if assoc_traversal.quantity_filter is not None:
+            pass
+            # additions = _apply_quantity_filter(
+            #     additions, assoc_traversal.quantity_filter, rng
+            # )
+
+        return additions, assoc_traversal.quantity_filter
 
     return _resolve_terminal_traversal(
         instigating_assets,
@@ -223,13 +274,13 @@ def parse_removal(
     instigating_assets: set[ModelAsset],
     assoc_traversals: AssocTraversalChain,
     rng: np.random.Generator,
-) -> set[tuple[ModelAsset, str, ModelAsset]]:
+) -> tuple[set[tuple[ModelAsset, str, ModelAsset]], Quantity]:
 
     def _parse_terminating_expr(
         node: AttackGraphNode,
         instigating_assets: set[ModelAsset],
         assoc_traversal: AssocTraversal,
-    ) -> set[tuple[ModelAsset, str, ModelAsset]]:
+    ) -> tuple[set[tuple[ModelAsset, str, ModelAsset]], Quantity]:
         removals: set[tuple[ModelAsset, str, ModelAsset]] = set()
         for asset in instigating_assets:
             if assoc_traversal.field_name == 'self':
@@ -250,10 +301,14 @@ def parse_removal(
                     for asset in removal_candidates
                     if asset.lg_asset.name == assoc_traversal.asset_filter.name
                 }
-            # TODO: Do something with the quantity filter?
             for removal_candidate in removal_candidates:
                 removals.add((asset, assoc_traversal.field_name, removal_candidate))
-        return removals
+        if assoc_traversal.quantity_filter is not None:
+            pass
+            # removals = _apply_quantity_filter(
+            #     removals, assoc_traversal.quantity_filter, rng
+            # )
+        return removals, assoc_traversal.quantity_filter
 
     return _resolve_terminal_traversal(
         instigating_assets,

@@ -1,0 +1,47 @@
+#id: "org.mal-lang.multiplicityLang"
+#version: "1.0.0"
+
+category Main {
+
+    asset Host {
+        
+        | access
+            ->  createRandomFiles,
+                createRandomProcs,
+                associateProcToFile,
+                unlinkRandomProcs,
+                deleteRandomProcs,
+                files.read
+
+        | createRandomFiles
+            A> self / files:4..10
+
+        | createRandomProcs
+            A> self / procs:2..5
+
+        | associateProcToFile
+            A>  procs.openFiles / ~files:1..3,
+
+        | unlinkRandomProcs
+            R> procs.onHost / ~self:1..2
+
+        | deleteRandomProcs
+            R> self / procs:1..2
+                
+    }
+
+    asset Proc {
+        | createFile
+            A>  onHost / files,
+                self / ~(openFiles - onHost.procs.openFiles):1
+    }
+    asset File {
+        | read
+    }
+}
+
+associations {
+    Host [onHost] 1 <-- running --> * [procs] Proc
+    Host [onHost] 1 <-- disk --> * [files] File
+    Proc [modifyingProcs] * <-- modifies --> * [openFiles] File
+}
