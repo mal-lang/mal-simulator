@@ -1,0 +1,82 @@
+/**
+ * @author Sandor Berglund
+**/
+
+
+#id: "org.mal-lang.dynamicRemoveManyAssoc"
+#version: "1.0.0"
+
+category Category {
+
+	asset Object {
+        | reach
+            ->  parent.reach,
+                metas.reach,
+                a.reach,
+                remove
+
+        | remove
+            R> self / parent
+	}
+    
+    asset A {
+        | reach
+            ->  remove,
+                b.reach
+        
+        | remove
+            R> self / b
+    }
+    asset B {
+        | reach
+            ->  remove,
+                c.reach
+
+        | remove
+            R> self / c
+    }
+    asset C {
+        | reach
+            ->  remove,
+                d.reach
+
+        | remove
+            R> self / d
+    }
+    asset D {
+        | reach
+            ->  remove,
+                god.reach
+
+        | remove
+            R> self / c
+    }
+
+    asset GodAsset {
+        | reach
+            ->  remove,
+                objects.reach,
+                a.reach,
+                b.reach,
+                c.reach,
+                d.reach
+
+        | remove
+            R> objects / self
+    }
+}
+
+associations {
+	Object [parent] 1 <-- parentChild --> 1 [child] Object
+    Object [metas] * <-- metaMesa --> * [mesas] Object
+    Object [object] 1 <-- object2a --> * [a] A
+    A [a] 1 <-- a2b --> 1 [b] B
+    B [b] 1 <-- b2c --> 1 [c] C
+    C [c] 1 <-- c2d --> 1 [d] D
+    D [d1] * <-- d2d --> * [d2] D
+    GodAsset [god] 1 <-- god2object --> * [objects] Object
+    GodAsset [god] 1 <-- god2a --> * [a] A
+    GodAsset [god] 1 <-- god2b --> * [b] B
+    GodAsset [god] 1 <-- god2c --> * [c] C
+    GodAsset [god] 1 <-- god2d --> * [d] D
+}

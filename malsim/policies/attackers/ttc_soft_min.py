@@ -33,7 +33,7 @@ class TTCSoftMinAttacker:
             return None
 
         ttcs_left = [
-            node_ttc_value(agent_state, n) - agent_state.num_attempts[n]
+            node_ttc_value(agent_state, n) - agent_state.num_attempts.get(n, 0)
             for n in possible_choices
         ]
 

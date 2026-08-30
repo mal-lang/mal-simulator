@@ -12,7 +12,7 @@ description = "A MAL compliant simulator."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "mal-toolbox>=2.0.0,<3.0.0",
+  "mal-toolbox @ git+https://github.com/mal-lang/mal-toolbox.git@dynamal",
   "PyYAML>=6.0.1",
   "numpy>=1.21.4",
   "scipy",
@@ -105,6 +105,7 @@ ignore = [
   "B011", # Do not assert false
   "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
   "S101", # Use of assert detected. The enclosed code will be removed when compiling to optimized bytecode.
+  "PERF203", # try-except within a loop incurs performance overhead
 ]
 
 [tool.ruff.format]

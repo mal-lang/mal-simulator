@@ -1,0 +1,51 @@
+lang_file: ../../../langs/dynamal_example_langs/basic/posterLang.mal
+model:
+  metadata:
+    name: posterLang
+    langVersion: 0.1.0
+    langID: posterLang
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: Host:1
+      type: Host
+      associated_assets:
+        data:
+          2: Data:1
+        sendTo:
+          3: Host:2
+        receiveFrom:
+          3: Host:2
+        malware:
+          1: WiperMalware:1
+    1:
+      name: WiperMalware:1
+      type: WiperMalware
+      associated_assets:
+        victim:
+          0: Host:1
+    2:
+      name: Data:1
+      type: Data
+      associated_assets:
+        host:
+          0: Host:1
+    3:
+      name: Host:2
+      type: Host
+      associated_assets:
+        receiveFrom:
+          0: Host:1
+        sendTo:
+          0: Host:1
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: null
+    entry_points:
+    - Host:1:infect
+  Defender1:
+    type: defender
+    agent_class: null

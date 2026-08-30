@@ -1,0 +1,43 @@
+lang_file: ../../../langs/dynamal_example_langs/intermediate/intDynamicTestLang4.mal
+model:
+  metadata:
+    name: intDynamicTestLang4
+    langVersion: 0.0.1
+    langID: intDynamicTestLang4
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: Apples:1
+      type: Apples
+      associated_assets:
+        badApple:
+          1: BadApple:1
+        pest:
+          3: Worm:1
+    1:
+      name: BadApple:1
+      type: BadApple
+      associated_assets:
+        apples:
+          0: Apples:1
+    2:
+      name: InfestedApple:1
+      type: InfestedApple
+      associated_assets: {}
+    3:
+      name: Worm:1
+      type: Worm
+      associated_assets:
+        apple:
+          0: Apples:1
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: null
+    entry_points:
+    - Apples:1:access
+  Defender1:
+    type: defender
+    agent_class: null
