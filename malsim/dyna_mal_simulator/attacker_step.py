@@ -70,7 +70,10 @@ def dyna_attacker_step(
                 )
                 # Run effects as a compromise of performing `node`
                 sim_state = execute_model_effects(sim_state, node, rng)
-                successful_compromises += attacker_step_effects(sim_state, agent, node)
+                step_effects = attacker_step_effects(sim_state, agent, node)
+                for effect_node in step_effects:
+                    sim_state = execute_model_effects(sim_state, effect_node, rng)
+                successful_compromises += step_effects
             else:
                 logger.info(
                     'Attacker agent "%s" attempted "%s" (attempt %d).',
