@@ -44,6 +44,9 @@ dev = [
   "pytest-profiling",
   "snakeviz",
 ]
+openai = [
+  "openai>=3.0.0",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/mal-lang/mal-simulator"
