@@ -12,6 +12,7 @@ from networkx.algorithms.shortest_paths.generic import shortest_path
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
 from malsim.mal_simulator.state_query import node_ttc_value
+from maltoolbox.language.language_graph_attack_step import AttackStepType
 
 if TYPE_CHECKING:
     from malsim.mal_simulator import AttackerState
@@ -36,7 +37,7 @@ def attack_graph_to_nx_graph(
             id=node.id,
             name=node.name,
             type=node.type,
-            ttc=ttc_values[node] if node.type in ('or', 'and') else 0,
+            ttc=ttc_values[node] if node.type in (AttackStepType.OR, AttackStepType.AND) else 0,
         )
     # Add edges based on parent/child relations
     for node in attack_graph.nodes.values():
@@ -141,7 +142,7 @@ def get_shortest_paths_for_attacker(
     ttc_values = {
         n: node_ttc_value(attacker_state, n)
         for n in attacker_state.sim_state.attack_graph.nodes.values()
-        if n.type in ('or', 'and')
+        if n.type in (AttackStepType.OR, AttackStepType.AND)
     }
 
     shortest_paths = {}
@@ -170,7 +171,7 @@ def _validate_path(
     # Check that each step in the path is reacable with respect to AND-steps.
     for node in path:
         # If node is AND step, go to parents first.
-        if node.type == 'and' and node not in path:
+        if node.type == AttackStepType.AND and node not in path:
             paths_to_parents = [
                 _find_path_to(
                     attack_graph,

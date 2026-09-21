@@ -2,6 +2,7 @@ from collections.abc import Set
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from maltoolbox.model import Model
+from maltoolbox.language.language_graph_attack_step import AttackStepType
 
 from malsim.config.agent_settings import AttackerSettings
 from malsim.config.sim_settings import AttackSurfaceSettings, MalSimulatorSettings
@@ -10,7 +11,6 @@ from malsim.mal_simulator.attack_surface import get_attack_surface
 from malsim.mal_simulator.simulator import MalSimulator
 from malsim.policies.attackers.searchers import BreadthFirstAttacker
 from malsim.scenario.scenario import Scenario
-
 
 def test_attack_surface_traininglang() -> None:
     """
@@ -57,11 +57,11 @@ def _validate_attack_surface(
     performed_nodes: Set[AttackGraphNode],
 ) -> None:
     def _parent_is_blocking_defense(node: AttackGraphNode) -> bool:
-        if node.type == 'and':
+        if node.type == AttackStepType.AND:
             return any(
                 sim.node_is_enabled_defense(parent_node) for parent_node in node.parents
             )
-        elif node.type == 'or':
+        elif node.type == AttackStepType.OR:
             return all(
                 sim.node_is_enabled_defense(parent_node) for parent_node in node.parents
             )
@@ -69,41 +69,41 @@ def _validate_attack_surface(
             return False
 
     def _parent_is_blocking_exists(node: AttackGraphNode) -> bool:
-        if node.type == 'and':
+        if node.type == AttackStepType.AND:
             return any(
                 parent.existence_status
                 if parent.existence_status is not None
                 else False
                 for parent in node.parents
-                if parent.type == 'exist'
+                if parent.type == AttackStepType.EXIST
             )
-        elif node.type == 'or':
+        elif node.type == AttackStepType.OR:
             return all(
                 parent.existence_status
                 if parent.existence_status is not None
                 else False
                 for parent in node.parents
-                if parent.type == 'exist'
+                if parent.type == AttackStepType.EXIST
             )
         else:
             return False
 
     def _parent_is_blocking_not_exists(node: AttackGraphNode) -> bool:
-        if node.type == 'and':
+        if node.type == AttackStepType.AND:
             return all(
                 parent.existence_status
                 if parent.existence_status is not None
                 else False
                 for parent in node.parents
-                if parent.type == 'notExist'
+                if parent.type == AttackStepType.NOT_EXIST
             )
-        elif node.type == 'or':
+        elif node.type == AttackStepType.OR:
             return any(
                 parent.existence_status
                 if parent.existence_status is not None
                 else False
                 for parent in node.parents
-                if parent.type == 'notExist'
+                if parent.type == AttackStepType.NOT_EXIST
             )
         else:
             return False

@@ -3,6 +3,8 @@ from typing import Any
 from gymnasium.vector import AsyncVectorEnv
 from gymnasium.utils.env_checker import check_env
 
+from maltoolbox.language.language_graph_attack_step import AttackStepType
+
 from malsim import MalSimulator
 from malsim.config.sim_settings import AttackSurfaceSettings
 from malsim.envs.graph.graph_env import (
@@ -100,7 +102,7 @@ def test_attacker_episode() -> None:
         visible_steps = {
             node
             for node in state.sim_state.attack_graph.nodes.values()
-            if node.model_asset in visible_assets and node.type in ('and', 'or')
+            if node.model_asset in visible_assets and node.type in (AttackStepType.AND, AttackStepType.OR)
         }
         for node in visible_steps:
             assert node.id in obs.steps.id
@@ -148,7 +150,7 @@ def test_attacker_episode() -> None:
         visible_steps = {
             node
             for node in state.sim_state.attack_graph.nodes.values()
-            if node.model_asset in visible_assets and node.type in ('and', 'or')
+            if node.model_asset in visible_assets and node.type in (AttackStepType.AND, AttackStepType.OR)
         }
         for node in visible_steps:
             assert node.id in obs.steps.id

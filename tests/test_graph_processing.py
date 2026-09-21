@@ -11,6 +11,7 @@ from malsim.mal_simulator.graph_processing import (
     calculate_viability,
 )
 from maltoolbox.language import LanguageGraph
+from maltoolbox.language.language_graph_attack_step import AttackStepType
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from maltoolbox.model import Model
 
@@ -226,10 +227,10 @@ def test_analyzers_apriori_prune_unviable_and_unnecessary_nodes(model: Model) ->
 
     # Pick out an or node and make it non-necessary
     node_to_make_unnecessary = next(
-        node for node in example_attackgraph.nodes.values() if node.type == 'or'
+        node for node in example_attackgraph.nodes.values() if node.type == AttackStepType.OR
     )
     node_to_make_unviable = next(
-        node for node in example_attackgraph.nodes.values() if node.type == 'and'
+        node for node in example_attackgraph.nodes.values() if node.type == AttackStepType.AND
     )
 
     viability_per_node = calculate_viability(example_attackgraph, set(), set())
