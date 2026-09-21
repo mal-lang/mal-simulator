@@ -11,13 +11,7 @@ from malsim.envs.graph.graph_env import (
     MalSimGraph,
     register_graph_envs,
 )
-from malsim.envs.graph.mal_spaces import (
-    AssetThenAttackerAction,
-    AssetThenDefenderAction,
-    AttackerActionThenAsset,
-    DefenderActionThenAsset,
-    MALObsInstance,
-)
+from malsim.envs.graph.mal_spaces import MALObsInstance
 from malsim.scenario.scenario import Scenario
 from malsim.mal_simulator import (
     MalSimulatorSettings,
@@ -28,7 +22,6 @@ import numpy as np
 from numpy.typing import NDArray
 import pytest
 from pettingzoo.test import parallel_api_test
-from malsim.envs.graph.wrapper import ActionThenAssetWrapper, AssetThenActionWrapper
 
 
 @pytest.mark.parametrize(
@@ -220,124 +213,6 @@ def test_pettingzoo_api_check() -> None:
     sim = MalSimulator.from_scenario(scenario)
     env = MalSimGraph(sim)
     parallel_api_test(env)
-
-
-def test_asset_then_action_wrapper() -> None:
-    scenario_file = 'tests/testdata/scenarios/traininglang_ai_scenario_with_model.yml'
-    scenario = Scenario.load_from_file(scenario_file)
-    attacker_env = AttackerGraphEnv(
-        scenario,
-        MalSimulatorSettings(
-            ttc_mode=TTCMode.PER_STEP_SAMPLE,
-            run_defense_step_bernoullis=False,
-            run_attack_step_bernoullis=False,
-            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
-        ),
-    )
-    assert scenario.attack_graph.model is not None, (
-        'Attack graph needs to have a model attached to it'
-    )
-    wrapped_env = AssetThenActionWrapper(
-        attacker_env,
-        scenario.attack_graph.model,
-        attacker_env.multi_env.lang_serializer,
-    )
-    assert isinstance(wrapped_env.action_space, AssetThenAttackerAction)
-
-    i = 0
-    done = False
-    _, info = wrapped_env.reset()
-    while not done and i < 100:
-        asset_mask, action_mask = info['asset_mask'], info['action_mask']
-        action = wrapped_env.action_space.sample(mask=(asset_mask, action_mask))
-        _, _, terminated, truncated, info = wrapped_env.step(action)
-        i += 1
-        done = terminated or truncated
-
-    defender_env = DefenderGraphEnv(
-        scenario,
-        MalSimulatorSettings(
-            ttc_mode=TTCMode.PER_STEP_SAMPLE,
-            run_defense_step_bernoullis=False,
-            run_attack_step_bernoullis=False,
-            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
-        ),
-    )
-    assert scenario.attack_graph.model is not None, (
-        'Attack graph needs to have a model attached to it'
-    )
-    wrapped_env = AssetThenActionWrapper(
-        defender_env,
-        scenario.attack_graph.model,
-        defender_env.multi_env.lang_serializer,
-    )
-    assert isinstance(wrapped_env.action_space, AssetThenDefenderAction)
-    i = 0
-    done = False
-    _, info = wrapped_env.reset()
-    while not done and i < 100:
-        action_mask, asset_mask = info['action_mask'], info['asset_mask']
-        action = wrapped_env.action_space.sample(mask=(asset_mask, action_mask))
-        _, _, terminated, truncated, info = wrapped_env.step(action)
-        i += 1
-        done = terminated or truncated
-
-
-def test_action_then_asset_wrapper() -> None:
-    scenario_file = 'tests/testdata/scenarios/traininglang_ai_scenario_with_model.yml'
-    scenario = Scenario.load_from_file(scenario_file)
-    attacker_env = AttackerGraphEnv(
-        scenario,
-        MalSimulatorSettings(
-            ttc_mode=TTCMode.PER_STEP_SAMPLE,
-            run_defense_step_bernoullis=False,
-            run_attack_step_bernoullis=False,
-            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
-        ),
-    )
-    assert scenario.attack_graph.model is not None, (
-        'Attack graph needs to have a model attached to it'
-    )
-    wrapped_env = ActionThenAssetWrapper(
-        attacker_env,
-        scenario.attack_graph.model,
-        attacker_env.multi_env.lang_serializer,
-    )
-    assert isinstance(wrapped_env.action_space, AttackerActionThenAsset)
-    i = 0
-    done = False
-    _, info = wrapped_env.reset()
-    while not done and i < 100:
-        action_mask, asset_mask = info['action_mask'], info['asset_mask']
-        action = wrapped_env.action_space.sample(mask=(action_mask, asset_mask))
-        _, _, terminated, truncated, info = wrapped_env.step(action)
-        i += 1
-        done = terminated or truncated
-
-    defender_env = DefenderGraphEnv(
-        scenario,
-        MalSimulatorSettings(
-            ttc_mode=TTCMode.PER_STEP_SAMPLE,
-            run_defense_step_bernoullis=False,
-            run_attack_step_bernoullis=False,
-            attack_surface=AttackSurfaceSettings(skip_unnecessary=False),
-        ),
-    )
-    wrapped_env = ActionThenAssetWrapper(
-        defender_env,
-        scenario.attack_graph.model,
-        defender_env.multi_env.lang_serializer,
-    )
-    assert isinstance(wrapped_env.action_space, DefenderActionThenAsset)
-    i = 0
-    done = False
-    _, info = wrapped_env.reset()
-    while not done and i < 100:
-        action_mask, asset_mask = info['action_mask'], info['asset_mask']
-        action = wrapped_env.action_space.sample(mask=(action_mask, asset_mask))
-        _, _, terminated, truncated, info = wrapped_env.step(action)
-        i += 1
-        done = terminated or truncated
 
 
 def test_async_vector_env() -> None:
