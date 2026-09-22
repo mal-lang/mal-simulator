@@ -1,0 +1,53 @@
+lang_file: ../../../langs/dynamal_example_langs/intermediate/intDynamicTestLang13.mal
+model:
+  metadata:
+    name: intDynamicTestLang13
+    langVersion: 0.1.0
+    langID: intDynamicTestLang13
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: Directory:1
+      type: Directory
+      associated_assets:
+        files:
+          1: File:1
+        sub:
+          2: Directory:2
+        super:
+          2: Directory:2
+    1:
+      name: File:1
+      type: File
+      associated_assets:
+        dirs:
+          2: Directory:2
+          0: Directory:1
+    2:
+      name: Directory:2
+      type: Directory
+      associated_assets:
+        files:
+          1: File:1
+        super:
+          0: Directory:1
+        sub:
+          0: Directory:1
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: null
+    entry_points:
+    - Directory:1:testAll
+    - Directory:1:testBottom
+    - Directory:1:testMiddle
+    - Directory:1:testTop
+    - Directory:2:testAll
+    - Directory:2:testBottom
+    - Directory:2:testMiddle
+    - Directory:2:testTop
+  Defender1:
+    type: defender
+    agent_class: null

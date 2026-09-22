@@ -1,0 +1,1945 @@
+lang_file: ../langs/dynamic_remove_many_assoc.mal
+agents:
+  Attacker:
+    type: attacker
+    entry_points:
+    - Object0:reach
+    policy: RandomAgent
+model:
+  metadata:
+    name: Dynamic Remove Many Assoc
+    langVersion: 1.0.0
+    langID: org.mal-lang.dynamicRemoveManyAssoc
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.1
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: God
+      type: GodAsset
+      associated_assets:
+        a:
+          2: A0
+          37: A7
+          72: A14
+          122: A24
+          52: A10
+          87: A17
+          102: A20
+          32: A6
+          67: A13
+          12: A2
+          117: A23
+          47: A9
+          82: A16
+          62: A12
+          97: A19
+          27: A5
+          112: A22
+          42: A8
+          7: A1
+          77: A15
+          57: A11
+          92: A18
+          22: A4
+          17: A3
+          107: A21
+        b:
+          93: B18
+          23: B4
+          8: B1
+          108: B21
+          18: B3
+          38: B7
+          73: B14
+          123: B24
+          53: B10
+          88: B17
+          103: B20
+          33: B6
+          68: B13
+          118: B23
+          48: B9
+          83: B16
+          63: B12
+          98: B19
+          13: B2
+          28: B5
+          3: B0
+          113: B22
+          43: B8
+          78: B15
+          58: B11
+        c:
+          44: C8
+          79: C15
+          4: C0
+          59: C11
+          94: C18
+          24: C4
+          109: C21
+          39: C7
+          9: C1
+          74: C14
+          124: C24
+          54: C10
+          89: C17
+          104: C20
+          19: C3
+          34: C6
+          69: C13
+          119: C23
+          49: C9
+          84: C16
+          14: C2
+          64: C12
+          99: C19
+          29: C5
+          114: C22
+        d:
+          100: D19
+          30: D5
+          65: D12
+          115: D22
+          45: D8
+          80: D15
+          60: D11
+          95: D18
+          25: D4
+          110: D21
+          40: D7
+          75: D14
+          15: D2
+          125: D24
+          55: D10
+          90: D17
+          5: D0
+          105: D20
+          35: D6
+          20: D3
+          70: D13
+          10: D1
+          120: D23
+          50: D9
+          85: D16
+        objects:
+          51: Object10
+          86: Object17
+          11: Object2
+          101: Object20
+          31: Object6
+          66: Object13
+          116: Object23
+          46: Object9
+          81: Object16
+          61: Object12
+          96: Object19
+          26: Object5
+          6: Object1
+          111: Object22
+          41: Object8
+          76: Object15
+          16: Object3
+          56: Object11
+          1: Object0
+          91: Object18
+          21: Object4
+          106: Object21
+          36: Object7
+          71: Object14
+          121: Object24
+    1:
+      name: Object0
+      type: Object
+      associated_assets:
+        metas: {}
+        child:
+          6: Object1
+        mesas:
+          51: Object10
+          11: Object2
+          66: Object13
+          81: Object16
+          96: Object19
+          26: Object5
+          111: Object22
+          41: Object8
+          16: Object3
+          56: Object11
+          71: Object14
+          86: Object17
+          101: Object20
+          31: Object6
+          116: Object23
+          46: Object9
+          61: Object12
+          6: Object1
+          76: Object15
+          91: Object18
+          21: Object4
+          106: Object21
+          36: Object7
+          121: Object24
+        god:
+          0: God
+    2:
+      name: A0
+      type: A
+      associated_assets:
+        b:
+          3: B0
+        god:
+          0: God
+    3:
+      name: B0
+      type: B
+      associated_assets:
+        a:
+          2: A0
+        c:
+          4: C0
+        god:
+          0: God
+    4:
+      name: C0
+      type: C
+      associated_assets:
+        b:
+          3: B0
+        d:
+          5: D0
+        god:
+          0: God
+    5:
+      name: D0
+      type: D
+      associated_assets:
+        c:
+          4: C0
+        god:
+          0: God
+    6:
+      name: Object1
+      type: Object
+      associated_assets:
+        parent:
+          1: Object0
+        metas:
+          1: Object0
+        child:
+          11: Object2
+        mesas:
+          51: Object10
+          11: Object2
+          66: Object13
+          81: Object16
+          96: Object19
+          26: Object5
+          111: Object22
+          41: Object8
+          16: Object3
+          56: Object11
+          71: Object14
+          86: Object17
+          101: Object20
+          31: Object6
+          116: Object23
+          46: Object9
+          61: Object12
+          76: Object15
+          91: Object18
+          21: Object4
+          106: Object21
+          36: Object7
+          121: Object24
+        god:
+          0: God
+    7:
+      name: A1
+      type: A
+      associated_assets:
+        b:
+          8: B1
+        god:
+          0: God
+    8:
+      name: B1
+      type: B
+      associated_assets:
+        a:
+          7: A1
+        c:
+          9: C1
+        god:
+          0: God
+    9:
+      name: C1
+      type: C
+      associated_assets:
+        b:
+          8: B1
+        d:
+          10: D1
+        god:
+          0: God
+    10:
+      name: D1
+      type: D
+      associated_assets:
+        c:
+          9: C1
+        god:
+          0: God
+    11:
+      name: Object2
+      type: Object
+      associated_assets:
+        parent:
+          6: Object1
+        metas:
+          6: Object1
+          1: Object0
+        child:
+          16: Object3
+        mesas:
+          51: Object10
+          66: Object13
+          81: Object16
+          96: Object19
+          26: Object5
+          111: Object22
+          41: Object8
+          16: Object3
+          56: Object11
+          71: Object14
+          86: Object17
+          101: Object20
+          31: Object6
+          116: Object23
+          46: Object9
+          61: Object12
+          76: Object15
+          91: Object18
+          21: Object4
+          106: Object21
+          36: Object7
+          121: Object24
+        god:
+          0: God
+    12:
+      name: A2
+      type: A
+      associated_assets:
+        b:
+          13: B2
+        god:
+          0: God
+    13:
+      name: B2
+      type: B
+      associated_assets:
+        a:
+          12: A2
+        c:
+          14: C2
+        god:
+          0: God
+    14:
+      name: C2
+      type: C
+      associated_assets:
+        b:
+          13: B2
+        d:
+          15: D2
+        god:
+          0: God
+    15:
+      name: D2
+      type: D
+      associated_assets:
+        c:
+          14: C2
+        god:
+          0: God
+    16:
+      name: Object3
+      type: Object
+      associated_assets:
+        parent:
+          11: Object2
+        metas:
+          6: Object1
+          11: Object2
+          1: Object0
+        child:
+          21: Object4
+        mesas:
+          51: Object10
+          66: Object13
+          81: Object16
+          96: Object19
+          26: Object5
+          111: Object22
+          41: Object8
+          56: Object11
+          71: Object14
+          86: Object17
+          101: Object20
+          31: Object6
+          116: Object23
+          46: Object9
+          61: Object12
+          76: Object15
+          91: Object18
+          21: Object4
+          106: Object21
+          36: Object7
+          121: Object24
+        god:
+          0: God
+    17:
+      name: A3
+      type: A
+      associated_assets:
+        b:
+          18: B3
+        god:
+          0: God
+    18:
+      name: B3
+      type: B
+      associated_assets:
+        a:
+          17: A3
+        c:
+          19: C3
+        god:
+          0: God
+    19:
+      name: C3
+      type: C
+      associated_assets:
+        b:
+          18: B3
+        d:
+          20: D3
+        god:
+          0: God
+    20:
+      name: D3
+      type: D
+      associated_assets:
+        c:
+          19: C3
+        god:
+          0: God
+    21:
+      name: Object4
+      type: Object
+      associated_assets:
+        parent:
+          16: Object3
+        metas:
+          6: Object1
+          11: Object2
+          1: Object0
+          16: Object3
+        child:
+          26: Object5
+        mesas:
+          51: Object10
+          66: Object13
+          81: Object16
+          96: Object19
+          26: Object5
+          111: Object22
+          41: Object8
+          56: Object11
+          71: Object14
+          86: Object17
+          101: Object20
+          31: Object6
+          116: Object23
+          46: Object9
+          61: Object12
+          76: Object15
+          91: Object18
+          106: Object21
+          36: Object7
+          121: Object24
+        god:
+          0: God
+    22:
+      name: A4
+      type: A
+      associated_assets:
+        b:
+          23: B4
+        god:
+          0: God
+    23:
+      name: B4
+      type: B
+      associated_assets:
+        a:
+          22: A4
+        c:
+          24: C4
+        god:
+          0: God
+    24:
+      name: C4
+      type: C
+      associated_assets:
+        b:
+          23: B4
+        d:
+          25: D4
+        god:
+          0: God
+    25:
+      name: D4
+      type: D
+      associated_assets:
+        c:
+          24: C4
+        god:
+          0: God
+    26:
+      name: Object5
+      type: Object
+      associated_assets:
+        parent:
+          21: Object4
+        metas:
+          6: Object1
+          21: Object4
+          11: Object2
+          16: Object3
+          1: Object0
+        child:
+          31: Object6
+        mesas:
+          51: Object10
+          66: Object13
+          81: Object16
+          96: Object19
+          111: Object22
+          41: Object8
+          56: Object11
+          71: Object14
+          86: Object17
+          101: Object20
+          31: Object6
+          116: Object23
+          46: Object9
+          61: Object12
+          76: Object15
+          91: Object18
+          106: Object21
+          36: Object7
+          121: Object24
+        god:
+          0: God
+    27:
+      name: A5
+      type: A
+      associated_assets:
+        b:
+          28: B5
+        god:
+          0: God
+    28:
+      name: B5
+      type: B
+      associated_assets:
+        a:
+          27: A5
+        c:
+          29: C5
+        god:
+          0: God
+    29:
+      name: C5
+      type: C
+      associated_assets:
+        b:
+          28: B5
+        d:
+          30: D5
+        god:
+          0: God
+    30:
+      name: D5
+      type: D
+      associated_assets:
+        c:
+          29: C5
+        god:
+          0: God
+    31:
+      name: Object6
+      type: Object
+      associated_assets:
+        parent:
+          26: Object5
+        metas:
+          6: Object1
+          21: Object4
+          11: Object2
+          16: Object3
+          1: Object0
+          26: Object5
+        child:
+          36: Object7
+        mesas:
+          51: Object10
+          86: Object17
+          111: Object22
+          41: Object8
+          76: Object15
+          101: Object20
+          56: Object11
+          66: Object13
+          91: Object18
+          116: Object23
+          46: Object9
+          81: Object16
+          106: Object21
+          36: Object7
+          61: Object12
+          71: Object14
+          96: Object19
+          121: Object24
+        god:
+          0: God
+    32:
+      name: A6
+      type: A
+      associated_assets:
+        b:
+          33: B6
+        god:
+          0: God
+    33:
+      name: B6
+      type: B
+      associated_assets:
+        a:
+          32: A6
+        c:
+          34: C6
+        god:
+          0: God
+    34:
+      name: C6
+      type: C
+      associated_assets:
+        b:
+          33: B6
+        d:
+          35: D6
+        god:
+          0: God
+    35:
+      name: D6
+      type: D
+      associated_assets:
+        c:
+          34: C6
+        god:
+          0: God
+    36:
+      name: Object7
+      type: Object
+      associated_assets:
+        parent:
+          31: Object6
+        metas:
+          6: Object1
+          21: Object4
+          11: Object2
+          16: Object3
+          31: Object6
+          1: Object0
+          26: Object5
+        child:
+          41: Object8
+        mesas:
+          51: Object10
+          86: Object17
+          111: Object22
+          41: Object8
+          76: Object15
+          101: Object20
+          56: Object11
+          66: Object13
+          91: Object18
+          116: Object23
+          46: Object9
+          81: Object16
+          106: Object21
+          61: Object12
+          71: Object14
+          96: Object19
+          121: Object24
+        god:
+          0: God
+    37:
+      name: A7
+      type: A
+      associated_assets:
+        b:
+          38: B7
+        god:
+          0: God
+    38:
+      name: B7
+      type: B
+      associated_assets:
+        a:
+          37: A7
+        c:
+          39: C7
+        god:
+          0: God
+    39:
+      name: C7
+      type: C
+      associated_assets:
+        b:
+          38: B7
+        d:
+          40: D7
+        god:
+          0: God
+    40:
+      name: D7
+      type: D
+      associated_assets:
+        c:
+          39: C7
+        god:
+          0: God
+    41:
+      name: Object8
+      type: Object
+      associated_assets:
+        parent:
+          36: Object7
+        metas:
+          6: Object1
+          11: Object2
+          31: Object6
+          1: Object0
+          16: Object3
+          21: Object4
+          36: Object7
+          26: Object5
+        child:
+          46: Object9
+        mesas:
+          51: Object10
+          86: Object17
+          111: Object22
+          76: Object15
+          101: Object20
+          56: Object11
+          66: Object13
+          91: Object18
+          116: Object23
+          46: Object9
+          81: Object16
+          106: Object21
+          61: Object12
+          71: Object14
+          96: Object19
+          121: Object24
+        god:
+          0: God
+    42:
+      name: A8
+      type: A
+      associated_assets:
+        b:
+          43: B8
+        god:
+          0: God
+    43:
+      name: B8
+      type: B
+      associated_assets:
+        a:
+          42: A8
+        c:
+          44: C8
+        god:
+          0: God
+    44:
+      name: C8
+      type: C
+      associated_assets:
+        b:
+          43: B8
+        d:
+          45: D8
+        god:
+          0: God
+    45:
+      name: D8
+      type: D
+      associated_assets:
+        c:
+          44: C8
+        god:
+          0: God
+    46:
+      name: Object9
+      type: Object
+      associated_assets:
+        parent:
+          41: Object8
+        metas:
+          6: Object1
+          11: Object2
+          41: Object8
+          31: Object6
+          1: Object0
+          16: Object3
+          21: Object4
+          36: Object7
+          26: Object5
+        child:
+          51: Object10
+        mesas:
+          51: Object10
+          86: Object17
+          111: Object22
+          76: Object15
+          101: Object20
+          56: Object11
+          66: Object13
+          91: Object18
+          116: Object23
+          81: Object16
+          106: Object21
+          61: Object12
+          71: Object14
+          96: Object19
+          121: Object24
+        god:
+          0: God
+    47:
+      name: A9
+      type: A
+      associated_assets:
+        b:
+          48: B9
+        god:
+          0: God
+    48:
+      name: B9
+      type: B
+      associated_assets:
+        a:
+          47: A9
+        c:
+          49: C9
+        god:
+          0: God
+    49:
+      name: C9
+      type: C
+      associated_assets:
+        b:
+          48: B9
+        d:
+          50: D9
+        god:
+          0: God
+    50:
+      name: D9
+      type: D
+      associated_assets:
+        c:
+          49: C9
+        god:
+          0: God
+    51:
+      name: Object10
+      type: Object
+      associated_assets:
+        parent:
+          46: Object9
+        metas:
+          6: Object1
+          11: Object2
+          41: Object8
+          31: Object6
+          1: Object0
+          16: Object3
+          21: Object4
+          46: Object9
+          36: Object7
+          26: Object5
+        child:
+          56: Object11
+        mesas:
+          86: Object17
+          111: Object22
+          76: Object15
+          101: Object20
+          56: Object11
+          66: Object13
+          91: Object18
+          116: Object23
+          81: Object16
+          106: Object21
+          61: Object12
+          71: Object14
+          96: Object19
+          121: Object24
+        god:
+          0: God
+    52:
+      name: A10
+      type: A
+      associated_assets:
+        b:
+          53: B10
+        god:
+          0: God
+    53:
+      name: B10
+      type: B
+      associated_assets:
+        a:
+          52: A10
+        c:
+          54: C10
+        god:
+          0: God
+    54:
+      name: C10
+      type: C
+      associated_assets:
+        b:
+          53: B10
+        d:
+          55: D10
+        god:
+          0: God
+    55:
+      name: D10
+      type: D
+      associated_assets:
+        c:
+          54: C10
+        god:
+          0: God
+    56:
+      name: Object11
+      type: Object
+      associated_assets:
+        parent:
+          51: Object10
+        metas:
+          6: Object1
+          51: Object10
+          11: Object2
+          41: Object8
+          31: Object6
+          1: Object0
+          16: Object3
+          21: Object4
+          46: Object9
+          36: Object7
+          26: Object5
+        child:
+          61: Object12
+        mesas:
+          86: Object17
+          111: Object22
+          76: Object15
+          101: Object20
+          66: Object13
+          91: Object18
+          116: Object23
+          81: Object16
+          106: Object21
+          61: Object12
+          71: Object14
+          96: Object19
+          121: Object24
+        god:
+          0: God
+    57:
+      name: A11
+      type: A
+      associated_assets:
+        b:
+          58: B11
+        god:
+          0: God
+    58:
+      name: B11
+      type: B
+      associated_assets:
+        a:
+          57: A11
+        c:
+          59: C11
+        god:
+          0: God
+    59:
+      name: C11
+      type: C
+      associated_assets:
+        b:
+          58: B11
+        d:
+          60: D11
+        god:
+          0: God
+    60:
+      name: D11
+      type: D
+      associated_assets:
+        c:
+          59: C11
+        god:
+          0: God
+    61:
+      name: Object12
+      type: Object
+      associated_assets:
+        parent:
+          56: Object11
+        metas:
+          6: Object1
+          51: Object10
+          11: Object2
+          41: Object8
+          31: Object6
+          1: Object0
+          16: Object3
+          56: Object11
+          21: Object4
+          46: Object9
+          36: Object7
+          26: Object5
+        child:
+          66: Object13
+        mesas:
+          86: Object17
+          111: Object22
+          76: Object15
+          101: Object20
+          66: Object13
+          91: Object18
+          116: Object23
+          81: Object16
+          106: Object21
+          71: Object14
+          96: Object19
+          121: Object24
+        god:
+          0: God
+    62:
+      name: A12
+      type: A
+      associated_assets:
+        b:
+          63: B12
+        god:
+          0: God
+    63:
+      name: B12
+      type: B
+      associated_assets:
+        a:
+          62: A12
+        c:
+          64: C12
+        god:
+          0: God
+    64:
+      name: C12
+      type: C
+      associated_assets:
+        b:
+          63: B12
+        d:
+          65: D12
+        god:
+          0: God
+    65:
+      name: D12
+      type: D
+      associated_assets:
+        c:
+          64: C12
+        god:
+          0: God
+    66:
+      name: Object13
+      type: Object
+      associated_assets:
+        parent:
+          61: Object12
+        metas:
+          6: Object1
+          51: Object10
+          11: Object2
+          41: Object8
+          31: Object6
+          1: Object0
+          16: Object3
+          56: Object11
+          21: Object4
+          46: Object9
+          36: Object7
+          61: Object12
+          26: Object5
+        child:
+          71: Object14
+        mesas:
+          86: Object17
+          111: Object22
+          76: Object15
+          101: Object20
+          91: Object18
+          116: Object23
+          81: Object16
+          106: Object21
+          71: Object14
+          96: Object19
+          121: Object24
+        god:
+          0: God
+    67:
+      name: A13
+      type: A
+      associated_assets:
+        b:
+          68: B13
+        god:
+          0: God
+    68:
+      name: B13
+      type: B
+      associated_assets:
+        a:
+          67: A13
+        c:
+          69: C13
+        god:
+          0: God
+    69:
+      name: C13
+      type: C
+      associated_assets:
+        b:
+          68: B13
+        d:
+          70: D13
+        god:
+          0: God
+    70:
+      name: D13
+      type: D
+      associated_assets:
+        c:
+          69: C13
+        god:
+          0: God
+    71:
+      name: Object14
+      type: Object
+      associated_assets:
+        parent:
+          66: Object13
+        metas:
+          6: Object1
+          51: Object10
+          11: Object2
+          41: Object8
+          31: Object6
+          1: Object0
+          16: Object3
+          56: Object11
+          66: Object13
+          21: Object4
+          46: Object9
+          36: Object7
+          61: Object12
+          26: Object5
+        child:
+          76: Object15
+        mesas:
+          86: Object17
+          111: Object22
+          76: Object15
+          101: Object20
+          91: Object18
+          116: Object23
+          81: Object16
+          106: Object21
+          96: Object19
+          121: Object24
+        god:
+          0: God
+    72:
+      name: A14
+      type: A
+      associated_assets:
+        b:
+          73: B14
+        god:
+          0: God
+    73:
+      name: B14
+      type: B
+      associated_assets:
+        a:
+          72: A14
+        c:
+          74: C14
+        god:
+          0: God
+    74:
+      name: C14
+      type: C
+      associated_assets:
+        b:
+          73: B14
+        d:
+          75: D14
+        god:
+          0: God
+    75:
+      name: D14
+      type: D
+      associated_assets:
+        c:
+          74: C14
+        god:
+          0: God
+    76:
+      name: Object15
+      type: Object
+      associated_assets:
+        parent:
+          71: Object14
+        metas:
+          6: Object1
+          51: Object10
+          11: Object2
+          41: Object8
+          31: Object6
+          1: Object0
+          16: Object3
+          56: Object11
+          66: Object13
+          21: Object4
+          46: Object9
+          36: Object7
+          61: Object12
+          71: Object14
+          26: Object5
+        child:
+          81: Object16
+        mesas:
+          86: Object17
+          111: Object22
+          101: Object20
+          91: Object18
+          116: Object23
+          81: Object16
+          106: Object21
+          96: Object19
+          121: Object24
+        god:
+          0: God
+    77:
+      name: A15
+      type: A
+      associated_assets:
+        b:
+          78: B15
+        god:
+          0: God
+    78:
+      name: B15
+      type: B
+      associated_assets:
+        a:
+          77: A15
+        c:
+          79: C15
+        god:
+          0: God
+    79:
+      name: C15
+      type: C
+      associated_assets:
+        b:
+          78: B15
+        d:
+          80: D15
+        god:
+          0: God
+    80:
+      name: D15
+      type: D
+      associated_assets:
+        c:
+          79: C15
+        god:
+          0: God
+    81:
+      name: Object16
+      type: Object
+      associated_assets:
+        parent:
+          76: Object15
+        metas:
+          51: Object10
+          11: Object2
+          31: Object6
+          66: Object13
+          46: Object9
+          61: Object12
+          26: Object5
+          6: Object1
+          41: Object8
+          76: Object15
+          1: Object0
+          16: Object3
+          56: Object11
+          21: Object4
+          36: Object7
+          71: Object14
+        child:
+          86: Object17
+        mesas:
+          86: Object17
+          111: Object22
+          101: Object20
+          91: Object18
+          116: Object23
+          106: Object21
+          96: Object19
+          121: Object24
+        god:
+          0: God
+    82:
+      name: A16
+      type: A
+      associated_assets:
+        b:
+          83: B16
+        god:
+          0: God
+    83:
+      name: B16
+      type: B
+      associated_assets:
+        a:
+          82: A16
+        c:
+          84: C16
+        god:
+          0: God
+    84:
+      name: C16
+      type: C
+      associated_assets:
+        b:
+          83: B16
+        d:
+          85: D16
+        god:
+          0: God
+    85:
+      name: D16
+      type: D
+      associated_assets:
+        c:
+          84: C16
+        god:
+          0: God
+    86:
+      name: Object17
+      type: Object
+      associated_assets:
+        parent:
+          81: Object16
+        metas:
+          51: Object10
+          11: Object2
+          31: Object6
+          66: Object13
+          46: Object9
+          81: Object16
+          61: Object12
+          26: Object5
+          6: Object1
+          41: Object8
+          76: Object15
+          1: Object0
+          16: Object3
+          56: Object11
+          21: Object4
+          36: Object7
+          71: Object14
+        child:
+          91: Object18
+        mesas:
+          111: Object22
+          101: Object20
+          91: Object18
+          116: Object23
+          106: Object21
+          96: Object19
+          121: Object24
+        god:
+          0: God
+    87:
+      name: A17
+      type: A
+      associated_assets:
+        b:
+          88: B17
+        god:
+          0: God
+    88:
+      name: B17
+      type: B
+      associated_assets:
+        a:
+          87: A17
+        c:
+          89: C17
+        god:
+          0: God
+    89:
+      name: C17
+      type: C
+      associated_assets:
+        b:
+          88: B17
+        d:
+          90: D17
+        god:
+          0: God
+    90:
+      name: D17
+      type: D
+      associated_assets:
+        c:
+          89: C17
+        god:
+          0: God
+    91:
+      name: Object18
+      type: Object
+      associated_assets:
+        parent:
+          86: Object17
+        metas:
+          51: Object10
+          86: Object17
+          11: Object2
+          31: Object6
+          66: Object13
+          46: Object9
+          81: Object16
+          61: Object12
+          26: Object5
+          6: Object1
+          41: Object8
+          76: Object15
+          1: Object0
+          16: Object3
+          56: Object11
+          21: Object4
+          36: Object7
+          71: Object14
+        child:
+          96: Object19
+        mesas:
+          111: Object22
+          101: Object20
+          116: Object23
+          106: Object21
+          96: Object19
+          121: Object24
+        god:
+          0: God
+    92:
+      name: A18
+      type: A
+      associated_assets:
+        b:
+          93: B18
+        god:
+          0: God
+    93:
+      name: B18
+      type: B
+      associated_assets:
+        a:
+          92: A18
+        c:
+          94: C18
+        god:
+          0: God
+    94:
+      name: C18
+      type: C
+      associated_assets:
+        b:
+          93: B18
+        d:
+          95: D18
+        god:
+          0: God
+    95:
+      name: D18
+      type: D
+      associated_assets:
+        c:
+          94: C18
+        god:
+          0: God
+    96:
+      name: Object19
+      type: Object
+      associated_assets:
+        parent:
+          91: Object18
+        metas:
+          51: Object10
+          86: Object17
+          11: Object2
+          31: Object6
+          66: Object13
+          46: Object9
+          81: Object16
+          61: Object12
+          26: Object5
+          6: Object1
+          41: Object8
+          76: Object15
+          16: Object3
+          56: Object11
+          1: Object0
+          91: Object18
+          21: Object4
+          36: Object7
+          71: Object14
+        child:
+          101: Object20
+        mesas:
+          111: Object22
+          101: Object20
+          116: Object23
+          106: Object21
+          121: Object24
+        god:
+          0: God
+    97:
+      name: A19
+      type: A
+      associated_assets:
+        b:
+          98: B19
+        god:
+          0: God
+    98:
+      name: B19
+      type: B
+      associated_assets:
+        a:
+          97: A19
+        c:
+          99: C19
+        god:
+          0: God
+    99:
+      name: C19
+      type: C
+      associated_assets:
+        b:
+          98: B19
+        d:
+          100: D19
+        god:
+          0: God
+    100:
+      name: D19
+      type: D
+      associated_assets:
+        c:
+          99: C19
+        god:
+          0: God
+    101:
+      name: Object20
+      type: Object
+      associated_assets:
+        parent:
+          96: Object19
+        metas:
+          51: Object10
+          86: Object17
+          11: Object2
+          31: Object6
+          66: Object13
+          46: Object9
+          81: Object16
+          61: Object12
+          96: Object19
+          26: Object5
+          6: Object1
+          41: Object8
+          76: Object15
+          16: Object3
+          56: Object11
+          1: Object0
+          91: Object18
+          21: Object4
+          36: Object7
+          71: Object14
+        child:
+          106: Object21
+        mesas:
+          116: Object23
+          111: Object22
+          121: Object24
+          106: Object21
+        god:
+          0: God
+    102:
+      name: A20
+      type: A
+      associated_assets:
+        b:
+          103: B20
+        god:
+          0: God
+    103:
+      name: B20
+      type: B
+      associated_assets:
+        a:
+          102: A20
+        c:
+          104: C20
+        god:
+          0: God
+    104:
+      name: C20
+      type: C
+      associated_assets:
+        b:
+          103: B20
+        d:
+          105: D20
+        god:
+          0: God
+    105:
+      name: D20
+      type: D
+      associated_assets:
+        c:
+          104: C20
+        god:
+          0: God
+    106:
+      name: Object21
+      type: Object
+      associated_assets:
+        parent:
+          101: Object20
+        metas:
+          51: Object10
+          86: Object17
+          11: Object2
+          101: Object20
+          31: Object6
+          66: Object13
+          46: Object9
+          81: Object16
+          61: Object12
+          96: Object19
+          26: Object5
+          6: Object1
+          41: Object8
+          76: Object15
+          16: Object3
+          56: Object11
+          1: Object0
+          91: Object18
+          21: Object4
+          36: Object7
+          71: Object14
+        child:
+          111: Object22
+        mesas:
+          116: Object23
+          111: Object22
+          121: Object24
+        god:
+          0: God
+    107:
+      name: A21
+      type: A
+      associated_assets:
+        b:
+          108: B21
+        god:
+          0: God
+    108:
+      name: B21
+      type: B
+      associated_assets:
+        a:
+          107: A21
+        c:
+          109: C21
+        god:
+          0: God
+    109:
+      name: C21
+      type: C
+      associated_assets:
+        b:
+          108: B21
+        d:
+          110: D21
+        god:
+          0: God
+    110:
+      name: D21
+      type: D
+      associated_assets:
+        c:
+          109: C21
+        god:
+          0: God
+    111:
+      name: Object22
+      type: Object
+      associated_assets:
+        parent:
+          106: Object21
+        metas:
+          51: Object10
+          86: Object17
+          11: Object2
+          101: Object20
+          31: Object6
+          66: Object13
+          46: Object9
+          81: Object16
+          61: Object12
+          96: Object19
+          26: Object5
+          6: Object1
+          41: Object8
+          76: Object15
+          16: Object3
+          56: Object11
+          1: Object0
+          91: Object18
+          21: Object4
+          106: Object21
+          36: Object7
+          71: Object14
+        child:
+          116: Object23
+        mesas:
+          116: Object23
+          121: Object24
+        god:
+          0: God
+    112:
+      name: A22
+      type: A
+      associated_assets:
+        b:
+          113: B22
+        god:
+          0: God
+    113:
+      name: B22
+      type: B
+      associated_assets:
+        a:
+          112: A22
+        c:
+          114: C22
+        god:
+          0: God
+    114:
+      name: C22
+      type: C
+      associated_assets:
+        b:
+          113: B22
+        d:
+          115: D22
+        god:
+          0: God
+    115:
+      name: D22
+      type: D
+      associated_assets:
+        c:
+          114: C22
+        god:
+          0: God
+    116:
+      name: Object23
+      type: Object
+      associated_assets:
+        parent:
+          111: Object22
+        metas:
+          51: Object10
+          86: Object17
+          11: Object2
+          101: Object20
+          31: Object6
+          66: Object13
+          46: Object9
+          81: Object16
+          61: Object12
+          96: Object19
+          26: Object5
+          6: Object1
+          111: Object22
+          41: Object8
+          76: Object15
+          16: Object3
+          56: Object11
+          1: Object0
+          91: Object18
+          21: Object4
+          106: Object21
+          36: Object7
+          71: Object14
+        child:
+          121: Object24
+        mesas:
+          121: Object24
+        god:
+          0: God
+    117:
+      name: A23
+      type: A
+      associated_assets:
+        b:
+          118: B23
+        god:
+          0: God
+    118:
+      name: B23
+      type: B
+      associated_assets:
+        a:
+          117: A23
+        c:
+          119: C23
+        god:
+          0: God
+    119:
+      name: C23
+      type: C
+      associated_assets:
+        b:
+          118: B23
+        d:
+          120: D23
+        god:
+          0: God
+    120:
+      name: D23
+      type: D
+      associated_assets:
+        c:
+          119: C23
+        god:
+          0: God
+    121:
+      name: Object24
+      type: Object
+      associated_assets:
+        parent:
+          116: Object23
+        metas:
+          51: Object10
+          86: Object17
+          11: Object2
+          101: Object20
+          31: Object6
+          66: Object13
+          116: Object23
+          46: Object9
+          81: Object16
+          61: Object12
+          96: Object19
+          26: Object5
+          6: Object1
+          111: Object22
+          41: Object8
+          76: Object15
+          16: Object3
+          56: Object11
+          1: Object0
+          91: Object18
+          21: Object4
+          106: Object21
+          36: Object7
+          71: Object14
+        god:
+          0: God
+    122:
+      name: A24
+      type: A
+      associated_assets:
+        b:
+          123: B24
+        god:
+          0: God
+    123:
+      name: B24
+      type: B
+      associated_assets:
+        a:
+          122: A24
+        c:
+          124: C24
+        god:
+          0: God
+    124:
+      name: C24
+      type: C
+      associated_assets:
+        b:
+          123: B24
+        d:
+          125: D24
+        god:
+          0: God
+    125:
+      name: D24
+      type: D
+      associated_assets:
+        c:
+          124: C24
+        god:
+          0: God

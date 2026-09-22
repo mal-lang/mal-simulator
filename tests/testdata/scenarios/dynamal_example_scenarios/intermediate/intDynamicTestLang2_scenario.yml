@@ -1,0 +1,51 @@
+lang_file: ../../../langs/dynamal_example_langs/intermediate/intDynamicTestLang2.mal
+model:
+  metadata:
+    name: intDynamicTestLang2
+    langVersion: 0.0.1
+    langID: intDynamicTestLang2
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: AccessPolicy:1
+      type: AccessPolicy
+      associated_assets:
+        facilities:
+          2: BananaStorage:1
+        allowedEmployees:
+          3: Monkey:1
+    1:
+      name: Banana:1
+      type: Banana
+      associated_assets:
+        container:
+          2: BananaStorage:1
+    2:
+      name: BananaStorage:1
+      type: BananaStorage
+      associated_assets:
+        policy:
+          0: AccessPolicy:1
+        goods:
+          1: Banana:1
+        agent:
+          3: Monkey:1
+    3:
+      name: Monkey:1
+      type: Monkey
+      associated_assets:
+        allowPolicies:
+          0: AccessPolicy:1
+        storage:
+          2: BananaStorage:1
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: null
+    entry_points:
+    - Monkey:1:attemptTheft
+  Defender1:
+    type: defender
+    agent_class: null

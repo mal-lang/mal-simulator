@@ -1,0 +1,58 @@
+lang_file: ../../../langs/dynamal_example_langs/basic/baseDynamicTestLang8.mal
+model:
+  metadata:
+    name: baseDynamicTestLang8
+    langVersion: 0.0.1
+    langID: baseDynamicTestLang8
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: Plantation:1
+      type: Plantation
+      associated_assets:
+        trees:
+          2: BananaTree:1
+    1:
+      name: PlantationWithSmallTrees:1
+      type: PlantationWithSmallTrees
+      associated_assets:
+        trees:
+          4: BananaTree:2
+    2:
+      name: BananaTree:1
+      type: BananaTree
+      associated_assets:
+        bananas:
+          3: Banana:1
+        plant:
+          0: Plantation:1
+    3:
+      name: Banana:1
+      type: Banana
+      associated_assets:
+        tree:
+          2: BananaTree:1
+    4:
+      name: BananaTree:2
+      type: BananaTree
+      associated_assets:
+        plant:
+          1: PlantationWithSmallTrees:1
+    5:
+      name: Banana:2
+      type: Banana
+      associated_assets:
+        tree:
+          4: BananaTree:2
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: null
+    entry_points:
+    - Plantation:1:access
+    - PlantationWithSmallTrees:1:access
+  Defender1:
+    type: defender
+    agent_class: null
