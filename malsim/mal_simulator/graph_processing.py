@@ -106,7 +106,7 @@ def calculate_necessity(
 
     necessity_per_node = dict.fromkeys(graph.nodes.values(), True)
     for node in graph.nodes.values():
-        if node.type in [AttackStepType.EXIST, AttackStepType.NOT_EXIST, AttackStepType.DEFENSE]:
+        if node.type in (AttackStepType.EXIST, AttackStepType.NOT_EXIST, AttackStepType.DEFENSE):
             necessity_per_node[node] = evaluate_necessity(
                 node, necessity_per_node, enabled_defenses
             )
@@ -165,14 +165,14 @@ def evaluate_viability(
 
     match node.type:
         case AttackStepType.EXIST:
-            #assert isinstance(node.existence_status, bool), (
-            #    f'Existence status not defined for {node.full_name}.'
-            #)
+            assert isinstance(node.existence_status, bool), (
+                f'Existence status not defined for {node.full_name}.'
+            )
             return node.existence_status
         case AttackStepType.NOT_EXIST:
-            #assert isinstance(node.existence_status, bool), (
-            #    f'Existence status not defined for {node.full_name}.'
-            #)
+            assert isinstance(node.existence_status, bool), (
+                f'Existence status not defined for {node.full_name}.'
+            )
             return not node.existence_status
         case AttackStepType.DEFENSE:
             return node not in enabled_defenses

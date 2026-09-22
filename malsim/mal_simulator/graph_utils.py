@@ -16,10 +16,10 @@ def node_is_blocked(sim_state: MalSimulatorState, node: AttackGraphNode | str) -
     def _node_blocks_children(node: AttackGraphNode) -> bool:
         match node.type:
             case AttackStepType.EXIST:
-                #assert isinstance(node.existence_status, bool)
+                assert isinstance(node.existence_status, bool)
                 return not node.existence_status
             case AttackStepType.NOT_EXIST:
-                #assert isinstance(node.existence_status, bool)
+                assert isinstance(node.existence_status, bool)
                 return node.existence_status
             case AttackStepType.DEFENSE:
                 return node in sim_state.enabled_defenses
