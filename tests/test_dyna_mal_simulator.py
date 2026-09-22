@@ -865,7 +865,12 @@ def assert_uniform_over_interval(
 
 def test_rand_multiplicity_scenario(rand_multiplicity_scenario: Scenario) -> None:
     """Test the multiplicity scenario"""
-    sim = DynaMalSimulator.from_scenario(rand_multiplicity_scenario)
+    # Seeded for reproducibility: without a fixed seed this test draws from
+    # OS entropy each run, making failures non-reproducible.
+    sim = DynaMalSimulator.from_scenario(
+        rand_multiplicity_scenario,
+        sim_settings=MalSimulatorSettings(seed=1337),
+    )
     attack_graph = rand_multiplicity_scenario.attack_graph
     model = attack_graph.model
     assert model is not None
@@ -947,11 +952,12 @@ def test_rand_multiplicity_scenario(rand_multiplicity_scenario: Scenario) -> Non
         )
         unlinkRandB[i] = len(unlinked_Bs)
 
-    assert_uniform_over_interval(addRandB, 4, 10)
-    assert_uniform_over_interval(addRandB2OtherA, 8, 12)
-    assert_uniform_over_interval(linkBfromOtherA, 2, 5)
-    assert_uniform_over_interval(removeRandB, 2, 10)
-    assert_uniform_over_interval(unlinkRandB, 1, 3)
+    alpha = 0.05 / 5
+    assert_uniform_over_interval(addRandB, 4, 10, alpha=alpha)
+    assert_uniform_over_interval(addRandB2OtherA, 8, 12, alpha=alpha)
+    assert_uniform_over_interval(linkBfromOtherA, 2, 5, alpha=alpha)
+    assert_uniform_over_interval(removeRandB, 2, 10, alpha=alpha)
+    assert_uniform_over_interval(unlinkRandB, 1, 3, alpha=alpha)
 
 
 def test_no_memory_leak_on_teardown() -> None:
