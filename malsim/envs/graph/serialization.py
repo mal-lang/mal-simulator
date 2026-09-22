@@ -9,7 +9,7 @@ import numpy as np
 from numpy.typing import NDArray
 from maltoolbox.language.compiler.distributions import Distributions
 
-from typeing import TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from maltoolbox.language.language_graph_attack_step import LanguageGraphAttackStep
