@@ -95,8 +95,8 @@ def _glob_assoc_traversal(
         instigating_assets, glob_assoc_traversal.pattern, rng
     )
     while True:
-        new_assets = traverse_association_chain(
-            instigating_assets, glob_assoc_traversal.pattern, rng
+        new_assets = next_assets | traverse_association_chain(
+            next_assets, glob_assoc_traversal.pattern, rng
         )
         if len(new_assets.difference(next_assets)) == 0:
             break
