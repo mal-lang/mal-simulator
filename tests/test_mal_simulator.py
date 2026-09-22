@@ -742,7 +742,7 @@ def test_attacker_step_rewards_expected_ttc(
     rng = np.random.default_rng(22)
     rewards = NodePropertyRule(
         by_asset_name={
-            n.type: {
+            str(n.type): {
                 x.name: rng.random() * 100
                 for x in filter(lambda x: x.type == n.type, attack_graph.nodes.values())
             }
