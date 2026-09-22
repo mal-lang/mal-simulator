@@ -1,0 +1,44 @@
+lang_file: ../../../langs/dynamal_example_langs/intermediate/intDynamicTestLang9.mal
+model:
+  metadata:
+    name: intDynamicTestLang9
+    langVersion: 0.1.0
+    langID: intDynamicTestLang9
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: Room:1
+      type: Room
+      associated_assets:
+        chairs:
+          2: Chair:1
+        tables:
+          1: Table:1
+    1:
+      name: Table:1
+      type: Table
+      associated_assets:
+        room:
+          0: Room:1
+        chair:
+          2: Chair:1
+    2:
+      name: Chair:1
+      type: Chair
+      associated_assets:
+        room:
+          0: Room:1
+        table:
+          1: Table:1
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: null
+    entry_points:
+    - Room:1:addChairs
+    - Room:1:installTable
+  Defender1:
+    type: defender
+    agent_class: null

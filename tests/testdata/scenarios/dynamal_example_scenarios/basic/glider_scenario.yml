@@ -1,0 +1,36 @@
+lang_file: ../../../langs/dynamal_example_langs/basic/glider.mal
+model:
+  metadata:
+    name: glider
+    langVersion: 0.1.0
+    langID: glider
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: Glider:1
+      type: Glider
+      associated_assets:
+        next:
+          1: Glider:2
+        previous:
+          1: Glider:2
+    1:
+      name: Glider:2
+      type: Glider
+      associated_assets:
+        previous:
+          0: Glider:1
+        next:
+          0: Glider:1
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: null
+    entry_points:
+    - Glider:1:glide
+    - Glider:2:glide
+  Defender1:
+    type: defender
+    agent_class: null

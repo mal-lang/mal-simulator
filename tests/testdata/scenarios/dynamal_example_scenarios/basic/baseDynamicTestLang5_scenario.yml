@@ -1,0 +1,43 @@
+lang_file: ../../../langs/dynamal_example_langs/basic/baseDynamicTestLang5.mal
+model:
+  metadata:
+    name: baseDynamicTestLang5
+    langVersion: 0.0.1
+    langID: baseDynamicTestLang5
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: Monkey:1
+      type: Monkey
+      associated_assets:
+        storage:
+          2: Storage:1
+        instrument:
+          1: Typewriter:1
+    1:
+      name: Typewriter:1
+      type: Typewriter
+      associated_assets:
+        storage:
+          2: Storage:1
+        writer:
+          0: Monkey:1
+    2:
+      name: Storage:1
+      type: Storage
+      associated_assets:
+        typewriters:
+          1: Typewriter:1
+        monkeys:
+          0: Monkey:1
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: null
+    entry_points:
+    - Storage:1:access
+  Defender1:
+    type: defender
+    agent_class: null
