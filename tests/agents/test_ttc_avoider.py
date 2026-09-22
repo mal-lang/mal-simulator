@@ -76,9 +76,7 @@ def test_ttc_avoider_low_sharpness() -> None:
                     entry_points=frozenset(
                         {attack_graph.get_node_by_full_name('Net1:easyAccess')}
                     ),
-                    goals=frozenset(
-                        {attack_graph.get_node_by_full_name('DataD:read')}
-                    ),
+                    goals=frozenset({attack_graph.get_node_by_full_name('DataD:read')}),
                 ),
             ),
         )
