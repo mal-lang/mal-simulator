@@ -1,0 +1,36 @@
+lang_file: ../../../langs/dynamal_example_langs/basic/looper.mal
+model:
+  metadata:
+    name: looper
+    langVersion: 0.1.0
+    langID: looper
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: Looper:1
+      type: Looper
+      associated_assets:
+        next:
+          1: Looper:2
+        previous:
+          1: Looper:2
+    1:
+      name: Looper:2
+      type: Looper
+      associated_assets:
+        previous:
+          0: Looper:1
+        next:
+          0: Looper:1
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: null
+    entry_points:
+    - Looper:1:loop
+    - Looper:2:loop
+  Defender1:
+    type: defender
+    agent_class: null

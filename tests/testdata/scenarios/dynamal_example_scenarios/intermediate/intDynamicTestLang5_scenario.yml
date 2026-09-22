@@ -1,0 +1,55 @@
+lang_file: ../../../langs/dynamal_example_langs/intermediate/intDynamicTestLang5.mal
+model:
+  metadata:
+    name: intDynamicTestLang5
+    langVersion: 0.1.0
+    langID: intDynamicTestLang5
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: Business:1
+      type: Business
+      associated_assets:
+        goodies:
+          3: Banana:1
+          1: Typewriter:1
+          2: Apple:1
+        monkeys:
+          4: Monkey:1
+    1:
+      name: Typewriter:1
+      type: Typewriter
+      associated_assets:
+        organization:
+          0: Business:1
+    2:
+      name: Apple:1
+      type: Apple
+      associated_assets:
+        organization:
+          0: Business:1
+    3:
+      name: Banana:1
+      type: Banana
+      associated_assets:
+        organization:
+          0: Business:1
+    4:
+      name: Monkey:1
+      type: Monkey
+      associated_assets:
+        business:
+          0: Business:1
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: null
+    entry_points:
+    - Monkey:1:eatApples
+    - Monkey:1:eatBananas
+    - Monkey:1:eatPerishables
+  Defender1:
+    type: defender
+    agent_class: null

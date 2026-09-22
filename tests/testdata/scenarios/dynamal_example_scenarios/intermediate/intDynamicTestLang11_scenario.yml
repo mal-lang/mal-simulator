@@ -1,0 +1,55 @@
+lang_file: ../../../langs/dynamal_example_langs/intermediate/intDynamicTestLang11.mal
+model:
+  metadata:
+    name: intDynamicTestLang11
+    langVersion: 0.1.0
+    langID: intDynamicTestLang11
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: Table:1
+      type: Table
+      associated_assets:
+        bowls:
+          1: Bowl:1
+        baskets:
+          2: Basket:1
+    1:
+      name: Bowl:1
+      type: Bowl
+      associated_assets:
+        table:
+          0: Table:1
+        oranges:
+          4: Orange:1
+        apples:
+          3: Apple:1
+    2:
+      name: Basket:1
+      type: Basket
+      associated_assets:
+        table:
+          0: Table:1
+    3:
+      name: Apple:1
+      type: Apple
+      associated_assets:
+        container:
+          1: Bowl:1
+    4:
+      name: Orange:1
+      type: Orange
+      associated_assets:
+        container:
+          1: Bowl:1
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: null
+    entry_points:
+    - Table:1:access
+  Defender1:
+    type: defender
+    agent_class: null

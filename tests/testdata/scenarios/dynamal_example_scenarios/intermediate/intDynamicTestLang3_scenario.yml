@@ -1,0 +1,47 @@
+lang_file: ../../../langs/dynamal_example_langs/intermediate/intDynamicTestLang3.mal
+model:
+  metadata:
+    name: intDynamicTestLang3
+    langVersion: 0.0.1
+    langID: intDynamicTestLang3
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: Alarm:1
+      type: Alarm
+      associated_assets:
+        trees:
+          2: BananaTree:1
+    1:
+      name: Poison:1
+      type: Poison
+      associated_assets:
+        banana:
+          3: Banana:1
+    2:
+      name: BananaTree:1
+      type: BananaTree
+      associated_assets:
+        alarm:
+          0: Alarm:1
+        bananas:
+          3: Banana:1
+    3:
+      name: Banana:1
+      type: Banana
+      associated_assets:
+        poison:
+          1: Poison:1
+        tree:
+          2: BananaTree:1
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: null
+    entry_points:
+    - BananaTree:1:access
+  Defender1:
+    type: defender
+    agent_class: null
