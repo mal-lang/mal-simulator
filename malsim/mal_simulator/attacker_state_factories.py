@@ -76,6 +76,10 @@ def create_attacker_state(
         sim_state,
         attacker_settings.actionable_steps,
         previous_performed_nodes | new_performed_nodes,
+        from_nodes=new_performed_nodes,
+        carry_forward=(
+            previous_state.action_surface if previous_state else frozenset()
+        ),
     )
 
     if not previous_state and not sim_state.settings.compromise_entrypoints_at_start:

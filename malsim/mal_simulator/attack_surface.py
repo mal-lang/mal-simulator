@@ -46,6 +46,7 @@ def get_attack_surface(
     actionability: NodePropertyRule[bool] | None,
     performed_nodes: Set[AttackGraphNode],
     from_nodes: Set[AttackGraphNode] | None = None,
+    carry_forward: Set[AttackGraphNode] = frozenset(),
 ) -> Set[AttackGraphNode]:
     """
     Calculate the attack surface of the attacker.
@@ -53,10 +54,20 @@ def get_attack_surface(
     stemming from those nodes, otherwise use all performed_nodes.
     The attack surface includes all of the traversable children nodes.
 
+    `carry_forward` is an existing attack surface (e.g. from the previous
+    step) to re-validate and include alongside nodes newly reachable from
+    `from_nodes`, instead of only ever expanding the surface. This is what
+    allows callers to update the attack surface incrementally: pass only
+    the newly performed nodes as `from_nodes` and the previous attack
+    surface as `carry_forward`, instead of recalculating from the full
+    (ever-growing) set of performed nodes every time.
+
     Arguments:
     agent_name      - the agent to get attack surface for
     performed_nodes - the nodes the agent has performed
     from_nodes      - the nodes to calculate the attack surface from
+    carry_forward   - a previously computed attack surface to re-validate
+                      and merge with nodes newly reachable from from_nodes
 
     """
 
@@ -88,9 +99,7 @@ def get_attack_surface(
             and traversable(node)
         )
 
-    return frozenset(
-        node
-        for parent in from_nodes
-        for node in parent.children
-        if in_attack_surface(node)
-    )
+    candidate_nodes = carry_forward | {
+        node for parent in from_nodes for node in parent.children
+    }
+    return frozenset(node for node in candidate_nodes if in_attack_surface(node))
