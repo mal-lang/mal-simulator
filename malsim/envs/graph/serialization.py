@@ -4,10 +4,15 @@ import inspect
 from collections.abc import MutableSet, Set
 from typing import Any
 from maltoolbox.language import LanguageGraph
+from maltoolbox.language.language_graph_attack_step import AttackStepType
 import numpy as np
 from numpy.typing import NDArray
 from maltoolbox.language.compiler.distributions import Distributions
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from maltoolbox.language.language_graph_attack_step import LanguageGraphAttackStep
 
 def extract_distribution_names_maltoolbox() -> list[str]:
     src = textwrap.dedent(inspect.getsource(Distributions.validate))
@@ -95,15 +100,15 @@ class LangSerializer:
             ],
             key=lambda x: x.name,
         )
-        all_steps_attacker_sorting = list(
-            filter(lambda x: x.type in ('and', 'or'), all_steps)
+        all_steps_attacker_sorting: list[LanguageGraphAttackStep] = list(
+            filter(lambda x: x.type in (AttackStepType.AND, AttackStepType.OR), all_steps)
         ) + list(
-            filter(lambda x: x.type in ('defense', 'exist', 'notExist'), all_steps)
+            filter(lambda x: x.type in (AttackStepType.DEFENSE, AttackStepType.EXIST, AttackStepType.NOT_EXIST), all_steps)
         )
-        all_steps_defender_sorting = list(
-            filter(lambda x: x.type == 'defense', all_steps)
+        all_steps_defender_sorting: list[LanguageGraphAttackStep] = list(
+            filter(lambda x: x.type == AttackStepType.DEFENSE, all_steps)
         ) + list(
-            filter(lambda x: x.type in ('and', 'or', 'exist', 'notExist'), all_steps)
+            filter(lambda x: x.type in (AttackStepType.AND, AttackStepType.OR, AttackStepType.EXIST, AttackStepType.NOT_EXIST), all_steps)
         )
 
         # NOTE: This looks odd, but the step name is the type of the action

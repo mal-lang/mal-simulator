@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from maltoolbox.language import LanguageGraphAttackStep
+from maltoolbox.language.language_graph_attack_step import AttackStepType
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.config.sim_settings import AttackSurfaceSettings
 from malsim.mal_simulator import (
@@ -443,7 +444,7 @@ def test_is_traversable(corelang_lang_graph: LanguageGraph, model: Model) -> Non
     while or_steps:
         attacker_state = sim.step({attacker_name: or_steps})[attacker_name]
         or_steps = [
-            n for n in sim.agent_states[attacker_name].action_surface if n.type == 'or'
+            n for n in sim.agent_states[attacker_name].action_surface if n.type == AttackStepType.OR
         ]
     assert isinstance(attacker_state, AttackerState)
     children_of_reached_nodes = set()
@@ -456,15 +457,15 @@ def test_is_traversable(corelang_lang_graph: LanguageGraph, model: Model) -> Non
             continue
 
         if node in children_of_reached_nodes:
-            if node.type == 'and' and not sim.node_is_traversable(
+            if node.type == AttackStepType.AND and not sim.node_is_traversable(
                 attacker_state.performed_nodes, node
             ):
                 assert not all(
                     p in attacker_state.performed_nodes
                     for p in node.parents
-                    if p.type in ('or', 'and')
+                    if p.type in (AttackStepType.OR, AttackStepType.AND)
                 ) or sim.node_is_blocked(node)
-            if node.type == 'or' and not sim.node_is_traversable(
+            if node.type == AttackStepType.OR and not sim.node_is_traversable(
                 attacker_state.performed_nodes, node
             ):
                 assert sim.node_is_blocked(node)
@@ -553,7 +554,7 @@ def test_is_compromised(corelang_lang_graph: LanguageGraph, model: Model) -> Non
     while or_steps:
         attacker_state = sim.step({attacker_name: or_steps})[attacker_name]
         or_steps = [
-            n for n in sim.agent_states[attacker_name].action_surface if n.type == 'or'
+            n for n in sim.agent_states[attacker_name].action_surface if n.type == AttackStepType.OR
         ]
     assert isinstance(attacker_state, AttackerState)
 
@@ -741,7 +742,7 @@ def test_attacker_step_rewards_expected_ttc(
     rng = np.random.default_rng(22)
     rewards = NodePropertyRule(
         by_asset_name={
-            n.type: {
+            str(n.type): {
                 x.name: rng.random() * 100
                 for x in filter(lambda x: x.type == n.type, attack_graph.nodes.values())
             }
@@ -1082,7 +1083,7 @@ def test_default_simulator_default_settings_eviction() -> None:
     # Get a step to compromise and its defense parent
     user_3_compromise = get_node(sim.sim_state.attack_graph, 'User:3:compromise')
     user_3_compromise_defense = next(
-        n for n in user_3_compromise.parents if n.type == 'defense'
+        n for n in user_3_compromise.parents if n.type == AttackStepType.DEFENSE
     )
     assert user_3_compromise not in attacker_agent.performed_nodes
     assert user_3_compromise_defense not in defender_agent.performed_nodes

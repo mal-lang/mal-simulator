@@ -10,6 +10,7 @@ from collections.abc import Iterable
 
 import numpy as np
 from scipy.stats import expon, gamma, binom, lognorm, uniform, bernoulli
+from maltoolbox.language.language_graph_attack_step import AttackStepType
 from malsim.config.sim_settings import TTCMode
 
 if TYPE_CHECKING:
@@ -53,9 +54,9 @@ def perform_operation(op: Operation, a: float, b: float) -> float:
 
 def default_ttc_dist(node: AttackGraphNode) -> TTCDist:
     """ttc distribution if no ttc is set in lang or model"""
-    if node.type == 'defense':
+    if node.type == AttackStepType.DEFENSE:
         return named_ttc_dists['Disabled']
-    if node.type in ('or', 'and'):
+    if node.type in (AttackStepType.OR, AttackStepType.AND):
         return named_ttc_dists['Instant']
 
     # Other steps have no ttc
@@ -322,9 +323,9 @@ def get_pre_enabled_defenses(
     Calculate and return pre defenses that got a non-infinite
     ttc value sample, which means they will be pre enabled
     """
-    pre_enabled_defenses = set()
+    pre_enabled_defenses: set[AttackGraphNode] = set()
     for node in defense_steps:
-        if node.type == 'defense':
+        if node.type == AttackStepType.DEFENSE:
             ttc_dist = TTCDist.from_node(node)
 
             # Check for degenerate distributions

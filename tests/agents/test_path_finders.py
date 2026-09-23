@@ -1,6 +1,7 @@
 from malsim.mal_simulator import MalSimulator, TTCMode
 from malsim.policies import get_shortest_path_to
 from malsim.scenario.scenario import Scenario
+from maltoolbox.language.language_graph_attack_step import AttackStepType
 
 import numpy as np
 
@@ -36,7 +37,7 @@ def test_path_finding_ttc_lang() -> None:
     ttc_values = {
         n: sim.node_ttc_value(n)
         for n in sim.sim_state.attack_graph.nodes.values()
-        if n.type in ('or', 'and')
+        if n.type in (AttackStepType.OR, AttackStepType.AND)
     }
 
     assert np.isclose(sum(ttc_values.values()), 2021)

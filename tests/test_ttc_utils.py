@@ -5,6 +5,7 @@ import numpy as np
 from maltoolbox.model import Model
 from maltoolbox.attackgraph.attackgraph import AttackGraph
 from maltoolbox.language.languagegraph import LanguageGraph
+from maltoolbox.language.language_graph_attack_step import AttackStepType
 
 from malsim.mal_simulator.ttc_utils import TTCDist, named_ttc_dists
 
@@ -29,12 +30,12 @@ def test_probs_utils(model: Model) -> None:
 
     for node in attack_graph.nodes.values():
         # TODO: Actually check some of the results
-        if node.type not in ('exist', 'notExist'):
+        if node.type not in (AttackStepType.EXIST, AttackStepType.NOT_EXIST):
             TTCDist.from_node(node).sample_value(np.random.default_rng(10))
 
     for node in attack_graph.nodes.values():
         # TODO: Actually check some of the results
-        if node.type not in ('exist', 'notExist'):
+        if node.type not in (AttackStepType.EXIST, AttackStepType.NOT_EXIST):
             x = TTCDist.from_node(node).expected_value
             assert x  # to avoid unused variable warning
 
@@ -101,16 +102,16 @@ def test_get_ttc_dict_defenses(corelang_lang_graph: LanguageGraph) -> None:
     }
 
     for node in attack_graph.nodes.values():
-        if node.type in ('exist', 'notExist'):
+        if node.type in (AttackStepType.EXIST, AttackStepType.NOT_EXIST):
             continue
 
         ttc_dist = TTCDist.from_node(node)
-        if node.type == 'defense' and not (
+        if node.type == AttackStepType.DEFENSE and not (
             ttc_dist.function.name == 'BERNOULLI' and ttc_dist.args == [0.0]
         ):
             assert node.full_name not in expected_bernoulli_0_defenses
 
-        if node.type == 'defense' and (
+        if node.type == AttackStepType.DEFENSE and (
             ttc_dist.function.name == 'BERNOULLI' and ttc_dist.args == [0.0]
         ):
             assert node.full_name in expected_bernoulli_0_defenses
@@ -127,7 +128,7 @@ def test_get_ttc_dict_attacksteps(corelang_lang_graph: LanguageGraph) -> None:
     instant_steps = {
         n
         for n in attack_graph.nodes.values()
-        if n.type in ('or', 'and')
+        if n.type in (AttackStepType.OR, AttackStepType.AND)
         and TTCDist.from_node(n) == named_ttc_dists['Instant']
     }
     assert len(instant_steps) == 454

@@ -1,6 +1,7 @@
 from collections.abc import MutableSet
 
 from maltoolbox.language import LanguageGraphAssociation
+from maltoolbox.language.language_graph_attack_step import AttackStepType
 import numpy as np
 
 from malsim.mal_simulator.agent_states import attacker_states
@@ -40,7 +41,7 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         [
             node
             for node in sim.sim_state.attack_graph.nodes.values()
-            if node.type == 'defense'
+            if node.type == AttackStepType.DEFENSE
         ],
         key=lambda node: node.id,
     )
@@ -48,7 +49,7 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         [
             node
             for node in sim.sim_state.attack_graph.nodes.values()
-            if node.type != 'defense'
+            if node.type != AttackStepType.DEFENSE
         ],
         key=lambda node: node.id,
     )
@@ -158,12 +159,12 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         asset2asset.add((asset1_idx, asset2_idx))
 
     sorted_and_or_steps = sorted(
-        [node for node in sorted_steps if node.type in ('and', 'or')],
+        [node for node in sorted_steps if node.type in (AttackStepType.AND, AttackStepType.OR)],
         key=lambda x: x.id,
     )
     logic_gates = LogicGates(
         type=np.array(
-            [(0 if node.type == 'and' else 1) for node in sorted_and_or_steps],
+            [(0 if node.type == AttackStepType.AND else 1) for node in sorted_and_or_steps],
             dtype=np.int64,
         ),
         id=np.array([node.id for node in sorted_and_or_steps], dtype=np.int64),
@@ -262,9 +263,9 @@ def full_obs2attacker_obs(
     for node in state.sim_state.attack_graph.nodes.values():
         if not node.model_asset or node.model_asset.id not in visible_asset_ids_set:
             continue
-        if node.type in ('and', 'or'):
+        if node.type in (AttackStepType.AND, AttackStepType.OR):
             and_or_steps.append(node)
-        elif see_defense_steps and node.type in ('defense', 'exist', 'notExist'):
+        elif see_defense_steps and node.type in (AttackStepType.DEFENSE, AttackStepType.EXIST, AttackStepType.NOT_EXIST):
             defense_steps.append(node)
 
     and_or_steps.sort(key=lambda step: step.id)
@@ -281,7 +282,7 @@ def full_obs2attacker_obs(
     for i, step in enumerate(visible_steps):
         visible_step_ids[i] = step.id
         compromised_steps[i] = step in performed_nodes_set
-        observable_steps[i] = step.type in ('and', 'or')
+        observable_steps[i] = step.type in (AttackStepType.AND, AttackStepType.OR)
         step_attempts[i] = state.num_attempts.get(step, 0)
         traversable_steps[i] = step in state.action_surface
 

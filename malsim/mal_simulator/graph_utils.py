@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections.abc import Set
 
 from maltoolbox.attackgraph import AttackGraphNode
+from maltoolbox.language.language_graph_attack_step import AttackStepType
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.node_getters import full_name_or_node_to_node
 from malsim.mal_simulator.simulator_state import MalSimulatorState
@@ -14,23 +15,23 @@ def node_is_blocked(sim_state: MalSimulatorState, node: AttackGraphNode | str) -
 
     def _node_blocks_children(node: AttackGraphNode) -> bool:
         match node.type:
-            case 'exist':
-                assert isinstance(node.existence_status, bool)
+            case AttackStepType.EXIST:
+                #assert isinstance(node.existence_status, bool)
                 return not node.existence_status
-            case 'notExist':
-                assert isinstance(node.existence_status, bool)
+            case AttackStepType.NOT_EXIST:
+                #assert isinstance(node.existence_status, bool)
                 return node.existence_status
-            case 'defense':
+            case AttackStepType.DEFENSE:
                 return node in sim_state.enabled_defenses
             case _:
                 return False
 
     node = full_name_or_node_to_node(sim_state.attack_graph, node)
-    if node.type == 'and':
+    if node.type == AttackStepType.AND:
         return node in sim_state.graph_state.impossible_attack_steps or any(
             _node_blocks_children(parent) for parent in node.parents
         )
-    elif node.type == 'or':
+    elif node.type == AttackStepType.OR:
         return node in sim_state.graph_state.impossible_attack_steps or all(
             _node_blocks_children(parent) for parent in node.parents
         )
@@ -48,7 +49,7 @@ def node_is_necessary(
 
 def is_attack_step(node: AttackGraphNode) -> bool:
     # Only attack steps have traversability
-    return node.type not in ('defense', 'exist', 'notExist')
+    return node.type not in (AttackStepType.DEFENSE, AttackStepType.EXIST, AttackStepType.NOT_EXIST)
 
 
 def node_is_traversable(
@@ -72,10 +73,10 @@ def node_is_traversable(
 
     def parents_reached(node: AttackGraphNode) -> bool:
         # If no parent is reached, the node can not be traversable
-        return (node.parents & performed_nodes) != set()
+        return not node.parents.isdisjoint(performed_nodes)
 
     def or_traversable(node: AttackGraphNode) -> bool:
-        return any(parent in performed_nodes for parent in node.parents)
+        return not node.parents.isdisjoint(performed_nodes)
 
     def and_traversable(node: AttackGraphNode) -> bool:
         return all(
@@ -85,9 +86,9 @@ def node_is_traversable(
         )
 
     def is_and_or_traversable(node: AttackGraphNode) -> bool:
-        if node.type == 'or':
+        if node.type == AttackStepType.OR:
             return or_traversable(node)
-        elif node.type == 'and':
+        elif node.type == AttackStepType.AND:
             return and_traversable(node)
         else:
             raise TypeError(

@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from numpy.typing import NDArray
 from .serialization import LangSerializer
 from malsim.mal_simulator import MalSimulator
+from maltoolbox.language.language_graph_attack_step import AttackStepType
 
 
 class Assets(NamedTuple):
@@ -598,7 +599,7 @@ class MALObsAttackStepSpace(Discrete):
             {
                 node
                 for node in sim.sim_state.attack_graph.nodes.values()
-                if node.type in ('and', 'or')
+                if node.type in (AttackStepType.AND, AttackStepType.OR)
             },
             key=lambda step: step.id,
         )
@@ -639,7 +640,7 @@ class MALObsDefenseStepSpace(Discrete):
             {
                 node
                 for node in sim.sim_state.attack_graph.nodes.values()
-                if node.type == 'defense'
+                if node.type == AttackStepType.DEFENSE
             },
             key=lambda step: step.id,
         )
@@ -771,7 +772,7 @@ class AssetThenAttackerAction(AssetThenAction):
             step
             for asset in model.lang_graph.assets.values()
             for step in asset.attack_steps.values()
-            if step.type in ('and', 'or')
+            if step.type in (AttackStepType.AND, AttackStepType.OR)
         ]
         self.action = Discrete(
             max(
@@ -808,7 +809,7 @@ class AssetThenDefenderAction(AssetThenAction):
             step
             for asset in model.lang_graph.assets.values()
             for step in asset.attack_steps.values()
-            if step.type == 'defense'
+            if step.type == AttackStepType.DEFENSE
         ]
         self.action = Discrete(
             max(
@@ -914,7 +915,7 @@ class AttackerActionThenAsset(ActionThenAsset):
             step
             for asset in model.lang_graph.assets.values()
             for step in asset.attack_steps.values()
-            if step.type in ('and', 'or')
+            if step.type in (AttackStepType.AND, AttackStepType.OR)
         ]
         self.action = Discrete(
             max(
@@ -951,7 +952,7 @@ class DefenderActionThenAsset(ActionThenAsset):
             step
             for asset in model.lang_graph.assets.values()
             for step in asset.attack_steps.values()
-            if step.type in ('and', 'or')
+            if step.type in (AttackStepType.AND, AttackStepType.OR)
         ]
         self.action = Discrete(
             max(

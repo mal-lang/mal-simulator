@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Set
 import logging
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+from maltoolbox.language.language_graph_attack_step import AttackStepType
 
 logger = logging.getLogger(__name__)
 
@@ -59,24 +60,24 @@ def evaluate_necessity(
     """
 
     match node.type:
-        case 'exist':
-            assert isinstance(node.existence_status, bool), (
-                f'Existence status not defined for {node.full_name}.'
-            )
+        case AttackStepType.EXIST:
+            #assert isinstance(node.existence_status, bool), (
+            #    f'Existence status not defined for {node.full_name}.'
+            #)
             return not node.existence_status
-        case 'notExist':
-            assert isinstance(node.existence_status, bool), (
-                f'Existence status not defined for {node.full_name}.'
-            )
+        case AttackStepType.NOT_EXIST:
+            #assert isinstance(node.existence_status, bool), (
+            #    f'Existence status not defined for {node.full_name}.'
+            #)
             return bool(node.existence_status)
-        case 'defense':
+        case AttackStepType.DEFENSE:
             return node in enabled_defenses
-        case 'or':
+        case AttackStepType.OR:
             return (
                 all(necessity_per_node[parent] for parent in node.parents)
                 or not node.parents
             )
-        case 'and':
+        case AttackStepType.AND:
             return (
                 any(necessity_per_node[parent] for parent in node.parents)
                 or not node.parents
@@ -105,7 +106,7 @@ def calculate_necessity(
 
     necessity_per_node = dict.fromkeys(graph.nodes.values(), True)
     for node in graph.nodes.values():
-        if node.type in ['exist', 'notExist', 'defense']:
+        if node.type in (AttackStepType.EXIST, AttackStepType.NOT_EXIST, AttackStepType.DEFENSE):
             necessity_per_node[node] = evaluate_necessity(
                 node, necessity_per_node, enabled_defenses
             )
@@ -163,24 +164,24 @@ def evaluate_viability(
         return False
 
     match node.type:
-        case 'exist':
-            assert isinstance(node.existence_status, bool), (
-                f'Existence status not defined for {node.full_name}.'
-            )
+        case AttackStepType.EXIST:
+            #assert isinstance(node.existence_status, bool), (
+            #    f'Existence status not defined for {node.full_name}.'
+            #)
             return node.existence_status
-        case 'notExist':
-            assert isinstance(node.existence_status, bool), (
-                f'Existence status not defined for {node.full_name}.'
-            )
+        case AttackStepType.NOT_EXIST:
+            #assert isinstance(node.existence_status, bool), (
+            #    f'Existence status not defined for {node.full_name}.'
+            #)
             return not node.existence_status
-        case 'defense':
+        case AttackStepType.DEFENSE:
             return node not in enabled_defenses
-        case 'or':
+        case AttackStepType.OR:
             return (
                 any(viability_per_node[parent] for parent in node.parents)
                 or not node.parents
             )
-        case 'and':
+        case AttackStepType.AND:
             return (
                 all(viability_per_node[parent] for parent in node.parents)
                 or not node.parents
@@ -254,7 +255,7 @@ def prune_unviable_and_unnecessary_nodes(
     nodes_to_remove = set()
 
     for node in graph.nodes.values():
-        if node.type in ('or', 'and') and (
+        if node.type in (AttackStepType.OR, AttackStepType.AND) and (
             not viability_per_node[node] or not necessity_per_node[node]
         ):
             nodes_to_remove.add(node)

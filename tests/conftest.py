@@ -3,11 +3,13 @@ import pytest
 
 from maltoolbox.model import Model
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+from maltoolbox.language.language_graph_attack_step import AttackStepType
 from maltoolbox.language import (
     LanguageGraph,
     LanguageGraphAttackStep,
     LanguageGraphAsset,
 )
+from maltoolbox.language.language_graph_attack_step import AttackStepType
 
 ## Helpers
 
@@ -80,7 +82,7 @@ def dummy_lang_graph(corelang_lang_graph: LanguageGraph) -> LanguageGraph:
     lang_graph.assets['DummyAsset'] = dummy_asset
     dummy_or_attack_step_node = LanguageGraphAttackStep(
         name='DummyOrAttackStep',
-        type='or',
+        type=AttackStepType.OR,
         asset=dummy_asset,
         ttc={'arguments': [1.0], 'name': 'Bernoulli', 'type': 'function'},
     )
@@ -88,7 +90,7 @@ def dummy_lang_graph(corelang_lang_graph: LanguageGraph) -> LanguageGraph:
 
     dummy_and_attack_step_node = LanguageGraphAttackStep(
         name='DummyAndAttackStep',
-        type='and',
+        type=AttackStepType.AND,
         asset=dummy_asset,
         ttc={'arguments': [1.0], 'name': 'Bernoulli', 'type': 'function'},
     )
@@ -96,19 +98,19 @@ def dummy_lang_graph(corelang_lang_graph: LanguageGraph) -> LanguageGraph:
 
     dummy_defense_attack_step_node = LanguageGraphAttackStep(
         name='DummyDefenseAttackStep',
-        type='defense',
+        type=AttackStepType.DEFENSE,
         asset=dummy_asset,
         ttc={'arguments': [0.0], 'name': 'Bernoulli', 'type': 'function'},
     )
     dummy_asset.attack_steps['DummyDefenseAttackStep'] = dummy_defense_attack_step_node
 
     dummy_exist_attack_step_node = LanguageGraphAttackStep(
-        name='DummyExistAttackStep', type='exist', asset=dummy_asset
+        name='DummyExistAttackStep', type=AttackStepType.EXIST, asset=dummy_asset
     )
     dummy_asset.attack_steps['DummyExistAttackStep'] = dummy_exist_attack_step_node
 
     dummy_exist_attack_step_node = LanguageGraphAttackStep(
-        name='DummyNotExistAttackStep', type='notExist', asset=dummy_asset
+        name='DummyNotExistAttackStep', type=AttackStepType.NOT_EXIST, asset=dummy_asset
     )
     dummy_asset.attack_steps['DummyNotExistAttackStep'] = dummy_exist_attack_step_node
 
