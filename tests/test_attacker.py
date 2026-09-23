@@ -1,5 +1,6 @@
 from collections.abc import Set
 
+import pytest
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from maltoolbox.model import Model
 
@@ -166,6 +167,68 @@ def test_attack_surface_coreLang_include_unnecessary() -> None:
             break
 
     assert sim.agent_states['Attacker1'].iteration == 99
+
+
+@pytest.mark.parametrize('skip_compromised', [True, False])
+@pytest.mark.parametrize('skip_unnecessary', [True, False])
+@pytest.mark.parametrize(
+    'scenario_file',
+    [
+        'tests/testdata/scenarios/bfs_vs_bfs_scenario.yml',
+        'tests/testdata/scenarios/traininglang_scenario.yml',
+    ],
+)
+def test_incremental_attack_surface_matches_full_recompute(
+    scenario_file: str, skip_unnecessary: bool, skip_compromised: bool
+) -> None:
+    attack_surface_settings = AttackSurfaceSettings(
+        skip_compromised=skip_compromised, skip_unnecessary=skip_unnecessary
+    )
+    scenario = Scenario.load_from_file(
+        scenario_file,
+        sim_settings=MalSimulatorSettings(
+            seed=1, attack_surface=attack_surface_settings
+        ),
+    )
+    sim = MalSimulator.from_scenario(scenario)
+    states = sim.reset()
+
+    attacker_names = [
+        name
+        for name, state in states.items()
+        if state.__class__.__name__ == 'AttackerState'
+    ]
+
+    max_steps = 40
+    step = 0
+    while not sim.done() and step < max_steps:
+        actions: dict[str, list[AttackGraphNode]] = {}
+        for name, agent_config in sim.agent_settings.items():
+            agent = agent_config.agent
+            if agent is None:
+                continue
+            action = agent.get_next_action(states[name])
+            if action:
+                actions[name] = [action]
+        states = sim.step(actions)
+        step += 1
+
+        for name in attacker_names:
+            if sim.agent_is_terminated(name):
+                continue
+            state = states[name]
+            full_recompute = get_attack_surface(
+                attack_surface_settings,
+                sim.sim_state,
+                state.settings.actionable_steps,
+                state.performed_nodes,
+            )
+            assert frozenset(state.action_surface) == full_recompute, (
+                f'step={step} agent={name}: incremental attack surface '
+                'diverged from full recompute '
+                f'(extra={state.action_surface - full_recompute}, '
+                f'missing={full_recompute - state.action_surface})'
+            )
 
 
 def _make_sim(model: Model, entry_points: set[str]) -> MalSimulator:

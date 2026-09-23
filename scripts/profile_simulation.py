@@ -7,7 +7,6 @@ from __future__ import annotations
 import argparse
 import logging
 import cProfile
-import pstats
 
 from malsim.scenario.scenario import Scenario
 from malsim.mal_simulator import MalSimulator, run_simulation
