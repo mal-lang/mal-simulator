@@ -285,6 +285,7 @@ class MalSimulator:
         return node_false_negative_rate(node, false_negative_rates_rule)
 
     def node_is_blocked(self, node: AttackGraphNode | str) -> bool:
+        node = full_name_or_node_to_node(self.sim_state.attack_graph, node)
         return node_is_blocked(self.sim_state, node)
 
     def node_is_necessary(self, node: AttackGraphNode | str) -> bool:

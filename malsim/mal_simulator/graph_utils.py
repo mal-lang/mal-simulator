@@ -5,11 +5,10 @@ from collections.abc import Set
 
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
-from malsim.mal_simulator.node_getters import full_name_or_node_to_node
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 
-def node_is_blocked(sim_state: MalSimulatorState, node: AttackGraphNode | str) -> bool:
+def node_is_blocked(sim_state: MalSimulatorState, node: AttackGraphNode) -> bool:
     """Get blocked status of a node"""
 
     def _node_blocks_children(node: AttackGraphNode) -> bool:
@@ -25,7 +24,6 @@ def node_is_blocked(sim_state: MalSimulatorState, node: AttackGraphNode | str) -
             case _:
                 return False
 
-    node = full_name_or_node_to_node(sim_state.attack_graph, node)
     if node.type == 'and':
         return node in sim_state.graph_state.impossible_attack_steps or any(
             _node_blocks_children(parent) for parent in node.parents
