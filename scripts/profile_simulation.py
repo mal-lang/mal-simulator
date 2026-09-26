@@ -7,7 +7,6 @@ from __future__ import annotations
 import argparse
 import logging
 import cProfile
-import pstats
 
 from malsim.scenario.scenario import Scenario
 from malsim.mal_simulator import MalSimulator, run_simulation
@@ -27,9 +26,16 @@ def main() -> None:
     )
     parser.add_argument(
         '--profile_output',
+        '-o',
         type=str,
         default='simulation_profile.prof',
         help='File to save profiling results',
+    )
+    parser.add_argument(
+        '--max_steps',
+        type=int,
+        default=None,
+        help='Maximum number of simulation steps to profile',
     )
 
     args = parser.parse_args()
@@ -40,14 +46,12 @@ def main() -> None:
     profiler = cProfile.Profile()
     profiler.enable()
 
-    run_simulation(sim)
+    run_simulation(sim, max_steps=args.max_steps)
 
     profiler.disable()
 
     # Save profiling results
-    with open(args.profile_output, 'w', encoding='utf-8') as f:
-        stats = pstats.Stats(profiler, stream=f)
-        stats.strip_dirs().sort_stats('cumulative').print_stats()
+    profiler.dump_stats(args.profile_output)
 
     print(f'Profiling results saved to {args.profile_output}')
 

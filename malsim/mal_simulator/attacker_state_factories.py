@@ -72,10 +72,10 @@ def create_attacker_state(
         num_attempts[node] += 1
 
     action_surface = get_attack_surface(
-        attack_surface_settings,
-        sim_state,
-        attacker_settings.actionable_steps,
-        previous_performed_nodes | new_performed_nodes,
+        settings=attack_surface_settings,
+        sim_state=sim_state,
+        actionability=attacker_settings.actionable_steps,
+        performed_nodes=previous_performed_nodes | new_performed_nodes,
     )
 
     if not previous_state and not sim_state.settings.compromise_entrypoints_at_start:
