@@ -31,6 +31,12 @@ def main() -> None:
         default='simulation_profile.prof',
         help='File to save profiling results',
     )
+    parser.add_argument(
+        '--max_steps',
+        type=int,
+        default=None,
+        help='Maximum number of simulation steps to profile',
+    )
 
     args = parser.parse_args()
     scenario = Scenario.load_from_file(args.scenario_file)
@@ -40,7 +46,7 @@ def main() -> None:
     profiler = cProfile.Profile()
     profiler.enable()
 
-    run_simulation(sim)
+    run_simulation(sim, max_steps=args.max_steps)
 
     profiler.disable()
 
