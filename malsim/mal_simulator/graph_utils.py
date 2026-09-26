@@ -39,10 +39,9 @@ def node_is_blocked(sim_state: MalSimulatorState, node: AttackGraphNode | str) -
 
 
 def node_is_necessary(
-    sim_state: MalSimulatorState, node: AttackGraphNode | str
+    sim_state: MalSimulatorState, node: AttackGraphNode
 ) -> bool:
     """Get necessity of a node"""
-    node = full_name_or_node_to_node(sim_state.attack_graph, node)
     return sim_state.graph_state.necessity_per_node[node]
 
 
