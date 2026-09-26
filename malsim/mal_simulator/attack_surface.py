@@ -88,9 +88,5 @@ def get_attack_surface(
             and traversable(node)
         )
 
-    return frozenset(
-        node
-        for parent in from_nodes
-        for node in parent.children
-        if in_attack_surface(node)
-    )
+    from_node_children = {node for parent in from_nodes for node in parent.children}
+    return frozenset(filter(in_attack_surface, from_node_children))
