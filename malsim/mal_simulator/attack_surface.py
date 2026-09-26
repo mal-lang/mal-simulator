@@ -66,7 +66,7 @@ def get_attack_surface(
     skip_unnecessary = settings.skip_unnecessary
 
     def uncompromised(node: AttackGraphNode) -> bool:
-        return not (skip_compromised and node in performed_nodes)
+        return node not in performed_nodes
 
     def necessary(node: AttackGraphNode) -> bool:
         return node_is_necessary(sim_state, node)
