@@ -75,7 +75,7 @@ def create_attacker_state(
         settings=attack_surface_settings,
         sim_state=sim_state,
         actionability=attacker_settings.actionable_steps,
-        performed_nodes=previous_performed_nodes | new_performed_nodes,
+        performed_nodes=performed_nodes,
     )
 
     if not previous_state and not sim_state.settings.compromise_entrypoints_at_start:
