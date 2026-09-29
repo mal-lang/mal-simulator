@@ -5,11 +5,10 @@ from collections.abc import Set
 
 from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
-from malsim.mal_simulator.node_getters import full_name_or_node_to_node
 from malsim.mal_simulator.simulator_state import MalSimulatorState
 
 
-def node_is_blocked(sim_state: MalSimulatorState, node: AttackGraphNode | str) -> bool:
+def node_is_blocked(sim_state: MalSimulatorState, node: AttackGraphNode) -> bool:
     """Get blocked status of a node"""
 
     def _node_blocks_children(node: AttackGraphNode) -> bool:
@@ -25,7 +24,6 @@ def node_is_blocked(sim_state: MalSimulatorState, node: AttackGraphNode | str) -
             case _:
                 return False
 
-    node = full_name_or_node_to_node(sim_state.attack_graph, node)
     if node.type == 'and':
         return node in sim_state.graph_state.impossible_attack_steps or any(
             _node_blocks_children(parent) for parent in node.parents
@@ -38,11 +36,8 @@ def node_is_blocked(sim_state: MalSimulatorState, node: AttackGraphNode | str) -
         return False
 
 
-def node_is_necessary(
-    sim_state: MalSimulatorState, node: AttackGraphNode | str
-) -> bool:
+def node_is_necessary(sim_state: MalSimulatorState, node: AttackGraphNode) -> bool:
     """Get necessity of a node"""
-    node = full_name_or_node_to_node(sim_state.attack_graph, node)
     return sim_state.graph_state.necessity_per_node[node]
 
 
@@ -70,13 +65,6 @@ def node_is_traversable(
     node            - the node we wish to evalute traversability for
     """
 
-    def parents_reached(node: AttackGraphNode) -> bool:
-        # If no parent is reached, the node can not be traversable
-        return (node.parents & performed_nodes) != set()
-
-    def or_traversable(node: AttackGraphNode) -> bool:
-        return any(parent in performed_nodes for parent in node.parents)
-
     def and_traversable(node: AttackGraphNode) -> bool:
         return all(
             parent in performed_nodes
@@ -84,9 +72,9 @@ def node_is_traversable(
             if node_is_necessary(sim_state, parent)
         )
 
-    def is_and_or_traversable(node: AttackGraphNode) -> bool:
+    def is_and_or_traversable(node: AttackGraphNode, parents_reached: bool) -> bool:
         if node.type == 'or':
-            return or_traversable(node)
+            return parents_reached
         elif node.type == 'and':
             return and_traversable(node)
         else:
@@ -97,8 +85,9 @@ def node_is_traversable(
     return (
         is_attack_step(node)
         and not node_is_blocked(sim_state, node)
-        and parents_reached(node)
-        and is_and_or_traversable(node)
+        # If no parent is reached, the node can not be traversable
+        and (parents_reached := (node.parents & performed_nodes) != set())
+        and is_and_or_traversable(node, parents_reached)
     )
 
 

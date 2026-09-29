@@ -28,6 +28,7 @@ from malsim.mal_simulator.defender_step import (
 )
 from malsim.mal_simulator.graph_state import compute_initial_graph_state
 from malsim.mal_simulator.node_getters import (
+    full_name_or_node_to_node,
     full_names_or_nodes_to_nodes,
     get_node,
 )
@@ -284,9 +285,11 @@ class MalSimulator:
         return node_false_negative_rate(node, false_negative_rates_rule)
 
     def node_is_blocked(self, node: AttackGraphNode | str) -> bool:
+        node = full_name_or_node_to_node(self.sim_state.attack_graph, node)
         return node_is_blocked(self.sim_state, node)
 
     def node_is_necessary(self, node: AttackGraphNode | str) -> bool:
+        node = full_name_or_node_to_node(self.sim_state.attack_graph, node)
         return node_is_necessary(self.sim_state, node)
 
     def node_is_enabled_defense(self, node: AttackGraphNode | str) -> bool:

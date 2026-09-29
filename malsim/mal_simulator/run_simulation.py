@@ -5,11 +5,19 @@ from malsim.policies.decision_agent import DecisionAgent
 from malsim.mal_simulator.simulator import MalSimulator
 
 
-def run_simulation(sim: MalSimulator) -> dict[str, list[AttackGraphNode]]:
+def run_simulation(
+    sim: MalSimulator, max_steps: int | float | None = None
+) -> dict[str, list[AttackGraphNode]]:
     """Run a simulation with agents
+
+    Args:
+        sim: the simulator to run
+        max_steps: if set, stop after this many steps even if not sim.done()
 
     Return selected actions by each agent in each step
     """
+    if max_steps is None:
+        max_steps = float('inf')
     agents = sim.agent_settings
     agent_actions: dict[str, list[AttackGraphNode]] = {}
     total_rewards = dict.fromkeys(agents, 0.0)
@@ -17,7 +25,7 @@ def run_simulation(sim: MalSimulator) -> dict[str, list[AttackGraphNode]]:
     logger.info('Starting CLI env simulator.')
     states = sim.reset()
     iteration = 0
-    while not sim.done():
+    while not sim.done() and (iteration < max_steps):
         print(f'Iteration {iteration}')
         actions: dict[str, list[AttackGraphNode]] = {}
 
