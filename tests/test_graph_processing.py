@@ -14,6 +14,7 @@ from maltoolbox.language import LanguageGraph
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from maltoolbox.model import Model
 
+from malsim.mal_simulator.attack_graph_index import build_attack_graph_index
 from malsim.mal_simulator.graph_state import GraphState
 from malsim.mal_simulator.graph_utils import node_is_blocked
 from malsim.mal_simulator.simulator_state import MalSimulatorState
@@ -415,10 +416,15 @@ def test_node_is_blocked(dummy_lang_graph: LanguageGraph) -> None:
     # Make sure unviable
     enabled_defenses = {defense_step_node}
 
+    attack_graph_index = build_attack_graph_index(
+        attack_graph, impossible_attack_steps, {}
+    )
     sim_state = MalSimulatorState(
         attack_graph=attack_graph,
         settings=MalSimulatorSettings(),
-        graph_state=GraphState({}, enabled_defenses, impossible_attack_steps, {}),
+        graph_state=GraphState(
+            {}, enabled_defenses, impossible_attack_steps, {}, attack_graph_index
+        ),
         enabled_defenses=enabled_defenses,
     )
 
