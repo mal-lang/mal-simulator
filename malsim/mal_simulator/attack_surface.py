@@ -65,28 +65,29 @@ def get_attack_surface(
     skip_compromised = settings.skip_compromised
     skip_unnecessary = settings.skip_unnecessary
 
-    def uncompromised(node: AttackGraphNode) -> bool:
-        return node not in performed_nodes
-
-    def necessary(node: AttackGraphNode) -> bool:
-        return node_is_necessary(sim_state, node)
-
-    def actionable(node: AttackGraphNode) -> bool:
-        return node_is_actionable(actionability, node)
-
-    def traversable(node: AttackGraphNode) -> bool:
-        return node_is_traversable(sim_state, performed_nodes, node)
-
-    def in_attack_surface(node: AttackGraphNode) -> bool:
-        # Nodes marked as effects are not actions/attacks
+    def cheaply_eligible(node: AttackGraphNode) -> bool:
+        # Nodes marked as effects are not actions/attacks.
+        # These checks are cheap (attribute/dict/set lookups), so they run
+        # in Python to shrink the candidate set before the native
+        # traversability check, which is the expensive part.
         is_action = node.causal_mode != 'effect'
         return (
             is_action
-            and (uncompromised(node) if skip_compromised else True)
-            and (necessary(node) if skip_unnecessary else True)
-            and actionable(node)
-            and traversable(node)
+            and (node not in performed_nodes if skip_compromised else True)
+            and (node_is_necessary(sim_state, node) if skip_unnecessary else True)
+            and node_is_actionable(actionability, node)
         )
 
     from_node_children = {node for parent in from_nodes for node in parent.children}
-    return frozenset(filter(in_attack_surface, from_node_children))
+    candidates = [node for node in from_node_children if cheaply_eligible(node)]
+    if not candidates:
+        return frozenset()
+
+    traversable_ids = set(
+        sim_state.graph_state.attack_graph_index.filter_traversable(
+            [node.id for node in candidates],
+            [node.id for node in performed_nodes],
+            [node.id for node in sim_state.enabled_defenses],
+        )
+    )
+    return frozenset(node for node in candidates if node.id in traversable_ids)
