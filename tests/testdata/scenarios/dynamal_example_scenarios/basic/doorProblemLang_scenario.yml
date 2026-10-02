@@ -1,0 +1,36 @@
+lang_file: ../../../langs/dynamal_example_langs/basic/doorProblemLang.mal
+model:
+  metadata:
+    name: doorProblemLang
+    langVersion: 0.1.0
+    langID: doorProblemLang
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: Room:1
+      type: Room
+      associated_assets:
+        entrance:
+          1: Room:2
+        exit:
+          1: Room:2
+    1:
+      name: Room:2
+      type: Room
+      associated_assets:
+        exit:
+          0: Room:1
+        entrance:
+          0: Room:1
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: null
+    entry_points:
+    - Room:1:leave
+    - Room:2:leave
+  Defender1:
+    type: defender
+    agent_class: null

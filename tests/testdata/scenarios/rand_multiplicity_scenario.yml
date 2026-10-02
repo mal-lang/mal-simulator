@@ -1,0 +1,28 @@
+lang_file: ../langs/randMultiplicityLang.mal
+model:
+  metadata:
+    name: Multiplicity Model
+    langID: org.mal-lang.randMultiplicityLang
+    langVersion: 1.0.0
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.1
+    info: Created by Sandor Berglund manually.
+  assets:
+    0:
+      associated_assets:
+        other:
+          1: OtherA
+      name: A
+      type: A
+    1:
+      associated_assets:
+        main:
+          0: A
+      name: OtherA
+      type: A
+agents:
+  TestAttacker:
+    type: attacker
+    entry_points:
+      - A:access
+    policy: null

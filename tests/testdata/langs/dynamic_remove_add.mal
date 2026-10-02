@@ -1,0 +1,40 @@
+/**
+ * @author Sandor Berglund
+**/
+
+
+#id: "org.mal-lang.dynamicRemoveAdd"
+#version: "1.0.0"
+
+category ACategory {
+	asset Start {
+		| access
+			->	add, 
+				remove,
+				remove_association
+		
+		| add
+			A> self / objects
+			->	objects.addStart,
+				objects.addStartAssoc
+
+		| remove
+			R> self / objects
+
+		| remove_association
+			R> self / ~objects
+
+	}
+
+	asset Object {
+		| addStart
+			A> self / start
+
+		| addStartAssoc
+			A> start / ~start
+	}
+}
+
+associations {
+	Start [start] 1 <-- start2object --> * [objects] Object
+}

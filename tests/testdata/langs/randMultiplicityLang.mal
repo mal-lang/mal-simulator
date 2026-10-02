@@ -1,0 +1,35 @@
+#id: "org.mal-lang.randMultiplicityLang"
+#version: "1.0.0"
+
+category Main {
+    asset A {
+        | access
+            ->  addRandB,
+                addRandB2OtherA,
+                linkBfromOtherA,
+                removeRandB,
+                unlinkRandB
+
+        | addRandB
+            A> self / children:4..10
+
+        | addRandB2OtherA
+            A> self.other / children:8..12
+
+        | linkBfromOtherA
+            A> other.children:2..5 / ~children
+
+        | removeRandB
+            R> self / children:2..10
+
+        | unlinkRandB
+            R> self / ~other.children:1..3
+    }
+
+    asset B {}
+}
+
+associations {
+    A [parent] * <-- relation --> * [children] B
+    A [main] 1 <-- relation --> 1 [other] A
+}

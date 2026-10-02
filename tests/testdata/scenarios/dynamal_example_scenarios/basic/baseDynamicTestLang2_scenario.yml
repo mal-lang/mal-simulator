@@ -1,0 +1,31 @@
+lang_file: ../../../langs/dynamal_example_langs/basic/baseDynamicTestLang2.mal
+model:
+  metadata:
+    name: baseDynamicTestLang2
+    langVersion: 0.1.0
+    langID: baseDynamicTestLang2
+    malVersion: 0.1.0-SNAPSHOT
+    MAL-Toolbox Version: 2.10.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: Bowl:1
+      type: Bowl
+      associated_assets:
+        apples:
+          1: Apple:1
+    1:
+      name: Apple:1
+      type: Apple
+      associated_assets:
+        container:
+          0: Bowl:1
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: null
+    entry_points:
+    - Bowl:1:access
+  Defender1:
+    type: defender
+    agent_class: null
