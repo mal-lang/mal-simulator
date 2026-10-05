@@ -5,8 +5,6 @@ from maltoolbox.model import Model
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from maltoolbox.language import (
     LanguageGraph,
-    LanguageGraphAttackStep,
-    LanguageGraphAsset,
 )
 
 from malsim.scenario.scenario import Scenario
@@ -73,9 +71,7 @@ def model(corelang_lang_graph: LanguageGraph) -> Model:
 
 @pytest.fixture
 def dummy_lang_graph() -> LanguageGraph:
-    """Fixture that generates a dummy LanguageGraph with a dummy
-    LanguageGraphAsset and LanguageGraphAttackStep
-    """
+    """Fixture that generates a dummy LanguageGraph for testing"""
     return LanguageGraph.from_mal_spec(path_testdata('langs/dummy_lang.mal'))
 
 
