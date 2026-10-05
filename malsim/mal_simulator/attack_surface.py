@@ -7,6 +7,7 @@ from malsim.config.node_property_rule import NodePropertyRule
 from malsim.config.sim_settings import AttackSurfaceSettings
 from malsim.mal_simulator.graph_utils import (
     node_is_actionable,
+    node_is_live,
     node_is_necessary,
     node_is_traversable,
 )
@@ -24,6 +25,9 @@ def get_effects_of_attack_step(
     """Get nodes performed as a consequence of `attack_step` being compromised"""
     performed = set(performed_nodes) | {attack_step}
     effects: MutableSet[AttackGraphNode] = set()
+    if not node_is_live(sim_state, attack_step):
+        # Only consider nodes that still exist in the attack graph.
+        return frozenset(effects)
     potential_effects = deque(
         n for n in attack_step.children if n.causal_mode == 'effect'
     )
@@ -88,5 +92,15 @@ def get_attack_surface(
             and traversable(node)
         )
 
-    from_node_children = {node for parent in from_nodes for node in parent.children}
+    # A performed node that deleted its own backing asset (a dyna-MAL
+    # model effect targeting `self`) is no longer live: the core always
+    # keeps a *live* node's children/parents correctly unlinked from
+    # anything removed, but a dead node's own `.children` is only the
+    # frozen pre-removal snapshot mal-toolbox keeps so `performed_nodes`
+    # can still hold a readable reference to it - never a source of new
+    # live actions.
+    live_from_nodes = (node for node in from_nodes if node_is_live(sim_state, node))
+    from_node_children = {
+        node for parent in live_from_nodes for node in parent.children
+    }
     return frozenset(filter(in_attack_surface, from_node_children))
