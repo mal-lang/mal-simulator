@@ -46,6 +46,11 @@ def is_attack_step(node: AttackGraphNode) -> bool:
     return node.type not in ('defense', 'exist', 'notExist')
 
 
+def node_is_live(sim_state: MalSimulatorState, node: AttackGraphNode) -> bool:
+    """Checks whether `node` still exists in the current attack graph."""
+    return node.id in sim_state.attack_graph.nodes
+
+
 def node_is_traversable(
     sim_state: MalSimulatorState,
     performed_nodes: Set[AttackGraphNode],

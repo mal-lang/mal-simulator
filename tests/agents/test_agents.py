@@ -102,7 +102,7 @@ def test_defend_compromised_defender(dummy_lang_graph: LanguageGraph) -> None:
     assert isinstance(agent_state, DefenderState)
     action_node = defender_ai.get_next_action(agent_state)
     assert action_node is not None, "Action node shouldn't be None"
-    assert action_node.id == node2.id
+    assert action_node.id == node1.id
 
     # Should pick cheapest one
     sim.agent_settings['def_comp'].rewards = NodePropertyRule.from_attack_step_dict(
