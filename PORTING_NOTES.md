@@ -29,7 +29,29 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         is the committed smoke test. See §10 for the full writeup,
         including a real double-free bug the first capsule-consumer
         attempt had and how it was fixed.
-  - [ ] A2 - Port `TtcDist` + RNG plumbing (`ttc_utils.py`)
+  - [x] A2 - Port `TtcDist` + RNG plumbing (`ttc_utils.py`). Landed in
+        `core/malsim-core/src/ttc.rs`: `DistFunction`, `Operation`,
+        `TtcDist` (`expected_value`, `sample_value`, `success_probability`,
+        `attempt_ttc_with_effort`, `attempt_bernoulli`, `from_dict`/
+        `to_dict` via `serde_json::Value`), `named_ttc_dist`. Deliberately
+        excludes `default_ttc_dist`/`TTCDist.from_node`/`from_name` (graph-
+        node-dependent, scoped to A3 instead - see §4/§5's A3 description)
+        so this module stays independent of `maltoolbox_attackgraph` and
+        unit-testable alone. Backed by the `statrs` crate (CDF/mean/
+        sampling for Bernoulli/Exp/Binomial/Gamma/LogNormal/Uniform) +
+        `rand` for RNG plumbing - see §10 for why and the parameter-order
+        gotchas found doing this (Binomial, Gamma). 26 Rust-native tests
+        in `ttc.rs`'s `#[cfg(test)]` module: one per `DistFunction` variant
+        for `expected_value` (exact, since it's closed-form/non-random),
+        the full `combine_with`/`combine_op` composition suite ported 1:1
+        from `test_ttc_utils.py::test_all_ttc_distributions` (also exact,
+        same reason), `from_dict`/`to_dict` round-trips, error cases, and
+        structural/statistical (not exact-value) checks for the RNG-
+        touching methods. `cargo test`/`cargo clippy`/`cargo fmt --check`
+        all clean. Per §2.1, checked `grep -rn seed= tests/` first - see
+        §9 for the specific pre-existing Python tests this flags for
+        follow-up at A9 (none of them break *now*, since Python's
+        `ttc_utils.py` is untouched until A9 wires native in).
   - [ ] A3 - Port static graph_state computation (`graph_state.py`,
         `graph_processing.py` necessity propagation)
   - [ ] A4 - Port graph traversal predicates (`graph_utils.py` minus
@@ -725,6 +747,30 @@ checked by CI, not just asserted in prose.
 
 ## 9. Open risks to keep watching
 
+- **Seed-pinned exact-sampled-value tests found during A2's `grep -rn
+  seed= tests/` check (per §2.1) - will need relaxing or re-pinning once
+  Python's `ttc_utils.py` actually starts delegating to native RNG (A9),
+  not before.** `tests/test_ttc_utils.py::test_ttcs_effort_based` seeds
+  `np.random.default_rng(10)` once and asserts exact `True`/`False`
+  outcomes of `attempt_ttc_with_effort` at specific effort levels (e.g.
+  "1 effort will not succeed in this seed" / "500 effort will succeed in
+  this seed") - this is exactly the kind of test §2.1 says is not
+  portable bit-for-bit across the numpy → Rust RNG transition.
+  `test_bernoulli` (same file) is a softer case: it seeds `default_rng(10)`
+  and asserts both `True` and `False` appear across 10 `attempt_bernoulli`
+  draws - a structural property, but still pinned to one seed's specific
+  draw sequence producing both within only 10 tries, so it could in
+  principle flake under a different RNG even though it's not an exact-
+  value assertion. `test_probs_utils` (same file) also seeds but doesn't
+  assert on the sampled value at all, so it's unaffected. None of these
+  break today - Python's `ttc_utils.py` is unchanged by A2, so they're
+  still exercising the pure-Python/numpy/scipy path. Flagging now (as
+  A2's step description requires) so A9 - the step that actually wires
+  `MalSimulator` to call into native RNG-consuming code - doesn't
+  rediscover this from scratch; revisit `test_ttcs_effort_based`
+  specifically (relax to a monotonicity/structural assertion, mirroring
+  what `ttc.rs`'s own `attempt_ttc_with_effort_success_rate_matches_
+  probability` test does) at that point.
 - §2.2's coupling to `maltoolbox-attackgraph-py`'s internal struct layout
   - re-verify `PyAttackGraph.inner`'s visibility/shape on every
     `mal-toolbox` git dependency bump.
@@ -855,3 +901,58 @@ Anyone writing a second consumer of this same capsule (or a similar one
 in Phase B) needs the `increment_strong_count` step too - it's not
 specific to `node_count`, it's inherent to consuming this kind of
 capsule at all.
+
+**A2: chose the `statrs` crate for distribution CDF/mean/sampling,
+instead of hand-rolling special functions or only using `rand_distr`
+for sampling.** `rand_distr` only provides sampling, not CDF or mean -
+`success_probability` (`dist.cdf(effort)` in Python) and
+`expected_value` (`dist.expect()`/a closed-form mean in Python) both need
+real CDF/mean implementations, which for Gamma/Binomial requires the
+regularized incomplete gamma/beta functions. `statrs` (0.19.1, default
+features trimmed to just `std`+`rand` - the `nalgebra` default feature
+pulls in `nalgebra`/`glam` for multivariate distributions this module
+never uses) provides `ContinuousCDF`/`DiscreteCDF`/`statrs::statistics::
+Distribution` (mean) *and* implements `rand`'s `Distribution<f64>` for
+sampling, for exactly the six distributions needed (Bernoulli, Exp,
+Binomial, Gamma, LogNormal, Uniform) - one dependency covers all three
+needs instead of reimplementing special functions by hand. Resolves to
+`rand` 0.10.3 + `statrs` 0.19.1 compatibly; no version-mismatch issues
+found.
+
+**A2: two parameter-order/parameterization mismatches between scipy's
+and statrs's constructors - got the translation wrong once before fixing
+it, worth flagging for whoever next touches `ttc.rs`.** Both are handled
+correctly in the landed code (`TtcDist::binomial`/`TtcDist::gamma` in
+`ttc.rs`), but the mismatch is easy to reintroduce:
+- **Binomial:** Python's `args` are `[n, p]` (`n, p = args; binom(n=n,
+  p=p)`), but `statrs::distribution::Binomial::new` takes `(p, n)` - the
+  *opposite* argument order. `ttc.rs`'s `binomial()` helper does
+  `StatrsBinomial::new(self.args[1], self.args[0] as u64)` - swapped
+  deliberately, not a typo.
+- **Gamma:** Python's `args` are `[shape, scale]` (`gamma(a=shape,
+  scale=scale)`), but `statrs::distribution::Gamma::new` takes `(shape,
+  rate)` where `rate = 1 / scale`, not `(shape, scale)`. `ttc.rs`'s
+  `gamma()` helper does `Gamma::new(self.args[0], 1.0 / self.args[1])`.
+  Exponential has the same scipy `scale`-vs-statrs `rate` split
+  (`expon(scale=1/rate)` in Python vs. `Exp::new(rate)` in statrs, both
+  parameterized by rate already, so no inversion needed there - only
+  Gamma's *scale* parameter needs inverting to a *rate* for statrs).
+
+LogNormal and Uniform parameter order match directly (`(mean, std)` →
+`LogNormal::new(location, scale)`; `(low, high)` → `Uniform::new(min,
+max)`) - no translation needed, confirmed against both scipy's and
+statrs's own doc-comment formulas for `expected_value`/mean before
+relying on it, not just by matching test numbers.
+
+**A2: `success_probability` deliberately does not consult
+`combine_with`, matching Python's existing behavior exactly rather than
+"fixing" what looks like it could be an oversight.** Python's
+`TTCDist.success_probability` is `self.dist.cdf(effort)` - it never
+looks at `self.combine_with`, even for distributions like
+`HardAndUncertain` that are a combination. `ttc.rs`'s
+`success_probability` mirrors this precisely (see its
+`success_probability_ignores_combine_with` test, which asserts a plain
+`Exponential(0.1)` and the same distribution combined with
+`Bernoulli(0.5)` give identical `success_probability` results) - this is
+called out here per §2.7's rule, in case a future reader assumes it's a
+bug to be fixed rather than intentionally-preserved behavior.
