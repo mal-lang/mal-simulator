@@ -95,8 +95,45 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         counterpart yet. Revisit once a step actually needs the
         dependency (A4+ will hit the exact same wall for traversal
         predicates) - add it then and backfill these at the same time.
-  - [ ] A4 - Port graph traversal predicates (`graph_utils.py` minus
-        actionability/reward)
+  - [x] A4 - Port graph traversal predicates (`graph_utils.py` minus
+        actionability/reward). Landed in `core/malsim-core/src/graph_utils.rs`:
+        `is_attack_step_type`/`is_attack_step`, `node_is_live`,
+        `node_is_necessary`, `node_blocks_children_from_parts` (+ thin
+        `node_blocks_children` wrapper), `node_is_blocked`,
+        `and_traversable`, `node_is_traversable`, plus a `GraphUtilsError`
+        enum mirroring the module's assertion/`KeyError`/`TypeError`
+        failure modes. `node_is_actionable`/`node_reward` intentionally
+        excluded per §2.4/§4 - unchanged, stay Python. Like `necessity.rs`,
+        `node_is_blocked`/`node_is_traversable` aren't split into a
+        graph-independent helper (the logic *is* graph traversal); unlike
+        `necessity.rs`, `node_blocks_children`/`is_attack_step` still get
+        the graph-state.rs-style split since their bodies are plain-data
+        already. Matches on `node.step_type.as_str()`, not the
+        `AttackStepType` enum directly, since that enum isn't re-exported
+        by `maltoolbox-attackgraph` and `maltoolbox-language` is kept a
+        test-only dependency of this crate (see below and §10).
+        **Added `maltoolbox-language` as a `[dev-dependencies]` crate
+        dependency of `malsim-core`** (workspace-level entry pinned to the
+        same `mal-toolbox` git rev as `maltoolbox-attackgraph`, so no new
+        external dependency tree) - asked the user per A3's deferred
+        question; they chose to add it now *and* backfill A3's deferred
+        tests in the same change, rather than defer again. This unblocks
+        real `AttackGraphNode` fixtures (`core/malsim-core/src/
+        test_fixtures.rs`, compiling `tests/testdata/langs/dummy_lang.mal`
+        via `maltoolbox_language::from_mal_spec`, mirroring
+        `tests/conftest.py::dummy_lang_graph`) for both this phase's tests
+        and `necessity.rs`'s. 15 new Rust-native tests in
+        `graph_utils.rs`, including a direct port of
+        `tests/test_graph_processing.py::test_node_is_blocked`'s fixture
+        and assertions. `necessity.rs` backfilled with 3 tests ported from
+        `test_necessity_necessary`/`test_necessity_unnecessary`/
+        `test_analyzers_apriori_propagate_necessity` (§0's A3 entry
+        updated isn't needed - the deferral note there still accurately
+        describes what was deferred *at the time*; this entry and §10
+        record the backfill). `cargo test`/`cargo clippy`/`cargo fmt
+        --check` all clean (59 tests total in `malsim-core` now); full
+        Python suite (`uv run pytest tests -m "not integration"`, 156
+        tests) still green, untouched by this phase.
   - [ ] A5 - Port attack surface / defense surface / effects computation
   - [ ] A6 - Port false-alert + detector log generation
   - [ ] A7 - Port attacker_step / defender_step orchestration
@@ -1081,3 +1118,44 @@ the first draft of `is_pre_enabled_for_dist`'s tests assumed the naive
 implementation - see `pre_enabled_degenerate_disabled_dist_is_never_pre_enabled`/
 `pre_enabled_degenerate_enabled_dist_is_always_pre_enabled` in
 `graph_state.rs` for the corrected, documented expectations.
+
+**A4: `maltoolbox-language` added as a `[dev-dependencies]` crate
+dependency of `malsim-core`, resolving A3's deferred question - asked the
+user again rather than assuming A3's note settled it on its own.** A3
+(above) flagged that testing real-`step_type` fixtures would hit the same
+wall again at A4 and recommended adding the dependency then. Per standing
+project guidance, a new crate dependency during this port is always an
+"ask the user" decision even when a prior note already anticipated it -
+asked again at the start of A4 rather than silently acting on A3's
+recommendation. The user chose to add it now and have A4 backfill A3's
+deferred `necessity.rs` tests in the same change (rather than, e.g., add
+it but defer the backfill, or defer the dependency itself again). Net
+effect: `necessity.rs` and `graph_utils.rs` share one test-only fixture
+module, `core/malsim-core/src/test_fixtures.rs`, which compiles
+`tests/testdata/langs/dummy_lang.mal` via `maltoolbox_language::
+from_mal_spec` - the same `.mal` file `tests/conftest.py::dummy_lang_graph`
+compiles for the Python suite, so both language's unit tests exercise
+identical graph shapes for equivalent cases (e.g. `graph_utils.rs`'s
+`node_is_blocked_matches_python_test_node_is_blocked` builds the exact
+same graph as `tests/test_graph_processing.py::test_node_is_blocked`).
+
+**A4: `node_is_blocked`'s `and`/`or` branches use the opposite
+all-vs-any connective from what the type name might suggest - ported
+as-is, not a transcription slip.** An `and` node is blocked if *any*
+parent blocks it (`any(...)` in Python); an `or` node is blocked only if
+*all* parents block it (`all(...)` in Python). This is correct given what
+"blocked" means (permanently cut off, not "not yet reached"): an `and`
+step needs every parent, so one permanently-blocked parent is enough to
+block it forever, while an `or` step only needs one open parent, so every
+single parent must be blocked before the `or` step itself is. Flagged here
+per §2.7 because the `and`/`or`-labeled match arms in `graph_utils.rs`
+look, at a skim, like they might have the connective swapped by mistake -
+they don't; see the doc comment directly above `node_is_blocked` in
+`graph_utils.rs` for the same note in-file. A related, already-existing
+empty-parents edge case falls out of this unchanged from Python: an `or`
+node with zero parents is "blocked" (`all(())` is `True`), an `and` node
+with zero parents is not (`any(())` is `False`) - not reachable through
+the public `node_is_traversable` path today (it requires `parents_reached`
+first, which is false for zero parents), but preserved faithfully in
+`node_is_blocked` itself since nothing in `graph_utils.py` guards against
+calling it with a parentless node directly.

@@ -15,3 +15,4 @@ publish = false
 malsim-core = { path = "core/malsim-core" }
 
 maltoolbox-attackgraph = { git = "https://github.com/mal-lang/mal-toolbox", rev = "c854d1d6567ecb8851cf52a340a3ec5b673467f4" }
+maltoolbox-language = { git = "https://github.com/mal-lang/mal-toolbox", rev = "c854d1d6567ecb8851cf52a340a3ec5b673467f4" }

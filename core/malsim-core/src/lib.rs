@@ -3,5 +3,9 @@
 //! this simulator steps through.
 
 pub mod graph_state;
+pub mod graph_utils;
 pub mod necessity;
 pub mod ttc;
+
+#[cfg(test)]
+mod test_fixtures;
