@@ -4,9 +4,12 @@
 
 pub mod attack_surface;
 pub mod defense_surface;
+pub mod event_logger;
+pub mod false_alerts;
 pub mod graph_state;
 pub mod graph_utils;
 pub mod necessity;
+pub mod observability;
 pub mod ttc;
 
 #[cfg(test)]

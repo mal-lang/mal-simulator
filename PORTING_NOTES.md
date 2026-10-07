@@ -175,7 +175,60 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         actionability flattening shape, the `get_effects_of_attack_step`
         set-growth idiom, and the `get_attack_surface` arg-count lint
         allowance) worth a future reader's attention.
-  - [ ] A6 - Port false-alert + detector log generation
+  - [x] A6 - Port false-alert + detector log generation. Landed in
+        `core/malsim-core/src/false_alerts.rs` (`node_false_negative_rate`,
+        `generate_false_negatives`, `node_false_positive_rate`,
+        `generate_false_positives`), `core/malsim-core/src/observability.rs`
+        (`observed_nodes`, plus a private `node_is_observable_flat` - third
+        independent copy of A5's already-flattened-id-set idiom, same
+        reasoning as `attack_surface.rs`/`defense_surface.rs`'s two copies),
+        and `core/malsim-core/src/event_logger.rs` (`collect_logs`,
+        `collect_false_positives`, `get_context`, `get_random_context`,
+        plus an `EventLoggerError` enum mirroring `assert`/`StopIteration`
+        failure modes, same pattern as A4's `GraphUtilsError`/A3's
+        `NecessityError`). `NodePropertyRule[float]`/`[bool]` rate/
+        observability rules are taken as already-flattened
+        `Option<&HashMap<AttackGraphNodeId, f64>>`/
+        `Option<&HashSet<AttackGraphNodeId>>` per §2.4, same pattern as A5.
+        Per its own scope note, `LogEntry`'s Python `detector`/`trigger`
+        fields became id-based on the Rust side: `trigger:
+        AttackGraphNodeId`, and a new `DetectorId = (AttackGraphNodeId,
+        String)` type alias (node id + its label key in that node's
+        `detectors` map) stands in for a detector, since mal-toolbox's
+        `Detector` type has no id of its own - see §10 for the full
+        reasoning. 29 new Rust-native tests (13 in `false_alerts.rs`, 6 in
+        `observability.rs`, 10 in `event_logger.rs`); `cargo test`/`cargo
+        clippy`/`cargo fmt --check` all clean (103 tests total in
+        `malsim-core` now); full Python suite (156 tests) still green,
+        untouched by this phase - no Python file changed.
+        **No new crate dependency needed** - reuses `rand`/`RngExt`
+        (already used by `ttc.rs`) and `maltoolbox-language`'s test-only
+        dev-dependency/`test_fixtures.rs` from A4, so no "ask the user"
+        trigger this phase. Detector fixtures for tests are hand-built
+        directly (`Detector { .. }` literals inserted into a dummy node's
+        `.detectors` map) rather than via MAL language syntax - mal-
+        toolbox's `Detector` needs no `LanguageGraph`-minted id (unlike
+        `AttackStepId`), so `tests/testdata/langs/dummy_lang.mal` (which
+        declares no detectors) didn't need extending.
+        **Testing note, same situation as A5:** no existing *isolated*
+        Python unit test to port 1:1 for `false_alerts.py`/
+        `observability.py` (checked via `grep -rln` - only exercised
+        indirectly through `tests/test_mal_simulator.py`'s
+        `test_simulator_false_positives*`/`test_simulator_false_negatives`/
+        the observability steps around line 309, all seed-pinned but only
+        on structural/count assertions, not exact values, so none needed
+        flagging per §2.1). `tests/test_event_logger.py` *does* exercise
+        `event_logger.py`'s behavior somewhat more directly (forcing
+        detector tp/fp rates and asserting on `DefenderState.logs`), but
+        still through a fully-built scenario + running simulator, not an
+        isolated unit test - its specific edge cases (tprate=1.0
+        deterministic true positive, fprate=1.0 deterministic false
+        positive, a *negative* tprate being "truthy but never fires") were
+        ported as direct `collect_logs`/`collect_false_positives` unit
+        tests instead (`collect_logs_tprate_one_always_true_positive`,
+        `collect_false_positives_fprate_one_always_fires`,
+        `collect_logs_tprate_negative_is_truthy_but_never_fires`), rather
+        than a line-for-line port of the scenario-level test.
   - [ ] A7 - Port attacker_step / defender_step orchestration
   - [ ] A8 - `malsim-pyo3` native `Simulator` pyclass: `reset_native`/
         `step_native` returning plain Python primitives
@@ -1229,6 +1282,78 @@ touches. Flagged here per §2.7's rule even though it's "just" an
 efficiency idiom, since a future reader diffing against the Python
 source line-by-line would otherwise wonder where the per-iteration union
 went.
+
+**A6: `LogEntry`'s `detector`/`trigger` fields become id-based
+(`AttackGraphNodeId`/`DetectorId`), and a detector's identity on the Rust
+side is `(AttackGraphNodeId, String)` - the node it's attached to plus its
+label key - since mal-toolbox's `Detector` type has no id of its own.**
+Confirmed by reading `maltoolbox_attackgraph::generate::create_detectors`
+(the only place `Detector` values are constructed): every `Detector.node`
+is set to the exact node whose `detectors: HashMap<String, Detector>` map
+it's inserted into, under the same `label` key used as that map's index -
+so `(node_id, label)` is a sound, always-resolvable identity
+(`graph.nodes[node_id].detectors[&label]` recovers the same `Detector`),
+even though it's a composite rather than a single scalar id. This is
+exactly what A6's own `PORTING_NOTES.md` §5 description anticipated
+("detector id + node id") - recorded here per §2.7 since it's a concrete
+design choice a future reader of `event_logger.rs` should know the reason
+for, not just see as a given shape.
+
+**A6: Python's `attack_graph.detectors` (a lazily-materialized, mutably-
+divergent Python-side list in mal-toolbox's PyO3 layer) is *not* what
+`event_logger.rs`'s `collect_false_positives` reads - it walks
+`graph.nodes[*].detectors` directly instead, which is what `.detectors`
+is itself seeded from at first access.** Confirmed by reading
+`maltoolbox-attackgraph-py`'s `graph.rs`: `.detectors` lazily builds a
+`Py<PyList>` from the per-node maps once, then becomes "the sole source of
+truth from then on" - meaning a Python caller that mutates `graph.detectors`
+directly (as `tests/test_event_logger.py::_force_detector_rates` does,
+replacing one node's detector and keeping both the node's own dict *and*
+the list in sync by hand) diverges from the underlying per-node maps.
+`malsim-core` has no such cache (it isn't behind PyO3 at all yet - A6 is
+pure Rust, no FFI), so it always reads the authoritative per-node maps,
+matching what `.detectors` holds at any point *before* that kind of direct
+list mutation happens. Not a concern for A6 itself (nothing here crosses
+into Python), but worth flagging now for whoever wires A8/A9's native hot
+loop to the shared live graph: the native side must never be handed (or
+read through) Python's `.detectors` list, only the per-node maps, or it
+risks disagreeing with a caller that's mutated the list directly without
+updating the nodes (or vice versa).
+
+**A6: `collect_logs`/`collect_false_positives` preserve Python's exact
+truthiness and evaluation-order quirks for `detector.tprate`/`.fprate`,
+not just their probability semantics - ported as-is, not "fixed".**
+Three specific things carried over deliberately:
+- A rate of `None` *or* `0.0` is "falsy" in Python (`if detector.fprate:`/
+  `not detector.tprate`) - `rate_is_truthy` in `event_logger.rs` mirrors
+  this exactly (`rate.is_some_and(|r| r != 0.0)`), including the
+  consequence that a *negative* rate is still truthy (Python doesn't check
+  sign, only non-zero-ness) but can never satisfy `rate >= roll` since
+  `roll` is drawn from `[0, 1)` - so a negative `tprate` reads as
+  "configured, but mathematically never succeeds", distinct from an
+  unconfigured (`None`) rate reading as "always succeeds" (ported
+  faithfully; see `collect_logs_tprate_negative_is_truthy_but_never_fires`,
+  mirroring `tests/test_event_logger.py::
+  test_logger_attacks_false_negative`'s `tprate=-1.0` case).
+- `collect_logs` calls `get_context` **unconditionally**, before the
+  true-positive roll - mirroring Python's `labeled_steps = get_context(...)`
+  appearing before its `if not detector.tprate or ...:` check, so a
+  `get_context` failure (no previously-compromised candidate for some
+  context label) surfaces even for a detector that would've been a false
+  negative anyway. `collect_false_positives` calls `get_random_context`
+  **only inside** its `if` block - lazily, only for a detector that
+  actually fires. This asymmetry between the two functions is Python's own
+  (not introduced by the port) and is preserved rather than made
+  consistent.
+- Both functions draw from `rng` **only when the rate is truthy** -
+  Rust's `&&`/`||` short-circuiting (`rate_is_truthy(detector.fprate) &&
+  detector.fprate.unwrap() >= rng.random::<f64>()`, and the `!...  || ...`
+  mirror in `collect_logs`) reproduces Python's own short-circuit
+  (`detector.fprate and detector.fprate >= rng.random()` never calls
+  `rng.random()` when the first operand is falsy). Not required for
+  correctness per §2.1 (bit-identical reproducibility isn't a goal), but
+  kept anyway since it was free and keeps the Rust and Python code
+  obviously in step for a line-by-line reader.
 
 **A4: `node_is_blocked`'s `and`/`or` branches use the opposite
 all-vs-any connective from what the type name might suggest - ported
