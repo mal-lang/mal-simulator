@@ -54,12 +54,14 @@ dev = [
 malsim = "malsim.__main__:main"
 
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1,<2"]
+build-backend = "maturin"
 
-[tool.setuptools.packages.find]
-where = ["python"]
-include = ["malsim*"]
+[tool.maturin]
+manifest-path = "py-bindings/malsim-pyo3/Cargo.toml"
+module-name = "malsim._native"
+python-source = "python"
+include = ["malsim/_native-stubs/**/*.pyi"]
 
 [tool.pytest.ini_options]
 pythonpath = ['python']

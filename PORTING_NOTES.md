@@ -16,8 +16,19 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
 - [ ] Phase 0.5 - Architectural decisions confirmed (see §2). Done as of
       2026-10-07; revisit if reality disagrees once code is written.
 - [ ] Phase A - `MalSimulator` port (§5)
-  - [ ] A1 - `malsim-pyo3` depends on `maltoolbox-attackgraph-py`; prove
-        the shared-graph handle extraction works end to end
+  - [x] A1 - Shared-graph handle extraction proven end to end. Not via a
+        direct `PyAttackGraph` pyclass downcast as §2.2 originally
+        specified (that doesn't work across independently-built `cdylib`s
+        - see §10) - via a `PyCapsule` mal-toolbox's
+        `PyAttackGraph::__inner_capsule__()` hands out instead (upstream
+        change landed at mal-toolbox commit `c854d1d6`). `malsim-pyo3` no
+        longer depends on `maltoolbox-attackgraph-py` at all (only the
+        pure `maltoolbox-attackgraph` crate, for the `AttackGraph` type
+        the capsule's pointer is cast to); `pyproject.toml` builds via
+        maturin; `tests/test_native.py::test_native_node_count_matches_python`
+        is the committed smoke test. See §10 for the full writeup,
+        including a real double-free bug the first capsule-consumer
+        attempt had and how it was fixed.
   - [ ] A2 - Port `TtcDist` + RNG plumbing (`ttc_utils.py`)
   - [ ] A3 - Port static graph_state computation (`graph_state.py`,
         `graph_processing.py` necessity propagation)
@@ -132,6 +143,23 @@ exist - `grep -n seed= tests/` first.
 
 ### 2.2 Shared live graph with mal-toolbox's PyO3 layer
 
+> **Updated after A1 - see §10 for the full story.** The mechanism
+> originally specified below (direct `PyAttackGraph.inner` extraction via
+> a Rust-level pyclass downcast) does **not** work: PyO3 pyclasses from a
+> shared dependency crate get a separate, unrelated type object in every
+> independently-built `cdylib` that statically links it, so
+> `malsim-pyo3`'s compiled copy of `PyAttackGraph` is never recognized as
+> the same type as `maltoolbox-pyo3`'s. What's actually implemented (and
+> confirmed working end to end, including under a double-free/leak stress
+> test) is a `PyCapsule` handoff: mal-toolbox's `PyAttackGraph` exposes
+> `__inner_capsule__()`, and `malsim-pyo3` calls it and reconstructs the
+> `Rc<RefCell<AttackGraph>>` from the capsule's pointer. The *goal*
+> described below (same live, shared, zero-copy graph on both sides) is
+> unchanged and achieved - only the *mechanism* differs from what's
+> written here historically. `malsim-pyo3` no longer depends on
+> `maltoolbox-attackgraph-py` at all as a result (see §10) - only on the
+> pure `maltoolbox-attackgraph` crate.
+
 mal-toolbox's `rust-rewrite` branch already ships `py-bindings/
 maltoolbox-attackgraph-py`, whose `PyAttackGraph` wraps
 `pub inner: Rc<RefCell<maltoolbox_attackgraph::AttackGraph>>` (plus
@@ -139,7 +167,8 @@ maltoolbox-attackgraph-py`, whose `PyAttackGraph` wraps
 exact need: *"mal-simulator depends on `attack_graph.model` directly"*
 and *"malsim's hot loop reads `.parents` per traversability check"*.
 
-**Decision:** `malsim-pyo3` depends directly on `maltoolbox-attackgraph-py`
+**Original decision (superseded, kept for history - see the note
+above):** `malsim-pyo3` depends directly on `maltoolbox-attackgraph-py`
 (git dependency, `rust-rewrite` branch) and extracts `PyAttackGraph.inner`
 to operate on the *same* `Rc<RefCell<AttackGraph>>` Python's
 `maltoolbox.AttackGraph` object holds. Zero-copy, always in sync (critical
@@ -154,16 +183,15 @@ sharing is a `malsim-pyo3`-only concern (see §3) - `malsim-core`'s
 `Simulator` always takes `Rc<RefCell<AttackGraph>>` as its graph handle
 type (even for the pure-Rust §7 path, which just constructs that handle
 itself, owning the only reference) so there is exactly one code path, not
-two. This also means `malsim-pyo3`'s `Cargo.toml` needs a new dependency
-added (`maltoolbox-attackgraph-py`) beyond what Phase 0 scaffolded - not
-yet added, do this in A1.
+two.
 
-**Risk to watch:** `malsim-pyo3` is now coupled to an *unpublished,
-same-org, internal* PyO3 crate's struct layout (`pub inner`, field names).
-A mal-toolbox-side refactor of `PyAttackGraph` could silently break
-malsim's build. Pin the git dependency to a specific commit (not just the
-branch) once this is load-bearing, and re-check this field's shape any
-time the `maltoolbox` git dependency is bumped.
+**Risk that materialized (see §10):** `malsim-pyo3` would have been
+coupled to an *unpublished, same-org, internal* PyO3 crate's struct
+layout (`pub inner`, field names) had the direct-downcast approach
+worked. It didn't get the chance to bite as a layout-drift risk, because
+the approach itself turned out not to work at all for a more fundamental
+reason (type identity across `cdylib`s) - superseded by the `PyCapsule`
+approach, whose only cross-module contract is a stable name string.
 
 ### 2.3 Phasing: MalSimulator fully stabilized before DynaMalSimulator
 
@@ -741,4 +769,89 @@ don't let this section stay empty once code exists, and don't let a
 divergence's only record be a comment buried in the `.rs` file that
 introduced it.
 
-_(No entries yet.)_
+**§2.2's cross-extension-module `PyAttackGraph` downcast does not work as
+written (found during A1).** §2.2 assumed that `malsim-pyo3` could depend
+on `maltoolbox-attackgraph-py` as a Cargo dependency, receive a Python
+`maltoolbox.AttackGraph` object, and downcast/extract it back to that
+crate's `PyAttackGraph` pyclass to reach `.inner: Rc<RefCell<AttackGraph>>`.
+Implemented exactly as specified (pinned both to mal-toolbox commit
+`493f738f3de915adf1fb348d38a3cb471a1936fd`, added the dependency, wrote a
+`#[pyfunction] node_count(graph: &Bound<'_, PyAttackGraph>)`) and it fails
+at runtime with `TypeError: 'AttackGraph' object is not an instance of
+'AttackGraph'`, even though the object genuinely is a
+`maltoolbox._native.AttackGraph`.
+
+Root cause: PyO3 pyclasses from a shared dependency crate get a *separate,
+independently-initialized* Python type object in every final `cdylib` that
+statically links the crate. `maltoolbox-attackgraph-py` is an `rlib`, not a
+`dylib`, so it is compiled into both `maltoolbox._native.so` (via
+`maltoolbox-pyo3`) and `malsim._native.so` (via `malsim-pyo3`) as two
+independent copies, each with its own `LazyTypeObject` static. The
+resulting Python-visible types have the same name/module string but are
+not the same object and have no subclass relationship, so
+`obj.downcast::<PyAttackGraph>()` / typed-pyclass-parameter extraction
+always fails across this boundary - this isn't a bug in the pinned commit
+or a one-off mistake, it's a structural limit of static-linking the same
+PyO3 pyclass crate into two separately built extension modules. Confirmed
+empirically, not just in theory - see this repo's git history around the
+date this entry was added for the exact repro.
+
+Options considered: (a) a `PyCapsule`-based raw-handle export added
+upstream in mal-toolbox, (b) making the shared crate an actual `dylib`
+both extensions link against at runtime, (c) not sharing the live mutable
+graph at all for Phase A (reading the graph's static structure via
+ordinary Python-level attribute access once per `reset()`, deferring the
+cross-module live-handle problem to Phase B). (b) was assessed and
+rejected: it would require both `maltoolbox` and `mal-simulator` wheels to
+agree on a runtime library search path despite being independently
+pip-installed packages, and standard wheel-repair tooling (`auditwheel`/
+`delocate`) actively works against this by vendoring external shared-lib
+dependencies into each wheel independently - likely to silently
+reintroduce two copies (the exact bug this would exist to fix) with no
+obvious CI signal. (a) was chosen.
+
+**Resolution: `PyAttackGraph::__inner_capsule__()` added upstream
+(mal-toolbox commit `c854d1d6567ecb8851cf52a340a3ec5b673467f4`), consumed
+from `malsim-pyo3` via a `PyCapsule`.** `PyAttackGraph` gained a
+`__inner_capsule__(&self, py) -> PyResult<Bound<'py, PyCapsule>>` method:
+it clones `self.inner` (bumping the `Rc`'s strong count), leaks that clone
+via `Rc::into_raw`, and wraps the resulting pointer in a `PyCapsule` named
+`"maltoolbox._native.AttackGraph.inner"` with a destructor that reclaims
+and drops exactly that one clone when the capsule is GC'd.
+
+On the `malsim-pyo3` side, `extract_shared_graph()`
+(`py-bindings/malsim-pyo3/src/lib.rs`) calls `graph.call_method0
+("__inner_capsule__")`, verifies the capsule's name matches the same
+constant, and reconstructs an `Rc<RefCell<AttackGraph>>` from its pointer.
+Consequence: `malsim-pyo3` no longer needs `maltoolbox-attackgraph-py` as
+a Cargo dependency at all - it only depends on the pure
+`maltoolbox-attackgraph` crate (for the `AttackGraph` type the raw pointer
+is cast to), since there's no pyclass to downcast to anymore. This also
+drops the "internal struct layout" coupling risk §2.2 originally flagged
+for `PyAttackGraph.inner`'s visibility - the capsule's string name is now
+the only cross-module contract, and it's a stable one by construction.
+
+**A genuine double-free bug surfaced and was fixed while implementing the
+consumer side - worth recording since it's easy to reintroduce.** The
+first implementation called `Rc::from_raw(ptr)` directly on the capsule's
+pointer. This is wrong: `__inner_capsule__` parks exactly *one* strong
+reference via `Rc::into_raw`, which its own capsule destructor reclaims
+and drops when the capsule is GC'd - calling `Rc::from_raw` on the same
+pointer a second time (from the consumer side) reclaims that *same*
+reference again, so it gets dropped twice (once when the consumer's local
+`Rc` goes out of scope, once later when the capsule's destructor runs).
+This didn't fail the first, simple smoke test (single call, no cleanup
+before process exit) - it only surfaced under a stress test that created
+many graphs, called `node_count`, deleted the graph, and ran `gc.collect()`
+in a loop, crashing with `malloc(): unaligned tcache chunk detected`
+within the first couple of iterations. Fix: call
+`Rc::increment_strong_count(ptr)` *before* `Rc::from_raw(ptr)`, so the
+consumer mints its own independent strong reference instead of stealing
+the capsule's. Verified after the fix with a 2000-iteration stress test
+(create graph, call `node_count` x5, delete, periodic `gc.collect()`)
+showing no crash and flat (non-growing) RSS after an initial warm-up -
+i.e. checked for *both* a double-free and a leak, not just the crash.
+Anyone writing a second consumer of this same capsule (or a similar one
+in Phase B) needs the `increment_strong_count` step too - it's not
+specific to `node_count`, it's inherent to consuming this kind of
+capsule at all.

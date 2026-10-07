@@ -12,4 +12,5 @@ path = "src/lib.rs"
 
 [dependencies]
 malsim-core = { path = "../../core/malsim-core" }
+maltoolbox-attackgraph = { workspace = true }
 pyo3 = { workspace = true, features = ["extension-module"] }
