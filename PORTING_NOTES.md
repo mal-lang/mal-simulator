@@ -134,7 +134,47 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         --check` all clean (59 tests total in `malsim-core` now); full
         Python suite (`uv run pytest tests -m "not integration"`, 156
         tests) still green, untouched by this phase.
-  - [ ] A5 - Port attack surface / defense surface / effects computation
+  - [x] A5 - Port attack surface / defense surface / effects computation.
+        Landed in `core/malsim-core/src/attack_surface.rs`
+        (`get_effects_of_attack_step`, `get_attack_surface`) and
+        `core/malsim-core/src/defense_surface.rs` (`get_defense_surface`),
+        both mirroring their Python namesakes 1:1 as separate modules (per
+        §2.7, not mandated, but kept consistent with A3/A4's module split).
+        Per A5's own scope note, neither function knows `NodePropertyRule`
+        exists: `node_is_actionable` is replaced by a private
+        `node_is_actionable_flat(actionable_steps: Option<&HashSet<
+        AttackGraphNodeId>>, node_id)` in each module (`None` = no rule
+        configured = every node actionable, mirroring `if agent_actionability`
+        being falsy; `Some(set)` = exactly the already-flattened actionable
+        ids) - see each module's doc comment. `get_attack_surface` takes
+        `skip_compromised`/`skip_unnecessary` as plain `bool`s rather than a
+        ported `AttackSurfaceSettings`, same pattern A3 used for
+        `MalSimulatorSettings` (full settings porting is still A9's job).
+        14 new Rust-native tests (11 in `attack_surface.rs`, 4 in
+        `defense_surface.rs`); `cargo test`/`cargo clippy`/`cargo fmt
+        --check` all clean (88 tests total in `malsim-core` now); full
+        Python suite (156 tests) still green, untouched by this phase - no
+        Python file changed.
+        **No new crate dependency needed** - reuses A4's `maltoolbox-language`
+        dev-dependency and `test_fixtures.rs` fixtures, so no "ask the user"
+        trigger this phase.
+        **Testing note, different from A3/A4's precedent:** unlike
+        `node_is_blocked`, these three functions have no existing *isolated*
+        Python unit test to port 1:1 - `tests/test_attacker.py`/
+        `test_defender.py`/`test_mal_simulator.py::test_actions_effects`
+        only exercise them indirectly through a fully-built scenario and
+        running simulator (checked via `grep -rln` across `tests/`). Per
+        §8's general requirement ("identify the Python test(s) exercising
+        that module's behavior... not just the same code path
+        incidentally"), the Rust tests here are authored directly against
+        the Python source's documented/implemented semantics using
+        `test_fixtures.rs`'s hand-built dummy graphs, rather than being a
+        line-for-line port of a specific existing pytest - closest in
+        spirit to A4's `node_is_blocked` test but without a single source
+        pytest to mirror. See §10 for the two implementation details (the
+        actionability flattening shape, the `get_effects_of_attack_step`
+        set-growth idiom, and the `get_attack_surface` arg-count lint
+        allowance) worth a future reader's attention.
   - [ ] A6 - Port false-alert + detector log generation
   - [ ] A7 - Port attacker_step / defender_step orchestration
   - [ ] A8 - `malsim-pyo3` native `Simulator` pyclass: `reset_native`/
@@ -1138,6 +1178,57 @@ compiles for the Python suite, so both language's unit tests exercise
 identical graph shapes for equivalent cases (e.g. `graph_utils.rs`'s
 `node_is_blocked_matches_python_test_node_is_blocked` builds the exact
 same graph as `tests/test_graph_processing.py::test_node_is_blocked`).
+
+**A5: `node_is_actionable`'s `NodePropertyRule | None` parameter becomes
+`Option<&HashSet<AttackGraphNodeId>>` in both `attack_surface.rs` and
+`defense_surface.rs` - two independent copies of the same tiny helper, not
+a shared one.** Each module defines its own private
+`node_is_actionable_flat` with identical logic (`None` -> every node
+actionable; `Some(set)` -> membership test) rather than a single shared
+function in `graph_utils.rs`. Deliberate, not an oversight: `graph_utils.rs`
+documents `node_is_actionable` as deliberately *not* ported there (§2.4 -
+it stays Python, operating on the real `NodePropertyRule`), so adding a
+same-named-but-different-signature Rust function to that module would be
+confusing for a reader grepping for `node_is_actionable`'s Rust
+counterpart and not finding the real one. Two 4-line private copies, one
+per consuming module, was judged lower-risk than either sharing a
+one-off helper across two otherwise-independent modules or placing it
+somewhere that implies it's the ported `node_is_actionable`.
+
+**A5: `get_attack_surface` carries `#[allow(clippy::too_many_arguments)]`
+rather than a bundling struct.** At 9 parameters (mirroring the
+independent pieces of `MalSimulatorState`/`AttackSurfaceSettings` the
+Python function reads off `sim_state`/`settings`), it trips clippy's
+default 7-argument lint. Considered bundling `impossible_attack_steps`/
+`enabled_defenses`/`necessity_per_node` into a one-off struct to get under
+the limit; rejected because no other function needs that exact bundle
+(`get_effects_of_attack_step` takes the same three but stays under the
+limit at 6 args total, `get_defense_surface` only needs two of the
+three) - a struct with a single caller is an abstraction for the lint's
+sake, not for the code's, so the lint is silenced with a comment instead
+per the project's general stance against introducing abstractions beyond
+what's needed. Revisit if A9's settings-flattening work ends up
+threading these same three values through enough call sites that a real
+shared bundle (e.g. sourced from `GraphState` + `enabled_defenses`)
+earns its keep on its own merits.
+
+**A5: `get_effects_of_attack_step` grows one `visited` set incrementally
+instead of recomputing `performed | set(effects)` every loop iteration -
+an idiom difference, not a behavior difference.** Python's
+`has_visited = performed | set(effects)` reallocates a new set on every
+`while` iteration; the Rust port instead seeds `visited` once from
+`performed_nodes` + the starting `attack_step_id` and inserts each newly-
+found effect into it immediately (alongside inserting into the separately-
+tracked `effects` result set). Since `performed_nodes` is never mutated
+and `effects` only ever grows, `visited`'s membership at every check point
+is provably identical to what the Python union would have recomputed -
+verified by `effects_stop_at_already_visited_node`/
+`effects_do_not_cross_blocked_and_step` in `attack_surface.rs`, which
+exercise exactly the revisit/non-traversable-skip paths this change
+touches. Flagged here per §2.7's rule even though it's "just" an
+efficiency idiom, since a future reader diffing against the Python
+source line-by-line would otherwise wonder where the per-iteration union
+went.
 
 **A4: `node_is_blocked`'s `and`/`or` branches use the opposite
 all-vs-any connective from what the type name might suggest - ported

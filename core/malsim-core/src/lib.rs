@@ -2,6 +2,8 @@
 //! (from the `mal-toolbox` `rust-rewrite` branch) for the attack graph types
 //! this simulator steps through.
 
+pub mod attack_surface;
+pub mod defense_surface;
 pub mod graph_state;
 pub mod graph_utils;
 pub mod necessity;
