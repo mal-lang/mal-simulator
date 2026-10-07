@@ -229,7 +229,38 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         `collect_false_positives_fprate_one_always_fires`,
         `collect_logs_tprate_negative_is_truthy_but_never_fires`), rather
         than a line-for-line port of the scenario-level test.
-  - [ ] A7 - Port attacker_step / defender_step orchestration
+  - [x] A7 - Port attacker_step / defender_step orchestration. Landed in
+        `core/malsim-core/src/attacker_step.rs` (`attacker_is_terminated`,
+        `attempt_attacker_step`, `attacker_step_effects`, `attacker_step`,
+        plus an `AttackerStepError` enum composing `GraphUtilsError`/
+        `GraphStateError` with two bespoke variants - `MissingTtcValue`,
+        `NodeNotInGraph`) and `core/malsim-core/src/defender_step.rs`
+        (`defender_step`, `defender_is_terminated`, plus a
+        `DefenderStepError` enum with just `NodeNotInGraph`). No
+        `AttackerState`/`DefenderState`/`AgentStates` exist on the Rust
+        side yet (A9's job - §3); per-agent inputs these functions need
+        (`action_surface`, `goals`, `performed_nodes`, `num_attempts`,
+        per-agent ttc overrides) are taken as plain already-flattened
+        `HashSet`/`HashMap` arguments, continuing A3/A5/A6's pattern - see
+        §10 for `state_query.py::node_ttc_value`'s pull-forward into this
+        module and two preserved-as-is behavioral oddities worth a future
+        reader's attention. 22 new Rust-native tests (16 in
+        `attacker_step.rs`, 6 in `defender_step.rs`), authored directly
+        against the Python source's documented/implemented semantics using
+        `test_fixtures.rs`'s dummy graphs (same situation as A5/A6: no
+        existing *isolated* Python unit test for `attacker_step`/
+        `defender_step` - `tests/test_mal_simulator.py::test_attacker_step`/
+        `test_defender_step` exist but only exercise these functions
+        through a fully-built corelang scenario, checked via `grep -rln`);
+        `cargo test`/`cargo clippy`/`cargo fmt --check` all clean (125
+        tests total in `malsim-core` now); full Python suite (156 tests)
+        still green, untouched by this phase - no Python file changed.
+        **No new crate dependency needed** - reuses A2's `rand`, A4's
+        `maltoolbox-language` dev-dependency/`test_fixtures.rs`, and A3/
+        A5's own modules (`graph_state::resolve_ttc_dist`/`TtcMode`,
+        `graph_utils::node_is_live`/`node_is_traversable`,
+        `attack_surface::get_effects_of_attack_step`), so no "ask the
+        user" trigger this phase.
   - [ ] A8 - `malsim-pyo3` native `Simulator` pyclass: `reset_native`/
         `step_native` returning plain Python primitives
   - [ ] A9 - Rewrite Python `MalSimulator.reset()`/`.step()` to delegate to
@@ -1354,6 +1385,83 @@ Three specific things carried over deliberately:
   correctness per §2.1 (bit-identical reproducibility isn't a goal), but
   kept anyway since it was free and keeps the Rust and Python code
   obviously in step for a line-by-line reader.
+
+**A7: `state_query.py::node_ttc_value` is pulled forward into
+`attacker_step.rs` as a private `resolve_ttc_value` helper, rather than
+staying in its own module or waiting for a ported `state_query.rs`.**
+`attempt_attacker_step`'s `EXPECTED_VALUE`/`PRE_SAMPLE` branch needs
+exactly `node_ttc_value`'s precedence logic (an agent-level override
+wins over the graph-level default computed once at `reset()`, else a
+hard failure), and `attempt_attacker_step` is its *only* caller in the
+hot loop - same situation and same resolution A3 used for `TtcMode`
+(pulled forward from `config/sim_settings.py` into `graph_state.rs` for
+the same reason). Rather than threading an `AttackerState`-shaped
+object through (none exists in Rust yet - §3/A9), the two maps
+`node_ttc_value` reads become plain arguments: `ttc_value_overrides:
+Option<&HashMap<AttackGraphNodeId, f64>>` (the agent-level override) and
+`graph_ttc_values: &HashMap<AttackGraphNodeId, f64>` (`GraphState::
+ttc_values`, computed by A3's `compute_initial_graph_state`). Python's
+`assert node in attacker_state.sim_state.graph_state.ttc_values` becomes
+`AttackerStepError::MissingTtcValue` instead of a panic.
+
+**A7: `attempt_attacker_step` resolves `ttc_dist` *unconditionally*,
+even in `Disabled` mode where the result is never used - ported as-is,
+not short-circuited.** Python's own source resolves `ttc_dist` before
+its `if ttc_mode == TTCMode.DISABLED: return True` check, so a node with
+a malformed `ttc` dict still raises even when TTCs are globally
+disabled. `ttc.rs`'s port preserves this exact ordering (see
+`attempt_disabled_mode_still_surfaces_malformed_ttc_dict` in
+`attacker_step.rs`, which forces this by giving a node an empty-object
+`ttc` value and asserting the error still surfaces under `Disabled`
+mode) rather than moving the `Disabled` check first for a "cleaner"
+early return.
+
+**A7: the `EXPECTED_VALUE`/`PRE_SAMPLE` branch's `num_attempts + 1 >=
+ttc_value` comparison is two attempts ahead of what the variable name
+suggests - confirmed intentional (ported as-is), not a transcription
+bug.** Python's `attempt_attacker_step` does `num_attempts =
+agent.num_attempts[node] + 1` once at the top (used as-is by the
+`EFFORT_BASED_PER_STEP_SAMPLE` branch), then *this* branch computes
+`num_attempts + 1 >= _node_ttc_value` - i.e. the actual comparison is
+`agent.num_attempts[node] + 2 >= ttc_value`, not `+ 1`. `attacker_step.rs`
+reproduces this precisely (`(num_attempts + 1) as f64 >= ttc_value`
+where `num_attempts` is already `num_attempts_before + 1`) rather than
+"fixing" what looks at a glance like a double-increment -
+`attempt_expected_value_mode_comparison_is_two_attempts_ahead` locks in
+the exact boundary (a `ttc_value` of `2.0` already succeeds on the very
+first attempt, when `num_attempts_before` is still `0`).
+
+**A7: `attacker_step`'s "entry points bypass both the action-surface and
+traversability checks" is ported as-is, including Python's own
+uncertainty about it.** Python's `attacker_step` sets `can_compromise =
+True` unconditionally for any node in `agent.settings.entry_points`,
+skipping both the `node in agent.action_surface` and
+`node_is_traversable(...)` checks entirely - directly under a `# TODO:
+should this actually be the case?` comment in the Python source. Ported
+faithfully (`attacker_step`'s `entry_points.contains(&node_id)` branch
+short-circuits before any traversability check), not tightened into a
+stricter check; `step_entry_point_bypasses_action_surface_and_traversability`
+in `attacker_step.rs` exercises exactly this by using an `and`-step with
+an unperformed necessary parent (otherwise untraversable) as the entry
+point and asserting it still compromises.
+
+**A7: Python's `assert node == sim_state.attack_graph.nodes[node.id]`
+(identical in both `attacker_step` and `defender_step`) becomes a plain
+graph-membership/liveness check (`graph_utils::node_is_live`) on the
+Rust side, returning `NodeNotInGraph` instead of panicking.** The Python
+assert is an object-identity check guarding against a caller holding a
+stale `AttackGraphNode` reference (relevant once a node can be
+removed/replaced, e.g. by `DynaMalSimulator`'s model effects - Phase B,
+not yet ported). The Rust side works with `AttackGraphNodeId`s rather
+than node references throughout, so there is no "stale object" to
+compare against identity - the faithful equivalent of "this is really
+the node currently in the graph" is "this id still resolves to a live
+node". Both `AttackerStepError::NodeNotInGraph` and
+`DefenderStepError::NodeNotInGraph` document this translation inline;
+flagged here since it's a case where the id-based design genuinely
+changes what the check *means*, not just how it's spelled, even though
+the two sides should behave identically for every case `MalSimulator`
+(as opposed to `DynaMalSimulator`) can actually produce today.
 
 **A4: `node_is_blocked`'s `and`/`or` branches use the opposite
 all-vs-any connective from what the type name might suggest - ported

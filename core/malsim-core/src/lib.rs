@@ -3,6 +3,8 @@
 //! this simulator steps through.
 
 pub mod attack_surface;
+pub mod attacker_step;
+pub mod defender_step;
 pub mod defense_surface;
 pub mod event_logger;
 pub mod false_alerts;
