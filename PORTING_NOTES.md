@@ -52,8 +52,49 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         §9 for the specific pre-existing Python tests this flags for
         follow-up at A9 (none of them break *now*, since Python's
         `ttc_utils.py` is untouched until A9 wires native in).
-  - [ ] A3 - Port static graph_state computation (`graph_state.py`,
-        `graph_processing.py` necessity propagation)
+  - [x] A3 - Port static graph_state computation (`graph_state.py`,
+        `graph_processing.py` necessity propagation). Landed in
+        `core/malsim-core/src/graph_state.rs` (`TtcMode`,
+        `default_ttc_dist_for_step_type`, `resolve_ttc_dist(_from_parts)`,
+        `ttc_value_for_dist`, `attack_step_ttc_value(s)`,
+        `is_pre_enabled_for_dist`, `get_pre_enabled_defenses`,
+        `is_impossible_for_dist`/`is_impossible_attack_step`,
+        `get_impossible_attack_steps`, `GraphState`,
+        `compute_initial_graph_state`) and
+        `core/malsim-core/src/necessity.rs` (`evaluate_necessity`,
+        `propagate_necessity_from_node`, `calculate_necessity`) - viability
+        (`calculate_viability`/`evaluate_viability`/
+        `prune_unviable_and_unnecessary_nodes`) deliberately not ported,
+        confirmed dead/deprecated code (see §10). `compute_initial_graph_state`
+        takes `ttc_mode`/`run_defense_step_bernoullis`/
+        `run_attack_step_bernoullis` directly rather than a ported
+        `MalSimulatorSettings` struct - full settings porting is A9's job.
+        Each graph-dependent function is split into a thin
+        `AttackGraphNode`-reading wrapper plus a graph-independent helper
+        operating on plain data, specifically so the logic is unit-testable
+        without a real graph (see below and §10). 32 new Rust-native tests
+        across both modules; `cargo test`/`cargo clippy`/`cargo fmt --check`
+        all clean.
+        **Deferred, explicitly, per §8's "list it explicitly when skipped"
+        rule:** no Rust-native tests for `necessity.rs` at all, and none
+        for the thin `AttackGraphNode`-reading wrappers in `graph_state.rs`
+        (`resolve_ttc_dist`, `attack_step_ttc_value(s)`,
+        `get_pre_enabled_defenses`, `is_impossible_attack_step`,
+        `get_impossible_attack_steps`, `compute_initial_graph_state`) -
+        every one of these needs a real `AttackGraphNode` with a specific
+        `step_type`, and that type's id (`AttackStepId`) is a slotmap key
+        only a real `maltoolbox_language::graph::LanguageGraph` can mint
+        (confirmed: it can't be faked via `Default`/a literal, unlike
+        `AttackGraphNodeId` elsewhere in these modules, which these
+        functions never need to mint themselves). Building one requires
+        `maltoolbox-language` as a new dev-dependency; asked the user,
+        who chose to defer rather than add it in this step (see §10).
+        This means `tests/test_graph_processing.py`'s necessity cases
+        (`test_necessity_necessary`, `test_necessity_unnecessary`,
+        `test_analyzers_apriori_propagate_necessity`) have no Rust-native
+        counterpart yet. Revisit once a step actually needs the
+        dependency (A4+ will hit the exact same wall for traversal
+        predicates) - add it then and backfill these at the same time.
   - [ ] A4 - Port graph traversal predicates (`graph_utils.py` minus
         actionability/reward)
   - [ ] A5 - Port attack surface / defense surface / effects computation
@@ -956,3 +997,87 @@ looks at `self.combine_with`, even for distributions like
 `Bernoulli(0.5)` give identical `success_probability` results) - this is
 called out here per §2.7's rule, in case a future reader assumes it's a
 bug to be fixed rather than intentionally-preserved behavior.
+
+**A3: viability (`calculate_viability`/`evaluate_viability`/
+`_propagate_viability_from_node`/`make_node_unviable`/
+`prune_unviable_and_unnecessary_nodes`) is not ported at all, by design -
+not an oversight.** `graph_processing.py`'s own module docstring already
+calls viability "(deprecated)", and `grep -rn` across `python/malsim` for
+`calculate_viability`/`viability_per_node`/`make_node_unviable`/
+`prune_unviable_and_unnecessary_nodes`/`evaluate_viability` turns up no
+hits outside `graph_processing.py` itself - nothing in the simulator's
+step loop, state factories, or anywhere else calls into it. §5's A3
+description only scopes in "`graph_processing.py`'s necessity
+propagation", consistent with this. If a future phase discovers a real
+caller, port it then rather than assuming this was dropped by mistake.
+
+**A3: every graph-dependent function is split into a thin
+`AttackGraphNode`-reading wrapper plus a graph-independent helper over
+plain data - a structural choice driven by what's testable, not just
+idiom.** E.g. `resolve_ttc_dist(node, override)` is one line delegating to
+`resolve_ttc_dist_from_parts(node.ttc.as_ref(), node.step_type.as_str(),
+override)`; `attack_step_ttc_value` delegates its mode-dispatch to
+`ttc_value_for_dist(&TtcDist, TtcMode, &mut impl Rng)`;
+`get_pre_enabled_defenses`'s per-node body is `is_pre_enabled_for_dist(&TtcDist,
+bool, &mut impl Rng)`; `is_impossible_attack_step` is
+`is_impossible_for_dist(&TtcDist, &mut impl Rng)`. The reason: constructing
+a real `AttackGraphNode` with a specific `step_type` needs a real
+`maltoolbox_language::graph::LanguageGraph` to mint its `AttackStepId` -
+unlike `AttackGraphNodeId` (used throughout these modules as a `HashMap`/
+`HashSet` key), `AttackStepId` can't be faked via `Default`/a hand-built
+literal when a test needs to pick a *specific* step type (`Default`
+produces slotmap's null key, fine for inert unused fields, not fine when
+the test's whole point is "given a `defense` node..."). Decomposing this
+way means the actual interesting logic (TTC-mode dispatch, the
+degenerate-probability pre-enable branches, the Bernoulli-attempt
+inversion) is still fully unit-tested now, even though the
+`AttackGraphNode`-touching glue isn't.
+
+**A3: a dev-dependency question was raised with the user and explicitly
+deferred, not resolved - read this before adding
+`maltoolbox-language`.** Testing `necessity.rs` at all (every case needs
+a real node with a specific `step_type` and real parent/child
+`AttackGraphNodeId` links - there's no way to decompose necessity
+propagation into a graph-independent helper the way `graph_state.rs`'s
+functions were, since the graph structure *is* the logic here), and
+testing the thin wrappers listed above, both need a real
+`maltoolbox_language::graph::LanguageGraph` - buildable by compiling
+`tests/testdata/langs/dummy_lang.mal` via `maltoolbox_language::
+from_mal_spec` (pure Rust, tree-sitter-based, no external tooling;
+confirmed by reading `core/maltoolbox-language/src/compiler/mod.rs` and
+`graph/file.rs`), the same fixture Python's `conftest.py::dummy_lang_graph`
+already uses. Doing this means adding `maltoolbox-language` to
+`core/malsim-core/Cargo.toml`'s `[dev-dependencies]` (test-only; already a
+transitive dependency via `maltoolbox-attackgraph`, so no new external
+dependency tree, just an explicit direct reference to something already
+fetched at the same pinned git rev). Asked the user; they chose **"defer
+rather than add it in this step"** over adding it now. Consequence:
+`necessity.rs` ships with zero Rust-native tests this phase, and
+`tests/test_graph_processing.py`'s necessity cases
+(`test_necessity_necessary`, `test_necessity_unnecessary`,
+`test_analyzers_apriori_propagate_necessity`) have no Rust counterpart
+yet - tracked, not silently dropped (§8). This will almost certainly come
+up again at A4 (traversal predicates need the same kind of node/graph
+fixtures) - when it does, add the dependency then and backfill A3's
+deferred tests in the same change rather than asking a third time.
+
+**A3: `success_probability(0)`'s "never/always succeeds" branches in
+`get_pre_enabled_defenses`/`is_pre_enabled_for_dist` are *inverted*
+relative to the named dist's own name, confirmed intentional (ported
+as-is) via the Python source's own uncertainty about it.** `TtcDist::
+success_probability(effort)` is `dist.cdf(effort)`, and for
+`Bernoulli(p)`, `cdf(0) == 1 - p`. So the *named* `"Disabled"` dist
+(`Bernoulli(0.0)`) has `cdf(0) == 1.0` (hits the "always succeeds" branch
+-> **not** pre-enabled), while `"Enabled"` (`Bernoulli(1.0)`) has
+`cdf(0) == 0.0` (hits the "never succeeds" branch -> pre-enabled) - the
+opposite of what the branch comments' wording suggests at a glance, until
+you notice it's `cdf` not the raw threshold. This is exactly what
+`get_pre_enabled_defenses`'s Python source does too, including its own
+`# TODO: is this correct?` comment on this exact branch - so this was
+ported faithfully, bugs/uncertainty and all, per `PORTING_NOTES.md`'s
+general stance on not "fixing" ported behavior unasked. Caught because
+the first draft of `is_pre_enabled_for_dist`'s tests assumed the naive
+(name-matching) direction and failed; fixed the *tests*, not the
+implementation - see `pre_enabled_degenerate_disabled_dist_is_never_pre_enabled`/
+`pre_enabled_degenerate_enabled_dist_is_always_pre_enabled` in
+`graph_state.rs` for the corrected, documented expectations.
