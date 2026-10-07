@@ -14,8 +14,10 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use maltoolbox_attackgraph::AttackGraph;
-use pyo3::types::PyCapsule;
 use pyo3::prelude::*;
+use pyo3::types::PyCapsule;
+
+mod simulator;
 
 /// Must match mal-toolbox's `py-bindings/maltoolbox-attackgraph-py/src/
 /// graph.rs`'s `INNER_CAPSULE_NAME` exactly - this string is the only
@@ -25,7 +27,9 @@ const INNER_CAPSULE_NAME: &std::ffi::CStr = c"maltoolbox._native.AttackGraph.inn
 
 /// Extracts the shared `Rc<RefCell<AttackGraph>>` handle from a Python
 /// `maltoolbox.AttackGraph` object via its `__inner_capsule__()` method.
-fn extract_shared_graph(graph: &Bound<'_, PyAny>) -> PyResult<Rc<RefCell<AttackGraph>>> {
+/// `pub(crate)` so `simulator.rs`'s `Simulator` pyclass (Phase A8) can
+/// reuse it too, rather than re-implementing the same capsule handoff.
+pub(crate) fn extract_shared_graph(graph: &Bound<'_, PyAny>) -> PyResult<Rc<RefCell<AttackGraph>>> {
     let capsule_obj = graph.call_method0("__inner_capsule__")?;
     let capsule = capsule_obj.cast::<PyCapsule>()?;
     let ptr = capsule.pointer_checked(Some(INNER_CAPSULE_NAME))?;
@@ -58,5 +62,6 @@ fn node_count(graph: &Bound<'_, PyAny>) -> PyResult<usize> {
 #[pymodule]
 fn _native(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(node_count, m)?)?;
+    m.add_class::<simulator::Simulator>()?;
     Ok(())
 }

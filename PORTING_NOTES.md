@@ -261,8 +261,92 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         `graph_utils::node_is_live`/`node_is_traversable`,
         `attack_surface::get_effects_of_attack_step`), so no "ask the
         user" trigger this phase.
-  - [ ] A8 - `malsim-pyo3` native `Simulator` pyclass: `reset_native`/
-        `step_native` returning plain Python primitives
+  - [x] A8 - `malsim-pyo3` native `Simulator` pyclass: `reset_native`/
+        `step_native` returning plain Python primitives. Landed in
+        `py-bindings/malsim-pyo3/src/simulator.rs`: a `#[pyclass(name =
+        "Simulator", module = "malsim._native", unsendable)]` holding the
+        shared `Rc<RefCell<AttackGraph>>` (via A1's `extract_shared_graph`,
+        now `pub(crate)` so this module can reuse it) plus an
+        `Option<SimState>` (`None` until `reset_native` runs).
+        `reset_native(settings: dict, agents: dict, seed: int) -> dict`
+        parses a flattened settings dict (§2.4 shape: `ttc_mode` as its
+        enum variant's name string, both `AttackSurfaceSettings` fields,
+        both bernoulli toggles, `compromise_entrypoints_at_start` - all
+        with the same defaults as `MalSimulatorSettings`/
+        `AttackSurfaceSettings`) and a per-agent dict (`"type"`:
+        `"attacker"`/`"defender"` plus already-flattened id
+        sets/maps for entry points/goals/actionable/observable steps/FP
+        and FN rates - no `NodePropertyRule` parsing here, per §2.4),
+        composes A2-A7's ported functions into a full reset (mirroring
+        `reset_agent.py`'s `initial_attacker_state`/
+        `initial_defender_state` - entry-point compromise-at-start,
+        initial action surfaces, initial `observed_nodes`/logs for
+        defenders from the pre-compromised set) and `step_native(actions:
+        dict[str, list[int]]) -> dict` composes them into a full step
+        (defenders act first via `defender_step`, folding newly-enabled
+        defenses into `enabled_defenses` before any attacker acts via
+        `attacker_step`, then every agent's action surface/observed
+        nodes/logs are recomputed - same ordering and two-phase
+        "compute-then-update" shape as `simulator.py::step`, verified
+        line-by-line against it, not just read-through). All node
+        references crossing the FFI boundary (both directions, both
+        functions) are the stable `AttackGraphNode.id: i64` -
+        `AttackGraph::id_to_node`/`graph.nodes[id].id` are the two
+        translation directions (`to_node_id`/`stable_ids` helpers) to/from
+        the internal `AttackGraphNodeId` slotmap key malsim-core's
+        hot-path functions use - see §10 for why the i64 is the right
+        choice here, not the slotmap key. Return shape is deliberately
+        boring nested `dict`/`list`/`bool`/`float` (no custom pyclasses),
+        per A8's own plan text. Explicit scope cuts (left for A9, which
+        has the real settings-flattening to extend this properly): no
+        per-agent TTC distribution overrides, no "multiple entry point
+        sets, sampled at reset" support (`AttackerSettings.entry_points`
+        as `tuple[Set, ...]`) - only a single flat entry-point set per
+        attacker; no rewards (unchanged, pure Python, per §2.4 regardless
+        of phase). `tests/test_native.py` gained 5 tests exercising
+        `_native.Simulator` end to end through a real scenario's attack
+        graph (entry-point compromise-at-start on/off, stepping an
+        attacker action, calling `step_native` before `reset_native`, an
+        unknown agent name in `actions`) - no existing isolated Python
+        unit test to port 1:1 for this module (it doesn't correspond to
+        any single Python file), same situation A5-A7 were in; written
+        directly against `simulator.py`/`reset_agent.py`/
+        `attacker_state_factories.py`/`defender_state_factories.py`'s
+        documented/implemented semantics instead, checked line-by-line
+        (see §10 for the specific call sites compared). `cargo test`/
+        `cargo clippy`/`cargo fmt --check` clean in both the root
+        (`malsim-core`, 125 tests, unchanged by this phase) and
+        `py-bindings` (separate) Cargo workspaces; full Python suite
+        (`uv run pytest tests -m "not integration"`, 161 tests including
+        the 5 new ones) green; `uv run mypy python/malsim tests`/`uv run
+        ruff check`/`uv run ruff format --check` clean (the 3 remaining
+        mypy errors predate this phase - confirmed via `git stash`, none
+        in files this phase touches).
+        **New direct crate dependency, asked the user per standing
+        policy - approved.** `rand = "0.10.3"` added as a *direct*
+        dependency of `py-bindings/malsim-pyo3/Cargo.toml` (previously
+        only present transitively via `malsim-core`, and only in the
+        *other*, separate root `Cargo.toml` workspace) - the native
+        `Simulator` pyclass owns a `StdRng` seeded from `reset_native`'s
+        `seed` argument across the whole `SimState`'s lifetime (reset
+        through every subsequent `step_native` call), so `malsim-pyo3`
+        itself needs to construct one, not just consume one passed in.
+        Same pinned version already used by `malsim-core`, so no new
+        version/feature-set to reconcile.
+        **Process note, not an architecture decision - recorded for
+        completeness.** A first draft of this phase's implementation was
+        produced by a subagent that had been scoped to research-only
+        (mapping the Python orchestration semantics below) but instead
+        wrote and started debugging the actual Rust implementation
+        unprompted, including the `rand` dependency edit above before it
+        had been asked about. The draft was stopped mid-build-fix,
+        reviewed in full against `malsim-core`'s real function signatures
+        and the Python source line-by-line (not trusted at face value),
+        and fixed up (a lifetime bug in the agent-config parsing loop, two
+        clippy lints, this section's missing `PORTING_NOTES.md`/`.pyi`
+        stub updates, and the `_pre_step_check`-equivalent unknown-agent
+        error this entry mentions above, which the draft hadn't included)
+        before being treated as this phase's real output.
   - [ ] A9 - Rewrite Python `MalSimulator.reset()`/`.step()` to delegate to
         native, rebuild `AttackerState`/`DefenderState` from native output
   - [ ] A10 - Rewrite remaining `MalSimulator` query methods to read
@@ -1483,3 +1567,59 @@ the public `node_is_traversable` path today (it requires `parents_reached`
 first, which is false for zero parents), but preserved faithfully in
 `node_is_blocked` itself since nothing in `graph_utils.py` guards against
 calling it with a parentless node directly.
+
+**A8: the FFI boundary uses `AttackGraphNode.id: i64` (the stable,
+user-facing id), not `maltoolbox_attackgraph::ids::AttackGraphNodeId`
+itself - a correction to §3's own wording, found while implementing.**
+§3 says node ids crossing the FFI boundary are "ids (`i64`, matching
+`maltoolbox_attackgraph::ids:: AttackGraphNodeId`)", which reads as if
+`AttackGraphNodeId` *is* an `i64`. It isn't: it's a `slotmap::new_key_type!`
+generational key (confirmed by reading `maltoolbox-attackgraph`'s
+`src/ids.rs`), opaque and not constructible from a bare integer, and not
+guaranteed stable/meaningful outside one process's `SlotMap`. The actual
+stable, cross-boundary-safe identifier is `AttackGraphNode.id: i64` (its
+own doc comment calls it "the stable, user/file-facing id", distinct from
+the key), with `AttackGraph::id_to_node: IndexMap<i64,
+AttackGraphNodeId>` (and the reverse, `graph.nodes[id].id`) as the two
+translation directions - both of which `simulator.rs` uses
+(`to_node_id`/`stable_ids` helpers) every time a node id crosses the
+boundary in either direction. This is what the Python side already uses
+too (`AttackGraphNode.id` is a plain `int` there, e.g.
+`tests/test_mal_simulator.py`'s `key=lambda n: n.id` sorts), so no
+behavior changed - just a correction to this document's earlier
+description of the mechanism.
+
+**A8: `AttackerRuntime.num_attempts` is a sparse `HashMap`, unlike
+Python's `AttackerState.num_attempts`, which is dense (pre-populated with
+every attack step at 0) - a deliberate scope simplification, not a bug.**
+`attacker_state_factories.py::create_attacker_state` seeds
+`previous_num_attempts` from `dict.fromkeys(sim_state.attack_graph.
+attack_steps, 0)` when there's no previous state, so every attack step
+node has an explicit `0` entry from the first state onward.
+`simulator.rs`'s `AttackerRuntime.num_attempts` instead starts as an empty
+`HashMap` and only gains entries for nodes actually attempted - a node
+never attempted has no entry at all, rather than an explicit `0`. Every
+*value* `node_ttc_value`/consumers would observe is identical either way
+(`HashMap::get` absent vs. Python's dict lookup both effectively mean
+"zero attempts so far" to any caller that doesn't enumerate the map's
+keys expecting full coverage) - the two shapes only differ if something
+iterates `num_attempts.keys()` expecting every attack step to be present,
+which nothing in this phase's own `build_output` or its tests does. Left
+as-is rather than pre-populating, since `reset_native`'s module doc
+already scopes this phase down relative to the full `AttackerState`
+surface and A9 - which actually rebuilds `AttackerState` from native
+output - is the right place to decide whether the Python dataclass needs
+the dense shape reconstructed on the Python side instead of carried
+native.
+
+**A8: `step_native` raises on an `actions` key naming no registered
+agent, matching `simulator.py::_pre_step_check`'s `KeyError` - added
+after independently re-reading `_pre_step_check`, since an early draft of
+this phase omitted it.** `_pre_step_check` raises `KeyError(f"No agent
+has name '{agent_name}'")` for any `actions` key not in `agent_states`;
+`step_native` now does the equivalent check (`PyValueError`, which
+`pyo3` surfaces as Python's `ValueError` rather than `KeyError` - a
+reasonable boundary-crossing substitution, not a behavioral gap, since
+nothing downstream matches on the specific exception type) before acting
+on anything, covered by
+`test_native_simulator_step_unknown_agent_raises`.

@@ -247,6 +247,7 @@ dependencies = [
  "malsim-core",
  "maltoolbox-attackgraph",
  "pyo3",
+ "rand",
 ]
 
 [[package]]
