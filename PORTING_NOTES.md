@@ -347,8 +347,104 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         stub updates, and the `_pre_step_check`-equivalent unknown-agent
         error this entry mentions above, which the draft hadn't included)
         before being treated as this phase's real output.
-  - [ ] A9 - Rewrite Python `MalSimulator.reset()`/`.step()` to delegate to
-        native, rebuild `AttackerState`/`DefenderState` from native output
+  - [x] A9 - Rewrite Python `MalSimulator.reset()`/`.step()` to delegate to
+        native, rebuild `AttackerState`/`DefenderState` from native output.
+        Landed across both crates and the Python package:
+        - `py-bindings/malsim-pyo3/src/simulator.rs` extended (not just
+          consumed as-is): per-agent `ttc_dists` overrides are now parsed
+          in `reset_native` (`parse_ttc_dist_from_py`/
+          `extract_optional_ttc_dist_overrides`/`attacker_ttc_overrides`,
+          built directly against `ttc::TtcDist::new`/`with_combine`/
+          `named_ttc_dist` rather than `serde_json::Value`, so no new
+          direct `serde_json` dependency was needed on this crate - see
+          §10), wired into `attacker_step`'s existing (previously
+          hardcoded `None, None`) override parameters, and exposed per
+          attacker as `ttc_values`/`impossible_steps` in `build_output`.
+          `build_output`'s `sim_state` dict also gained `ttc_values`/
+          `impossible_attack_steps`/`necessity_per_node`/
+          `pre_enabled_defenses` (previously only `enabled_defenses`) so
+          Python can reconstruct a full `GraphState`. "Multiple entry
+          point sets, sampled at reset" (A8's other scope cut) is
+          deliberately *not* added to native - resolved in Python instead
+          (see below) - see §10 for why.
+        - New `python/malsim/mal_simulator/native_settings.py`:
+          `flatten_sim_settings`/`flatten_attacker_settings`/
+          `flatten_defender_settings`, resolving each `NodePropertyRule`
+          against the graph *once* per §2.4, reusing the existing
+          `node_is_actionable`/`node_is_observable`/
+          `node_false_positive_rate`/`node_false_negative_rate` helpers
+          per node (not reimplementing `NodePropertyRule.value()`'s
+          precedence) for exact semantic parity with the pure-Python path.
+        - New `create_attacker_state_from_native`/
+          `create_defender_state_from_native` functions added
+          *alongside* (not replacing) `create_attacker_state`/
+          `create_defender_state` in `attacker_state_factories.py`/
+          `defender_state_factories.py` - see §10 for why the old
+          functions had to stay untouched (`DynaMalSimulator`). Resolve
+          ids back to real `AttackGraphNode`/`LogEntry`/`Detector` objects
+          from native's output; unlike the old factories, most fields are
+          read directly from native's already-full-episode-accumulated
+          output rather than merged against `previous_state` - only
+          `performed_nodes_order` (pure Python bookkeeping, no native
+          equivalent) is still built incrementally via a diff. `num_attempts`
+          is deliberately densified back to
+          `dict.fromkeys(attack_graph.attack_steps, 0)` plus native's
+          sparse overlay - see §10.
+        - `attacker_state_factories.py::get_entry_points`'s signature
+          changed from `(sim_state, ...)` to `(attack_graph, ...)` (its
+          body only ever read `sim_state.attack_graph`) so `MalSimulator`'s
+          new `reset()` can resolve "multiple entry point sets" sampling
+          *before* a `MalSimulatorState` exists yet to pass into
+          `reset_native`; its one caller (`initial_attacker_state`)
+          updated to pass `sim_state.attack_graph` - pure signature
+          narrowing, no behavior change, `DynaMalSimulator` doesn't call
+          this function at all (confirmed via grep).
+        - `MalSimulator.__init__`/`.reset()`/`.step()` (outer signatures
+          unchanged) now hold one `malsim._native.Simulator` instance
+          (`self._native_sim`) for the simulator's lifetime, calling
+          `reset_native`/`step_native` once per call and rebuilding
+          `AttackerState`/`DefenderState`/`MalSimulatorState` from the
+          output via the new native-driven factories above. `_native_sim`
+          is excluded from `__getstate__` the same way
+          `_defender_reward_fns`/`_attacker_reward_fns` already are - see
+          §10 for why this is an existing-pattern extension, not a new
+          limitation. Module-level `reset()`/`step()` lost their `rng`-only
+          consumption inside `step()` (native owns stepping's RNG
+          entirely now) - `step()`'s signature dropped the now-unused
+          `rng` parameter. A new `_ordered_new_nodes` helper reconstructs
+          `recording`'s per-step node lists (explicitly-requested actions
+          first in request order, then any effect-chain-only nodes) since
+          native returns these as unordered sets, not Python's old
+          order-preserving sequential loop - see §10.
+        - New test-support-only `_native.set_detector_rates(graph,
+          node_id, label, tprate, fprate)` pyfunction (same tier as A1's
+          `node_count` - not a real public API) added to
+          `py-bindings/malsim-pyo3/src/lib.rs`, plus a new
+          `collect_logs`-model_asset-check fix in
+          `core/malsim-core/src/event_logger.rs` and a `tests/conftest.py`
+          `connect_nodes` helper - all three are fixes for genuine bugs/
+          gaps this phase's end-to-end wiring exposed for the first time;
+          see §10 for each.
+        - Full test suite green: `uv run pytest tests` (162, including
+          `integration`) and `uv run pytest examples/*` (6) all pass;
+          `uv run mypy python/malsim tests` has the same 3 pre-existing
+          errors A8 already found (confirmed via `git diff --stat` on the
+          3 affected files - none touched by A9); `uv run ruff check`/
+          `ruff format --check` clean. `cargo test`/`clippy`/`fmt --check`
+          clean in both the root (`malsim-core`, 126 tests, +1 from this
+          phase's `collect_logs` fix) and `py-bindings` (separate)
+          workspaces.
+        - **No new crate dependency this phase** - the per-agent
+          `ttc_dists` override parsing deliberately avoided needing
+          `serde_json` as a direct `malsim-pyo3` dependency (see above and
+          §10), so the standing "ask before adding a new crate dependency"
+          policy wasn't triggered.
+        - Several pre-existing seed-pinned exact-value/exact-order tests
+          broke as a direct, expected consequence of §2.1 (RNG) and a
+          newly-identified sibling category (collection iteration order -
+          see §10) - all identified, relaxed to structural assertions or
+          re-pinned to this port's own (still fully deterministic per
+          seed) output, never silently left broken. Full list in §9.
   - [ ] A10 - Rewrite remaining `MalSimulator` query methods to read
         native-backed state where needed
   - [ ] A11 - Full existing test suite green with native backend; delete
@@ -1034,29 +1130,36 @@ checked by CI, not just asserted in prose.
 ## 9. Open risks to keep watching
 
 - **Seed-pinned exact-sampled-value tests found during A2's `grep -rn
-  seed= tests/` check (per §2.1) - will need relaxing or re-pinning once
-  Python's `ttc_utils.py` actually starts delegating to native RNG (A9),
-  not before.** `tests/test_ttc_utils.py::test_ttcs_effort_based` seeds
-  `np.random.default_rng(10)` once and asserts exact `True`/`False`
-  outcomes of `attempt_ttc_with_effort` at specific effort levels (e.g.
-  "1 effort will not succeed in this seed" / "500 effort will succeed in
-  this seed") - this is exactly the kind of test §2.1 says is not
-  portable bit-for-bit across the numpy → Rust RNG transition.
-  `test_bernoulli` (same file) is a softer case: it seeds `default_rng(10)`
-  and asserts both `True` and `False` appear across 10 `attempt_bernoulli`
-  draws - a structural property, but still pinned to one seed's specific
-  draw sequence producing both within only 10 tries, so it could in
-  principle flake under a different RNG even though it's not an exact-
-  value assertion. `test_probs_utils` (same file) also seeds but doesn't
-  assert on the sampled value at all, so it's unaffected. None of these
-  break today - Python's `ttc_utils.py` is unchanged by A2, so they're
-  still exercising the pure-Python/numpy/scipy path. Flagging now (as
-  A2's step description requires) so A9 - the step that actually wires
-  `MalSimulator` to call into native RNG-consuming code - doesn't
-  rediscover this from scratch; revisit `test_ttcs_effort_based`
-  specifically (relax to a monotonicity/structural assertion, mirroring
-  what `ttc.rs`'s own `attempt_ttc_with_effort_success_rate_matches_
-  probability` test does) at that point.
+  seed= tests/` check (per §2.1) - `tests/test_ttc_utils.py` still does
+  NOT need relaxing even after A9, since `ttc_utils.py` itself was never
+  touched (§10: `DynaMalSimulator` still needs it pure-Python).** This
+  entry's original framing ("once Python's `ttc_utils.py` actually starts
+  delegating to native RNG (A9)") turned out to describe a trigger that
+  never happens in A9 - `MalSimulator`'s new native-backed path bypasses
+  `ttc_utils.py` entirely (settings flatten straight from
+  `AttackerSettings`/`MalSimulatorSettings` into native, per
+  `native_settings.py`) rather than making the *existing* module
+  delegate, so `test_ttc_utils.py::test_ttcs_effort_based`/
+  `test_bernoulli` still exercise the unchanged pure-Python/numpy/scipy
+  path and still pass unmodified. Re-flagging for real only if/when
+  `ttc_utils.py` is itself deleted or rewritten (Phase B, once
+  `DynaMalSimulator` moves off it too - see §10) - not a current risk.
+- **New seed-pinned/exact-order tests found at A9 (resolved, not just
+  flagged - see §10 for the fixes) - recorded here per §8's "list it
+  explicitly" rule, for anyone auditing what A9 actually changed in the
+  test suite.** `tests/test_mal_simulator.py::test_attacker_step_attempts_
+  register`/`test_simulator_attacker_override_ttcs_state`/
+  `test_simulator_attacker_override_ttcs_step`/
+  `test_simulator_multiple_entry_point_sets_in_attacker_settings`,
+  `tests/envs/test_example_scenarios.py::test_bfs_vs_bfs_state_and_reward_
+  per_step_ttc`/`_per_step_effort_based`/`_expected_value_ttc`, and
+  `tests/test_attacker.py::test_attack_surface_coreLang_include_unnecessary`
+  all asserted an exact sampled value, exact RNG-choice outcome, or exact
+  set-iteration-dependent traversal count/sequence for a fixed seed -
+  each relaxed to a structural assertion (where the *property being
+  tested* didn't actually need the exact value) or re-pinned to this
+  port's own new, still-fully-deterministic-per-seed output (where the
+  test's whole point was pinning a golden trace). None left broken.
 - §2.2's coupling to `maltoolbox-attackgraph-py`'s internal struct layout
   - re-verify `PyAttackGraph.inner`'s visibility/shape on every
     `mal-toolbox` git dependency bump.
@@ -1623,3 +1726,331 @@ reasonable boundary-crossing substitution, not a behavioral gap, since
 nothing downstream matches on the specific exception type) before acting
 on anything, covered by
 `test_native_simulator_step_unknown_agent_raises`.
+
+**A9: `num_attempts` densified back on the Python side, resolving A8's
+own open question.** As A8's entry above anticipated, `create_attacker_
+state_from_native` re-densifies native's sparse `num_attempts` map via
+`dict.fromkeys(attack_graph.attack_steps, 0)` overlaid with native's
+actual counts - needed because the pure-Python `attempt_attacker_step`
+(still used directly by `DynaMalSimulator` and by
+`tests/test_mal_simulator.py::test_attacker_step`, which calls it on a
+`MalSimulator`-produced `AttackerState`) indexes `agent.num_attempts[node]`
+unconditionally for any node about to be attempted, raising `KeyError`
+on a sparse map for a node never attempted before. Found by running the
+full test suite, not by inspection - confirms this was the right thing
+to defer to A9 rather than guess at in A8.
+
+**A9: `create_attacker_state`/`create_defender_state`/`initial_attacker_
+state`/`initial_defender_state`/`attacker_overriding_ttc_settings`/
+`get_entry_points` (its body) stay completely untouched (one narrow
+signature change to `get_entry_points`, see below) - `MalSimulator`'s
+native-backed path uses new, separate functions instead of rewriting
+these in place, despite §4's table suggesting an in-place rewrite
+("rewritten internally to build dataclasses from native output").**
+Reality forced a correction: `python/malsim/dyna_mal_simulator/
+simulator.py` imports `create_attacker_state`/`create_defender_state`
+directly from these modules, and `dyna_mal_simulator/attacker_step.py`
+imports the *pure-Python* `attacker_step`/`attempt_attacker_step`/
+`attacker_is_terminated` from `mal_simulator/attacker_step.py` - none of
+which are touched until Phase B (§2.3: `DynaMalSimulator` isn't ported
+yet, and must keep working via its existing pure-Python recompute path,
+unchanged, for the full test suite - including `tests/test_dyna_mal_
+simulator.py` - to stay green per §1's non-breaking contract). Changing
+`create_attacker_state`'s signature/behavior in place would have broken
+`DynaMalSimulator` outright. §4's own hedge ("same names/signatures
+*where feasible*") anticipated exactly this kind of case; the resolution
+is new, additively-named functions (`create_attacker_state_from_native`/
+`create_defender_state_from_native`) living in the *same* files,
+alongside the untouched originals - not a new module, since they're
+thematically about the same thing (attacker/defender state construction)
+regardless of data source. Revisit once Phase B also moves
+`DynaMalSimulator` to native: at that point the old functions become
+genuinely dead and can be deleted (§4/A11's own anticipated cleanup,
+just deferred one phase further than A11 originally implied for this
+specific pair). The one exception, `get_entry_points`, got its parameter
+narrowed from `sim_state: MalSimulatorState` to `attack_graph:
+AttackGraph` (its body never read anything else) - safe because
+`DynaMalSimulator` doesn't call it at all (confirmed via `grep -rn
+get_entry_points`), and necessary because `MalSimulator`'s new `reset()`
+must resolve "multiple entry point sets" sampling *before* a
+`MalSimulatorState` exists to pass the chosen set into `reset_native`.
+
+**A9: "multiple entry point sets, sampled at reset"
+(`AttackerSettings.entry_points` as `tuple[Set, ...]`) is resolved in
+Python, not added to native - a deliberate, permanent design choice, not
+a deferral.** A8 left this as an open scope cut "for A9 to extend
+properly," which read as an invitation to port the sampling into Rust.
+It isn't: the sampling itself (`rng.choice` over a handful of sets) has
+no performance stakes worth a native port, and no RNG-reproducibility
+stakes either (§2.1's statistically-equivalent-only contract already
+covers whatever this consumes). `MalSimulator`'s `reset()` calls the
+unchanged `get_entry_points` once per attacker before building native's
+settings dict, and only the *resolved* single set crosses the FFI
+boundary - `reset_native`'s per-attacker `entry_points` field never
+needed to grow a `tuple[Set,...]`-shaped alternative. Consequence:
+`tests/test_mal_simulator.py::test_simulator_multiple_entry_point_sets_
+in_attacker_settings` could no longer assert an exact seed → choice
+mapping (compute_initial_graph_state's RNG consumption moved entirely to
+native's own, separately-seeded `StdRng` - see next entry - so the
+*position* of `get_entry_points`'s `rng.choice()` draw in the overall
+sequence changed even though the call itself didn't) - relaxed to "the
+chosen set is one of the configured options" (§9).
+
+**A9: Python's `rng: np.random.Generator` and native's `StdRng` are two
+independent RNG streams from A9 onward, not one interleaved sequence -
+an unavoidable consequence of §2.1, worth stating explicitly since it's
+the root cause of several relaxed/re-pinned tests in §9.** Before A9,
+every sampling call (TTC, bernoullis, detector rolls, entry-point-set
+choice) pulled from the single Python `rng` object, in a fixed order
+determined by `reset()`/`step()`'s own code structure. After A9, `reset()`
+derives one `native_seed = int(rng.integers(0, 2**63 - 1))` from the
+Python `rng` stream and hands it to `reset_native`, which seeds its own
+`StdRng` once and does *all* subsequent native-side sampling
+(TTC/bernoulli/detector rolls) from that independent stream for the rest
+of the episode; the Python `rng` object is only touched again for
+Python-side-only randomness (currently: `get_entry_points`'s
+`rng.choice`, and `rewards.py`'s `SAMPLE_TTC` reward mode, both
+unaffected code paths A9 didn't move). This is why a fixed
+`sim_settings.seed` is still fully reproducible (same Python draw for
+`native_seed`, same native stream from then on - §1's "statistically-
+equivalent" contract holds), but is *not* equivalent to the old single-
+stream interleaving - any test that happened to pin an exact outcome
+derived from the old interleaving order needed relaxing or re-pinning
+(§9), not because determinism broke, but because the *mapping* from seed
+to outcome changed shape.
+
+**A9: a genuine pre-existing bug in A6's `collect_logs` port, found by
+A9's end-to-end wiring (not by any A6-era test) and fixed, not just
+documented.** `core/malsim-core/src/event_logger.rs::collect_logs`
+checked `node.model_asset.is_none()` unconditionally for every
+compromised node, before checking whether that node even had any
+detectors - stricter than Python's `collect_logs`, whose equivalent
+`assert attack_step.model_asset is not None` sits *inside* `for detector
+in attack_step.detectors.values()` and therefore only ever runs when
+there's at least one detector to check. A6's own dummy-node test fixtures
+always set `model_asset`, so this never surfaced until A9 ran a real,
+manually-constructed (no model) scenario through the full simulator
+(`tests/agents/test_agents.py::test_defend_future_compromised_defender`)
+whose pre-compromised entry-point node had neither a model asset nor any
+detectors - which Python tolerates (no detectors means the assert is
+never reached) but the old Rust code rejected with
+`EventLoggerError::MissingModelAsset`. Fixed by guarding the check on
+`node.detectors.is_empty()` first, matching Python's control flow
+exactly; `collect_logs_missing_model_asset_errors` (which had encoded the
+*bug*, not Python's real behavior - its dummy node had no detectors
+either) updated to attach a detector first, and a new
+`collect_logs_missing_model_asset_without_detectors_does_not_error` test
+added for the previously-untested correct case.
+
+**A9: `maltoolbox`'s `AttackGraphNode.children`/`.parents` Python
+properties are a *read-mostly* cached `set` seeded once from the graph's
+real edges - mutating that returned set in place
+(`node.children.add(x)`) never writes back to the graph the shared
+`Rc<RefCell<AttackGraph>>` handle actually reads, only *assigning*
+`.children`/`.parents` does (`maltoolbox-attackgraph-py/src/node.rs`'s
+`edges_sets`/`set_children`/`set_parents`: the setter calls
+`set_edge_field`, which syncs; the cached getter's returned `PySet` does
+not).** This is a `maltoolbox` binding characteristic, not a malsim bug,
+and not something this repo can fix (out of scope - a different repo).
+It never mattered before A9 because the old pure-Python `attack_surface.py`
+/`graph_utils.py` only ever read `.children`/`.parents` through this same
+cached getter too - internally consistent from Python's perspective, even
+though disconnected from the graph's real edge storage (confirmed via
+`AttackGraph._to_dict()`, which reflects the real storage and showed
+empty `children`/`parents` for a graph wired via `.add()`). A9's native
+code reads the graph's real edges directly, so any test that builds a
+graph node-by-node via `.children.add(x)`/`.parents.add(x)` and then runs
+it through `MalSimulator` silently got an empty attack surface once that
+graph reached native (`tests/agents/test_searchers.py`/`test_agents.py`:
+~35 occurrences across both files, affecting
+`BreadthFirstAttacker`/`DepthFirstAttacker`/`RandomAgent`/
+`DefendFutureCompromisedDefender` tests). Fixed at the test level, not
+by avoiding native: added `tests/conftest.py::connect_nodes(parent,
+child)`, which uses *assignment* (`parent.children = parent.children |
+{child}`) instead of `.add()`, and mechanically replaced every
+`.add()`-pair call site in those two files with it.
+`tests/test_graph_processing.py` uses the same `.add()` pattern but never
+constructs a `MalSimulator`/goes through native, so it's unaffected and
+was left alone.
+
+**A9: `maltoolbox`'s `AttackGraphNode.detectors` Python property has the
+same "Python-side cache, real graph unaffected" shape as `.children`/
+`.parents` above, but with no assignment-based escape hatch - fixed with
+a new malsim-side native utility instead of a test-level workaround.**
+`node.rs`'s `detectors` getter lazily seeds a Python-side cache dict from
+"the core's generation-time detector data" and returns the *same* dict
+object on every subsequent access (so `node.detectors['x'] = Detector(...)`
+*looks* like a durable mutation from Python, per that getter's own doc
+comment - "visible to later reads") - but "later reads" means later
+Python reads of that same cache, not malsim-core's Rust `collect_logs`/
+`collect_false_positives`, which read `AttackGraphNode.detectors`
+(`maltoolbox-attackgraph`, the plain Rust crate) directly, and never see
+the mutation. Unlike `.children`/`.parents`, there's no `set_detectors`
+setter to fall back to. `tests/test_event_logger.py::_force_detector_
+rates` used exactly this pattern (plus a since-irrelevant `graph.detectors
+.remove/.append` - Rust's `collect_false_positives` iterates every node's
+own `.detectors` map directly via `all_detectors`, confirmed in
+`event_logger.rs`, so there's no separate graph-level detector list to
+keep in sync at all on the Rust side) to force deterministic tprate/fprate
+for `test_logger_attacks`/`_false_negative`/`_false_positive`, and
+silently stopped working once those tests' simulators moved to native.
+Fixed with a new, test-support-only `_native.set_detector_rates(graph,
+node_id, label, tprate, fprate)` pyfunction (`py-bindings/malsim-pyo3/
+src/lib.rs`, same tier as A1's `node_count` - not a real public API) that
+mutates the real `Detector.tprate`/`.fprate` fields directly through the
+already-shared `Rc<RefCell<AttackGraph>>`, reusing `maltoolbox-attackgraph`'s
+already-`pub` `Detector` fields - no new crate dependency, no mal-toolbox
+change needed. `_force_detector_rates` rewritten to call it.
+
+**A9: native-returned node-id sets no longer preserve the same iteration
+order Python's old sequential-loop code produced, which broke a few
+tests that depended on "the order you get when you iterate a frozenset
+built this way" without that ever being a documented contract - fixed
+at two levels.** (1) `simulator.py`'s own `recording` log: the old
+`step()` appended compromised/enabled nodes to a plain `list` in the
+exact order `attacker_step`/`defender_step`'s sequential Python loops
+produced them (requested action, then its effects, next requested
+action, ...); native returns the full step's result as an unordered
+`HashSet` (`step_enabled_defenses`/`step_compromised_nodes` in
+`simulator.rs`), and the new factories compute "what's new this step" via
+a Python `frozenset` difference (`step_performed_nodes`), which has no
+defined order either. Fixed with a new `_ordered_new_nodes(requested,
+new_nodes)` helper: explicitly-requested actions first, in the order the
+caller supplied them, filtered to the ones that actually succeeded,
+followed by any remaining effect-chain-only nodes (not explicitly
+requested, so no canonical order recoverable from native's aggregated
+output - documented as implementation-defined, not reproduced exactly).
+Multi-action-per-step interleaving (old code: node₁, node₁'s effects,
+node₂, node₂'s effects, ...) is only approximated as "all direct actions,
+then all effects" when more than one action succeeds in the same step -
+acceptable since nothing currently depends on finer-grained interleaving
+once each individual action's own effects are correctly grouped with it
+in the single-action-per-step case that's actually exercised.
+(2) Several tests relied on `next(iter(some_frozenset), None)` or similar
+raw-set-iteration-order traversal (`BreadthFirstAttacker`/
+`DepthFirstAttacker`'s default `ActionOrdering.NOTHING`, whose own comment
+already called this "theoretically non-deterministic but in practice
+deterministic in CPython" - true for the old pure-Python frozensets, not
+necessarily for frozensets rebuilt from Rust `HashSet`-returned id lists)
+- those tests' exact pinned iteration counts/action sequences were
+re-pinned to this port's own (still fully deterministic per seed, just
+different) output rather than chased into matching the old order
+exactly. Full list in §9.
+
+**A9: native's per-agent `iteration` counter is 0-indexed from `reset()`
+(0 immediately after reset, incrementing once per `step_native` call);
+`AttackerState`/`DefenderState.iteration` stays 1-indexed, matching the
+pre-A9 contract exactly (1 immediately after reset) - the native-driven
+factories add 1, and use native's *un-incremented* value as the
+`performed_nodes_order` key for that call, which is the exact value the
+old pure-Python `create_attacker_state`/`create_defender_state` used
+too (`previous_state.iteration` read *before* this call's `+1`).** Spelled
+out here because getting this off-by-one wrong silently corrupts
+`performed_nodes_order`'s keys without failing fast - confirmed by
+reproducing `tests/test_mal_simulator.py::test_simulator_multiple_
+attackers`/`test_simulator_multiple_defenders`'s exact `recording` dict
+keys (`{1: ..., 2: ..., ...}`), not just by reasoning about it.
+
+**A9: `AttackerSettings.ttc_dists`/`attacker_overriding_ttc_settings`'s
+"override-only, not merged with the graph-wide values" semantics are
+preserved exactly in native, including the detail that `.per_node()`'s
+resolved values are treated as predefined-distribution *name* strings
+(`TTCDist.from_name`), not arbitrary `TTCDist` objects, even though the
+field's declared type is `NodePropertyRule[TTCDist]`.** When an attacker
+has `ttc_dists` configured, `AttackerState.ttc_values`/`.impossible_steps`
+contain *only* the override-affected nodes (not the full graph-wide map
+with those nodes' values swapped in) - `simulator.rs`'s `attacker_ttc_
+overrides` iterates just the override map's keys, mirroring
+`attacker_overriding_ttc_settings`'s two `attack_step_ttc_values`/
+`get_impossible_attack_steps` calls restricted to `ttc_overrides.keys()`,
+not `malsim-core::graph_state::attack_step_ttc_values`'s own
+all-attack-steps iteration (which would have silently produced the wrong,
+merged shape). `native_settings.py::_flatten_ttc_dists` mirrors
+`TTCDist.from_name(name)` unconditionally on each `.per_node()` value for
+the same bug-for-bug-compatible reason - confirmed by keeping
+`tests/test_mal_simulator.py::test_simulator_attacker_override_ttcs_
+state`'s key-set assertion exact (only the structural "which nodes"
+property, not the RNG-dependent sampled values - §9) rather than
+widening it to "the full graph".
+
+**A9: `MalSimulator._native_sim` is excluded from `__getstate__` with no
+corresponding `__setstate__` repair, and this is an *extension* of an
+existing limitation, not a new one.** `MalSimulator` already has no
+`__setstate__`: `_defender_reward_fns`/`_attacker_reward_fns` are
+similarly excluded from `__getstate__` and are simply absent from
+`self.__dict__` after unpickling (Python's default `__reduce_ex__`
+behavior with no `__setstate__` is `obj.__dict__.update(state)`, nothing
+more) - calling `.agent_reward()`/`.agent_reward_by_name()` on a restored
+object already raised `AttributeError` before A9, and nothing in the test
+suite exercises that path (`tests/test_mal_simulator.py::
+test_simulator_picklable` only pickles immediately after construction and
+checks `sim_settings`/`attack_graph` equality, never calls `.step()` or
+`.agent_reward()` afterward). `_native_sim` joining that same exclusion
+list means `.step()`/`.reset()` on a restored object now *also* raise
+`AttributeError` rather than silently operating on stale/mismatched
+native state - a loud, immediate failure, not a correctness bug, and
+consistent with the existing style of limitation rather than a new kind
+of one. A real fix (reconstructing native's internal runtime state from
+the already-faithfully-pickled mirrored `AttackerState`/`DefenderState`/
+`MalSimulatorState` Python dataclasses) is possible but nontrivial
+(native's own RNG stream position can't be recovered without Rust-side
+RNG state serialization) and not warranted by any current test or usage
+pattern - revisit if a real pickle-mid-episode-then-continue use case
+shows up.
+
+**A9: a genuine cross-process non-determinism bug, found and fixed after
+the user flagged a flaky test post-review - `stable_ids` now sorts.**
+`std`'s default `HashSet`/`HashMap` hasher is seeded from OS randomness
+once per process, not from anything malsim controls - so the *same*
+`reset_native`/`step_native` call, with the *same* seed, on the *same*
+graph, returned `action_surface`/other id lists in a genuinely different
+order on every separate process invocation (confirmed empirically: four
+back-to-back `python -c` calls with identical inputs produced four
+different orderings). This is strictly worse than the "order differs
+from the old Python code" class of issue already documented above - it
+meant the native layer itself wasn't reproducible run-to-run, which
+§2.1's "statistically-equivalent" contract never intended to relax.
+Fixed by sorting the `Vec<i64>` `stable_ids` builds before returning it
+(`py-bindings/malsim-pyo3/src/simulator.rs`) - ascending by stable id,
+cheap, and the only place node-id sets cross the FFI boundary as an
+ordered `Vec` (the `HashMap`-returning `id_value_map` wasn't touched -
+nothing reads those dicts' iteration order, only looks up by key).
+
+**A9: this `stable_ids` fix alone did not fully stabilize two tests -
+both root causes are pre-existing properties this port's RNG-stream
+change (§2.1) merely made visible, not new bugs, and both are now fixed
+at the test level.** (1) `ShortestPathAttacker`'s path-cost tie-breaking
+(`path_finding.py::_find_path_to`'s `sorted(paths, key=itemgetter(1))`,
+stable-sorted over `list(attacker_state.performed_nodes)`) is sensitive
+to `frozenset` iteration order, which depends on each `AttackGraphNode`'s
+`__hash__` - and `maltoolbox-attackgraph-py/src/node.rs`'s `__hash__`
+folds in the *owning graph's raw pointer*, so a `frozenset` of nodes
+iterates in a different order on every process run regardless of any
+seed malsim controls, exactly like the `stable_ids` issue above but in
+Python, on a dependency's object, unfixable from this repo.
+`test_simulator_attacker_override_ttcs_step` asserted `good_iteration <
+bad_iteration`; occasional cost ties (made more frequent by this port's
+different TTC sample values for this seed) sometimes resolve both
+attackers to the same iteration count depending on that unstable hash
+order - a legitimate "tied" outcome, not a regression. Relaxed to
+`good_iteration <= bad_iteration`, the invariant that actually holds
+unconditionally, with the mechanism recorded in the test's own comment.
+(2) `TTCSoftMinAttacker.get_next_action` (`policies/attackers/
+ttc_soft_min.py`) samples from a softmax over TTC-derived weights via
+its *own* `random.Random(seed)`, seeded from `agent_config.get('seed')` -
+`tests/agents/test_ttc_avoider.py::test_ttc_avoider` constructed it with
+an empty config (`TTCSoftMinAttacker({})`), so that `seed` was `None`,
+drawing from OS entropy on every run. This was always probabilistically
+flaky by construction (a softmax assigns the "hard" branch a small but
+non-zero weight), confirmed by running the test's logic across 30
+independent process invocations with no seed (~1/30 failure rate) vs. 40
+with a fixed policy seed (0/40 failures) - this port's different TTC
+values for this scenario's seed happened to narrow the easy/hard weight
+gap enough to make the pre-existing flake practically visible instead of
+theoretical. Fixed by seeding the policy in the test
+(`TTCSoftMinAttacker({'seed': 0})`), not by touching the policy or the
+simulator - `test_ttc_avoider_low_sharpness` (same file) already
+exercises the genuinely-probabilistic low-sharpness case correctly, via
+many trials and a tolerance, so this single-trial high-sharpness test
+is the only one that needed a seed to be deterministic rather than
+"probabilistic with the knob turned eliminated".

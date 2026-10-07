@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from collections.abc import MutableSet, Set, Mapping
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 from malsim.config.node_property_rule import NodePropertyRule
 from malsim.mal_simulator.attack_surface import (
@@ -103,6 +103,99 @@ def create_attacker_state(
     )
 
 
+def create_attacker_state_from_native(
+    sim_state: MalSimulatorState,
+    name: str,
+    attacker_settings: AttackerSettings[AttackGraphNode],
+    entry_points: Set[AttackGraphNode],
+    native_agent_out: Mapping[str, Any],
+    previous_state: AttackerState | None,
+) -> AttackerState:
+    """Build an `AttackerState` from one attacker's `reset_native`/
+    `step_native` output dict (PORTING_NOTES.md §5 Phase A9) - the
+    native-output-driven counterpart of `create_attacker_state` above.
+
+    `create_attacker_state`/`initial_attacker_state` are deliberately left
+    untouched by this function: `DynaMalSimulator` still calls them
+    directly with its own pure-Python recompute (§2.3 - its own port is a
+    later phase), so changing their signature/behavior would break it. See
+    PORTING_NOTES.md §10 for why this is a new, separate function rather
+    than an in-place rewrite of `create_attacker_state`.
+
+    Unlike `create_attacker_state`, most fields here are resolved directly
+    from native's output with no merging against `previous_state`: native
+    already returns full-episode-accumulated `performed_nodes`/
+    `attempted_nodes`/`num_attempts`/`ttc_values`/`impossible_steps`, not
+    just this step's delta. Only `performed_nodes_order` is Python-only
+    bookkeeping native has no concept of, so it's still built
+    incrementally here via a diff against `previous_state`.
+    """
+    attack_graph = sim_state.attack_graph
+
+    performed_nodes = frozenset(
+        attack_graph.nodes[node_id] for node_id in native_agent_out['performed_nodes']
+    )
+    attempted_nodes = frozenset(
+        attack_graph.nodes[node_id] for node_id in native_agent_out['attempted_nodes']
+    )
+    action_surface = frozenset(
+        attack_graph.nodes[node_id] for node_id in native_agent_out['action_surface']
+    )
+    # Dense by default (every attack step present, defaulting to 0) -
+    # `attempt_attacker_step` (pure Python, still used directly by
+    # `DynaMalSimulator` and by some existing tests - §2.3/§10) indexes
+    # `agent.num_attempts[node]` unconditionally for any node about to be
+    # attempted, matching `create_attacker_state`'s own
+    # `dict.fromkeys(sim_state.attack_graph.attack_steps, 0)` - native's
+    # own map is sparse (only nodes actually attempted), so it's overlaid
+    # on top of the dense default rather than used as-is.
+    num_attempts = dict.fromkeys(attack_graph.attack_steps, 0)
+    num_attempts.update(
+        {
+            attack_graph.nodes[node_id]: count
+            for node_id, count in native_agent_out['num_attempts'].items()
+        }
+    )
+    ttc_values = {
+        attack_graph.nodes[node_id]: value
+        for node_id, value in native_agent_out['ttc_values'].items()
+    }
+    impossible_steps = frozenset(
+        attack_graph.nodes[node_id] for node_id in native_agent_out['impossible_steps']
+    )
+
+    previous_performed_nodes = (
+        previous_state.performed_nodes if previous_state else frozenset()
+    )
+    new_performed_nodes = performed_nodes - previous_performed_nodes
+    performed_nodes_order = dict(
+        previous_state.performed_nodes_order if previous_state else {}
+    )
+    # native's returned `iteration` is 0-indexed from reset and is exactly
+    # the key `performed_nodes_order` should use for this call's new
+    # nodes; `AttackerState.iteration` itself is 1-indexed (§5/A9, §10).
+    native_iteration = native_agent_out['iteration']
+    if new_performed_nodes:
+        performed_nodes_order[native_iteration] = frozenset(new_performed_nodes)
+
+    return AttackerState(
+        name,
+        entry_points=entry_points,
+        sim_state=sim_state,
+        iteration=native_iteration + 1,
+        performed_nodes_order=performed_nodes_order,
+        settings=attacker_settings,
+        ttc_values=ttc_values,
+        impossible_steps=impossible_steps,
+        performed_nodes=performed_nodes,
+        attempted_nodes=attempted_nodes,
+        action_surface=action_surface,
+        num_attempts=num_attempts,
+        previous_state=previous_state,
+        goals=attacker_settings.goals,
+    )
+
+
 def get_entrypoint_compromises(
     sim_state: MalSimulatorState,
     entry_points: Set[AttackGraphNode],
@@ -119,27 +212,31 @@ def get_entrypoint_compromises(
 
 
 def get_entry_points(
-    sim_state: MalSimulatorState,
+    attack_graph: AttackGraph,
     attacker_settings: AttackerSettings[AttackGraphNode],
     rng: np.random.Generator,
 ) -> Set[AttackGraphNode]:
     """
     Get entry points as set of AttackGraphNodes from attacker settings.
     If multiple sets of entry points are given, sample one set from the options.
+
+    Takes `attack_graph` directly (not a `MalSimulatorState`) since this is
+    the only thing its body reads - this lets it be called before a
+    `MalSimulatorState` exists yet (PORTING_NOTES.md §5/§10 Phase A9: the
+    native-backed `reset()` must resolve entry points before it has built
+    one, to pass the single resolved set into `reset_native`).
     """
 
     if isinstance(attacker_settings.entry_points, Set):
         return frozenset(
-            full_names_or_nodes_to_nodes(
-                sim_state.attack_graph, attacker_settings.entry_points
-            )
+            full_names_or_nodes_to_nodes(attack_graph, attacker_settings.entry_points)
         )
     else:
         # Multiple potential entry point sets given
         # - sample one set of entry points from the options
         chosen_entry_points = rng.choice(list(attacker_settings.entry_points))
         return set(
-            full_names_or_nodes_to_nodes(sim_state.attack_graph, chosen_entry_points)  # type: ignore
+            full_names_or_nodes_to_nodes(attack_graph, chosen_entry_points)  # type: ignore
         )
 
 
@@ -164,7 +261,7 @@ def initial_attacker_state(
             sim_state.graph_state.impossible_attack_steps,
         )
     )
-    entry_points = get_entry_points(sim_state, attacker_settings, rng)
+    entry_points = get_entry_points(sim_state.attack_graph, attacker_settings, rng)
     new_compromised_nodes: Set[AttackGraphNode] = set()
 
     if sim_state.settings.compromise_entrypoints_at_start:

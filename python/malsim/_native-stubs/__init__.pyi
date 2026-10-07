@@ -9,11 +9,11 @@ that compiled module's API.
 
 See ``PORTING_NOTES.md`` §5/A1 for what's actually implemented so far -
 `node_count` is a Phase A1 smoke-test function only, not a stable API.
-`Simulator` (Phase A8, §5/A8) is likewise not a stable/public API: it is
-not wired into `MalSimulator` yet (that's A9's job), and
+`Simulator` (Phase A8/A9, §5) backs `MalSimulator.reset()`/`.step()` as of
+A9, but is still not itself a stable/public API (an implementation
+detail of `malsim.mal_simulator.simulator`), and
 `reset_native`/`step_native`'s dict shapes are deliberately typed as
-plain `dict[str, Any]` here rather than a precise `TypedDict`, since the
-shape is still expected to grow at A9.
+plain `dict[str, Any]` here rather than a precise `TypedDict`.
 """
 
 from typing import Any
@@ -21,6 +21,13 @@ from typing import Any
 from maltoolbox.attackgraph import AttackGraph
 
 def node_count(graph: AttackGraph) -> int: ...
+def set_detector_rates(
+    graph: AttackGraph,
+    node_id: int,
+    label: str,
+    tprate: float | None,
+    fprate: float | None,
+) -> None: ...
 
 class Simulator:
     def __init__(self, graph: AttackGraph) -> None: ...

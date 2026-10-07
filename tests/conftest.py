@@ -18,6 +18,27 @@ def get_node(graph: AttackGraph, full_name: str) -> AttackGraphNode:
     return node
 
 
+def connect_nodes(parent: AttackGraphNode, child: AttackGraphNode) -> None:
+    """Wire `parent`/`child` as connected in a manually-built attack graph.
+
+    `node.children.add(x)`/`node.parents.add(x)` only mutates a cached
+    Python-side set the `maltoolbox` PyO3 bindings hand out - it never
+    writes back into the graph's real (Rust-native) edge storage (see
+    `maltoolbox-attackgraph-py/src/node.rs`'s `edges_sets`/`set_children`:
+    only *assigning* `.children`/`.parents` goes through `set_edge_field`,
+    which does sync). `.add()` happened to look correct under the old
+    pure-Python malsim, which only ever read the same cached set back -
+    but `malsim`'s Rust-native hot path (PORTING_NOTES.md §5 Phase A9)
+    reads the graph's real edges directly and silently sees none, so a
+    manually-built graph's action surface comes out empty. Use this
+    helper (assignment, not `.add()`) instead of `children.add`/
+    `parents.add` in any test that constructs a graph node-by-node and
+    then runs it through `MalSimulator`.
+    """
+    parent.children = parent.children | {child}
+    child.parents = child.parents | {parent}
+
+
 def path_testdata(filename: str) -> str:
     """Returns the absolute path of a test data file (in ./testdata)
 

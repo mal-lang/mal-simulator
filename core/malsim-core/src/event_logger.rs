@@ -170,6 +170,16 @@ pub fn collect_logs(
     let mut logs = Vec::new();
     for attack_step_id in step_compromised_nodes {
         let node = &graph.nodes[attack_step_id];
+        if node.detectors.is_empty() {
+            // Mirrors Python's `assert attack_step.model_asset is not
+            // None` living *inside* `for detector in
+            // attack_step.detectors.values()` - it only ever runs when
+            // there's at least one detector to process, so a
+            // model-asset-less node with no detectors is never checked
+            // (found during Phase A9 end-to-end wiring - see
+            // PORTING_NOTES.md §10).
+            continue;
+        }
         if node.model_asset.is_none() {
             return Err(EventLoggerError::MissingModelAsset(attack_step_id));
         }
@@ -224,10 +234,26 @@ mod tests {
         let mut graph = dummy_graph();
         let step = add_dummy_node(&mut graph, "DummyOrAttackStep");
         // `add_dummy_node` never sets `model_asset` - mirrors Python's
-        // `assert attack_step.model_asset is not None`.
+        // `assert attack_step.model_asset is not None`, which only runs
+        // once the step actually has a detector to process.
+        add_detector(&mut graph, step, "d", None, None, HashMap::new());
         let mut rng = StdRng::seed_from_u64(1);
         let result = collect_logs(0, &graph, [step], &HashSet::new(), &mut rng);
         assert_eq!(result, Err(EventLoggerError::MissingModelAsset(step)));
+    }
+
+    #[test]
+    fn collect_logs_missing_model_asset_without_detectors_does_not_error() {
+        let mut graph = dummy_graph();
+        let step = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        // No detectors attached and no `model_asset` set - mirrors
+        // Python's assert never firing when `attack_step.detectors` is
+        // empty (found during Phase A9 end-to-end wiring, see
+        // PORTING_NOTES.md §10: a real scenario's pre-compromised node
+        // with no model asset and no detectors used to error here).
+        let mut rng = StdRng::seed_from_u64(1);
+        let result = collect_logs(0, &graph, [step], &HashSet::new(), &mut rng);
+        assert_eq!(result, Ok(Vec::new()));
     }
 
     #[test]

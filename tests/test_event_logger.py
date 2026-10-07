@@ -2,7 +2,8 @@ from malsim.mal_simulator.defender_state import DefenderState
 from malsim.mal_simulator.simulator import MalSimulator
 from malsim.mal_simulator import run_simulation
 from malsim.scenario.scenario import Scenario
-from maltoolbox.attackgraph import AttackGraph, AttackGraphNode, Detector
+from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+from malsim import _native
 
 from .conftest import get_node
 
@@ -12,23 +13,16 @@ SCENARIO_FILE = 'tests/testdata/scenarios/detector_lang_scenario.yml'
 def _force_detector_rates(
     graph: AttackGraph, node: AttackGraphNode, tprate: float, fprate: float
 ) -> None:
-    """Replaces node's 'logExploit' detector with one using the given rates.
+    """Forces node's 'logExploit' detector's tprate/fprate.
 
-    Updates both the node's own detector mapping (read by collect_logs) and
-    the graph's detector list (read by collect_false_positives) -- the two
-    are not kept in sync automatically.
+    `node.detectors['logExploit'] = Detector(...)` only mutates a
+    Python-side cache `maltoolbox`'s bindings hand out - it's never
+    visible to malsim's Rust-native `collect_logs`/`collect_false_positives`
+    (PORTING_NOTES.md §5/§10 Phase A9), which read the attack graph's real
+    detector data through the shared graph handle. `_native.set_detector_rates`
+    mutates that real data directly instead.
     """
-    old = node.detectors['logExploit']
-    new = Detector(
-        name=old.name,
-        node=old.node,
-        potential_context=old.potential_context,
-        tprate=tprate,
-        fprate=fprate,
-    )
-    node.detectors['logExploit'] = new
-    graph.detectors.remove(old)
-    graph.detectors.append(new)
+    _native.set_detector_rates(graph, node.id, 'logExploit', tprate, fprate)
 
 
 def test_logger_attacks() -> None:

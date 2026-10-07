@@ -1,21 +1,22 @@
-//! `malsim._native.Simulator` - the Phase A8 native simulator pyclass (see
-//! `PORTING_NOTES.md` §5 Phase A8/§10). Not part of malsim's public API -
-//! `MalSimulator.reset()`/`.step()` don't call into this yet (that's A9's
-//! job). This module exists to prove A1-A7's ported modules compose into a
-//! real step loop, exercised end to end from Python through a boring,
-//! fully-inspectable primitives-only `dict` interface
-//! (`reset_native`/`step_native`), not to be a finished product.
+//! `malsim._native.Simulator` - the Phase A8 native simulator pyclass,
+//! extended at Phase A9 to back `MalSimulator.reset()`/`.step()` (see
+//! `PORTING_NOTES.md` §5 Phase A8/A9/§10).
 //!
-//! Scope, deliberately smaller than the full Python `MalSimulatorSettings`/
-//! `AttackerSettings`/`DefenderSettings` surface - left for A9 to extend
-//! once real settings-flattening exists:
-//! - No per-agent TTC distribution overrides (`AttackerSettings.ttc_dists`).
+//! Scope still deliberately smaller than the full Python
+//! `MalSimulatorSettings`/`AttackerSettings`/`DefenderSettings` surface:
 //! - No "multiple entry point sets, sampled at reset" support
 //!   (`AttackerSettings.entry_points` as a `tuple[Set, ...]`) - only a
-//!   single flat set of entry points per attacker.
+//!   single flat set of entry points per attacker. A9 resolves that
+//!   sampling in Python (reusing `attacker_state_factories.py::
+//!   get_entry_points` unchanged) before calling `reset_native`, since the
+//!   sampling itself has no RNG-reproducibility stakes worth porting - see
+//!   PORTING_NOTES.md §10.
 //! - No rewards (unchanged, pure Python, per §2.4 - not this module's job
 //!   regardless of phase).
 //!
+//! Per-agent TTC distribution overrides (`AttackerSettings.ttc_dists`) *are*
+//! supported as of A9 - see `parse_ttc_dist_from_py`/
+//! `extract_optional_ttc_dist_overrides`/`attacker_ttc_overrides` below.
 //! Every other hot-loop-relevant field (`ttc_mode`, both
 //! `AttackSurfaceSettings` fields, both bernoulli toggles,
 //! `compromise_entrypoints_at_start`, entry points/goals/actionable steps/
@@ -31,6 +32,7 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::str::FromStr;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
 use pyo3::exceptions::PyValueError;
@@ -44,8 +46,12 @@ use malsim_core::attacker_step::{attacker_is_terminated, attacker_step};
 use malsim_core::defender_step::{defender_is_terminated, defender_step};
 use malsim_core::defense_surface::get_defense_surface;
 use malsim_core::event_logger::{collect_false_positives, collect_logs, LogEntry};
-use malsim_core::graph_state::{compute_initial_graph_state, GraphState, TtcMode};
+use malsim_core::graph_state::{
+    attack_step_ttc_value, compute_initial_graph_state, is_impossible_attack_step, GraphState,
+    TtcMode,
+};
 use malsim_core::observability::observed_nodes;
+use malsim_core::ttc::{named_ttc_dist, DistFunction, Operation, TtcDist};
 
 use crate::extract_shared_graph;
 
@@ -78,8 +84,26 @@ fn to_node_id(graph: &AttackGraph, stable_id: i64) -> PyResult<AttackGraphNodeId
     })
 }
 
+/// Sorted so every id-set crossing the FFI boundary (`action_surface`,
+/// `performed_nodes`, ...) has a deterministic order - `HashSet`'s default
+/// hasher is seeded randomly per process, so an unsorted `Vec` collected
+/// from one would give a *different* order on every run even for the
+/// exact same seed and graph (found during Phase A9 - see
+/// PORTING_NOTES.md §10: this silently broke run-to-run reproducibility,
+/// not just parity with the old Python frozenset ordering).
 fn stable_ids(graph: &AttackGraph, ids: impl IntoIterator<Item = AttackGraphNodeId>) -> Vec<i64> {
-    ids.into_iter().map(|id| graph.nodes[id].id).collect()
+    let mut ids: Vec<i64> = ids.into_iter().map(|id| graph.nodes[id].id).collect();
+    ids.sort_unstable();
+    ids
+}
+
+fn id_value_map<V: Copy>(
+    graph: &AttackGraph,
+    map: &HashMap<AttackGraphNodeId, V>,
+) -> HashMap<i64, V> {
+    map.iter()
+        .map(|(&id, &v)| (graph.nodes[id].id, v))
+        .collect()
 }
 
 // --- Input extraction helpers ---
@@ -148,6 +172,91 @@ fn get_bool(dict: &Bound<'_, PyDict>, key: &str, default: bool) -> PyResult<bool
     }
 }
 
+/// Port of `TTCDist.from_dict`'s Python-dict parsing (§2.4: `ttc_dists`
+/// overrides cross the FFI boundary as the same `to_dict()`/`from_dict()`
+/// wire shape Python's `TTCDist` already uses - `{"name", "arguments"}`
+/// for a leaf distribution, a named-distribution shortcut, or
+/// `{"lhs", "rhs", "type"}` for a combined one) - built directly against
+/// `ttc::TtcDist::new`/`with_combine`/`named_ttc_dist` rather than via
+/// `serde_json::Value`, so this module doesn't need a direct `serde_json`
+/// dependency (it's only transitively present via `malsim-core`).
+fn parse_ttc_dist_from_py(dict: &Bound<'_, PyDict>) -> PyResult<TtcDist> {
+    if let Some(name_obj) = get_dict_value(dict, "name")? {
+        let name: String = name_obj.extract()?;
+        if let Some(dist) = named_ttc_dist(&name) {
+            return Ok(dist);
+        }
+        let function = DistFunction::from_str(&name).map_err(|_| {
+            PyValueError::new_err(format!("unknown distribution function name \"{name}\""))
+        })?;
+        let args: Vec<f64> = require_dict_value(dict, "arguments")?.extract()?;
+        return TtcDist::new(function, args).map_err(to_py_err);
+    }
+
+    let lhs_dict = require_dict_value(dict, "lhs")?.cast::<PyDict>()?.clone();
+    let rhs_dict = require_dict_value(dict, "rhs")?.cast::<PyDict>()?.clone();
+    let op_str: String = require_dict_value(dict, "type")?.extract()?;
+    let op = Operation::from_str(&op_str).map_err(|_| {
+        PyValueError::new_err(format!("unknown ttc combine operation \"{op_str}\""))
+    })?;
+    let lhs = parse_ttc_dist_from_py(&lhs_dict)?;
+    let rhs = parse_ttc_dist_from_py(&rhs_dict)?;
+    Ok(lhs.with_combine(rhs, op))
+}
+
+/// Parses the optional per-attacker `ttc_dists` override map
+/// (`dict[node_id, ttc_dict]`, already flattened from
+/// `AttackerSettings.ttc_dists: NodePropertyRule[TTCDist]` on the Python
+/// side via `.per_node()` + `.to_dict()` - §2.4) into
+/// `HashMap<AttackGraphNodeId, TtcDist>`.
+fn extract_optional_ttc_dist_overrides(
+    graph: &AttackGraph,
+    dict: &Bound<'_, PyDict>,
+    key: &str,
+) -> PyResult<Option<HashMap<AttackGraphNodeId, TtcDist>>> {
+    let Some(v) = get_dict_value(dict, key)? else {
+        return Ok(None);
+    };
+    let raw = v.cast::<PyDict>()?;
+    let mut out = HashMap::with_capacity(raw.len());
+    for (k, val) in raw.iter() {
+        let node_id: i64 = k.extract()?;
+        let dist_dict = val.cast::<PyDict>()?.clone();
+        out.insert(
+            to_node_id(graph, node_id)?,
+            parse_ttc_dist_from_py(&dist_dict)?,
+        );
+    }
+    Ok(Some(out))
+}
+
+/// Computes an attacker's override-only `ttc_values`/`impossible_steps`
+/// (§2.4/§10: when `ttc_dists` is configured, these fields hold *only*
+/// the override-affected nodes - mirroring
+/// `attacker_state_factories.py::attacker_overriding_ttc_settings`
+/// exactly, not a merge with the graph-wide values).
+fn attacker_ttc_overrides(
+    graph: &AttackGraph,
+    rng: &mut StdRng,
+    ttc_mode: TtcMode,
+    ttc_dist_overrides: &HashMap<AttackGraphNodeId, TtcDist>,
+) -> PyResult<(HashMap<AttackGraphNodeId, f64>, HashSet<AttackGraphNodeId>)> {
+    let mut ttc_values = HashMap::new();
+    let mut impossible_steps = HashSet::new();
+    for (&node_id, dist) in ttc_dist_overrides {
+        let node = &graph.nodes[node_id];
+        if let Some(v) =
+            attack_step_ttc_value(node, Some(dist), ttc_mode, rng).map_err(to_py_err)?
+        {
+            ttc_values.insert(node_id, v);
+        }
+        if is_impossible_attack_step(node, Some(dist), rng).map_err(to_py_err)? {
+            impossible_steps.insert(node_id);
+        }
+    }
+    Ok((ttc_values, impossible_steps))
+}
+
 fn parse_ttc_mode(s: &str) -> PyResult<TtcMode> {
     match s {
         "DISABLED" => Ok(TtcMode::Disabled),
@@ -204,6 +313,17 @@ struct AttackerRuntime {
     action_surface: HashSet<AttackGraphNodeId>,
     num_attempts: HashMap<AttackGraphNodeId, u64>,
     iteration: u64,
+    /// Per-node TTC distribution overrides (`AttackerSettings.ttc_dists`,
+    /// already flattened - §2.4) - `None` when this attacker has no
+    /// override configured, matching `attempt_attacker_step`'s existing
+    /// `ttc_dist_overrides` parameter shape.
+    ttc_dist_overrides: Option<HashMap<AttackGraphNodeId, TtcDist>>,
+    /// The `AttackerState.ttc_values`/`.impossible_steps` fields this
+    /// attacker exposes - override-only when `ttc_dist_overrides` is
+    /// `Some`, otherwise a clone of the graph-wide values (see
+    /// `attacker_ttc_overrides`'s doc comment).
+    ttc_values: HashMap<AttackGraphNodeId, f64>,
+    impossible_steps: HashSet<AttackGraphNodeId>,
 }
 
 /// The Rust-side equivalent of the mutable parts of `DefenderState` - see
@@ -312,6 +432,21 @@ impl Simulator {
                 let goals = extract_optional_id_set(&graph, cfg, "goals")?.unwrap_or_default();
                 let actionable_steps = extract_optional_id_set(&graph, cfg, "actionable_steps")?;
 
+                let ttc_dist_overrides =
+                    extract_optional_ttc_dist_overrides(&graph, cfg, "ttc_dists")?;
+                let (ttc_values, impossible_steps) = match &ttc_dist_overrides {
+                    Some(overrides) => attacker_ttc_overrides(
+                        &graph,
+                        &mut rng,
+                        native_settings.ttc_mode,
+                        overrides,
+                    )?,
+                    None => (
+                        graph_state.ttc_values.clone(),
+                        graph_state.impossible_attack_steps.clone(),
+                    ),
+                };
+
                 let mut performed_nodes: HashSet<AttackGraphNodeId> = HashSet::new();
                 if native_settings.compromise_entrypoints_at_start {
                     for &entry_point in &entry_points {
@@ -358,6 +493,9 @@ impl Simulator {
                         action_surface,
                         num_attempts: HashMap::new(),
                         iteration: 0,
+                        ttc_dist_overrides,
+                        ttc_values,
+                        impossible_steps,
                     },
                 );
             }
@@ -505,8 +643,8 @@ impl Simulator {
                     &runtime.action_surface,
                     &runtime.performed_nodes,
                     &runtime.num_attempts,
-                    None,
-                    None,
+                    runtime.ttc_dist_overrides.as_ref(),
+                    Some(&runtime.ttc_values),
                     &state.graph_state.ttc_values,
                     &state.graph_state.impossible_attack_steps,
                     &state.enabled_defenses,
@@ -635,6 +773,28 @@ impl Simulator {
             "enabled_defenses",
             stable_ids(&graph, state.enabled_defenses.iter().copied()),
         )?;
+        sim_state.set_item(
+            "ttc_values",
+            id_value_map(&graph, &state.graph_state.ttc_values),
+        )?;
+        sim_state.set_item(
+            "impossible_attack_steps",
+            stable_ids(
+                &graph,
+                state.graph_state.impossible_attack_steps.iter().copied(),
+            ),
+        )?;
+        sim_state.set_item(
+            "necessity_per_node",
+            id_value_map(&graph, &state.graph_state.necessity_per_node),
+        )?;
+        sim_state.set_item(
+            "pre_enabled_defenses",
+            stable_ids(
+                &graph,
+                state.graph_state.pre_enabled_defenses.iter().copied(),
+            ),
+        )?;
 
         let attacker_triples: Vec<_> = state
             .attackers
@@ -666,6 +826,11 @@ impl Simulator {
                 .map(|(&id, &n)| (graph.nodes[id].id, n))
                 .collect();
             d.set_item("num_attempts", num_attempts)?;
+            d.set_item("ttc_values", id_value_map(&graph, &a.ttc_values))?;
+            d.set_item(
+                "impossible_steps",
+                stable_ids(&graph, a.impossible_steps.iter().copied()),
+            )?;
             d.set_item("iteration", a.iteration)?;
             d.set_item(
                 "terminated",

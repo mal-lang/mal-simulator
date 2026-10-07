@@ -59,9 +59,55 @@ fn node_count(graph: &Bound<'_, PyAny>) -> PyResult<usize> {
     Ok(count)
 }
 
+/// Test-support-only utility (not a real public API, same tier as
+/// `node_count` above): directly mutates a detector's `tprate`/`fprate`
+/// through the shared `Rc<RefCell<AttackGraph>>`, bypassing
+/// `maltoolbox`'s Python-level `node.detectors` binding entirely.
+///
+/// Found necessary during Phase A9 (PORTING_NOTES.md §5/§10): `maltoolbox`'s
+/// `AttackGraphNode.detectors` Python property is a *Python-side* cached
+/// `dict` seeded once from the core's generation-time detector data -
+/// `node.detectors['x'] = Detector(...)` mutates only that cache, never the
+/// real `AttackGraphNode.detectors` field malsim-core's Rust hot path
+/// reads, so tests that used this pattern to force deterministic
+/// tprate/fprate for a run were silently exercising the *old* rates once
+/// `collect_logs`/`collect_false_positives` moved to Rust. This function
+/// mutates the real field directly instead.
+#[pyfunction]
+fn set_detector_rates(
+    graph: &Bound<'_, PyAny>,
+    node_id: i64,
+    label: &str,
+    tprate: Option<f64>,
+    fprate: Option<f64>,
+) -> PyResult<()> {
+    let shared = extract_shared_graph(graph)?;
+    let mut graph = shared.borrow_mut();
+    let key = *graph.id_to_node.get(&node_id).ok_or_else(|| {
+        pyo3::exceptions::PyValueError::new_err(format!(
+            "node id {node_id} is not part of this graph"
+        ))
+    })?;
+    let detector = graph
+        .nodes
+        .get_mut(key)
+        .expect("id_to_node only maps to live nodes")
+        .detectors
+        .get_mut(label)
+        .ok_or_else(|| {
+            pyo3::exceptions::PyValueError::new_err(format!(
+                "node {node_id} has no detector labeled \"{label}\""
+            ))
+        })?;
+    detector.tprate = tprate;
+    detector.fprate = fprate;
+    Ok(())
+}
+
 #[pymodule]
 fn _native(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(node_count, m)?)?;
+    m.add_function(wrap_pyfunction!(set_detector_rates, m)?)?;
     m.add_class::<simulator::Simulator>()?;
     Ok(())
 }

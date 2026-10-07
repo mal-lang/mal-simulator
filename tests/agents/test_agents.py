@@ -14,6 +14,8 @@ from malsim.policies import (
 )
 import numpy as np
 
+from tests.conftest import connect_nodes
+
 
 def test_defend_compromised_defender(dummy_lang_graph: LanguageGraph) -> None:
     r"""
@@ -60,24 +62,17 @@ def test_defend_compromised_defender(dummy_lang_graph: LanguageGraph) -> None:
     )
 
     # Connect nodes (Node1 -> Node3, Node4, Node5)
-    node0.children.add(node3)
-    node3.parents.add(node0)
-    node0.children.add(node4)
-    node4.parents.add(node0)
-    node0.children.add(node5)
-    node5.parents.add(node0)
+    connect_nodes(node0, node3)
+    connect_nodes(node0, node4)
+    connect_nodes(node0, node5)
 
     # Connect nodes (Node1 -> Node3, Node4)
-    node1.children.add(node3)
-    node3.parents.add(node1)
-    node1.children.add(node4)
-    node4.parents.add(node1)
+    connect_nodes(node1, node3)
+    connect_nodes(node1, node4)
 
     # Connect nodes (Node2 -> Node4, Node5)
-    node2.children.add(node4)
-    node4.parents.add(node2)
-    node2.children.add(node5)
-    node5.parents.add(node2)
+    connect_nodes(node2, node4)
+    connect_nodes(node2, node5)
 
     sim = MalSimulator(
         ag,
@@ -144,28 +139,20 @@ def test_defend_future_compromised_defender(dummy_lang_graph: LanguageGraph) -> 
     node6 = ag.add_node(lg_attack_step=dummy_and_attack_step, node_id=6)
 
     # Connect nodes (Node1 -> Node3, Node4, Node5)
-    node0.children.add(node3)
-    node3.parents.add(node0)
-    node0.children.add(node4)
-    node4.parents.add(node0)
-    node0.children.add(node5)
-    node5.parents.add(node0)
+    connect_nodes(node0, node3)
+    connect_nodes(node0, node4)
+    connect_nodes(node0, node5)
 
     # Connect nodes (Node1 -> Node3, Node4)
-    node1.children.add(node3)
-    node3.parents.add(node1)
-    node1.children.add(node4)
-    node4.parents.add(node1)
+    connect_nodes(node1, node3)
+    connect_nodes(node1, node4)
 
     # Connect nodes (Node2 -> Node5, Node6)
-    node2.children.add(node5)
-    node5.parents.add(node2)
-    node2.children.add(node6)
-    node6.parents.add(node2)
+    connect_nodes(node2, node5)
+    connect_nodes(node2, node6)
 
     # Connect nodes (Node4 -> Node6)
-    node4.children.add(node6)
-    node6.parents.add(node4)
+    connect_nodes(node4, node6)
 
     sim = MalSimulator(
         ag,
@@ -201,12 +188,9 @@ def test_random_agent(dummy_lang_graph: LanguageGraph) -> None:
     node3 = ag.add_node(lg_attack_step=dummy_or_attack_step, node_id=3)
 
     # Connect node0 to all other nodes
-    node0.children.add(node1)
-    node1.parents.add(node0)
-    node0.children.add(node2)
-    node2.parents.add(node0)
-    node0.children.add(node3)
-    node3.parents.add(node0)
+    connect_nodes(node0, node1)
+    connect_nodes(node0, node2)
+    connect_nodes(node0, node3)
 
     sim = MalSimulator(
         ag,
