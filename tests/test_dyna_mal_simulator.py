@@ -391,16 +391,16 @@ def test_apply_model_effect_modification_record_partially_regenerates_graph(
         model,
         np.random.default_rng(),
     )
-    removed_assets = {
-        op.asset
-        for op in modification_record
-        if isinstance(op, AssetOp) and op.type == ModelEffectType.SUBTRACTIVE
-    }
-    removed_associations = {
-        op.assoc
-        for op in modification_record
-        if isinstance(op, AssocOp) and op.type == ModelEffectType.SUBTRACTIVE
-    }
+    removed_assets: set[ModelAsset] = set()
+    removed_associations: set[tuple[ModelAsset, str, ModelAsset]] = set()
+    for op in modification_record:
+        if isinstance(op, AssetOp) and op.type == ModelEffectType.SUBTRACTIVE:
+            assert isinstance(op.asset, ModelAsset)
+            removed_assets.add(op.asset)
+        elif isinstance(op, AssocOp) and op.type == ModelEffectType.SUBTRACTIVE:
+            left, field_name, right = op.assoc
+            assert isinstance(left, ModelAsset) and isinstance(right, ModelAsset)
+            removed_associations.add((left, field_name, right))
     attack_graph.partially_regenerate_graph(
         removed_assets=removed_assets, removed_associations=removed_associations
     )

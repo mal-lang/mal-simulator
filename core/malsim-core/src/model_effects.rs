@@ -96,17 +96,49 @@ impl fmt::Display for ModelEffectsError {
 
 impl std::error::Error for ModelEffectsError {}
 
+/// A self-contained reference to a model asset (id + type + name),
+/// captured at the moment a [`ModEffectOp`] is recorded rather than
+/// resolved later from the id alone - see `PORTING_NOTES.md` §6 Phase
+/// B4/B5: a later op in the *same* modification record can remove the
+/// very asset an earlier op referenced (directly, e.g. an asset added
+/// then removed within one record, or indirectly, e.g. `remove_asset_op`
+/// below records an asset's about-to-be-removed associations before
+/// removing the asset itself), so by the time a caller across the FFI
+/// boundary reads the full record, `model.assets[id]` may no longer
+/// resolve for an id this type already described - carrying the
+/// snapshot inline avoids needing a live lookup at all.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AssetRef {
+    pub id: i64,
+    pub asset_type: String,
+    pub name: String,
+}
+
+impl AssetRef {
+    pub(crate) fn from_model(model: &Model, id: i64) -> Self {
+        let asset = model
+            .get_asset_by_id(id)
+            .expect("AssetRef::from_model called with an id missing from the live model");
+        AssetRef {
+            id,
+            asset_type: asset.asset_type.clone(),
+            name: asset.name.clone(),
+        }
+    }
+}
+
 /// A single modification applied to the model, as a result of executing
-/// one model effect. Carries enough data (an `AssetSnapshot` for
-/// removals) to feed `AttackGraph::partially_regenerate_graph` directly -
-/// see `execute_model_effects`.
+/// one model effect. `AssetOp::Removed` additionally carries a full
+/// `AssetSnapshot` (not just the `AssetRef` every variant has) to feed
+/// `AttackGraph::partially_regenerate_graph` directly - see
+/// `execute_model_effects`.
 #[derive(Debug, Clone)]
 pub enum AssetOp {
     Added {
-        asset_id: i64,
+        asset: AssetRef,
     },
     Removed {
-        asset_id: i64,
+        asset: AssetRef,
         snapshot: Box<AssetSnapshot>,
     },
 }
@@ -114,14 +146,14 @@ pub enum AssetOp {
 #[derive(Debug, Clone)]
 pub enum AssocOp {
     Added {
-        left: i64,
+        left: AssetRef,
         field_name: String,
-        right: i64,
+        right: AssetRef,
     },
     Removed {
-        left: i64,
+        left: AssetRef,
         field_name: String,
-        right: i64,
+        right: AssetRef,
     },
 }
 
@@ -191,11 +223,15 @@ fn add_asset_op(
 
             match model.add_associated_assets(left_asset_id, &field_name, HashSet::from([new_id])) {
                 Ok(()) => {
-                    record.push(ModEffectOp::Asset(AssetOp::Added { asset_id: new_id }));
+                    let new_asset = AssetRef::from_model(model, new_id);
+                    let left = AssetRef::from_model(model, left_asset_id);
+                    record.push(ModEffectOp::Asset(AssetOp::Added {
+                        asset: new_asset.clone(),
+                    }));
                     record.push(ModEffectOp::Assoc(AssocOp::Added {
-                        left: left_asset_id,
+                        left,
                         field_name: field_name.clone(),
-                        right: new_id,
+                        right: new_asset,
                     }));
                 }
                 Err(_) => {
@@ -229,6 +265,12 @@ fn remove_asset_op(
     for (_left, _field_name, right_id) in &removal_info {
         let right_id = *right_id;
         if let Some(asset) = model.get_asset_by_id(right_id) {
+            // Captured here, before `remove_asset` below - by the time a
+            // caller across the FFI boundary reads this record, `right_id`
+            // itself is gone from the live model (see `AssetRef`'s doc
+            // comment), so its `AssetRef` must be built while it's still
+            // live, same as the asset's own removal snapshot further down.
+            let left_ref = AssetRef::from_model(model, right_id);
             // Snapshot both the dict and its sets: `remove_associated_assets`
             // mutates the live `associated_assets` sets in place.
             let snapshot: Vec<(String, HashSet<i64>)> = asset
@@ -242,10 +284,11 @@ fn remove_asset_op(
                     .is_ok()
                 {
                     for assoc_id in assoc_assets {
+                        let right_ref = AssetRef::from_model(model, assoc_id);
                         record.push(ModEffectOp::Assoc(AssocOp::Removed {
-                            left: right_id,
+                            left: left_ref.clone(),
                             field_name: field_name.clone(),
-                            right: assoc_id,
+                            right: right_ref,
                         }));
                     }
                 }
@@ -256,9 +299,10 @@ fn remove_asset_op(
     }
 
     for right_id in removal_assets {
+        let asset_ref = AssetRef::from_model(model, right_id);
         let snapshot = model.remove_asset(right_id)?;
         record.push(ModEffectOp::Asset(AssetOp::Removed {
-            asset_id: right_id,
+            asset: asset_ref,
             snapshot: Box::new(snapshot),
         }));
     }
@@ -303,9 +347,9 @@ fn add_assoc_op(
                 }
                 model.add_associated_assets(left_id, &field_name, HashSet::from([right_id]))?;
                 record.push(ModEffectOp::Assoc(AssocOp::Added {
-                    left: left_id,
+                    left: AssetRef::from_model(model, left_id),
                     field_name,
-                    right: right_id,
+                    right: AssetRef::from_model(model, right_id),
                 }));
             }
             AdditionTarget::NewAssetType(_) => {
@@ -323,9 +367,9 @@ fn add_assoc_op(
                         .is_ok()
                     {
                         record.push(ModEffectOp::Assoc(AssocOp::Added {
-                            left: left_id,
+                            left: AssetRef::from_model(model, left_id),
                             field_name: field_name.clone(),
-                            right: candidate_id,
+                            right: AssetRef::from_model(model, candidate_id),
                         }));
                     }
                     // else: mirrors Python's `logger.error(...)` + continue.
@@ -359,11 +403,13 @@ fn remove_assoc_op(
             .map(|a| a.associated_assets.contains_key(&field_name))
             .unwrap_or(false);
         if has_field {
+            let left_ref = AssetRef::from_model(model, left_id);
+            let right_ref = AssetRef::from_model(model, right_id);
             model.remove_associated_assets(left_id, &field_name, &HashSet::from([right_id]))?;
             record.push(ModEffectOp::Assoc(AssocOp::Removed {
-                left: left_id,
+                left: left_ref,
                 field_name,
-                right: right_id,
+                right: right_ref,
             }));
         }
         // else: mirrors Python's `logger.error(...)` + continue.
@@ -438,25 +484,25 @@ pub fn execute_model_effects(
     let mut removed_associations = HashSet::new();
     for op in &record {
         match op {
-            ModEffectOp::Asset(AssetOp::Added { asset_id }) => {
-                new_assets.insert(*asset_id);
+            ModEffectOp::Asset(AssetOp::Added { asset }) => {
+                new_assets.insert(asset.id);
             }
-            ModEffectOp::Asset(AssetOp::Removed { asset_id, snapshot }) => {
-                removed_assets.insert(*asset_id, (**snapshot).clone());
+            ModEffectOp::Asset(AssetOp::Removed { asset, snapshot }) => {
+                removed_assets.insert(asset.id, (**snapshot).clone());
             }
             ModEffectOp::Assoc(AssocOp::Added {
                 left,
                 field_name,
                 right,
             }) => {
-                new_associations.insert((*left, field_name.clone(), *right));
+                new_associations.insert((left.id, field_name.clone(), right.id));
             }
             ModEffectOp::Assoc(AssocOp::Removed {
                 left,
                 field_name,
                 right,
             }) => {
-                removed_associations.insert((*left, field_name.clone(), *right));
+                removed_associations.insert((left.id, field_name.clone(), right.id));
             }
         }
     }
@@ -514,7 +560,7 @@ mod tests {
         assert!(record.iter().any(|op| matches!(
             op,
             ModEffectOp::Assoc(AssocOp::Added { left, field_name, right })
-                if *left == infected_device && field_name == "malware" && *right == wiper_id
+                if left.id == infected_device && field_name == "malware" && right.id == wiper_id
         )));
         assert!(model
             .get_asset_by_id(wiper_id)
@@ -523,9 +569,9 @@ mod tests {
             .get("victim")
             .map(|s| s.contains(&infected_device))
             .unwrap_or(false));
-        assert!(record
-            .iter()
-            .any(|op| matches!(op, ModEffectOp::Asset(AssetOp::Added { asset_id }) if *asset_id == wiper_id)));
+        assert!(record.iter().any(
+            |op| matches!(op, ModEffectOp::Asset(AssetOp::Added { asset }) if asset.id == wiper_id)
+        ));
 
         let infected_data = model.get_asset_by_name("InfectedData").unwrap().id;
         assert_eq!(
@@ -563,7 +609,7 @@ mod tests {
         assert!(record2.iter().any(|op| matches!(
             op,
             ModEffectOp::Assoc(AssocOp::Added { left, field_name, right })
-                if *left == c2_server && field_name == "data" && *right == infected_data
+                if left.id == c2_server && field_name == "data" && right.id == infected_data
         )));
     }
 

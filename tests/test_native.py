@@ -205,7 +205,10 @@ def test_native_simulator_step_output_is_delta_only() -> None:
 
     step_out = sim.step_native({'Attacker1': [action_surface[0]], 'Defender1': []})
 
-    assert set(step_out['sim_state'].keys()) == {'step_enabled_defenses'}
+    assert set(step_out['sim_state'].keys()) == {
+        'step_enabled_defenses',
+        'step_modification_record',
+    }
 
     attacker_out = step_out['agents']['Attacker1']
     assert set(attacker_out.keys()) == {
@@ -256,7 +259,10 @@ def test_native_simulator_step_output_is_delta_only_attacker_only() -> None:
 
     step_out = sim.step_native({'Attacker1': [action_surface[0]]})
 
-    assert set(step_out['sim_state'].keys()) == {'step_enabled_defenses'}
+    assert set(step_out['sim_state'].keys()) == {
+        'step_enabled_defenses',
+        'step_modification_record',
+    }
     assert set(step_out['agents'].keys()) == {'Attacker1'}
 
     attacker_out = step_out['agents']['Attacker1']
@@ -293,3 +299,118 @@ def test_native_simulator_step_unknown_agent_raises() -> None:
 
     with pytest.raises(ValueError):
         sim.step_native({'NoSuchAgent': []})
+
+
+# --- Phase B4 (PORTING_NOTES.md §6/B4): dyna_reset_native/dyna_step_native ---
+#
+# `wiperLang_scenario`/`wiperLang_attack_graph`/`wiperLang_model` come from
+# `tests/conftest.py` - the same fixtures `test_dyna_mal_simulator.py`'s
+# `test_assoc_traversal`/`test_apply_model_effect` use, and the same
+# wiperLang model-effect chain `malsim-core`'s `dyna_attacker_step.rs`/
+# `model_effects.rs` Rust-native tests already exercise (`InfectedDevice:
+# infect` additively creates a `Wiper-7` asset via its model effect).
+
+
+def test_native_dyna_simulator_step_before_reset_raises() -> None:
+    scenario = Scenario.load_from_file(
+        path_relative_to_tests('./testdata/scenarios/wiper_scenario.yml')
+    )
+    sim = _native.Simulator(scenario.attack_graph)
+
+    with pytest.raises(ValueError):
+        sim.dyna_step_native({})
+
+
+def test_native_dyna_simulator_step_executes_model_effects_and_grows_graph() -> None:
+    scenario = Scenario.load_from_file(
+        path_relative_to_tests('./testdata/scenarios/wiper_scenario.yml')
+    )
+    attack_graph = scenario.attack_graph
+    model = scenario.model
+    infect = attack_graph.get_node_by_full_name('InfectedDevice:infect')
+    initial_node_count = len(attack_graph.nodes)
+
+    sim = _native.Simulator(attack_graph)
+    sim.dyna_reset_native(
+        {'compromise_entrypoints_at_start': False},
+        {'WiperController': {'type': 'attacker', 'entry_points': [infect.id]}},
+        model,
+        42,
+    )
+
+    step_out = sim.dyna_step_native({'WiperController': [infect.id]})
+    attacker_out = step_out['agents']['WiperController']
+
+    assert infect.id in attacker_out['step_performed_nodes']
+    # infect's model effect additively creates the Wiper-7 asset (and its
+    # attack steps) - the shared AttackGraph/Model handles must reflect
+    # this immediately on the Python side too (same proof A1/B3 already
+    # established for a single handle, now exercised with both mutated
+    # together in one step).
+    assert len(attack_graph.nodes) > initial_node_count
+    assert model.get_asset_by_name('Wiper-7') is not None
+
+    modification_record = step_out['sim_state']['step_modification_record']
+    added_asset_ops = [
+        op
+        for op in modification_record
+        if op['kind'] == 'asset' and op['type'] == 'ADDITIVE'
+    ]
+    assert added_asset_ops
+    # Self-contained snapshot (id/type/name), not just a bare id Python
+    # would need to resolve back through `model.assets` - see
+    # `AssetRef`'s doc comment / PORTING_NOTES.md §6 Phase B5.
+    assert added_asset_ops[0]['asset_type'] == 'Wiper'
+    assert added_asset_ops[0]['asset_name'] == 'Wiper-7'
+
+    added_assoc_ops = [
+        op
+        for op in modification_record
+        if op['kind'] == 'assoc' and op['type'] == 'ADDITIVE'
+    ]
+    assert added_assoc_ops
+    assert all(
+        'left_asset_id' in op
+        and 'left_asset_type' in op
+        and 'left_asset_name' in op
+        and 'right_asset_id' in op
+        and 'right_asset_type' in op
+        and 'right_asset_name' in op
+        for op in added_assoc_ops
+    )
+
+
+def test_native_dyna_simulator_reset_restores_pristine_graph_after_mutation() -> None:
+    scenario = Scenario.load_from_file(
+        path_relative_to_tests('./testdata/scenarios/wiper_scenario.yml')
+    )
+    attack_graph = scenario.attack_graph
+    model = scenario.model
+    infect = attack_graph.get_node_by_full_name('InfectedDevice:infect')
+    pristine_full_names = {node.full_name for node in attack_graph.nodes.values()}
+
+    sim = _native.Simulator(attack_graph)
+    sim.dyna_reset_native(
+        {'compromise_entrypoints_at_start': False},
+        {'WiperController': {'type': 'attacker', 'entry_points': [infect.id]}},
+        model,
+        42,
+    )
+    sim.dyna_step_native({'WiperController': [infect.id]})
+    assert model.get_asset_by_name('Wiper-7') is not None
+
+    # Resetting again must restore both the live `Model` (captured once,
+    # natively, the first time `dyna_reset_native` was called - §10's B4
+    # deviation from this phase's own placeholder signature) and the
+    # `AttackGraph` derived from it back to the pristine pre-mutation
+    # state, exactly like `DynaMalSimulator.reset()` does today.
+    sim.dyna_reset_native(
+        {'compromise_entrypoints_at_start': False},
+        {'WiperController': {'type': 'attacker', 'entry_points': [infect.id]}},
+        model,
+        42,
+    )
+
+    assert model.get_asset_by_name('Wiper-7') is None
+    restored_full_names = {node.full_name for node in attack_graph.nodes.values()}
+    assert restored_full_names == pristine_full_names

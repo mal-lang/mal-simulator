@@ -719,10 +719,275 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         commit; verify with `strings <the installed .so> | grep
         __inner_capsule__` (or equivalent) before trusting a failing
         Python-level test actually indicates a Rust-side bug.
-  - [ ] B4 - Native dyna reset/step entry points in `malsim-pyo3`
-        (A8-equivalent)
-  - [ ] B5 - Rewrite `DynaMalSimulator.reset()`/`.step()` to delegate to
-        native (A9-equivalent)
+  - [x] B4 - Native dyna reset/step entry points in `malsim-pyo3`
+        (A8-equivalent). Landed in `py-bindings/malsim-pyo3/src/simulator.rs`:
+        extended the existing `Simulator` pyclass (per an explicit "extend vs.
+        new sibling pyclass" decision asked of and answered by the user -
+        extend, to reuse `AttackerRuntime`/`DefenderRuntime`/`SimState`/the
+        output-building helpers rather than duplicate ~650 lines of near-
+        identical bookkeeping) with a `dyna: Option<DynaHandle>` field
+        (`DynaHandle { model: Rc<RefCell<Model>>, snapshot: ModelSnapshot }`,
+        `None` until first used - plain `MalSimulator` never populates it)
+        and two new pymethods: `dyna_reset_native(settings, agents, model,
+        seed)` and `dyna_step_native(actions)`. `reset_native`'s body was
+        split into a private `do_reset` helper both `reset_native` and
+        `dyna_reset_native` call (the latter first restoring the shared
+        `Model`/`AttackGraph` to the pristine snapshot via B2's
+        `reset_model_effects`); `step_native`'s "update attacker/defender
+        runtimes" blocks were extracted into `update_attacker_runtimes`/
+        `update_defender_runtimes` methods shared with `dyna_step_native`
+        (which calls B2's `dyna_attacker_step`/`dyna_defender_step` instead
+        of A7's plain `attacker_step`/`defender_step` for the actual
+        stepping, then reuses the same update/output-building helpers).
+        **Second design decision asked of and answered by the user:** the
+        pristine model snapshot (needed to restore model-effect mutations on
+        every `dyna_reset_native` call) is captured *natively*, via B2's
+        `capture_model_snapshot` on the live shared `Model`, the first time
+        `dyna_reset_native`'s `model` argument is seen - not passed in from
+        Python as a dict, despite this phase's own §6 planning text having
+        sketched a `model_snapshot` parameter. Python no longer needs to
+        call `model.to_dict()` or store a snapshot at all; this is recorded
+        as a deliberate divergence from that placeholder signature, not an
+        oversight.
+        **New output field, and a mid-implementation design correction
+        asked of and answered by the user:** `step_modification_record`
+        (always present in `step_native`'s/`dyna_step_native`'s `sim_state`
+        output, empty for the plain path) - a list of plain dicts describing
+        this step's model-effect modification record. The first version of
+        this wire format carried only bare `i64` asset ids for removed
+        assets/their associations; the user caught that this can't be
+        resolved back into a `maltoolbox.ModelAsset` on the Python side (see
+        B5's entry below) and directed that the record be fully constructed
+        in `malsim-core` and only *handed through* py-bindings, not
+        resolved via a `Model` lookup on the Python side at all. This led to
+        a `malsim-core` type change (not just a py-bindings one): `core/
+        malsim-core/src/model_effects.rs`'s `AssetOp`/`AssocOp` now carry a
+        new `AssetRef { id: i64, asset_type: String, name: String }` (a
+        self-contained snapshot, captured at the exact moment each op is
+        recorded - `AssetRef::from_model`) instead of a bare `i64`, for
+        every asset reference in every variant (`AssetOp::Added`/`Removed`,
+        `AssocOp::Added`/`Removed`'s `left`/`right`) - not just the removed
+        case, since a later op in the *same* modification record can
+        invalidate an id an earlier op already referenced (e.g.
+        `remove_asset_op` records an about-to-be-removed asset's
+        association removals before removing the asset itself - that
+        asset's own id is unresolvable by the time a caller reads the full
+        record back). `mod_effect_op_to_py`/`set_asset_ref` in `simulator.rs`
+        write each `AssetRef`'s `id`/`asset_type`/`name` under
+        `{prefix}_id`/`{prefix}_type`/`{prefix}_name` keys (`asset_*` for an
+        `AssetOp`, `left_asset_*`/`right_asset_*` for an `AssocOp`, plus
+        `field_name`); `kind` (`"asset"`/`"assoc"`) and `type`
+        (`"ADDITIVE"`/`"SUBTRACTIVE"`, matching `ModelEffectType`'s own
+        wire strings) discriminate the op. `execute_model_effects`'s
+        `new_assets`/`removed_assets`/`new_associations`/
+        `removed_associations` extraction (feeding `partially_regenerate_graph`)
+        was updated to read `.id` off each `AssetRef` - same behavior, just
+        reached through the new field. All existing `model_effects.rs`/
+        `dyna_attacker_step.rs` Rust-native tests updated/still passing
+        after this reshape (`{ .. }` patterns were unaffected; a few tests
+        destructuring named `left`/`right`/`asset_id` fields were updated
+        to `left.id`/`right.id`/`asset.id`).
+        `python/malsim/_native-stubs/__init__.pyi` gained both new methods'
+        signatures. `tests/test_native.py` gained
+        `test_native_dyna_simulator_step_before_reset_raises`/
+        `test_native_dyna_simulator_step_executes_model_effects_and_grows_graph`/
+        `test_native_dyna_simulator_reset_restores_pristine_graph_after_mutation`
+        (using the `wiperLang_scenario`-equivalent fixture loaded directly,
+        mirroring A8's own test style) - the second asserts the
+        `step_modification_record`'s self-contained `asset_type`/
+        `asset_name`/`left_asset_*`/`right_asset_*` fields are present, not
+        just bare ids; two pre-existing `step_native` delta-shape tests
+        (`test_native_simulator_step_output_is_delta_only[_attacker_only]`)
+        were updated to expect the new always-present
+        `step_modification_record` key. Full gate green: `cargo test`/
+        `clippy -D warnings`/`fmt --check` clean in both the root
+        (`malsim-core`) and `py-bindings` workspaces; `uv run pytest tests -m
+        "not integration"` (168 passed, including the 3 new B4 tests);
+        `mypy`/`ruff check`/`ruff format --check` clean.
+        **No new crate dependency** - reuses B1-B3's existing
+        `maltoolbox-model`/B2's dyna step functions.
+        **Build-cache gotcha reconfirmed, same as B3's §9/§10 entry - not
+        new, but hit again this phase and worth re-flagging for B5+:** `uv
+        run maturin develop --uv`/`uv pip install --reinstall-package` both
+        intermittently (re)installed a `mal-toolbox` wheel missing
+        `PyModel.__inner_capsule__` even with a correct `rev` pin. Workaround
+        used throughout B4 (and needed again for every Python-level test run
+        for the rest of this phase): build `mal-toolbox` from a fresh
+        `git clone` + `maturin build --release` and `cp` the resulting
+        `.so` directly into `.venv/lib/.../site-packages/maltoolbox/`
+        (bypassing `uv pip install` for that one file), then use `uv run
+        --no-sync <cmd>` (not plain `uv run`) for every subsequent Python
+        command in the session - plain `uv run` re-triggers the same broken
+        resync and silently overwrites the manually-fixed `.so`.
+  - [~] B5 - Rewrite `DynaMalSimulator.reset()`/`.step()` to delegate to
+        native (A9-equivalent). **Partially landed, blocked on a real bug -
+        see below. Resume here, do not restart from scratch.**
+        Landed so far: `python/malsim/dyna_mal_simulator/simulator.py`'s
+        module-level `dyna_reset`/`dyna_step` fully rewritten to delegate to
+        B4's `dyna_reset_native`/`dyna_step_native`, mirroring A9's
+        `mal_simulator/simulator.py::reset`/`step` almost exactly - reuses
+        (imports, doesn't duplicate) `flatten_sim_settings`/
+        `flatten_attacker_settings`/`flatten_defender_settings`,
+        `create_attacker_state_from_native`/`create_defender_state_from_native`,
+        `_graph_state_from_native`/`_ordered_new_nodes`/`MALSimulatorStaticData`/
+        `_pre_step_check`/`alive_agents` from `mal_simulator.simulator`
+        unchanged. `DynaMalSimulator.__init__`/`.reset()`/`.step()` now hold
+        `self._native_sim`/`self._static_data` the same way `MalSimulator`
+        does, and inherit `MalSimulator.__getstate__`'s `_native_sim`
+        exclusion for free via subclassing (no override needed - confirmed
+        no other attribute-name divergence). `model_snapshot` is no longer
+        computed or stored in Python at all (native captures it - B4's
+        design decision above); the local `MALSimulatorStaticData`
+        `NamedTuple` `DynaMalSimulator` used to define itself was deleted,
+        importing `mal_simulator.simulator`'s instead (structurally
+        identical, no behavior change).
+        `python/malsim/dyna_mal_simulator/simulator_state.py` gained
+        `DetachedAsset` (a new, malsim-*own* lightweight frozen dataclass -
+        `id`/`type`/`name` - deliberately not a `maltoolbox` type) and
+        `modification_record_from_native`/`_resolve_asset_ref`, resolving
+        B4's `step_modification_record` dicts into `AssetOp`/`AssocOp`.
+        `AssetOp.asset`/`AssocOp.assoc`'s field types widened from
+        `ModelAsset` to `ModelAsset | DetachedAsset`: resolves to the live
+        `maltoolbox.ModelAsset` handle when `model.get_asset_by_id(id)`
+        still finds it (keeps identity/equality with any other live
+        reference a caller holds - required for an existing exact-equality
+        test over an *added* asset to keep passing) and only falls back to
+        `DetachedAsset` (built directly from the native dict's
+        `asset_type`/`name` fields, never via a `Model` lookup) when it's
+        not resolvable. **Why that fallback is needed, not just defensive:**
+        maltoolbox's tombstone mechanism (`PyModelAsset`'s post-removal
+        readability) is populated only by `PyModel.remove_asset` (the
+        Python-facing method) - `malsim-core`'s native dyna step mutates the
+        shared `Model` via the core Rust `Model::remove_asset` directly,
+        bypassing that tombstone recording entirely, so a natively-removed
+        asset's `ModelAsset` Python handle doesn't just become detached-but-
+        readable the way the pure-Python path left it - it's simply gone
+        (`model.get_asset_by_id` returns `None`, confirmed by reading
+        maltoolbox's own `PyModelAsset::with_asset`/`PyModel::assets`
+        source, not assumed). No current test exercises an exact-equality
+        assertion against a *removed* asset (checked by grep across
+        `test_dyna_mal_simulator.py` - every `modification_record` equality
+        assertion involves only additions or association-removals between
+        assets that stay alive), so this is forward-looking correctness, not
+        yet pinned by a test - a future test would be a reasonable addition
+        once B5 is unblocked.
+        `python/malsim/dyna_mal_simulator/model_effects.py` (the pure-Python,
+        still-used-by-its-own-direct-unit-test module) and
+        `tests/test_dyna_mal_simulator.py`'s
+        `test_apply_model_effect_modification_record_partially_regenerates_graph`
+        both build `set[ModelAsset]`/`set[tuple[ModelAsset, str,
+        ModelAsset]]` from a `list[AssetOp | AssocOp]` - mypy correctly
+        flagged both once `AssetOp.asset`'s type widened, since neither site
+        could statically prove it'd only ever see `ModelAsset`, never
+        `DetachedAsset`. Fixed with `isinstance` narrowing (both sites only
+        ever run against the pure-Python path's own output, which never
+        constructs a `DetachedAsset` - confirmed by reading `model_effects.py`'s
+        `target_op` closures, so this is type-narrowing only, not a behavior
+        change). `uv run --no-sync mypy python/malsim tests`/`ruff check`/
+        `ruff format --check` all clean with every change above in place.
+        **Blocked here - `tests/test_dyna_mal_simulator.py` is NOT green,
+        and that's B5's actual acceptance gate (§6: "not just a smoke
+        subset").** `test_different_attackers` panics the whole Python
+        process (`pyo3_runtime.PanicException: invalid SlotMap key used`,
+        uncatchable from Python) on 12 of its 12 parametrized cases
+        (`RandomAgent`/`TTCSoftMinAttacker`/`BreadthFirstAttacker`/
+        `DepthFirstAttacker`, all configs) - it iterates every scenario
+        under `tests/testdata/scenarios/dynamal_example_scenarios/`, and at
+        least `intermediate/intDynamicTestLang13_scenario.yml` triggers it.
+        **Root cause, traced by hand (manual step-by-step repro +
+        `RUST_BACKTRACE=1`, not guessed):** `Directory:1:addTopToBottomLeft`'s
+        model effect (`A> sub* / files`) is actually asset-*creating* (the
+        RHS "files" resolves to a fresh `File` asset per member of
+        `sub*`, not an existing one), so it creates two new `File` assets.
+        The very next action in this run, `Directory:1:removeTopToBottomLeft`
+        (`R> sub*.files / self`), removes one of those brand-new File
+        assets' only association, leaving it fully disconnected (zero
+        associations). Upstream mal-toolbox's
+        `AttackGraph::partially_regenerate_graph` (called from
+        `execute_model_effects`, B1) appears to remove-and-regenerate that
+        disconnected asset's `reached` attack-step node under a *new*
+        internal `AttackGraphNodeId` even though the asset was never in
+        this call's `removed_assets` (only an association was removed) -
+        the *old* id is a slotmap key, so once removed it never resolves
+        again, even if a node is later re-added. **Confirmed via `git
+        stash` that this is a regression, not pre-existing:** the identical
+        scenario+policy combination runs to completion with zero crashes on
+        the pure-Python `DynaMalSimulator` path (stashed every B4/B5 file,
+        rebuilt, reran the same repro - "ALL OK" across all 28 dynamal
+        scenario files). The panic itself fires inside
+        `malsim-core::event_logger::collect_logs` (`graph.nodes[attack_step_id]`,
+        a direct, un-guarded slotmap index) when it's asked to check
+        detectors for a `step_compromised_nodes` entry that's since gone
+        stale - **but `collect_logs` is not special, it's just the first
+        one this particular repro happened to hit.** `get_attack_surface`
+        (attack_surface.rs), `get_defense_surface` (defense_surface.rs),
+        `attempt_attacker_step` (attacker_step.rs),
+        `necessity::calculate_necessity` (necessity.rs), and
+        `node_is_blocked`/`node_is_traversable` (graph_utils.rs) all do the
+        same unguarded `graph.nodes[id]` indexing on ids pulled from
+        accumulated/historical state (`performed_nodes`, `enabled_defenses`,
+        `graph_state`'s maps) - every one of them was written and tested
+        under Phase A's "the graph never mutates mid-episode" invariant
+        (confirmed true for Phase A, since `MalSimulator` never calls any
+        model-effect function), which Phase B's whole design breaks by
+        composing these same functions against a graph `execute_model_effects`
+        *can* mutate mid-episode. This is a systemic gap exposed by B4/B5's
+        wiring, not a one-line bug in one function - **not fixed yet,
+        deliberately: the user asked to document this and stop rather than
+        have a fix picked unilaterally.** Three candidate directions were
+        drafted, not decided, for whoever resumes:
+        1. *Narrow/fast:* fix only `collect_logs`'s direct index (`.get()`
+           with a skip-if-missing fallback - a vanished node correctly has
+           "no detectors to report") to unblock this specific repro, and
+           open a dedicated follow-up item (maybe B5.5 or folded into B6) to
+           audit the other call sites named above before calling B5-B7 done.
+        2. *Thorough:* audit and harden every Phase-A-era function
+           malsim-core's dyna path composes (the five modules named above)
+           for this exact risk before continuing B5 at all.
+        3. *Fix at the source:* reconcile `performed_nodes`/
+           `enabled_defenses`/`graph_state`'s id-keyed maps at the one point
+           `fold_new_nodes_into_graph_state` already runs, dropping or
+           re-resolving (by full name) any id `partially_regenerate_graph`
+           invalidated - but this needs an actual simulation-semantics
+           decision first (does a node regenerated mid-episode still count
+           as "performed" under its new id, or does it effectively reset to
+           unperformed?), which is a product question, not just a bugfix,
+           and shouldn't be answered implicitly by whichever code path
+           happens to be easiest to patch.
+        **Repro, to re-derive (nothing session-local survives):**
+        ```python
+        from malsim.scenario.scenario import Scenario
+        from malsim.config.sim_settings import MalSimulatorSettings, TTCMode
+        from malsim.dyna_mal_simulator.simulator import DynaMalSimulator
+        from malsim.policies.attackers.searchers import BreadthFirstAttacker
+        from malsim.mal_simulator.run_simulation import run_simulation
+
+        scenario = Scenario.load_from_file(
+            'tests/testdata/scenarios/dynamal_example_scenarios/'
+            'intermediate/intDynamicTestLang13_scenario.yml'
+        )
+        name = next(iter(scenario.attacker_settings))
+        scenario.attacker_settings[name].policy = BreadthFirstAttacker
+        scenario.attacker_settings[name].config = {'action_ordering': 'sorted'}
+        sim = DynaMalSimulator.from_scenario(
+            scenario,
+            sim_settings=MalSimulatorSettings(
+                ttc_mode=TTCMode.PRE_SAMPLE, compromise_entrypoints_at_start=False
+            ),
+        )
+        run_simulation(sim)  # panics a few iterations in
+        ```
+        Crashes on `Directory:1:removeTopToBottomLeft` specifically when
+        stepped manually one action at a time via
+        `sim.agent_settings[name].agent.get_next_action(...)` - see this
+        entry's root-cause paragraph for why.
+        **Everything else already landed this phase stays green while this
+        is blocked:** root `malsim-core` + `py-bindings` cargo gates (test/
+        clippy/fmt) are unaffected and still clean; `tests/test_native.py`'s
+        B4 tests still pass; `mypy`/`ruff` are clean across the whole tree
+        (including the partially-landed B5 Python changes above). Only
+        `test_dyna_mal_simulator.py` (and only its
+        `test_different_attackers` parametrization, 12/40 cases) is red.
   - [ ] B6 - Audit every other `DynaMalSimulator` public method
         (A10-equivalent)
   - [ ] B7 - Full parity pass + cleanup (A11-equivalent)
@@ -1670,7 +1935,35 @@ checked by CI, not just asserted in prose.
   `maturin build --release --manifest-path py-bindings/maltoolbox-pyo3/
   Cargo.toml -o <dir>` and `uv pip install --reinstall-package
   mal-toolbox <that wheel>` rather than re-running `uv run maturin
-  develop` and hoping.
+  develop` and hoping. **Addendum from B4/B5: plain `uv run <cmd>` can
+  re-trigger this mid-session even after the manual fix above** - it
+  re-syncs the project's dependencies (including `mal-toolbox`) before
+  running, silently reinstalling the broken wheel over the fixed `.so`.
+  Use `uv run --no-sync <cmd>` for every Python-level command for the
+  rest of the session once the manual `.so` copy has been applied.
+- **BLOCKING B5 (not resolved - see §0's B5 entry for the full writeup,
+  this is the index pointer): native dyna stepping can panic the whole
+  Python process (`invalid SlotMap key used`) on scenarios where a model
+  effect's association churn leaves an asset fully disconnected, causing
+  upstream mal-toolbox's `partially_regenerate_graph` to regenerate that
+  asset's attack-step node(s) under a new internal id even though no
+  asset was actually removed.** Confirmed via `git stash` to be a
+  regression introduced by composing Phase A's graph-never-mutates-era
+  functions (`get_attack_surface`, `get_defense_surface`,
+  `attempt_attacker_step`, `necessity::calculate_necessity`,
+  `node_is_blocked`/`node_is_traversable`, `collect_logs` - the one that
+  actually crashed first) against Phase B's mutating graph - every one of
+  them does unguarded `graph.nodes[id]` indexing on ids pulled from
+  accumulated/historical state, which silently assumes an id, once seen
+  live, stays resolvable forever. Reproduces on
+  `tests/testdata/scenarios/dynamal_example_scenarios/intermediate/
+  intDynamicTestLang13_scenario.yml` with a `BreadthFirstAttacker`;
+  deliberately left unfixed pending a decision on which of §0 B5's three
+  drafted remediation directions to take (narrow point-fix now plus a
+  follow-up audit item, a full audit of all five modules up front, or
+  reconciling stale ids once at the `fold_new_nodes_into_graph_state`
+  choke point - the last one needs an actual simulation-semantics answer,
+  not just a bugfix, before it can be implemented).
 
 ## 10. Differences log
 

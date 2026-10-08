@@ -308,27 +308,32 @@ def execute_model_effects(
             _apply_model_effect(action, model_effect, sim_state.attack_graph.model, rng)
         )
     logger.debug('Partially regenerating attack graph after applying model effects.')
+    # This pure-Python path only ever constructs `AssetOp`/`AssocOp` with
+    # real `ModelAsset`s (never the native-only `DetachedAsset` variant
+    # - see `simulator_state.py`), so the `isinstance` checks below are
+    # type-narrowing only, not a behavior change.
+    new_assets: set[ModelAsset] = set()
+    removed_assets: set[ModelAsset] = set()
+    new_associations: set[tuple[ModelAsset, str, ModelAsset]] = set()
+    removed_associations: set[tuple[ModelAsset, str, ModelAsset]] = set()
+    for op in modification_record:
+        if isinstance(op, AssetOp) and isinstance(op.asset, ModelAsset):
+            if op.type == ModelEffectType.ADDITIVE:
+                new_assets.add(op.asset)
+            else:
+                removed_assets.add(op.asset)
+        elif isinstance(op, AssocOp):
+            left, field_name, right = op.assoc
+            if isinstance(left, ModelAsset) and isinstance(right, ModelAsset):
+                if op.type == ModelEffectType.ADDITIVE:
+                    new_associations.add((left, field_name, right))
+                else:
+                    removed_associations.add((left, field_name, right))
     new_nodes = sim_state.attack_graph.partially_regenerate_graph(
-        new_assets={
-            op.asset
-            for op in modification_record
-            if isinstance(op, AssetOp) and op.type == ModelEffectType.ADDITIVE
-        },
-        removed_assets={
-            op.asset
-            for op in modification_record
-            if isinstance(op, AssetOp) and op.type == ModelEffectType.SUBTRACTIVE
-        },
-        new_associations={
-            op.assoc
-            for op in modification_record
-            if isinstance(op, AssocOp) and op.type == ModelEffectType.ADDITIVE
-        },
-        removed_associations={
-            op.assoc
-            for op in modification_record
-            if isinstance(op, AssocOp) and op.type == ModelEffectType.SUBTRACTIVE
-        },
+        new_assets=new_assets,
+        removed_assets=removed_assets,
+        new_associations=new_associations,
+        removed_associations=removed_associations,
     )
     new_graph_state, new_enabled_defenses = add_new_nodes_to_graph_state(
         sim_state.graph_state,

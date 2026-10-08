@@ -16,6 +16,11 @@ A9, but is still not itself a stable/public API (an implementation
 detail of `malsim.mal_simulator.simulator`), and
 `reset_native`/`step_native`'s dict shapes are deliberately typed as
 plain `dict[str, Any]` here rather than a precise `TypedDict`.
+`dyna_reset_native`/`dyna_step_native` (Phase B4, §6) are the
+`DynaMalSimulator`-backing equivalents - same `Simulator` pyclass, an
+attached `Model` handle (via `dyna_reset_native`'s `model` argument,
+extracted/snapshotted natively the first time it's called - see §10)
+rather than a separate pyclass.
 """
 
 from typing import Any
@@ -43,3 +48,11 @@ class Simulator:
         seed: int,
     ) -> dict[str, Any]: ...
     def step_native(self, actions: dict[str, list[int]]) -> dict[str, Any]: ...
+    def dyna_reset_native(
+        self,
+        settings: dict[str, Any],
+        agents: dict[str, dict[str, Any]],
+        model: Model,
+        seed: int,
+    ) -> dict[str, Any]: ...
+    def dyna_step_native(self, actions: dict[str, list[int]]) -> dict[str, Any]: ...
