@@ -445,8 +445,81 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
           see §10) - all identified, relaxed to structural assertions or
           re-pinned to this port's own (still fully deterministic per
           seed) output, never silently left broken. Full list in §9.
-  - [ ] A10 - Rewrite remaining `MalSimulator` query methods to read
-        native-backed state where needed
+  - [x] A10 - Audited every other public method on `MalSimulator`
+        (`node_ttc_value`, `node_is_actionable`, `node_reward`,
+        `node_is_observable`, `node_false_positive_rate`,
+        `node_false_negative_rate`, `node_is_blocked`, `node_is_necessary`,
+        `node_is_enabled_defense`, `node_is_compromised`,
+        `compromised_nodes`, `node_is_traversable`, `get_node`,
+        `agent_reward_by_name`, `agent_reward`, `agent_is_terminated`,
+        `done`, `alive_agents`, `agent_states`) against §5's own two
+        example criteria. **Result: zero code changes** - confirmed via
+        `git diff c23cf57 67c6438 -- python/malsim/mal_simulator/
+        simulator.py` (the A8→A9 diff) that every one of these method
+        bodies, and all of `graph_utils.py`/`state_query.py`/
+        `node_getters.py` (`git diff c23cf57 HEAD` on those three files is
+        empty), is byte-for-byte unchanged since before A9 - they already
+        satisfied A10's intent without being touched, because A9 kept
+        `GraphState`/`MalSimulatorState`/`AttackerState`/`DefenderState`'s
+        *shape* identical to the pre-port shape (§3's "mirrored, not
+        wrapped") rather than these methods being rewritten to reach past
+        that mirror. Sorted into three categories, not just §5's two:
+        - **Reads native-computed data directly** (§5's first example
+          category): `node_ttc_value` (no-`agent_name` branch:
+          `sim_state.graph_state.ttc_values[node]`, agent branch:
+          `state_query.node_ttc_value`, both backed by A9's
+          `_graph_state_from_native`/per-agent `ttc_values` override map),
+          `node_is_necessary` (`sim_state.graph_state.necessity_per_node`,
+          native-computed once at reset), `compromised_nodes`/
+          `node_is_compromised`/`node_is_enabled_defense` (iterate
+          `AttackerState.performed_nodes`/`DefenderState.performed_nodes`
+          in `self._agent_states`, native-mirrored every step since A9).
+        - **Stays against the pure-Python mirror, never touches native**
+          (§5's second example category, per §2.4): `node_is_actionable`,
+          `node_reward`, `node_is_observable`, `node_false_positive_rate`,
+          `node_false_negative_rate` (all read a `NodePropertyRule`
+          straight off `self.agent_settings[agent_name]`), `agent_reward`/
+          `agent_reward_by_name` (pure-Python reward closures, §2.4,
+          unaffected by any phase of this port).
+        - **A third, hybrid category §5's text didn't anticipate**:
+          `node_is_blocked`/`node_is_traversable` read native-computed,
+          per-episode-mirrored inputs (`sim_state.graph_state.
+          impossible_attack_steps`/`necessity_per_node`,
+          `sim_state.enabled_defenses`) but still run the final AND/OR
+          blocked/traversable predicate as plain Python over those inputs,
+          rather than calling back into `malsim-core::graph_utils`'s A4
+          port for a single-node query. Deliberately left this way: these
+          are O(parents) pure-data checks with no RNG, called ad hoc
+          outside the hot `step()` loop (which already goes fully through
+          native) - routing a one-node query back across the FFI boundary
+          would add call overhead for no measurable benefit. Flagged as a
+          two-implementations-can-drift risk in §9, same shape as §9's
+          existing `NodePropertyRule` entry.
+        **Confirmed no `MalSimulator` method reaches for `self._native_sim`
+        outside `reset()`/`step()`** - relevant because `DynaMalSimulator`
+        (`dyna_mal_simulator/simulator.py`) subclasses `MalSimulator`,
+        overrides `__init__`/`reset()`/`step()` with its own pure-Python
+        versions, and never sets `self._native_sim` at all; all 19 audited
+        methods are inherited unmodified and operate generically on
+        `self.sim_state`/`self._agent_states`/`self.agent_settings`, so
+        they work correctly against either subclass's state without
+        caring which one built it.
+        **Consequence for A11:** `graph_utils.py`'s `node_is_blocked`/
+        `node_is_necessary`/`node_is_traversable` and all of
+        `state_query.py`/`node_getters.py` are *not* dead code shadowed by
+        the Rust port, even once A11 lands - `MalSimulator`'s public query
+        API calls them directly, by this phase's explicit decision. A11's
+        "delete now-dead pure-Python hot-path modules" sweep should treat
+        these as permanently kept, not as deferred-deletion candidates.
+        **No new crate dependency, no Rust code touched this phase** - A10
+        is a pure audit of already-correct Python, so the standing
+        "ask before adding a dependency" policy and §8's "write a
+        Rust-native test for whatever this step ported" both have nothing
+        to trigger: nothing was ported, only inspected. Full gate re-run
+        to confirm nothing regressed while auditing: `uv run pytest tests
+        -m "not integration"` (161 passed), `uv run mypy python/malsim
+        tests` (no issues), `uv run ruff check` / `ruff format --check`
+        (clean) - all green, unchanged from A9's exit state.
   - [ ] A11 - Full existing test suite green with native backend; delete
         now-dead pure-Python hot-path modules (or demote to `#[cfg(test)]`
         oracle comparisons - TBD per-module, see §5)
@@ -1185,6 +1258,20 @@ checked by CI, not just asserted in prose.
   `node_property_rule.py`'s precedence rules as requiring a matching
   Rust-side change plus a re-run of C6, not just a Python-side test
   update.
+- **A10's hybrid category - `graph_utils.py`'s `node_is_blocked`/
+  `node_is_traversable` vs. `malsim-core::graph_utils`'s A4 port of the
+  same predicates - is a second two-implementations-can-drift pair,
+  same shape as the entry above.** Unlike that entry, there's no schema
+  boundary forcing a parity test (both sides are plain boolean logic over
+  the same few fields, not a YAML schema), so the mitigation here is
+  weaker: if either side's blocked/traversable logic changes, the other
+  needs a matching manual update, caught only by the existing Python
+  test suite happening to exercise both call paths (the Rust port inside
+  `step()`'s hot loop via native, the Python version via
+  `MalSimulator.node_is_blocked`/`.node_is_traversable`) rather than by
+  any dedicated cross-check. Revisit if `attacker_step`/`defender_step`'s
+  (A7) traversal logic ever changes without a corresponding
+  `graph_utils.py` update, or vice versa.
 
 ## 10. Differences log
 
