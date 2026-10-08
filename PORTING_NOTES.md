@@ -523,7 +523,22 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   - [ ] A11 - Full existing test suite green with native backend; delete
         now-dead pure-Python hot-path modules (or demote to `#[cfg(test)]`
         oracle comparisons - TBD per-module, see §5)
-- [ ] Phase B - `DynaMalSimulator` port (§6, detailed sub-plan TBD after A)
+- [ ] Phase B - `DynaMalSimulator` port (§6)
+  - [ ] B1 - Port association-traversal evaluation + model-effect
+        application (`process_assoc_traversal.py`, `model_effects.py`) to
+        `malsim-core`
+  - [ ] B2 - Port model-snapshot reconciliation + dyna step orchestration
+        (`model_state.py`, dyna `graph_state.py`/`attacker_step.py`/
+        `defender_step.py`, `simulator_state.py`'s `DynaMalSimulatorState`)
+        to `malsim-core`, composing B1 with Phase A's existing functions
+  - [ ] B3 - Prove a shared `Model` handle end to end (A1-equivalent)
+  - [ ] B4 - Native dyna reset/step entry points in `malsim-pyo3`
+        (A8-equivalent)
+  - [ ] B5 - Rewrite `DynaMalSimulator.reset()`/`.step()` to delegate to
+        native (A9-equivalent)
+  - [ ] B6 - Audit every other `DynaMalSimulator` public method
+        (A10-equivalent)
+  - [ ] B7 - Full parity pass + cleanup (A11-equivalent)
 - [ ] Phase C - Rust-only library API (§7)
   - [ ] C1 - Port `NodePropertyRule`'s dict-shape + `.value()`/`.per_node()`
         matching as an independent Rust utility (not shared with the
@@ -1065,34 +1080,191 @@ once A9/A10 are solid, since keeping two implementations around is itself
 a drift risk. Run `envs/`/`policies/`/`visualization/` as the integration
 check (per Goals) - they should need zero changes.
 
-## 6. Phase B: `DynaMalSimulator` port (coarse - detail after Phase A)
+## 6. Phase B: `DynaMalSimulator` port - detailed steps
 
-`DynaMalSimulator` layers on top of the same `AttackerState`/
-`DefenderState`/reward machinery (confirmed: it imports and reuses
+`DynaMalSimulator` (`dyna_mal_simulator/`) subclasses `MalSimulator` and
+layers on top of the same `AttackerState`/`DefenderState`/reward
+machinery (confirmed: it imports and reuses
 `mal_simulator.attacker_state_factories.create_attacker_state`,
-`rewards.py`'s reward-fn builders, etc.) but replaces the step functions
-with `dyna_mal_simulator/attacker_step.py` / `defender_step.py`, which can
-mutate the underlying `Model`/`AttackGraph` at runtime
-(`model_effects.py`, 346 lines; `process_assoc_traversal.py`, 318 lines;
-`model_state.py`).
+`rewards.py`'s reward-fn builders, A10's already-audited public query
+methods, etc. unmodified) but replaces the step functions with its own
+`attacker_step.py`/`defender_step.py`, which can mutate the underlying
+`Model`/`AttackGraph` at runtime via `model_effects.py` (346 lines) and
+`process_assoc_traversal.py` (318 lines), with `model_state.py` (90
+lines) handling snapshot-based reset.
 
-The good news: the hardest part - live graph mutation with correct
-id/reference bookkeeping - is *already solved* in mal-toolbox's Rust core
-(`AssetSnapshot`, `partially_regenerate_graph`, documented in
-mal-toolbox's own `PORTING_NOTES.md` §2). Phase B is mostly about porting
-malsim's *model-effect application rules* (what a dyna-MAL effect
-declaration does to the model) on top of primitives mal-toolbox's Rust
-side already exposes, re-using §2.2's shared-graph/shared-model handle.
+**The hard part is already done upstream, confirmed by reading the
+actual Rust source, not just mal-toolbox's `PORTING_NOTES.md` prose:**
+live graph mutation with correct id/reference bookkeeping
+(`maltoolbox-model/src/model.rs`'s `Model::add_asset`/`remove_asset` →
+`AssetSnapshot`/`add_associated_assets`/`remove_associated_assets`,
+`maltoolbox-attackgraph/src/graph.rs`'s
+`AttackGraph::partially_regenerate_graph`) **and** the model-effect
+*declaration* types malsim's Python parses at attack-graph-build time
+(`maltoolbox-language/src/graph/model_effect.rs`: `LanguageGraphModelEffect`,
+`ModelEffectType`, `DynTarget`, `AssocTraversal`/`GlobAssocTraversal`/
+`AssocSet`/`AssocTraversalChain`, `SetOperation`, `QuantityFilter` - a
+direct Rust port of `language_graph_model_effect.py`'s dataclasses)
+already exist in mal-toolbox's `rust-rewrite` branch. Phase B's own job is
+narrower than Phase A's was per module: *evaluate* those already-parsed
+declarations against a live `Model` (RNG-driven association-chain
+traversal and quantity sampling) and *apply* the result via the
+already-mutation-safe primitives above - no new graph-mutation
+primitives, no new model-effect grammar, to invent. This is why - unlike
+Phase A, which needed 7 logic steps (A1-A7) before any integration work -
+the pure-Rust portion below compresses to two steps.
 
-Deferred until Phase A lands and its patterns are validated:
-- Exact module breakdown mirroring §5's granularity, including the
-  per-step Rust-test-porting requirement from §8 (equivalent tests from
-  `tests/test_dyna_mal_simulator.py` per module, same "where relevant"
-  carve-outs).
-- Whether model-mutation effects need their own RNG-consuming paths
-  (check `model_effects.py` for `rng` usage once this phase starts).
-- Whether `DynaMalSimulatorState` needs new native-side fields beyond
-  what `MalSimulatorState`'s port already provides.
+**New architectural wrinkle Phase A didn't need to solve: there is no
+shared `Model` handle yet.** §2.2/A1 proved a shared `Rc<RefCell<
+AttackGraph>>` via `PyAttackGraph::__inner_capsule__`, but
+`AttackGraph` deliberately holds no `Model` reference at all (mal-toolbox's
+own `PORTING_NOTES.md` §2, "`AttackGraph` ↔ `Model`" row) - every mutating
+call takes `&mut Model` explicitly. `PyModel`
+(`maltoolbox-model-py/src/model.rs`) already holds `pub inner:
+Rc<RefCell<Model>>`, and `PyAttackGraph` already holds a `model_py:
+Option<Py<PyModel>>` linking the two on the Python side - but `PyModel`
+has **no `__inner_capsule__`-equivalent today**. Phase B needs one,
+almost certainly via an upstream mal-toolbox change mirroring A1/§2.2's
+precedent (`c854d1d6`) - B3 below is this phase's A1-equivalent proving
+step, and is the one piece of this phase that reaches outside malsim's
+own repo.
+
+Each step lands as its own PR/commit with the full Python test suite
+green and a Rust-native test ported from the equivalent
+`tests/test_dyna_mal_simulator.py` case(s) before moving on - same
+discipline as §5, and this phase is unusually well-served by it:
+`test_assoc_traversal`, `test_apply_model_effect`, and
+`test_apply_model_effect_modification_record_partially_regenerates_graph`
+(lines 217-414) are already close to isolated unit tests of exactly the
+functions B1 ports, unlike most of Phase A's A5-A7, which had no isolated
+Python test to port 1:1 at all - check this repo's own
+`test_dyna_mal_simulator.py` for the actual fixtures before writing new
+ones from scratch.
+
+### Pure Rust logic (`malsim-core`) - 2 steps
+
+**B1. Port association-traversal evaluation + model-effect application.**
+`process_assoc_traversal.py` (`sample_size`, `_apply_quantity_filter`,
+`_assoc_traversal`, `_glob_assoc_traversal`, `_assoc_set_traversal`,
+`traverse_association_chain`, `parse_addition`, `parse_removal`) and
+`model_effects.py` (`target_op`'s four closures - `add_asset`/
+`remove_asset`/`add_assoc`/`remove_assoc` - plus `_apply_model_effect`/
+`execute_model_effects`). Operates directly on mal-toolbox's already-Rust
+`AssocTraversal`/`GlobAssocTraversal`/`AssocSet`/`AssocTraversalChain`/
+`DynTarget`/`ModelEffectType`/`LanguageGraphModelEffect` types (no new
+grammar to invent, per above) and mutates via `Model::add_asset`/
+`remove_asset`/`add_associated_assets`/`remove_associated_assets` +
+`AttackGraph::partially_regenerate_graph`. RNG-per-quantity-sample - reuse
+A2's `rand` plumbing, no new RNG crate. **New direct crate dependency to
+flag per standing policy before adding:** `maltoolbox-model` - currently
+only a *transitive* dependency of `malsim-core` via `maltoolbox-attackgraph`
+(same "promote transitive to direct" shape as A8's `rand` add in
+`malsim-pyo3`, not a net-new dependency tree). Unit-test against
+`test_dyna_mal_simulator.py::test_assoc_traversal`/`test_apply_model_effect`/
+`test_apply_model_effect_modification_record_partially_regenerates_graph`
+directly (see above) plus hand-built fixtures for the quantity-filter/
+glob/set-operation edge cases those three don't cover.
+
+**B2. Port model-snapshot reconciliation + dyna step orchestration.**
+`model_state.py` (`reconcile_model_to_snapshot`, `reset_model_effects`),
+dyna `graph_state.py` (`add_new_nodes_to_graph_state` - a thin composition
+of A3's `attack_step_ttc_values`/`get_pre_enabled_defenses`/
+`get_impossible_attack_steps` and A3's `necessity.rs::calculate_necessity`
+over just the newly-added nodes), dyna `attacker_step.py`
+(`dyna_attacker_step`/`dyna_attempt_attacker_step` - wraps A7's
+`attacker_step`/`attempt_attacker_step` with B1's `execute_model_effects`
+called on each successful compromise and each resulting effect node),
+dyna `defender_step.py` (`dyna_defender_step` - same wrapping shape,
+simpler), and `simulator_state.py`'s `DynaMalSimulatorState`/`AssetOp`/
+`AssocOp` (extends A-phase's `MalSimulatorState` with a
+`modification_record: Vec<AssetOp | AssocOp>` field). **No new crate
+dependency** - this step is almost entirely composition of B1 and
+Phase A's existing `attacker_step`/`defender_step`/`graph_state`/
+`graph_utils`/`necessity` modules, which is also why it's the second and
+last pure-Rust-logic step rather than several - there is very little
+*new* algorithmic content here versus wiring. Unit-test
+`dyna_attacker_step`/`dyna_defender_step` against hand-built fixtures that
+exercise a model-effect-bearing node (no single isolated Python test
+covers the full wrapped step - `test_attacker_step`,
+`test_remove_before_add`, and the `test_int_dynamic_test_lang*`/
+`test_easy_ransomware_lang*`/`test_rand_multiplicity_scenario` cases all
+go through a fully-built scenario + running simulator, same situation
+A5-A7 were in for their own step - port the narrowest assertions from
+those (e.g. `test_remove_before_add`'s specific ordering guarantee) as
+direct unit tests instead of a line-for-line scenario port).
+
+### Python bindings integration - 5 steps (kept fine-grained: this is where Phase A's risk actually lived)
+
+**B3. Prove a shared `Model` handle end to end (A1-equivalent).**
+Add `PyModel::__inner_capsule__` upstream in mal-toolbox (mirroring
+`PyAttackGraph::__inner_capsule__` at `c854d1d6`), then one
+`#[pyfunction]` in `malsim-pyo3` that extracts the capsule and reads
+something trivial through it (asset count) against a Python-built
+`maltoolbox.Model`. Python-side smoke test confirms the count matches
+`len(model.assets)` and, critically, that a mutation made through either
+side (Python `model.add_asset(...)` vs. the Rust handle) is visible on
+the other - this double-visibility check is the one thing A1's original
+smoke test didn't need to prove (Phase A never mutated the shared graph
+from both sides at once; Phase B's whole point is that it does). Can
+proceed in parallel with B1/B2 - it has no dependency on either.
+
+**B4. Native dyna reset/step entry points in `malsim-pyo3`
+(A8-equivalent).** Extend (or add a sibling pyclass/method to) the
+existing native `Simulator` - naming TBD at implementation time, e.g.
+`dyna_reset_native(settings, agents, model_snapshot, seed)`/
+`dyna_step_native(actions)` - threading B3's shared `Model` handle
+alongside A1's shared `AttackGraph` handle, composing B1/B2's functions
+into a full dyna reset/step. New output shape beyond A8/A9's: per-step
+`modification_record` (new/removed asset+assoc ops, as plain dicts - an
+asset op needs at least `{type, asset_id}`, an assoc op needs
+`{type, left_asset_id, field_name, right_asset_id}`) and the set of
+newly-created node ids from `partially_regenerate_graph`, both needed so
+Python can resolve them back to real objects the same way A9 resolves
+other native output. First point B1-B3 are exercised together through
+Python - same role A8 played for A1-A7.
+
+**B5. Rewrite `DynaMalSimulator.reset()`/`.step()` to delegate to native
+(A9-equivalent).** Rewrite `dyna_mal_simulator/simulator.py`'s
+module-level `dyna_reset`/`dyna_step` to call B4's entry points instead of
+`model_state.reset_model_effects`/`dyna_attacker_step`/`dyna_defender_step`
+directly. Extend `native_settings.py`'s flattening (or add a dyna-specific
+sibling) for any dyna-only settings B4's `reset_native` needs. Add
+`create_attacker_state_from_native`/`create_defender_state_from_native`
+handling (or dyna-specific variants) for B4's new `modification_record`/
+new-node-id output, resolving back into `AssetOp`/`AssocOp`/
+`AttackGraphNode` objects - same "resolve ids back to real objects at the
+Python boundary" discipline as A9. Keep `DynaMalSimulator.__init__`/
+`.reset()`/`.step()`'s outer signatures byte-for-byte identical. Full
+`tests/test_dyna_mal_simulator.py` green (not just a smoke subset) is the
+acceptance gate here, same as A9 was for `test_mal_simulator.py`.
+
+**B6. Audit every other `DynaMalSimulator` public method
+(A10-equivalent).** Before writing anything, diff
+`dyna_mal_simulator/*.py` across the Phase A → Phase B commit boundary -
+A10 already confirmed `DynaMalSimulator` never sets
+`self._native_sim` and inherits all 19 of `MalSimulator`'s audited public
+methods unmodified, operating generically on `self.sim_state`/
+`self._agent_states`, so this audit may turn out to need zero code
+changes for those 19, same shape as A10's own result. What's actually new
+to audit here is `DynaMalSimulator`-specific surface A10 didn't cover at
+all: nothing public beyond `__init__`/`from_scenario`/`reset`/`step`
+appears to exist today (confirmed via the class body above), so this step
+may collapse to "confirmed nothing new to audit" - but do the diff before
+assuming that, not instead of it.
+
+**B7. Full parity pass + cleanup (A11-equivalent).** Full `pytest tests`
+(including `integration`) green. Decide per now-Rust-shadowed dyna Python
+module (`model_effects.py`, `process_assoc_traversal.py`, `model_state.py`)
+whether to delete or keep as a cross-check oracle, same lean-towards-delete
+default as A11. Re-run `envs/`/`policies/`/`visualization/` as the
+integration check. **Specifically re-run and scrutinize
+`test_no_memory_leak_on_teardown`/`test_no_memory_growth_over_repeated_simulations`**
+(`test_dyna_mal_simulator.py` lines 963-1048) - these matter more here
+than they did anywhere in Phase A, since B3 introduces a *second*
+independently-dropped `Rc<RefCell<...>>` shared across the FFI boundary
+(the `Model`, alongside A1's `AttackGraph`), and Phase A's A1 double-free
+bug (§10) is exactly the failure mode a second capsule-handoff could
+reintroduce if its destructor isn't symmetric with A1's.
 
 ## 7. Phase C: Rust-only library API + scenario loading
 
