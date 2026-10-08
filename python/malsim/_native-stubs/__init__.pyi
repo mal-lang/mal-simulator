@@ -9,6 +9,8 @@ that compiled module's API.
 
 See ``PORTING_NOTES.md`` §5/A1 for what's actually implemented so far -
 `node_count` is a Phase A1 smoke-test function only, not a stable API.
+`model_asset_count` is its Phase B3 equivalent for `maltoolbox.Model`
+(§6/B3) - also not a stable API.
 `Simulator` (Phase A8/A9, §5) backs `MalSimulator.reset()`/`.step()` as of
 A9, but is still not itself a stable/public API (an implementation
 detail of `malsim.mal_simulator.simulator`), and
@@ -19,8 +21,11 @@ plain `dict[str, Any]` here rather than a precise `TypedDict`.
 from typing import Any
 
 from maltoolbox.attackgraph import AttackGraph
+from maltoolbox.model import Model
 
 def node_count(graph: AttackGraph) -> int: ...
+def model_asset_count(model: Model) -> int: ...
+def model_add_asset_native(model: Model, asset_type: str) -> int: ...
 def set_detector_rates(
     graph: AttackGraph,
     node_id: int,

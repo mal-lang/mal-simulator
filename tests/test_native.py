@@ -36,6 +36,37 @@ def test_native_node_count_matches_python() -> None:
     assert _native.node_count(attack_graph) == len(attack_graph.nodes)
 
 
+def test_native_model_asset_count_matches_python_and_sees_both_sides_mutations() -> (
+    None
+):
+    """Phase B3 (PORTING_NOTES.md §6/B3) - A1-equivalent proof for
+    `maltoolbox.Model`/`PyModel.__inner_capsule__()`. Unlike A1's original
+    smoke test, this also proves *double visibility*: a mutation made
+    through either side (Python `model.add_asset(...)` or the native
+    handle, read back via `model.assets`) is seen by the other - the one
+    thing A1's own smoke test didn't need to prove, since Phase A never
+    mutates the shared graph from both sides at once (see §6's "New
+    architectural wrinkle" note).
+    """
+    scenario = Scenario.load_from_file(
+        path_relative_to_tests('./testdata/scenarios/simple_scenario.yml')
+    )
+    model = scenario.model
+
+    assert _native.model_asset_count(model) == len(model.assets)
+
+    # Mutate from the Python side; the native handle must see it immediately
+    # (same shared `Rc<RefCell<Model>>`, not a copy).
+    model.add_asset('Application', name='NativeB3TestAsset')
+    assert _native.model_asset_count(model) == len(model.assets)
+
+    # Mutate from the native side; the Python object must see it immediately
+    # too - the direction A1's own smoke test never needed to prove.
+    new_id = _native.model_add_asset_native(model, 'Application')
+    assert new_id in model.assets
+    assert _native.model_asset_count(model) == len(model.assets)
+
+
 def _load_simple_scenario() -> Scenario:
     return Scenario.load_from_file(
         path_relative_to_tests('./testdata/scenarios/simple_scenario.yml')

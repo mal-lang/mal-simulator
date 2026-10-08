@@ -8,12 +8,15 @@
 //! direct pyclass downcast (that doesn't work across independently-built
 //! `cdylib`s, see §10), but via the `PyCapsule` mal-toolbox's
 //! `PyAttackGraph::__inner_capsule__` hands out for exactly this purpose.
-//! Not meant as a real public API.
+//! `model_asset_count` is the Phase B3 equivalent for `maltoolbox.Model` /
+//! `PyModel::__inner_capsule__` (see `PORTING_NOTES.md` §6/B3). Neither is
+//! meant as a real public API.
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use maltoolbox_attackgraph::AttackGraph;
+use maltoolbox_model::Model;
 use pyo3::prelude::*;
 use pyo3::types::PyCapsule;
 
@@ -24,6 +27,11 @@ mod simulator;
 /// runtime check standing in for compile-time type safety across the
 /// module boundary.
 const INNER_CAPSULE_NAME: &std::ffi::CStr = c"maltoolbox._native.AttackGraph.inner";
+
+/// Must match mal-toolbox's `py-bindings/maltoolbox-model-py/src/model.rs`'s
+/// `INNER_CAPSULE_NAME` exactly - same role as `INNER_CAPSULE_NAME` above,
+/// for `maltoolbox.Model` instead of `maltoolbox.AttackGraph` (Phase B3).
+const MODEL_INNER_CAPSULE_NAME: &std::ffi::CStr = c"maltoolbox._native.Model.inner";
 
 /// Extracts the shared `Rc<RefCell<AttackGraph>>` handle from a Python
 /// `maltoolbox.AttackGraph` object via its `__inner_capsule__()` method.
@@ -57,6 +65,53 @@ fn node_count(graph: &Bound<'_, PyAny>) -> PyResult<usize> {
     let shared = extract_shared_graph(graph)?;
     let count = shared.borrow().nodes.len();
     Ok(count)
+}
+
+/// Extracts the shared `Rc<RefCell<Model>>` handle from a Python
+/// `maltoolbox.Model` object via its `__inner_capsule__()` method - Model
+/// counterpart of `extract_shared_graph` above (Phase B3, PORTING_NOTES.md
+/// §6/B3). `pub(crate)` for the same reason: future dyna native entry
+/// points (B4) will need this handle too, not just this phase's smoke test.
+pub(crate) fn extract_shared_model(model: &Bound<'_, PyAny>) -> PyResult<Rc<RefCell<Model>>> {
+    let capsule_obj = model.call_method0("__inner_capsule__")?;
+    let capsule = capsule_obj.cast::<PyCapsule>()?;
+    let ptr = capsule.pointer_checked(Some(MODEL_INNER_CAPSULE_NAME))?;
+    let typed_ptr = ptr.as_ptr() as *const RefCell<Model>;
+    // SAFETY: same reasoning as `extract_shared_graph` above - the capsule
+    // still owns the one strong reference `__inner_capsule__` parked, so we
+    // bump the strong count and mint an independently-owned `Rc` rather
+    // than reclaiming the capsule's own reference directly.
+    unsafe {
+        Rc::increment_strong_count(typed_ptr);
+        Ok(Rc::from_raw(typed_ptr))
+    }
+}
+
+/// Reads the asset count of a `maltoolbox.Model` through the shared
+/// `Rc<RefCell<Model>>` handle extracted above, without going through any
+/// further Python-level attribute access. Phase B3 smoke-test function,
+/// same tier as `node_count` above - not a real public API.
+#[pyfunction]
+fn model_asset_count(model: &Bound<'_, PyAny>) -> PyResult<usize> {
+    let shared = extract_shared_model(model)?;
+    let count = shared.borrow().assets.len();
+    Ok(count)
+}
+
+/// Test-support-only utility (not a real public API, same tier as
+/// `set_detector_rates` below): adds an asset directly through the shared
+/// `Rc<RefCell<Model>>` handle, bypassing `maltoolbox`'s Python-level
+/// `Model.add_asset()` entirely - proves the *other* direction of Phase
+/// B3's double-visibility requirement (a mutation made through the native
+/// handle must be visible back on the Python side), which
+/// `model_asset_count` alone (read-only) can't exercise.
+#[pyfunction]
+fn model_add_asset_native(model: &Bound<'_, PyAny>, asset_type: &str) -> PyResult<i64> {
+    let shared = extract_shared_model(model)?;
+    let mut model = shared.borrow_mut();
+    model
+        .add_asset(asset_type, None, None, None, None, true)
+        .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
 }
 
 /// Test-support-only utility (not a real public API, same tier as
@@ -107,6 +162,8 @@ fn set_detector_rates(
 #[pymodule]
 fn _native(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(node_count, m)?)?;
+    m.add_function(wrap_pyfunction!(model_asset_count, m)?)?;
+    m.add_function(wrap_pyfunction!(model_add_asset_native, m)?)?;
     m.add_function(wrap_pyfunction!(set_detector_rates, m)?)?;
     m.add_class::<simulator::Simulator>()?;
     Ok(())

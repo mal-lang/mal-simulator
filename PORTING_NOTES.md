@@ -647,7 +647,78 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         then confirmed by a 25-iteration repeat-run stress test before and
         after the fix (deterministic pass after relaxing the assertion to
         accept either side's tuple, or just the resulting model state).
-  - [ ] B3 - Prove a shared `Model` handle end to end (A1-equivalent)
+  - [x] B3 - Prove a shared `Model` handle end to end (A1-equivalent).
+        **Upstream mal-toolbox change (this phase's one piece reaching
+        outside this repo, per §6):** added `PyModel::__inner_capsule__`
+        in `py-bindings/maltoolbox-model-py/src/model.rs`, mirroring
+        `PyAttackGraph::__inner_capsule__` (`c854d1d6`) exactly - same
+        `PyCapsule`-with-destructor shape, same strong-count-bump-then-
+        `Rc::from_raw` extraction discipline, capsule name
+        `"maltoolbox._native.Model.inner"`. Landed as mal-toolbox commit
+        `b96258bad474282b975245d9848f7c25d195d508` on `rust-rewrite`
+        (pushed to `origin` - this repo's git deps fetch over HTTPS from
+        the public remote, not a local checkout, so the commit had to be
+        on `origin` before `malsim-pyo3` could pin it). Both repos'
+        `cargo test`/`clippy -D warnings`/`fmt --check` clean before and
+        after.
+        **Landed in this repo:** `Cargo.toml`/`py-bindings/Cargo.toml`'s
+        `maltoolbox-*` git deps re-pinned from `c854d1d6` to `b96258bad`;
+        `maltoolbox-model` added as a *direct* dependency of
+        `py-bindings/malsim-pyo3/Cargo.toml` (previously only transitive
+        via `malsim-core` → `maltoolbox-attackgraph`, same "promote
+        transitive to direct" shape as A8's `rand` and B1's own promotions
+        of this exact crate - asked the user per standing policy,
+        approved). `py-bindings/malsim-pyo3/src/lib.rs` gained
+        `extract_shared_model` (Model counterpart of A1's
+        `extract_shared_graph`, `pub(crate)` for B4 to reuse), and two
+        test-support-only `#[pyfunction]`s at the same tier as A1's
+        `node_count`/A9's `set_detector_rates` - not real public API:
+        `model_asset_count` (read-only smoke test, mirrors `node_count`)
+        and `model_add_asset_native` (mutates via the shared handle,
+        calling `maltoolbox_model::Model::add_asset` directly) - the
+        latter exists specifically to prove B3's *double-visibility*
+        requirement in both directions, not just one (see below).
+        `python/malsim/_native-stubs/__init__.pyi` gained both functions'
+        signatures.
+        **Test:** `tests/test_native.py::
+        test_native_model_asset_count_matches_python_and_sees_both_sides_mutations`
+        - loads `simple_scenario.yml`, checks `_native.model_asset_count`
+        against `len(scenario.model.assets)`, adds an asset via Python's
+        `model.add_asset(...)` and re-checks (proves native sees a
+        Python-side mutation), then adds one via the new
+        `model_add_asset_native` and checks the new id shows up in
+        `model.assets` (proves Python sees a native-side mutation) - this
+        second direction is the one thing A1's own smoke test never needed
+        to prove, since Phase A never mutates the shared graph from both
+        sides at once (§6). Full gate green: `uv run pytest tests`
+        (165 passed) and `examples/*` (6 passed); `mypy`/`ruff check`/
+        `ruff format --check` clean; `cargo test`/`clippy -D warnings`/
+        `fmt --check` clean in both the root (`malsim-core`, 149 tests,
+        unchanged by this phase) and `py-bindings` workspaces.
+        **Local build-environment gotcha found and worked around, not a
+        code defect - see §10 for the full writeup.** `uv run maturin
+        develop --uv`'s own dependency-resolution step for the
+        `mal-toolbox` git dependency intermittently installed a wheel
+        whose compiled `.so` was missing `PyModel.__inner_capsule__`
+        entirely, even immediately after `uv cache clean mal-toolbox` and
+        even though `direct_url.json` correctly reported the new commit
+        sha. Root-caused to the `uv`/`maturin` build pipeline specifically
+        in this sandbox, not the Rust source: a plain `cargo build`
+        against the exact same checkout (with `PYO3_PYTHON` set to match)
+        and, more convincingly, a from-scratch `git clone` +
+        `maturin build --release` (the same pipeline a real install uses)
+        both produced a correct wheel exposing the method - confirmed via
+        `strings` on the `.so` and an actual Python import. Workaround
+        used to unblock this phase's test run: build the wheel via the
+        from-scratch clone + `maturin build --release` path directly and
+        `uv pip install --reinstall-package mal-toolbox <that wheel>`
+        instead of relying on `uv run maturin develop`'s own resolution
+        for the `mal-toolbox` dependency specifically. Flagged in §9 as a
+        risk for whoever picks up B4 next in this same sandbox - don't
+        assume `uv run maturin develop` alone reflects a fresh mal-toolbox
+        commit; verify with `strings <the installed .so> | grep
+        __inner_capsule__` (or equivalent) before trusting a failing
+        Python-level test actually indicates a Rust-side bug.
   - [ ] B4 - Native dyna reset/step entry points in `malsim-pyo3`
         (A8-equivalent)
   - [ ] B5 - Rewrite `DynaMalSimulator.reset()`/`.step()` to delegate to
@@ -1580,6 +1651,26 @@ checked by CI, not just asserted in prose.
   any dedicated cross-check. Revisit if `attacker_step`/`defender_step`'s
   (A7) traversal logic ever changes without a corresponding
   `graph_utils.py` update, or vice versa.
+- **B3's local `uv`/`maturin` build-cache anomaly (see §10 for the full
+  writeup) - not resolved, only worked around, and may resurface for
+  whoever runs B4+ in the same sandbox.** `uv run maturin develop --uv`'s
+  own resolution of the `mal-toolbox` git dependency was observed to
+  install a wheel missing a method that definitely exists in the pinned
+  commit's source (confirmed via an independent from-scratch clone +
+  `maturin build --release`), even right after `uv cache clean
+  mal-toolbox` and with a correctly-updated `direct_url.json`. Root cause
+  not identified (candidates: a uv-internal build/metadata cache keyed on
+  something coarser than the resolved commit sha, or a build-isolation
+  environment reuse quirk) - no `.cargo/config.toml`/env-based wrapper
+  (sccache/ccache) was present to blame. Before trusting any future
+  Python-level test failure as a sign of an upstream mal-toolbox Rust bug,
+  first confirm what's actually installed: `strings <path to the
+  installed maltoolbox/_native*.so> | grep <the-symbol-in-question>`. If
+  it's missing despite a correct `rev` pin, rebuild via a fresh clone +
+  `maturin build --release --manifest-path py-bindings/maltoolbox-pyo3/
+  Cargo.toml -o <dir>` and `uv pip install --reinstall-package
+  mal-toolbox <that wheel>` rather than re-running `uv run maturin
+  develop` and hoping.
 
 ## 10. Differences log
 
@@ -2592,3 +2683,71 @@ delta against at reset. Only `step_native` changed, in
   runs - the tell that it was process-seed-dependent iteration order, not
   genuine non-determinism). Fixed by asserting on the resulting model
   state / accepting either side's tuple, not by pinning iteration order.
+
+**B3: `PyModel::__inner_capsule__` added upstream, mirroring A1's
+`PyAttackGraph::__inner_capsule__` exactly - no new mechanism invented.**
+§6's "New architectural wrinkle" note predicted this would need an
+upstream mal-toolbox change "almost certainly... mirroring A1/§2.2's
+precedent" - confirmed, and it really was a mirror, not a variant:
+same `PyCapsule::new_with_pointer_and_destructor` call, same
+strong-count-bump-then-`Rc::from_raw` extraction discipline on this
+repo's side (`extract_shared_model`, copy-structured from
+`extract_shared_graph`), same capsule-name-string-as-the-only-
+cross-module-contract shape. Landed as mal-toolbox commit `b96258bad`
+on `rust-rewrite`, pushed to `origin` (this repo's git dependency
+resolves the branch over HTTPS, not a local checkout - a local-only
+commit would not have been fetchable). The one genuinely new thing this
+phase needed that A1 didn't: **proof that a mutation is visible in both
+directions**, not just one. A1's own smoke test (`node_count`) only ever
+*read* through the capsule - Phase A never mutates the shared graph from
+both the Python and Rust sides within the same test, so it never had to
+prove the Rust-side write path. B3's test exercises both directions
+explicitly: `model.add_asset(...)` from Python, then
+`_native.model_asset_count` immediately reflecting it (Python→Rust
+visibility); then a new test-support-only `model_add_asset_native`
+pyfunction (mutates via `shared.borrow_mut().add_asset(...)` directly, no
+Python-level `Model.add_asset()` call at all) with the resulting id
+checked against Python's `model.assets` (Rust→Python visibility). Both
+directions passed on the first correct build, with no code changes needed
+beyond the straightforward `extract_shared_model`/`model_asset_count`
+pair - the capsule mechanism genuinely is symmetric, as A1's original
+design intended.
+
+**B3: a `uv`/`maturin` local build-cache anomaly cost most of this
+phase's wall-clock time and is recorded here in full since §9's entry
+only has room for the summary.** After pushing the upstream commit and
+re-pinning this repo's `Cargo.toml`s to it, `uv run maturin develop --uv`
+reported (correctly) resolving and reinstalling `mal-toolbox` at the new
+commit sha - but the *installed* `.so`'s `strings` output showed zero
+occurrences of `__inner_capsule__` in `Model`'s context (one occurrence
+for `AttackGraph`, where it already worked), and `type(model).__dict__`
+confirmed the method was genuinely absent from the installed type, not
+just hidden from `dir()`. This looked exactly like a Rust-side bug - a
+plausible one, since dunder-looking method names are exactly the kind of
+thing that could trip up pyo3's magic-method detection. It wasn't: a
+manual `cargo build -p maltoolbox-model-py`/`cargo clippy -D warnings`
+against the live checkout was clean, and two independent manual rebuilds
+- a raw `cargo build` (debug profile, `PYO3_PYTHON` pointed at this
+project's venv to match ABI) and, more conclusively, a *from-scratch*
+`git clone` to a scratch dir followed by `maturin build --release
+--manifest-path py-bindings/maltoolbox-pyo3/Cargo.toml` (the same
+pipeline a real install uses, no reused caches of any kind) - both
+produced a `.so` where `__inner_capsule__` *was* present and callable,
+verified via direct Python import, not just `strings`. `uv cache clean
+mal-toolbox` followed by a fresh `uv run maturin develop --uv` still
+reproduced the broken install afterward, byte-for-byte identical
+(`md5sum` matched the pre-clean broken build), which rules out a simple
+"stale cache entry" explanation and points at something in how `uv`
+resolves/builds this specific git dependency inside this project's own
+resolution step, not a resolution-cache or git-ref-cache issue (both of
+which were independently confirmed correct via `direct_url.json`).
+Root cause not identified - not worth the further time, since it's a
+local dev-environment quirk rather than a code defect, confirmed three
+separate ways above. Worked around for this phase's actual test run by
+building the known-good wheel via the from-scratch-clone path and `uv pip
+install --reinstall-package mal-toolbox <that wheel>` directly, bypassing
+`uv run maturin develop`'s own `mal-toolbox` resolution step entirely.
+**Flag for B4+:** don't trust `uv run maturin develop` alone to reflect a
+just-pushed mal-toolbox commit in this sandbox - verify with `strings`
+(or equivalent) on the actually-installed `.so` first, every time, before
+concluding a failing test means new Rust code is wrong.
