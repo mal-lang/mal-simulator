@@ -7,8 +7,9 @@ ActionWrapper (https://gymnasium.farama.org/api/wrappers/action_wrappers/).
 
 from typing import Any, SupportsFloat
 import numpy as np
-from gymnasium import Wrapper
-from gymnasium.core import Env
+import gymnasium as gym
+from gymnasium import Wrapper, spaces
+from gymnasium.core import Env, ObsType
 from malsim.envs.graph.mal_spaces import (
     AssetThenDefenderAction,
     AttackerActionThenAsset,
@@ -150,4 +151,30 @@ class ActionThenAssetWrapper(
         action_mask, asset_mask = self.mask(obs)
         info['action_mask'] = action_mask
         info['asset_mask'] = asset_mask
+        return obs, reward, terminated, truncated, info
+
+
+class PadActionSpaceWrapper(
+    Wrapper[ObsType, np.int64 | tuple[np.int64, np.int64], ObsType, np.int64 | tuple[np.int64, np.int64]], gym.utils.RecordConstructorArgs
+):
+    def __init__(self, env: gym.Env[ObsType, np.int64 | tuple[np.int64, np.int64]], max_action: tuple[int] | tuple[int, int]):
+        gym.utils.RecordConstructorArgs.__init__(self, max_action=max_action)
+        Wrapper.__init__(self, env)
+        self.orig_action_space = env.action_space
+        if isinstance(self.orig_action_space, MALObsAttackStepSpace) or isinstance(self.orig_action_space, MALObsDefenseStepSpace):
+            assert len(max_action) == 1, "Max action must be a single integer for attack and defense step spaces."
+            self.action_space = spaces.Discrete(max_action[0])
+        elif isinstance(self.orig_action_space, AttackerActionThenAsset) or isinstance(self.orig_action_space, DefenderActionThenAsset):
+            assert len(max_action) == 2, "Max action must be a tuple of two integers for attacker/defender action then asset."
+            self.action_space = spaces.Tuple([spaces.Discrete(max_action[0]), spaces.Discrete(max_action[1])])
+        elif isinstance(self.orig_action_space, AssetThenAttackerAction) or isinstance(self.orig_action_space, AssetThenDefenderAction):
+            assert len(max_action) == 2, "Max action must be a tuple of two integers for asset then attacker/defender action."
+            self.action_space = spaces.Tuple([spaces.Discrete(max_action[0]), spaces.Discrete(max_action[1])])
+        else:
+            raise ValueError(f"Action space {self.orig_action_space} is not supported.")
+
+    def step(
+        self, action: np.int64 | tuple[np.int64, np.int64]
+    ) -> tuple[ObsType, SupportsFloat, bool, bool, dict[str, Any]]:
+        obs, reward, terminated, truncated, info = self.env.step(action)
         return obs, reward, terminated, truncated, info
