@@ -235,6 +235,8 @@ name = "malsim-core"
 version = "0.1.0"
 dependencies = [
  "maltoolbox-attackgraph",
+ "maltoolbox-language",
+ "maltoolbox-model",
  "rand",
  "serde_json",
  "statrs",

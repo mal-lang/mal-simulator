@@ -523,14 +523,130 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
   - [ ] A11 - Full existing test suite green with native backend; delete
         now-dead pure-Python hot-path modules (or demote to `#[cfg(test)]`
         oracle comparisons - TBD per-module, see §5)
-- [ ] Phase B - `DynaMalSimulator` port (§6)
-  - [ ] B1 - Port association-traversal evaluation + model-effect
+- [~] Phase B - `DynaMalSimulator` port (§6)
+  - [x] B1 - Port association-traversal evaluation + model-effect
         application (`process_assoc_traversal.py`, `model_effects.py`) to
-        `malsim-core`
-  - [ ] B2 - Port model-snapshot reconciliation + dyna step orchestration
+        `malsim-core`. Landed in `core/malsim-core/src/assoc_traversal.rs`
+        (`sample_size`, `apply_quantity_filter`, `traverse_association_chain`
+        + its private `assoc_traversal`/`glob_assoc_traversal`/
+        `assoc_set_traversal`/`resolve_terminal_traversal` helpers,
+        `parse_addition`, `parse_removal`, plus an `AssocTraversalError`
+        enum) and `core/malsim-core/src/model_effects.rs` (`apply_model_effect`,
+        `execute_model_effects`, the four `target_op` closures as private
+        `add_asset_op`/`remove_asset_op`/`add_assoc_op`/`remove_assoc_op`
+        functions, `AssetOp`/`AssocOp`/`ModEffectOp` - this port's
+        `simulator_state.py` equivalent, since no `MalSimulatorState`-style
+        struct exists in `malsim-core` to extend, see below - and a
+        `ModelEffectsError` enum). Operates entirely on `i64` asset ids
+        (never `ModelAsset` object references, unlike Python) and `AssetId`
+        language-graph type ids for not-yet-created assets - both already
+        how `maltoolbox-model`/`maltoolbox-attackgraph`'s Rust types work
+        (`AttackGraphNode.model_asset: Option<i64>`, `Model::associated_assets:
+        HashMap<String, HashSet<i64>>`), so no new id/reference scheme was
+        invented. 14 new Rust-native tests (12 in `assoc_traversal.rs`, 2 in
+        `model_effects.rs`); `cargo test`/`cargo clippy -D warnings`/`cargo
+        fmt --check` all clean (140 tests total in `malsim-core` now, from
+        126 pre-B1); full Python suite (164 tests)
+        still green, untouched by this phase - no Python file changed.
+        **New direct crate dependencies, asked the user per standing policy -
+        approved.** `maltoolbox-model` (previously transitive via
+        `maltoolbox-attackgraph`, same "promote transitive to direct" shape
+        as A8's `rand`) *and* `maltoolbox-language` (previously a
+        `[dev-dependencies]`-only entry since A4 - promoted to a normal
+        dependency because this phase's *production* code, not just tests,
+        needs to name `LanguageGraphModelEffect`/`AssocTraversalChain`/
+        `DynTarget`/`QuantityFilter`/etc. directly, and `maltoolbox-attackgraph`
+        doesn't re-export them) - both already exist in the workspace at the
+        pinned `mal-toolbox` rev, no new external dependency tree. See §10 for
+        the deliberate deviations this phase introduced from the Python
+        source (the B1/B2 module split for `execute_model_effects`, and two
+        ported-as-unreachable-in-Rust Python quirks).
+        **Testing approach:** `tests/test_dyna_mal_simulator.py::test_assoc_traversal`/
+        `test_apply_model_effect` were ported close to line-for-line (same
+        `wiperLang.mal`/`wiper_model.yml` fixtures, now also compiled/loaded
+        directly in Rust via `test_fixtures.rs`'s new `wiper_lang_graph`/
+        `wiper_attack_graph` helpers - mirrors A4's `dummy_lang_graph`
+        precedent); `test_apply_model_effect_modification_record_partially_regenerates_graph`
+        has no Rust equivalent of its exact fixture (the
+        `dynamic_remove_many_assoc` scenario needs Phase C's not-yet-ported
+        scenario-YAML loader to build outside Python) - its *property*
+        (removal's modification record, replayed through
+        `partially_regenerate_graph`, matches a graph rebuilt fresh from the
+        same mutated model) is instead exercised via wiperLang's
+        `Wiper:trigger` subtractive effect in a hand-built
+        `execute_model_effects_removal_matches_fresh_graph_rebuild` test.
+  - [x] B2 - Port model-snapshot reconciliation + dyna step orchestration
         (`model_state.py`, dyna `graph_state.py`/`attacker_step.py`/
         `defender_step.py`, `simulator_state.py`'s `DynaMalSimulatorState`)
-        to `malsim-core`, composing B1 with Phase A's existing functions
+        to `malsim-core`, composing B1 with Phase A's existing functions.
+        Landed in `core/malsim-core/src/dyna_graph_state.rs`
+        (`add_new_nodes_to_graph_state` + a `pub(crate)` `fold_new_nodes_into_graph_state`
+        helper shared by both dyna step modules below), `core/malsim-core/
+        src/dyna_attacker_step.rs` (`dyna_attacker_step` + a
+        `DynaAttackerStepError` enum - no separate `dyna_attempt_attacker_step`,
+        see below), `core/malsim-core/src/dyna_defender_step.rs`
+        (`dyna_defender_step` + `DynaDefenderStepError`), and
+        `core/malsim-core/src/model_state.rs` (`capture_model_snapshot`,
+        `reconcile_model_to_snapshot`, `reset_model_effects`, a
+        `ModelSnapshot`/`ModelSnapshotAsset` pair standing in for Python's
+        `dict[str, Any]` snapshot shape - see §10 for why this isn't a
+        literal port of that shape - plus a `ModelStateError` enum).
+        **No `DynaMalSimulatorState` struct added** - confirmed (per A3/A5/
+        A8's precedent and A9's note that full settings/state-struct porting
+        is deferred to the native-`Simulator`-equivalent integration phase)
+        that `malsim-core` has no `MalSimulatorState`-shaped struct at all to
+        extend; B2's functions take `graph_state: &mut GraphState`/
+        `enabled_defenses: &mut HashSet<AttackGraphNodeId>` as separate
+        `&mut` parameters instead, mirroring A7's existing flattened-args
+        pattern. That composition (building an actual dyna state struct) is
+        B4/B5's job once a real native dyna `Simulator` needs one, same as
+        A8/A9 did for Phase A. 9 new Rust-native tests (1 in
+        `dyna_graph_state.rs`, 3 in `dyna_attacker_step.rs`, 3 in
+        `dyna_defender_step.rs`, 2 in `model_state.rs`); `cargo test`/`cargo
+        clippy -D warnings`/`cargo fmt --check` all clean (149 tests total in
+        `malsim-core` now, from B1's exit count of 140); full Python suite
+        (164 tests) still green, untouched - no Python file changed.
+        **No new crate dependency this phase** - reuses B1's `maltoolbox-model`/
+        `maltoolbox-language` promotions and Phase A's existing `attacker_step`/
+        `defender_step`/`graph_state`/`graph_utils`/`necessity` modules, so the
+        standing "ask before adding a dependency" policy wasn't triggered.
+        **`dyna_attempt_attacker_step` doesn't exist as a separate Rust
+        function.** Python's version is identical to A7's `attempt_attacker_step`
+        except it resolves `agent.num_attempts.get(node, 0)` instead of
+        `agent.num_attempts[node]` (a node created mid-simulation may not be
+        seeded in the dict yet) - but A7's Rust `attacker_step` *already*
+        resolves its `num_attempts_before` argument the same defensive way
+        (`num_attempts.get(&node_id).copied().unwrap_or(0)`, for the identical
+        reason), so `dyna_attacker_step` reuses `attacker_step::attempt_attacker_step`
+        directly with no behavioral gap - confirmed by diffing the two Python
+        functions line-by-line, not assumed.
+        **Testing approach:** no isolated Python unit test covers the full
+        wrapped dyna step (`test_attacker_step`/`test_remove_before_add`/the
+        scenario-level `test_int_dynamic_test_lang*` cases all go through a
+        fully-built scenario + running simulator, same situation A5-A7 were
+        in) - Rust tests are hand-built directly against the Python source's
+        documented/implemented semantics instead, using wiperLang (entry-point
+        compromise of `InfectedDevice:infect` triggering its model effect, then
+        confirming the newly-regenerated `Wiper-7:*` nodes are folded into the
+        returned `graph_state`) for `dyna_attacker_step`, and a `dummy_lang.mal`
+        defense step (no model effects declared, so `dummy_lang.mal` didn't
+        need extending) for `dyna_defender_step`'s wiring-only checks.
+        **One flaky test found and fixed before landing, not worked around
+        later.** An early version of `reconcile_model_to_snapshot`'s test
+        asserted a *specific* association tuple (`(infected_device, "sendTo",
+        c2_server)`) appeared in the returned `new_associations` set; this
+        failed in roughly 4 of 5 separate `cargo test` invocations (never
+        within one invocation's repeated runs) because `Model::add_associated_assets`
+        updates *both* sides of a bidirectional association (e.g. `sendTo`/
+        `receiveFrom`) symmetrically, so depending on `HashMap` iteration
+        order (randomized per-process) of `reconcile_model_to_snapshot`'s
+        asset loop, *either* asset's field-diff pass ends up the one that
+        explicitly records the fix - the other side gets the correct end
+        state for free, with nothing recorded under its own tuple. Root-caused
+        by hand-tracing `add_associated_assets`'s opposite-fieldname update,
+        then confirmed by a 25-iteration repeat-run stress test before and
+        after the fix (deterministic pass after relaxing the assertion to
+        accept either side's tuple, or just the resulting model state).
   - [ ] B3 - Prove a shared `Model` handle end to end (A1-equivalent)
   - [ ] B4 - Native dyna reset/step entry points in `malsim-pyo3`
         (A8-equivalent)
@@ -2415,3 +2531,64 @@ delta against at reset. Only `step_native` changed, in
   computed, just discarded, into the FFI boundary's output, and merging
   on the Python side instead of re-resolving) - the "ask before adding a
   dependency" policy had nothing to trigger.
+
+**Phase B1/B2 (`assoc_traversal.rs`/`model_effects.rs`/`dyna_graph_state.rs`/
+`dyna_attacker_step.rs`/`dyna_defender_step.rs`/`model_state.rs`):**
+
+- **`execute_model_effects` is deliberately split across the B1/B2
+  boundary**, unlike Python where one function (`model_effects.py::
+  execute_model_effects`) both applies the model effects *and* calls dyna
+  `graph_state.py::add_new_nodes_to_graph_state` to fold the resulting new
+  nodes into a `GraphState`, returning a fully-updated
+  `DynaMalSimulatorState`. B1's `model_effects.rs::execute_model_effects`
+  stops right after `partially_regenerate_graph`, returning
+  `(modification_record, new_node_ids)` - it does not fold `new_node_ids`
+  into a `GraphState` itself. B2's `dyna_attacker_step`/`dyna_defender_step`
+  do that fold via `dyna_graph_state.rs::fold_new_nodes_into_graph_state`
+  immediately after calling B1's function. Reason: `add_new_nodes_to_graph_state`
+  is B2-scoped Python source (`dyna_mal_simulator/graph_state.py`, not
+  `model_effects.py`) - B1 shouldn't reach into B2's not-yet-written code
+  to stay a clean, independently-landable step, even though Python's own
+  module boundary doesn't draw the line in the same place (it imports
+  `graph_state.add_new_nodes_to_graph_state` into `model_effects.py`
+  directly). The observable behavior at the B2 call sites is identical
+  either way - this is a pure code-organization difference, not a
+  behavioral one.
+- **`sample_size`'s `quantity is None` branch doesn't clip against
+  `max_size`, ported as-is from a latent Python oddity** - see
+  `assoc_traversal.rs::sample_size`'s doc comment. Confirmed via grep that
+  every real call site only reaches this branch with `max_size` left at
+  its default (infinite), so the mismatch is unreachable today in both
+  languages, not just "ported faithfully but now also unreachable."
+- **`model_state.rs`'s `ModelSnapshot` is a new Rust type, not a literal
+  port of Python's `dict[str, Any]` (`Model.to_dict()`) snapshot shape** -
+  see `model_state.rs`'s module doc comment for the full reasoning. Short
+  version: Python's `reconcile_model_to_snapshot` compares `frozenset(other.id
+  for other in others)` (integer asset ids) against `frozenset(other_ids)`
+  where `other_ids` is a `dict[str, str]` (`{"<id>": "<name>"}`) - iterating
+  a dict yields its *string* keys, so the two frozensets can never
+  intersect, and every reconciliation silently falls back to a full
+  remove-and-re-add of every association. The *end state* is still
+  correct (full teardown-and-rebuild reaches the same target), so no
+  currently-passing Python test catches this - but faithfully reproducing
+  it in Rust would require deliberately mistyping one side of a comparison
+  that Rust's type system wouldn't let compile as mismatched in the first
+  place. Chose correctness (the function's own docstring's "minimal diff"
+  intent) over bug-for-bug fidelity here - the first and only case in this
+  port where "port faithfully" and "write correct Rust" actually conflicted
+  rather than just being in tension stylistically (§2.7).
+- **One flaky test, found and fixed before landing** (not a port
+  divergence, but worth recording per §8's testing discipline): an early
+  `reconcile_model_to_snapshot` test asserted a *specific* association
+  tuple appeared in the returned `new_associations` set. `Model::
+  add_associated_assets` updates both sides of a bidirectional association
+  (`sendTo`/`receiveFrom`) symmetrically, so depending on `HashMap`
+  iteration order (randomized per-process) of the reconciliation loop,
+  *either* asset's field-diff pass could end up the one that explicitly
+  records the fix - the other side's correct end state arrives for free,
+  with nothing recorded under its own tuple. Found via a 25-iteration
+  repeat-run stress test (failed in roughly 4 of 5 separate `cargo test`
+  process invocations, but never within one invocation's repeated test
+  runs - the tell that it was process-seed-dependent iteration order, not
+  genuine non-determinism). Fixed by asserting on the resulting model
+  state / accepting either side's tuple, not by pinning iteration order.
