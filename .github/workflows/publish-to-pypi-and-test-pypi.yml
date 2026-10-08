@@ -28,6 +28,14 @@ jobs:
           manylinux: auto
       - name: Test wheel (native target only)
         if: matrix.platform.target == 'x86_64'
+        env:
+          # The maturin-action build step above leaves RUSTC_WRAPPER=sccache
+          # in the job environment, but that sccache binary only exists
+          # inside its manylinux container. This step runs on the host and
+          # rebuilds mal-toolbox (a git dependency) from source via cargo,
+          # so the leaked wrapper must be cleared or the build fails.
+          RUSTC_WRAPPER: ""
+          SCCACHE_GHA_ENABLED: ""
         run: |
           pip install mal-simulator --find-links dist --force-reinstall
           python -c "import malsim"
