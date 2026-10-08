@@ -4,7 +4,7 @@ import numpy as np
 
 from maltoolbox.model import Model
 from maltoolbox.attackgraph.attackgraph import AttackGraph
-from maltoolbox.language.languagegraph import LanguageGraph
+from maltoolbox.language import LanguageGraph
 
 from malsim.mal_simulator.ttc_utils import TTCDist, named_ttc_dists
 

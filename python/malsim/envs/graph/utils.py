@@ -127,10 +127,10 @@ def create_full_obs(sim: MalSimulator, serializer: LangSerializer) -> MALObsInst
         for fieldname, other_assets in asset.associated_assets.items():
             assoc = asset.lg_asset.associations[fieldname]
             for other_asset in other_assets:
-                if (assoc, asset.id, other_asset.id) not in associations and (
+                if (assoc, asset, other_asset) not in associations and (
                     assoc,
-                    other_asset.id,
-                    asset.id,
+                    other_asset,
+                    asset,
                 ) not in associations:
                     associations.append((assoc, asset, other_asset))
     sorted_associations = sorted(

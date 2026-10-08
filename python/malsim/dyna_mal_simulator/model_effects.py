@@ -334,7 +334,7 @@ def execute_model_effects(
         sim_state.graph_state,
         sim_state.settings,
         sim_state.attack_graph,
-        new_nodes,
+        set(new_nodes),
         rng,
     )
     return DynaMalSimulatorState(
