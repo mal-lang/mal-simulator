@@ -140,9 +140,103 @@ def test_native_simulator_step_advances_attacker_state() -> None:
     attacker_out = step_out['agents']['Attacker1']
 
     assert attacker_out['iteration'] == 1
-    assert entry_point.id in attacker_out['performed_nodes']
-    assert next_node_id in attacker_out['performed_nodes']
+    assert next_node_id in attacker_out['step_performed_nodes']
     assert next_node_id not in attacker_out['action_surface']
+
+
+def test_native_simulator_step_output_is_delta_only() -> None:
+    """`step_native`'s return shape is deltas-only (`step_*` keys) for the
+    fields that are episode-accumulated internally - see
+    `simulator.rs`'s `build_step_output` module docs and
+    `PORTING_NOTES.md` §10's post-A10/pre-A11 differences-log entry for
+    the wire-format tables. `reset_native`'s shape is untouched (full
+    fields) and isn't asserted here.
+    """
+    scenario = _load_simple_scenario()
+    attack_graph = scenario.attack_graph
+    attacker = scenario.attacker_settings['Attacker1']
+    entry_point = _single_entry_point(attacker)
+
+    sim = _native.Simulator(attack_graph)
+    reset_out = sim.reset_native(
+        {},
+        {
+            'Attacker1': {
+                'type': 'attacker',
+                'entry_points': [entry_point.id],
+            },
+            'Defender1': {'type': 'defender'},
+        },
+        42,
+    )
+    action_surface = reset_out['agents']['Attacker1']['action_surface']
+    assert action_surface
+
+    step_out = sim.step_native({'Attacker1': [action_surface[0]], 'Defender1': []})
+
+    assert set(step_out['sim_state'].keys()) == {'step_enabled_defenses'}
+
+    attacker_out = step_out['agents']['Attacker1']
+    assert set(attacker_out.keys()) == {
+        'type',
+        'step_performed_nodes',
+        'step_attempted_nodes',
+        'action_surface',
+        'iteration',
+        'terminated',
+    }
+
+    defender_out = step_out['agents']['Defender1']
+    assert set(defender_out.keys()) == {
+        'type',
+        'step_performed_nodes',
+        'step_compromised_nodes',
+        'step_observed_nodes',
+        'action_surface',
+        'iteration',
+        'terminated',
+        'step_logs',
+    }
+
+
+def test_native_simulator_step_output_is_delta_only_attacker_only() -> None:
+    """Same as `test_native_simulator_step_output_is_delta_only` but with
+    no defender agent registered at all, per the plan's requirement to
+    cover both an attacker-only and an attacker+defender fixture.
+    """
+    scenario = _load_simple_scenario()
+    attack_graph = scenario.attack_graph
+    attacker = scenario.attacker_settings['Attacker1']
+    entry_point = _single_entry_point(attacker)
+
+    sim = _native.Simulator(attack_graph)
+    reset_out = sim.reset_native(
+        {},
+        {
+            'Attacker1': {
+                'type': 'attacker',
+                'entry_points': [entry_point.id],
+            },
+        },
+        42,
+    )
+    action_surface = reset_out['agents']['Attacker1']['action_surface']
+    assert action_surface
+
+    step_out = sim.step_native({'Attacker1': [action_surface[0]]})
+
+    assert set(step_out['sim_state'].keys()) == {'step_enabled_defenses'}
+    assert set(step_out['agents'].keys()) == {'Attacker1'}
+
+    attacker_out = step_out['agents']['Attacker1']
+    assert set(attacker_out.keys()) == {
+        'type',
+        'step_performed_nodes',
+        'step_attempted_nodes',
+        'action_surface',
+        'iteration',
+        'terminated',
+    }
 
 
 def test_native_simulator_step_before_reset_raises() -> None:

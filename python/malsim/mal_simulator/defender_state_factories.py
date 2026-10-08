@@ -141,7 +141,8 @@ def create_defender_state_from_native(
     previous_state: DefenderState | None,
 ) -> DefenderState:
     """Build a `DefenderState` from one defender's `reset_native`/
-    `step_native` output dict (PORTING_NOTES.md §5 Phase A9) - the
+    `step_native` output dict (PORTING_NOTES.md §5 Phase A9, plus the
+    post-A10 delta-wire-format perf fix - see §10) - the
     native-output-driven counterpart of `create_defender_state` above.
 
     `create_defender_state`/`initial_defender_state` are deliberately left
@@ -149,34 +150,71 @@ def create_defender_state_from_native(
     same reasoning as `create_attacker_state_from_native`.
 
     Unlike `create_defender_state`, `performed_nodes`/`compromised_nodes`/
-    `observed_nodes`/`logs` are resolved directly from native's output
-    with no merging against `previous_state`: native already returns the
-    full episode-accumulated history for all four, not just this step's
-    delta. Only `performed_nodes_order` is still built incrementally via a
-    diff against `previous_state`, same as the attacker counterpart.
+    `observed_nodes`/`logs` are resolved directly from native's output on
+    the first call after reset (`previous_state is None`), where
+    `reset_native`'s output still carries the full fields under their old
+    names. On every subsequent call, `step_native`'s output is a *delta*
+    (`step_performed_nodes`/`step_compromised_nodes`/
+    `step_observed_nodes`/`step_logs` - §10) merged against
+    `previous_state` instead - this is also what fixes the O(episode^2)
+    bug `logs` used to have, where every log ever fired was re-parsed into
+    a `LogEntry` on every single step. `performed_nodes_order` is still
+    built incrementally via a diff against `previous_state`, same as the
+    attacker counterpart.
     """
     attack_graph = sim_state.attack_graph
 
-    performed_nodes = frozenset(
-        attack_graph.nodes[node_id] for node_id in native_agent_out['performed_nodes']
-    )
-    compromised_nodes = frozenset(
-        attack_graph.nodes[node_id] for node_id in native_agent_out['compromised_nodes']
-    )
-    observed_nodes_ = frozenset(
-        attack_graph.nodes[node_id] for node_id in native_agent_out['observed_nodes']
-    )
     action_surface = frozenset(
         attack_graph.nodes[node_id] for node_id in native_agent_out['action_surface']
     )
-    logs = tuple(
-        _log_entry_from_native(attack_graph, log) for log in native_agent_out['logs']
-    )
 
-    previous_performed_nodes = (
-        previous_state.performed_nodes if previous_state else frozenset()
-    )
-    new_performed_nodes = performed_nodes - previous_performed_nodes
+    performed_nodes: Set[AttackGraphNode]
+    compromised_nodes: Set[AttackGraphNode]
+    observed_nodes_: Set[AttackGraphNode]
+
+    if previous_state is None:
+        new_performed_nodes = frozenset(
+            attack_graph.nodes[node_id]
+            for node_id in native_agent_out['performed_nodes']
+        )
+        new_compromised_nodes = frozenset(
+            attack_graph.nodes[node_id]
+            for node_id in native_agent_out['compromised_nodes']
+        )
+        new_observed_nodes = frozenset(
+            attack_graph.nodes[node_id]
+            for node_id in native_agent_out['observed_nodes']
+        )
+        new_logs = tuple(
+            _log_entry_from_native(attack_graph, log)
+            for log in native_agent_out['logs']
+        )
+        performed_nodes = new_performed_nodes
+        compromised_nodes = new_compromised_nodes
+        observed_nodes_ = new_observed_nodes
+        logs = new_logs
+    else:
+        new_performed_nodes = frozenset(
+            attack_graph.nodes[node_id]
+            for node_id in native_agent_out['step_performed_nodes']
+        )
+        new_compromised_nodes = frozenset(
+            attack_graph.nodes[node_id]
+            for node_id in native_agent_out['step_compromised_nodes']
+        )
+        new_observed_nodes = frozenset(
+            attack_graph.nodes[node_id]
+            for node_id in native_agent_out['step_observed_nodes']
+        )
+        new_logs = tuple(
+            _log_entry_from_native(attack_graph, log)
+            for log in native_agent_out['step_logs']
+        )
+        performed_nodes = previous_state.performed_nodes | new_performed_nodes
+        compromised_nodes = previous_state.compromised_nodes | new_compromised_nodes
+        observed_nodes_ = previous_state.observed_nodes | new_observed_nodes
+        logs = previous_state.logs + new_logs
+
     performed_nodes_order = dict(
         previous_state.performed_nodes_order if previous_state else {}
     )

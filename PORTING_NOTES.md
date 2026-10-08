@@ -1236,15 +1236,35 @@ checked by CI, not just asserted in prose.
 - §2.2's coupling to `maltoolbox-attackgraph-py`'s internal struct layout
   - re-verify `PyAttackGraph.inner`'s visibility/shape on every
     `mal-toolbox` git dependency bump.
-- Performance: resolving native-returned id sets back into Python
-  `AttackGraphNode` objects (to rebuild `performed_nodes`/
-  `action_surface` etc. each step) is inherent to the "mirrored, not
-  wrapped" design (§2) and isn't free. If it turns out to dominate once
-  A9 lands, the optimization path is incremental resolution (cache
-  resolved nodes, only resolve newly-added ids each step and extend the
-  existing Python set) rather than resolving the whole accumulated set
-  from scratch - not needed for correctness, only revisit if profiling
-  says so.
+- **Performance: resolved, not just flagged - see §10 for the fix.**
+  (Found and fixed between A10 and A11, outside the main phase sequence
+  - not itself a numbered phase.) Profiling a 5000-step run on A10's
+  `HEAD` (commit `1c1b62e`)
+  found this entry's predicted risk had actually landed: `rust-rewrite`
+  was 2.6x *slower* than pre-port pure-Python `main` (111.6s vs. 42.7s),
+  with `step_native` alone (67% of total time) and
+  `create_attacker_state_from_native`'s dense `num_attempts` rebuild
+  dominating. Root cause wasn't the id-resolution cost itself (this
+  entry's original framing) but a broader instance of the same
+  anti-pattern: `step_native` resent the *entire* episode-accumulated
+  state every step (including fields - `ttc_values`,
+  `necessity_per_node`, `impossible_attack_steps`,
+  `pre_enabled_defenses`, `logs` - that either never change after reset
+  or already had their per-step delta computed and then discarded), and
+  both `*_state_factories.py` modules re-resolved/re-parsed all of it
+  from scratch every call instead of merging against `previous_state` -
+  `defender_state_factories.py`'s `logs` handling was the worst case,
+  O(episode²) (re-parsing every log ever fired into a fresh `LogEntry`
+  on every single step). Fixed exactly as this entry's original
+  "incremental resolution" suggestion described, extended to every
+  affected field: `step_native`'s wire format is now delta-only for
+  monotonically-growing fields, and both factories merge each delta
+  against `previous_state` instead of re-resolving the full accumulated
+  value. Re-profiling after the fix: a 5000-step run with every detector
+  firing every step (10,002 accumulated logs by the end - the A9-era
+  worst case for the old O(episode²) behavior) completed in ~1s, with
+  per-step cost flat rather than growing - confirms the fix, not just
+  the absence of the specific symptom originally profiled.
 - mal-toolbox's `rust-rewrite` branch is itself a moving target (own
   `PORTING_NOTES.md` still lists some deferred work) - re-check its
   `PORTING_NOTES.md` §6 ("what's left to do") periodically in case
@@ -2141,3 +2161,85 @@ exercises the genuinely-probabilistic low-sharpness case correctly, via
 many trials and a tolerance, so this single-trial high-sharpness test
 is the only one that needed a seed to be deterministic rather than
 "probabilistic with the knob turned eliminated".
+
+**Post-A10, pre-A11: `step_native`'s wire format changed from
+full-accumulated-state to this-step's-delta-only, after profiling found
+A9's original "resend everything every step" shape made the native port
+2.6x slower than pre-port pure Python (see §9's performance entry for
+the profiling numbers and root-cause writeup).** `reset_native`'s output
+shape is unchanged - full fields, since there's no previous step to
+delta against at reset. Only `step_native` changed, in
+`py-bindings/malsim-pyo3/src/simulator.rs`:
+- `build_output` was split into `build_reset_output` (old behavior,
+  called only from `reset_native`) and a new `build_step_output` (called
+  only from `step_native`), rather than adding a branch inside one
+  function - the two now return genuinely different key sets, so one
+  function trying to do both would need a bool parameter threading
+  through every field, which is worse than two names that each do one
+  thing.
+- Four `sim_state` fields (`ttc_values`, `necessity_per_node`,
+  `impossible_attack_steps`, `pre_enabled_defenses`) are dropped from
+  `step_native`'s output entirely - they're computed once in
+  `compute_initial_graph_state` during `reset_native` and never mutated
+  by anything in `step_native`, so resending them every step was pure
+  waste. Python caches them from `reset_native`'s output
+  (`MalSimulatorState`/`simulator_state.py`) and carries them forward
+  unchanged on every `step()` call - `update_simulator_state` already
+  did this correctly for `enabled_defenses` (a `|=` merge, not a
+  replace) before this change; it just also needed the key read renamed
+  from `enabled_defenses` to `step_enabled_defenses`.
+- `enabled_defenses` (top-level), `performed_nodes`/`attempted_nodes`
+  (attacker), `performed_nodes`/`compromised_nodes`/`observed_nodes`/
+  `logs` (defender) all changed from the full accumulated value to a
+  `step_*`-prefixed delta - the same naming convention
+  `AttackerState.step_attempted_nodes`/`.step_performed_nodes` already
+  used for their own (Python-side-computed) per-step delta properties
+  (`attacker_state.py`), so a reader already familiar with that
+  convention recognizes the new wire keys immediately. `num_attempts`
+  (attacker) is dropped entirely rather than getting a `step_` delta
+  key, since Python derives the increment itself from
+  `step_attempted_nodes` - sending a sparse per-step attempt-count map
+  over the FFI boundary just to add 1 to each entry on the Python side
+  would be pure overhead. `action_surface`/`iteration`/`terminated`
+  (both agent kinds) are genuinely unchanged - `action_surface` is
+  non-monotonic (nodes enter and leave it) and bounded by frontier size,
+  not graph size, so it was never part of the problem and stays a full
+  current value every step.
+- `attacker_state_factories.py::create_attacker_state_from_native`/
+  `defender_state_factories.py::create_defender_state_from_native` both
+  gained a `previous_state is None` branch (first call after reset:
+  native_agent_out still has the old full-field names/shape, since
+  `reset_native` is unchanged) vs. the normal case (merge the `step_*`
+  delta against `previous_state`'s already-resolved Python objects -
+  `performed_nodes = previous_state.performed_nodes | step_performed_nodes`,
+  same pattern for the others). This is the exact fix
+  `PORTING_NOTES.md` §9 anticipated in advance for id-resolution cost in
+  general ("cache resolved nodes, only resolve newly-added ids each
+  step"), just needed for real once profiling confirmed it, and
+  extended to a few more fields than that original note named
+  explicitly (`ttc_values`/`impossible_steps` for attackers, now
+  resolved once from `reset_native`'s output and reused unchanged on
+  every later call rather than re-read from a key that no longer
+  exists). The defender's `logs` field was the worst instance found:
+  the old code's own docstring said native returned "the full
+  episode-accumulated history ... not just this step's delta", which
+  meant every log ever fired got re-parsed into a fresh `LogEntry` on
+  every single step - O(episode²), not O(episode). Fixed the same way,
+  with a new regression test
+  (`tests/test_event_logger.py::test_logger_incremental_log_merge_matches_full_rerun`)
+  that forces a detector to fire every step and checks the
+  incrementally-merged `.logs` after each step is a growing,
+  duplicate-free prefix matching a one-shot read at the end - the test
+  that would have caught a broken merge (double-counted or dropped
+  entries), which a simple "is it fast now" check would not.
+- Re-profiling after the fix: a 5000-step run with a detector forced to
+  fire every step (10,002 accumulated logs by the end, deliberately the
+  worst case for the old behavior) completed in about 1 second, with
+  per-step cost staying flat rather than growing with the accumulated
+  log count - confirms the fix addresses the actual O(episode²)
+  mechanism, not just the specific scenario originally profiled.
+- No new crate dependency - this was a pure restructuring of existing
+  `simulator.rs`/`*_state_factories.py` code (moving data already being
+  computed, just discarded, into the FFI boundary's output, and merging
+  on the Python side instead of re-resolving) - the "ask before adding a
+  dependency" policy had nothing to trigger.

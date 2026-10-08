@@ -1,3 +1,5 @@
+import itertools
+
 from malsim.mal_simulator.defender_state import DefenderState
 from malsim.mal_simulator.simulator import MalSimulator
 from malsim.mal_simulator import run_simulation
@@ -111,3 +113,58 @@ def test_logger_attacks_false_positive() -> None:
     assert defender_state.logs
     assert all(log.false_positive for log in defender_state.logs)
     assert all(log.trigger == app1_exploit for log in defender_state.logs)
+
+
+def test_logger_incremental_log_merge_matches_full_rerun() -> None:
+    """Regression test for the O(episode^2) `logs` bug (PORTING_NOTES.md
+    §10's post-A10/pre-A11 differences-log entry): `step_native` used to
+    resend the full episode-accumulated log history every step, which
+    `create_defender_state_from_native` then re-parsed from scratch into
+    fresh `LogEntry` objects every single call. It's since been changed
+    to exchange and merge only this step's delta against
+    `previous_state.logs` - this test is the one that would have caught a
+    broken merge (double-counted or dropped log entries): it forces a
+    detector to fire on *every* step for several steps, and confirms that
+    reading `defender_state.logs` after every individual incremental
+    `sim.step()` call produces exactly the same accumulated history as
+    only reading `.logs` once, after running the identical episode to
+    completion in one shot.
+    """
+    scenario = Scenario.load_from_file(SCENARIO_FILE)
+    graph = scenario.attack_graph
+
+    # fprate=1.0 guarantees a false positive every step regardless of the
+    # rng draw - Application:5's fprate is silenced so it doesn't also log.
+    app1_exploit = get_node(graph, 'Application:1:exploit')
+    _force_detector_rates(graph, app1_exploit, tprate=1.0, fprate=1.0)
+    _force_detector_rates(
+        graph, get_node(graph, 'Application:5:exploit'), tprate=1.0, fprate=0.0
+    )
+
+    n_steps = 5
+
+    # Incremental: read `.logs` after every single step.
+    sim_incremental = MalSimulator.from_scenario(scenario)
+    logs_after_each_step = []
+    for _ in range(n_steps):
+        sim_incremental.step({})
+        defender_state = sim_incremental.agent_states['Defender']
+        assert isinstance(defender_state, DefenderState)
+        logs_after_each_step.append(defender_state.logs)
+
+    # One-shot: run the identical episode on a separate simulator, only
+    # reading `.logs` once, after the whole thing has run.
+    sim_one_shot = MalSimulator.from_scenario(scenario)
+    for _ in range(n_steps):
+        sim_one_shot.step({})
+    defender_state_one_shot = sim_one_shot.agent_states['Defender']
+    assert isinstance(defender_state_one_shot, DefenderState)
+
+    # Every step's incrementally-merged `.logs` must be a prefix of the
+    # next, growing by exactly one new log per step (the forced false
+    # positive fires every step, no more, no less), and the final step's
+    # must equal the one-shot read exactly.
+    for earlier, later in itertools.pairwise(logs_after_each_step):
+        assert earlier == later[: len(earlier)]
+        assert len(later) == len(earlier) + 1
+    assert logs_after_each_step[-1] == defender_state_one_shot.logs

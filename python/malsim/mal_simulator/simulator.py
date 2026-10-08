@@ -627,7 +627,7 @@ def step(
         sim_state,
         frozenset(
             attack_graph.nodes[node_id]
-            for node_id in native_out['sim_state']['enabled_defenses']
+            for node_id in native_out['sim_state']['step_enabled_defenses']
         ),
     )
 

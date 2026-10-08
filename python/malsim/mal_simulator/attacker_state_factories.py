@@ -112,7 +112,8 @@ def create_attacker_state_from_native(
     previous_state: AttackerState | None,
 ) -> AttackerState:
     """Build an `AttackerState` from one attacker's `reset_native`/
-    `step_native` output dict (PORTING_NOTES.md §5 Phase A9) - the
+    `step_native` output dict (PORTING_NOTES.md §5 Phase A9, plus the
+    post-A10 delta-wire-format perf fix - see §10) - the
     native-output-driven counterpart of `create_attacker_state` above.
 
     `create_attacker_state`/`initial_attacker_state` are deliberately left
@@ -123,51 +124,86 @@ def create_attacker_state_from_native(
     than an in-place rewrite of `create_attacker_state`.
 
     Unlike `create_attacker_state`, most fields here are resolved directly
-    from native's output with no merging against `previous_state`: native
-    already returns full-episode-accumulated `performed_nodes`/
-    `attempted_nodes`/`num_attempts`/`ttc_values`/`impossible_steps`, not
-    just this step's delta. Only `performed_nodes_order` is Python-only
-    bookkeeping native has no concept of, so it's still built
-    incrementally here via a diff against `previous_state`.
+    from native's output rather than recomputed in Python - but since the
+    delta-wire-format fix (§10), `step_native`'s output is a *delta*
+    (`step_performed_nodes`/`step_attempted_nodes`), not the full
+    episode-accumulated value `reset_native` still returns under the old
+    full-field names. On the
+    first call after reset (`previous_state is None`) the full fields are
+    read as before; on every subsequent call the delta is merged against
+    `previous_state`. `ttc_values`/`impossible_steps` are resolved once
+    from `reset_native`'s output and carried forward unchanged - native
+    never re-sends them (they're static after reset even when
+    `ttc_dists` overrides are configured - see `simulator.rs`'s
+    `attacker_ttc_overrides` doc comment). `performed_nodes_order` is
+    Python-only bookkeeping native has no concept of, built incrementally
+    via a diff against `previous_state`, same as before.
     """
     attack_graph = sim_state.attack_graph
 
-    performed_nodes = frozenset(
-        attack_graph.nodes[node_id] for node_id in native_agent_out['performed_nodes']
-    )
-    attempted_nodes = frozenset(
-        attack_graph.nodes[node_id] for node_id in native_agent_out['attempted_nodes']
-    )
     action_surface = frozenset(
         attack_graph.nodes[node_id] for node_id in native_agent_out['action_surface']
     )
-    # Dense by default (every attack step present, defaulting to 0) -
-    # `attempt_attacker_step` (pure Python, still used directly by
-    # `DynaMalSimulator` and by some existing tests - §2.3/§10) indexes
-    # `agent.num_attempts[node]` unconditionally for any node about to be
-    # attempted, matching `create_attacker_state`'s own
-    # `dict.fromkeys(sim_state.attack_graph.attack_steps, 0)` - native's
-    # own map is sparse (only nodes actually attempted), so it's overlaid
-    # on top of the dense default rather than used as-is.
-    num_attempts = dict.fromkeys(attack_graph.attack_steps, 0)
-    num_attempts.update(
-        {
-            attack_graph.nodes[node_id]: count
-            for node_id, count in native_agent_out['num_attempts'].items()
-        }
-    )
-    ttc_values = {
-        attack_graph.nodes[node_id]: value
-        for node_id, value in native_agent_out['ttc_values'].items()
-    }
-    impossible_steps = frozenset(
-        attack_graph.nodes[node_id] for node_id in native_agent_out['impossible_steps']
-    )
 
-    previous_performed_nodes = (
-        previous_state.performed_nodes if previous_state else frozenset()
-    )
-    new_performed_nodes = performed_nodes - previous_performed_nodes
+    performed_nodes: Set[AttackGraphNode]
+    attempted_nodes: Set[AttackGraphNode]
+    num_attempts: dict[AttackGraphNode, int]
+    ttc_values: Mapping[AttackGraphNode, float]
+    impossible_steps: Set[AttackGraphNode]
+
+    if previous_state is None:
+        new_performed_nodes = frozenset(
+            attack_graph.nodes[node_id]
+            for node_id in native_agent_out['performed_nodes']
+        )
+        new_attempted_nodes = frozenset(
+            attack_graph.nodes[node_id]
+            for node_id in native_agent_out['attempted_nodes']
+        )
+        # Dense by default (every attack step present, defaulting to 0) -
+        # `attempt_attacker_step` (pure Python, still used directly by
+        # `DynaMalSimulator` and by some existing tests - §2.3/§10)
+        # indexes `agent.num_attempts[node]` unconditionally for any node
+        # about to be attempted, matching `create_attacker_state`'s own
+        # `dict.fromkeys(sim_state.attack_graph.attack_steps, 0)` -
+        # native's own map is sparse (only nodes actually attempted), so
+        # it's overlaid on top of the dense default rather than used
+        # as-is. Only built once here, at reset - every subsequent call
+        # starts from `previous_state.num_attempts` instead.
+        num_attempts = dict.fromkeys(attack_graph.attack_steps, 0)
+        num_attempts.update(
+            {
+                attack_graph.nodes[node_id]: count
+                for node_id, count in native_agent_out['num_attempts'].items()
+            }
+        )
+        ttc_values = {
+            attack_graph.nodes[node_id]: value
+            for node_id, value in native_agent_out['ttc_values'].items()
+        }
+        impossible_steps = frozenset(
+            attack_graph.nodes[node_id]
+            for node_id in native_agent_out['impossible_steps']
+        )
+        performed_nodes = new_performed_nodes
+        attempted_nodes = new_attempted_nodes
+    else:
+        new_performed_nodes = frozenset(
+            attack_graph.nodes[node_id]
+            for node_id in native_agent_out['step_performed_nodes']
+        )
+        new_attempted_nodes = frozenset(
+            attack_graph.nodes[node_id]
+            for node_id in native_agent_out['step_attempted_nodes']
+        )
+        performed_nodes = previous_state.performed_nodes | new_performed_nodes
+        attempted_nodes = previous_state.attempted_nodes | new_attempted_nodes
+        num_attempts = dict(previous_state.num_attempts)
+        for node in new_attempted_nodes:
+            num_attempts[node] += 1
+        ttc_values = previous_state.ttc_values
+        impossible_steps = previous_state.impossible_steps
+
     performed_nodes_order = dict(
         previous_state.performed_nodes_order if previous_state else {}
     )

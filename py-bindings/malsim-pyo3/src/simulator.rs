@@ -566,7 +566,7 @@ impl Simulator {
             defenders,
         });
 
-        self.build_output(py)
+        self.build_reset_output(py)
     }
 
     /// Steps the simulation: defenders act first (`defender_step`,
@@ -657,6 +657,10 @@ impl Simulator {
         }
 
         // --- Update attacker runtimes (action surface recompute) ---
+        let mut attacker_step_deltas: HashMap<
+            String,
+            (HashSet<AttackGraphNodeId>, HashSet<AttackGraphNodeId>),
+        > = HashMap::new();
         {
             let graph = graph_rc.borrow();
             for name in &attacker_names {
@@ -682,15 +686,25 @@ impl Simulator {
                 let runtime = state.attackers.get_mut(name).unwrap();
                 runtime.performed_nodes.extend(compromised.iter().copied());
                 runtime.attempted_nodes.extend(attempted.iter().copied());
-                for node_id in attempted {
+                for &node_id in &attempted {
                     *runtime.num_attempts.entry(node_id).or_insert(0) += 1;
                 }
                 runtime.action_surface = new_action_surface;
                 runtime.iteration += 1;
+
+                attacker_step_deltas.insert(
+                    name.clone(),
+                    (
+                        compromised.into_iter().collect(),
+                        attempted.into_iter().collect(),
+                    ),
+                );
             }
         }
 
         // --- Update defender runtimes (action surface, observed nodes, logs) ---
+        let mut defender_step_deltas: HashMap<String, (HashSet<AttackGraphNodeId>, Vec<LogEntry>)> =
+            HashMap::new();
         {
             let graph = graph_rc.borrow();
             let mut pass1: HashMap<String, DefenderStepUpdate> = HashMap::new();
@@ -746,25 +760,34 @@ impl Simulator {
                     .difference(&previous_performed)
                     .copied()
                     .collect();
-                runtime.observed_nodes.extend(new_observed);
+                runtime.observed_nodes.extend(new_observed.iter().copied());
                 runtime
                     .compromised_nodes
                     .extend(step_compromised_nodes.iter().copied());
-                runtime.logs.extend(logs);
+                runtime.logs.extend(logs.iter().cloned());
                 runtime.iteration += 1;
+
+                defender_step_deltas.insert(name.clone(), (new_observed, logs));
             }
         }
 
-        self.build_output(py)
+        self.build_step_output(
+            py,
+            &step_enabled_defenses,
+            &step_compromised_nodes,
+            &attacker_step_deltas,
+            &defender_step_deltas,
+        )
     }
 }
 
 impl Simulator {
-    /// Builds the plain-`dict` return value shared by `reset_native`/
-    /// `step_native` - see module docs for the exact shape. Deliberately
-    /// no custom pyclasses in the return value (per A8's own plan text:
-    /// "keep it boring and inspectable").
-    fn build_output(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+    /// Builds `reset_native`'s plain-`dict` return value - full
+    /// episode-initial state for every field, since there's no previous
+    /// step to delta against at reset. See module docs for the exact
+    /// shape. Deliberately no custom pyclasses in the return value (per
+    /// A8's own plan text: "keep it boring and inspectable").
+    fn build_reset_output(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let state = self.state.as_ref().ok_or_else(not_reset_err)?;
         let graph = self.graph.borrow();
 
@@ -867,6 +890,110 @@ impl Simulator {
                 .map(|log| log_entry_to_py(py, &graph, log))
                 .collect::<PyResult<_>>()?;
             d.set_item("logs", logs)?;
+
+            agents.set_item(name, d)?;
+        }
+
+        let out = PyDict::new(py);
+        out.set_item("sim_state", sim_state)?;
+        out.set_item("agents", agents)?;
+        Ok(out.into())
+    }
+
+    /// Builds `step_native`'s plain-`dict` return value - unlike
+    /// `build_reset_output`, every monotonically-growing field is this
+    /// step's *delta* only (`step_*` keys - see module docs' wire-format
+    /// table), not the full episode-accumulated value: the accumulated
+    /// values still live in `self.state` for Rust's own internal use
+    /// (`get_attack_surface`, `*_is_terminated`, ...), they just no longer
+    /// cross the FFI boundary redundantly on every call. Episode-static
+    /// fields (`ttc_values`, `necessity_per_node`,
+    /// `impossible_attack_steps`, `pre_enabled_defenses`) are dropped
+    /// entirely - Python caches them from `reset_native`'s output.
+    /// `action_surface`, `iteration` and `terminated` are unchanged (full
+    /// current value every step), matching `build_reset_output`.
+    #[allow(clippy::type_complexity)]
+    fn build_step_output(
+        &self,
+        py: Python<'_>,
+        step_enabled_defenses: &HashSet<AttackGraphNodeId>,
+        step_compromised_nodes: &HashSet<AttackGraphNodeId>,
+        attacker_step_deltas: &HashMap<
+            String,
+            (HashSet<AttackGraphNodeId>, HashSet<AttackGraphNodeId>),
+        >,
+        defender_step_deltas: &HashMap<String, (HashSet<AttackGraphNodeId>, Vec<LogEntry>)>,
+    ) -> PyResult<Py<PyAny>> {
+        let state = self.state.as_ref().ok_or_else(not_reset_err)?;
+        let graph = self.graph.borrow();
+
+        let sim_state = PyDict::new(py);
+        sim_state.set_item(
+            "step_enabled_defenses",
+            stable_ids(&graph, step_enabled_defenses.iter().copied()),
+        )?;
+
+        let attacker_triples: Vec<_> = state
+            .attackers
+            .values()
+            .map(|a| (&a.action_surface, &a.goals, &a.performed_nodes))
+            .collect();
+        let defenders_terminated =
+            defender_is_terminated(attacker_triples.iter().map(|&(s, g, p)| (s, g, p)));
+
+        let agents = PyDict::new(py);
+        for (name, a) in &state.attackers {
+            let (step_performed_nodes, step_attempted_nodes) = &attacker_step_deltas[name];
+            let d = PyDict::new(py);
+            d.set_item("type", "attacker")?;
+            d.set_item(
+                "step_performed_nodes",
+                stable_ids(&graph, step_performed_nodes.iter().copied()),
+            )?;
+            d.set_item(
+                "step_attempted_nodes",
+                stable_ids(&graph, step_attempted_nodes.iter().copied()),
+            )?;
+            d.set_item(
+                "action_surface",
+                stable_ids(&graph, a.action_surface.iter().copied()),
+            )?;
+            d.set_item("iteration", a.iteration)?;
+            d.set_item(
+                "terminated",
+                attacker_is_terminated(&a.action_surface, &a.goals, &a.performed_nodes),
+            )?;
+            agents.set_item(name, d)?;
+        }
+
+        for (name, de) in &state.defenders {
+            let (step_observed_nodes, step_logs) = &defender_step_deltas[name];
+            let d = PyDict::new(py);
+            d.set_item("type", "defender")?;
+            d.set_item(
+                "step_performed_nodes",
+                stable_ids(&graph, step_enabled_defenses.iter().copied()),
+            )?;
+            d.set_item(
+                "step_compromised_nodes",
+                stable_ids(&graph, step_compromised_nodes.iter().copied()),
+            )?;
+            d.set_item(
+                "step_observed_nodes",
+                stable_ids(&graph, step_observed_nodes.iter().copied()),
+            )?;
+            d.set_item(
+                "action_surface",
+                stable_ids(&graph, de.action_surface.iter().copied()),
+            )?;
+            d.set_item("iteration", de.iteration)?;
+            d.set_item("terminated", defenders_terminated)?;
+
+            let logs: Vec<Py<PyAny>> = step_logs
+                .iter()
+                .map(|log| log_entry_to_py(py, &graph, log))
+                .collect::<PyResult<_>>()?;
+            d.set_item("step_logs", logs)?;
 
             agents.set_item(name, d)?;
         }
