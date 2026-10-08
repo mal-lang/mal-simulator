@@ -102,8 +102,19 @@ fn to_node_id(graph: &AttackGraph, stable_id: i64) -> PyResult<AttackGraphNodeId
 /// exact same seed and graph (found during Phase A9 - see
 /// PORTING_NOTES.md §10: this silently broke run-to-run reproducibility,
 /// not just parity with the old Python frozenset ordering).
+/// An id in `ids` can be stale: the dyna path lets a step's own model
+/// effect remove the very asset a node belongs to (including a node this
+/// same step just compromised/enabled - `PORTING_NOTES.md` §0 B5), so by
+/// the time output is serialized, `performed_nodes`/`action_surface`/etc.
+/// can hold an id with no live node left to translate. Such an id is
+/// silently dropped: the thing it refers to no longer exists in the
+/// graph, so it has no stable id left to report - mirrors `collect_logs`'s
+/// same-shaped fix in `malsim-core::event_logger`.
 fn stable_ids(graph: &AttackGraph, ids: impl IntoIterator<Item = AttackGraphNodeId>) -> Vec<i64> {
-    let mut ids: Vec<i64> = ids.into_iter().map(|id| graph.nodes[id].id).collect();
+    let mut ids: Vec<i64> = ids
+        .into_iter()
+        .filter_map(|id| graph.nodes.get(id).map(|n| n.id))
+        .collect();
     ids.sort_unstable();
     ids
 }
@@ -113,7 +124,7 @@ fn id_value_map<V: Copy>(
     map: &HashMap<AttackGraphNodeId, V>,
 ) -> HashMap<i64, V> {
     map.iter()
-        .map(|(&id, &v)| (graph.nodes[id].id, v))
+        .filter_map(|(&id, &v)| graph.nodes.get(id).map(|n| (n.id, v)))
         .collect()
 }
 
@@ -255,7 +266,13 @@ fn attacker_ttc_overrides(
     let mut ttc_values = HashMap::new();
     let mut impossible_steps = HashSet::new();
     for (&node_id, dist) in ttc_dist_overrides {
-        let node = &graph.nodes[node_id];
+        // `ttc_dist_overrides` is resolved once at reset and never
+        // updated - a dyna-path node it names can later be removed from
+        // the graph (same staleness shape as `stable_ids` above). A
+        // removed node has no TTC left to override.
+        let Some(node) = graph.nodes.get(node_id) else {
+            continue;
+        };
         if let Some(v) =
             attack_step_ttc_value(node, Some(dist), ttc_mode, rng).map_err(to_py_err)?
         {
@@ -1086,12 +1103,7 @@ impl Simulator {
                 "action_surface",
                 stable_ids(&graph, a.action_surface.iter().copied()),
             )?;
-            let num_attempts: HashMap<i64, u64> = a
-                .num_attempts
-                .iter()
-                .map(|(&id, &n)| (graph.nodes[id].id, n))
-                .collect();
-            d.set_item("num_attempts", num_attempts)?;
+            d.set_item("num_attempts", id_value_map(&graph, &a.num_attempts))?;
             d.set_item("ttc_values", id_value_map(&graph, &a.ttc_values))?;
             d.set_item(
                 "impossible_steps",
@@ -1320,17 +1332,40 @@ fn mod_effect_op_to_py(py: Python<'_>, op: &ModEffectOp) -> PyResult<Py<PyAny>> 
     Ok(d.into())
 }
 
+fn stable_id_of(graph: &AttackGraph, id: AttackGraphNodeId) -> PyResult<i64> {
+    graph
+        .nodes
+        .get(id)
+        .map(|n| n.id)
+        .ok_or_else(|| PyValueError::new_err(format!("node {id:?} is no longer in the graph")))
+}
+
 fn log_entry_to_py(py: Python<'_>, graph: &AttackGraph, log: &LogEntry) -> PyResult<Py<PyAny>> {
     let d = PyDict::new(py);
     d.set_item("timestep", log.timestep)?;
     let (detector_node_id, detector_label) = &log.detector_id;
-    d.set_item("detector_node_id", graph.nodes[*detector_node_id].id)?;
+    // `detector_node_id`/`trigger` are expected to always be live here:
+    // `collect_logs` already only ever constructs a `LogEntry` from a node
+    // it just confirmed live, and nothing mutates the graph between there
+    // and here - these `stable_id_of` calls should never actually hit
+    // their error arm. Guarded anyway (rather than a direct `graph.
+    // nodes[...]` index) so a future change that violates that invariant
+    // surfaces as a catchable Python exception, not an uncatchable Rust
+    // panic across the FFI boundary - the exact failure mode
+    // `PORTING_NOTES.md` §0 B5 is about.
+    d.set_item("detector_node_id", stable_id_of(graph, *detector_node_id)?)?;
     d.set_item("detector_label", detector_label)?;
-    d.set_item("trigger", graph.nodes[log.trigger].id)?;
+    d.set_item("trigger", stable_id_of(graph, log.trigger)?)?;
+    // Unlike `detector_node_id`/`trigger`, a context node id *can*
+    // legitimately go stale: it's picked from `previous_compromised_nodes`
+    // (history accumulated across the whole episode), so an id here may
+    // name a node some earlier, unrelated step's model effect already
+    // removed. Drop just that label rather than failing the whole log
+    // entry - mirrors `collect_logs`'s "nothing left to report" choice.
     let context: HashMap<String, i64> = log
         .context
         .iter()
-        .map(|(label, &id)| (label.clone(), graph.nodes[id].id))
+        .filter_map(|(label, &id)| graph.nodes.get(id).map(|n| (label.clone(), n.id)))
         .collect();
     d.set_item("context", context)?;
     d.set_item("false_positive", log.false_positive)?;

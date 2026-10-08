@@ -187,6 +187,18 @@ pub fn dyna_attacker_step(
         )?;
         for effect_node in effects {
             successful_compromises.push(effect_node);
+            // `effects` was computed once, above, against the graph as it
+            // stood right after `node_id`'s own model effects ran - but an
+            // *earlier* `effect_node` in this same list can itself remove
+            // the asset a *later* one belongs to (the same self-removal
+            // shape `PORTING_NOTES.md` §0 B5 traces for `node_id` itself,
+            // one level deeper). `effect_node` was genuinely satisfied at
+            // the moment `attacker_step_effects` found it - that's already
+            // recorded above - there's just no live node left to run a
+            // model effect for.
+            if !node_is_live(graph, effect_node) {
+                continue;
+            }
             let (ops, new_nodes) = execute_model_effects(graph, model, effect_node, rng)?;
             modification_record.extend(ops);
             fold_new_nodes_into_graph_state(

@@ -909,7 +909,32 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         internal `AttackGraphNodeId` even though the asset was never in
         this call's `removed_assets` (only an association was removed) -
         the *old* id is a slotmap key, so once removed it never resolves
-        again, even if a node is later re-added. **Confirmed via `git
+        again, even if a node is later re-added.
+        **CORRECTION (session 2, see this entry's "landed" update below) -
+        the paragraph above is WRONG about which asset and which
+        mechanism, and this is the *second* time this exact failure class
+        has been misdiagnosed this way. Read this before trusting any
+        future hand-traced "regenerated under a new id" story for this
+        bug class again.** The actual asset involved is `Directory:1`
+        (id `0`) itself - the directory `removeTopToBottomLeft` is a step
+        *on*, not some unrelated disconnected `File` - and it is not
+        "regenerated under a new id" at all: `removed_assets` for that
+        call genuinely contains `0`, mal-toolbox's `nodes_to_be_removed`
+        removes `removeTopToBottomLeft`'s own node via `remove_node`, and
+        *nothing recreates it* (confirmed with `eprintln!` instrumentation
+        directly in `execute_model_effects`, printing `new_assets`/
+        `removed_assets`/`new_nodes`/`graph.nodes.contains_key(action_id)`
+        around the real `partially_regenerate_graph` call, not inferred
+        from the panic backtrace alone - see "landed" below for the full
+        trace and why this matters for picking a fix). There is no new id
+        to "reconcile to" for this case, which is why candidate direction
+        3 below doesn't actually apply to it. **Lesson for whoever reads
+        this next: when `RUST_BACKTRACE=1` plus reading source is tempting
+        you to write up a root cause, add a couple of `eprintln!`s at the
+        actual mutation site first and rerun - a backtrace shows *where*
+        it panicked, not *which* asset or *why* it became invalid, and
+        both the original B5 writeup and this correction's author got it
+        wrong the first time without that step.** **Confirmed via `git
         stash` that this is a regression, not pre-existing:** the identical
         scenario+policy combination runs to completion with zero crashes on
         the pure-Python `DynaMalSimulator` path (stashed every B4/B5 file,
@@ -988,6 +1013,180 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         (including the partially-landed B5 Python changes above). Only
         `test_dyna_mal_simulator.py` (and only its
         `test_different_attackers` parametrization, 12/40 cases) is red.
+
+        **Landed (session 2): the stale-id panic class above is fixed -
+        `test_different_attackers` went from 0/12 to 10/12 passing. Still
+        blocked, on a different, newly-exposed bug - see below. Resume
+        there, do not restart the panic investigation.** The user picked
+        candidate direction 1 (narrow fix + defer the rest) after an
+        `AskUserQuestion`, but the real root cause (see the CORRECTION
+        above) made the framing of that choice wrong in a way worth
+        recording: there is no "was it really performed" semantics
+        question for this bug class at all, for either sub-case actually
+        found -
+        - A node genuinely compromised *this step* whose own backing asset
+          is removed by that same step's model effect (the `Directory:1`
+          case above): the compromise already happened: the only question
+          is what to do when something reads the now-dead id a few lines
+          later in the same step. Answer: there's nothing left to read -
+          skip it, don't error, don't guess.
+        - A node from *historical* state (`performed_nodes`/
+          `enabled_defenses`/accumulated `graph_state` maps, or a
+          per-agent `ttc_dists` override resolved once at reset) going
+          stale because of a *later*, unrelated step's model effect: same
+          answer, for the same reason - the historical fact doesn't need
+          the live node to still exist.
+
+          Candidate direction 3 (reconcile by full name) was never
+          implemented and - per the corrected root cause - doesn't apply
+          to the specific case that was crashing (nothing is regenerated
+          under a new id there to reconcile to). It may still be the right
+          call for a *geniune* regenerate-under-new-id case if one is ever
+          found (full_name_to_node is confirmed to be mal-toolbox's own
+          stable cross-regeneration identity, so the mechanism would work)
+          - no such case has actually been observed yet, confirmed or
+          fixed.
+
+        Audit scope ended up wider than the original "5 modules" list (see
+        the CORRECTION above for why that list undercounted even the
+        already-landed call sites, let alone new ones) - `grep -n
+        "graph\.nodes\[" core/malsim-core/src/*.rs
+        py-bindings/malsim-pyo3/src/simulator.rs` plus manually classifying
+        every production (non-test) hit as either "id sourced from the
+        live graph this same call" (safe by construction - mal-toolbox
+        keeps `graph.defense_steps`/`graph.attack_steps`/parent/child sets
+        in sync on `remove_node`, confirmed by reading it) or "id sourced
+        from accumulated/historical/cross-step state" (needs a guard) is
+        what actually found every real site - don't re-derive this from
+        the original 5-module list, it was incomplete in both directions
+        (named two functions - `get_attack_surface`/
+        `get_effects_of_attack_step` - that turned out to already be
+        correctly guarded since Phase A5 itself, via a pre-existing
+        `node_is_live` check; missed `malsim-pyo3::simulator.rs` entirely,
+        where the actual second-domino crash was).
+
+        **Fixed, with the reasoning for each:**
+        - `core/malsim-core/src/event_logger.rs::collect_logs` - `graph.
+          nodes[attack_step_id]` (the original crash site) changed to
+          `graph.nodes.get(attack_step_id)`, skip on `None`. New test
+          `collect_logs_skips_a_node_removed_from_the_graph_since_compromise`
+          (removes a node with a `tprate=1.0` detector that would always
+          have fired, asserts no panic and no log).
+        - `core/malsim-core/src/dyna_attacker_step.rs` - the `effects`
+          loop (processing `attacker_step_effects`' return value) gained a
+          `node_is_live` check before each `execute_model_effects` call:
+          an *earlier* effect-chain sibling's model effect can invalidate
+          a *later* sibling in the same list before its own turn - same
+          shape as the primary bug, one level deeper. **No isolated
+          Rust-native test added for this one** - constructing a MAL
+          fixture where one `+>`-chained effect sibling's model effect
+          removes another's backing asset (wiperLang's `exfiltrate`/
+          `propagate` pair, the only existing multi-effect-sibling
+          fixture, are both purely additive) would need inventing new
+          test-only language surface disproportionate to this one guard;
+          covered transitively by `cargo test`/`clippy`/`fmt` plus the
+          real `test_different_attackers` integration gate. Flag as a gap
+          if this specific sub-case is ever suspected of regressing.
+        - `py-bindings/malsim-pyo3/src/simulator.rs` - this is where the
+          *second* crash was, one call after the first fix (`stable_ids`,
+          not in the original 5-module list at all):
+          - `stable_ids`/`id_value_map` (the shared id-translation helpers
+            used by nearly every output field - `performed_nodes`,
+            `action_surface`, `enabled_defenses`, `ttc_values`,
+            `necessity_per_node`, ...): hardened once, centrally, rather
+            than auditing every call site individually (20+ call sites,
+            too easy to miss one) - both now `filter_map` over `graph.
+            nodes.get(id)`, silently dropping a dead id from the output
+            set/map instead of indexing.
+          - `attacker_ttc_overrides` - `ttc_dist_overrides` is resolved
+            once at reset and never updated; a dyna-path node it names can
+            later be removed. Same `.get()`-skip.
+          - `log_entry_to_py` - new `stable_id_of` helper for
+            `detector_node_id`/`trigger` (expected to always be live,
+            since `collect_logs` only ever builds a `LogEntry` from an
+            already-live node and nothing mutates the graph before this
+            runs - guarded anyway, as a `PyResult::Err` not a panic, so a
+            future change violating that invariant fails loudly and
+            catchably instead of crashing the process); `context`'s
+            per-label map (picked from `previous_compromised_nodes` -
+            genuinely can go stale from an unrelated earlier step) uses
+            `filter_map`, dropping just that label.
+        - Full gate after all of the above: `cargo test`/`cargo clippy -D
+          warnings`/`cargo fmt --check` clean in both the root
+          (`malsim-core`) and `py-bindings` workspaces; `uv run --no-sync
+          pytest tests -m "not integration"` is 166 passed / 2 failed (the
+          new blocker below) / 1 deselected, down from the prior clean
+          161; `mypy`/`ruff check`/`ruff format --check` all clean (no
+          Python files touched this session - Rust-only changes).
+
+        **Still blocked, on a different bug - NOT a stale-id panic, a
+        missing computation, and confirmed to be a genuine Rust-port
+        regression (not pre-existing) via the same `git`-stash-the-dyna-
+        simulator-and-compare technique used above.** The remaining 2/12
+        `test_different_attackers` failures are both `TTCSoftMinAttacker`
+        (`config2`/`config3`), both on
+        `AssertionError: Node <X> does not have a ttc value` out of
+        `python/malsim/mal_simulator/state_query.py::node_ttc_value`
+        (pure Python, pre-existing, unchanged this session) - not a panic,
+        a normal catchable Python exception. The node in question
+        (`WiperMalware-4:execute` on `posterLang_scenario.yml`,
+        `File-4:reached`/`File-3:reached`/etc. on
+        `intDynamicTestLang13_scenario.yml`) is in every case a node
+        *created mid-episode by a dyna model effect* that's present in the
+        attacker's `action_surface` but absent from `sim_state.graph_state.
+        ttc_values` entirely. `TTCSoftMinAttacker` is the only built-in
+        policy that calls `node_ttc_value` for every node in its action
+        surface (to pick the lowest-TTC one) - `BreadthFirstAttacker`/
+        `DepthFirstAttacker`/`RandomAgent` never read a TTC value at all,
+        which is exactly why the stale-id panic above fully masked this
+        second bug until now: none of the three policies the original
+        12-case failure was dominated by would ever have reached this
+        code path. **Confirmed as a genuine regression, not pre-existing:**
+        same `cp`-in-the-pre-B4-`dyna_mal_simulator/simulator.py`-and-rerun
+        technique as the CORRECTION above, run against `TTCSoftMinAttacker`
+        across every `dynamal_example_scenarios` file (not just the two
+        failing ones) - zero missing-ttc-value cases on the pure-Python
+        path, vs. the two found immediately on the native path. Not
+        root-caused beyond this - `ttc_value_for_dist` returns `Some(...)`
+        unconditionally for `TtcMode::PreSample`/`ExpectedValue` (checked
+        directly in `graph_state.rs`), so the gap isn't "the TTC dist
+        legitimately has no value" - it's that these nodes are somehow
+        never reaching `add_new_nodes_to_graph_state`'s per-node TTC
+        computation at all (wrong `new_nodes` set reaching
+        `fold_new_nodes_into_graph_state`? a second, redundant
+        `GraphState` reconstruction elsewhere dropping the merge? -
+        genuinely not narrowed down yet). **Repro:**
+        ```python
+        from pathlib import Path
+        from malsim.scenario.scenario import Scenario
+        from malsim.config.sim_settings import MalSimulatorSettings, TTCMode
+        from malsim.dyna_mal_simulator.simulator import DynaMalSimulator
+        from malsim.policies.attackers.ttc_soft_min import TTCSoftMinAttacker
+
+        scenario = Scenario.load_from_file(
+            'tests/testdata/scenarios/dynamal_example_scenarios/'
+            'intermediate/intDynamicTestLang13_scenario.yml'
+        )
+        name = next(iter(scenario.attacker_settings))
+        scenario.attacker_settings[name].policy = TTCSoftMinAttacker
+        scenario.attacker_settings[name].config = {'beta': 1.0}
+        sim = DynaMalSimulator.from_scenario(
+            scenario,
+            sim_settings=MalSimulatorSettings(
+                ttc_mode=TTCMode.PRE_SAMPLE, compromise_entrypoints_at_start=False
+            ),
+        )
+        from malsim.mal_simulator.run_simulation import run_simulation
+        run_simulation(sim)  # AssertionError a few iterations in, node name varies by scenario
+        ```
+        Also reproduces on `posterLang_scenario.yml` (different scenario,
+        same shape - `WiperMalware-4:execute`), so this isn't specific to
+        one language file. **Next step for whoever resumes: instrument
+        `dyna_graph_state.rs::add_new_nodes_to_graph_state` and its caller
+        `fold_new_nodes_into_graph_state` the same way the CORRECTION above
+        instrumented `execute_model_effects` - print `new_nodes` and the
+        resulting `ttc_values` map's keys at each call - before guessing at
+        a fix, for the same reason the CORRECTION above exists.**
   - [ ] B6 - Audit every other `DynaMalSimulator` public method
         (A10-equivalent)
   - [ ] B7 - Full parity pass + cleanup (A11-equivalent)
@@ -1941,29 +2140,40 @@ checked by CI, not just asserted in prose.
   running, silently reinstalling the broken wheel over the fixed `.so`.
   Use `uv run --no-sync <cmd>` for every Python-level command for the
   rest of the session once the manual `.so` copy has been applied.
-- **BLOCKING B5 (not resolved - see §0's B5 entry for the full writeup,
-  this is the index pointer): native dyna stepping can panic the whole
-  Python process (`invalid SlotMap key used`) on scenarios where a model
-  effect's association churn leaves an asset fully disconnected, causing
-  upstream mal-toolbox's `partially_regenerate_graph` to regenerate that
-  asset's attack-step node(s) under a new internal id even though no
-  asset was actually removed.** Confirmed via `git stash` to be a
-  regression introduced by composing Phase A's graph-never-mutates-era
-  functions (`get_attack_surface`, `get_defense_surface`,
-  `attempt_attacker_step`, `necessity::calculate_necessity`,
-  `node_is_blocked`/`node_is_traversable`, `collect_logs` - the one that
-  actually crashed first) against Phase B's mutating graph - every one of
-  them does unguarded `graph.nodes[id]` indexing on ids pulled from
-  accumulated/historical state, which silently assumes an id, once seen
-  live, stays resolvable forever. Reproduces on
-  `tests/testdata/scenarios/dynamal_example_scenarios/intermediate/
-  intDynamicTestLang13_scenario.yml` with a `BreadthFirstAttacker`;
-  deliberately left unfixed pending a decision on which of §0 B5's three
-  drafted remediation directions to take (narrow point-fix now plus a
-  follow-up audit item, a full audit of all five modules up front, or
-  reconciling stale ids once at the `fold_new_nodes_into_graph_state`
-  choke point - the last one needs an actual simulation-semantics answer,
-  not just a bugfix, before it can be implemented).
+- **BLOCKING B5, stale-id panic class (RESOLVED session 2 - see §0's B5
+  entry for the full writeup and its CORRECTION paragraph, this is the
+  index pointer): the original diagnosis here was wrong and is kept below,
+  struck through in spirit, purely so the correction is findable from
+  both ends.** ~~native dyna stepping can panic the whole Python process
+  (`invalid SlotMap key used`) on scenarios where a model effect's
+  association churn leaves an asset fully disconnected, causing upstream
+  mal-toolbox's `partially_regenerate_graph` to regenerate that asset's
+  attack-step node(s) under a new internal id even though no asset was
+  actually removed.~~ **What's actually true, confirmed via `eprintln!`
+  instrumentation at the mutation site, not inferred from a backtrace:** a
+  step's own model effect can remove the *step's own backing asset*
+  outright (no regeneration, no new id - `removed_assets` for that call
+  genuinely names it) - `collect_logs` was simply the first of several
+  call sites (`malsim-core`'s `event_logger.rs`/`dyna_attacker_step.rs`
+  and, not previously identified at all, `malsim-pyo3::simulator.rs`'s
+  `stable_ids`/`id_value_map`/`attacker_ttc_overrides`/`log_entry_to_py`)
+  that assumed an id, once seen live, stays resolvable for the rest of the
+  episode. All of these now guard with a liveness check and skip rather
+  than index-and-panic - see §0 B5 for the per-site reasoning. Full
+  `cargo test`/`clippy -D warnings`/`fmt --check` clean in both
+  workspaces; `test_different_attackers` 0/12 -> 10/12.
+- **BLOCKING B5, remaining 2/12 (NOT resolved, newly exposed once the
+  panic above stopped masking it - see §0's B5 entry for the full writeup
+  and repro): `TTCSoftMinAttacker` hits a Python-side
+  `AssertionError: Node <X> does not have a ttc value` for a node created
+  mid-episode by a dyna model effect.** Confirmed a genuine Rust-port
+  regression (pure-Python `DynaMalSimulator` has zero such gaps on the
+  same scenarios+policy), not root-caused beyond "these nodes never reach
+  `add_new_nodes_to_graph_state`'s per-node TTC computation, or its result
+  doesn't survive to be read later" - not yet narrowed further. Not a
+  panic - a normal catchable exception - so lower severity than the class
+  above, but still blocks B5's acceptance gate (full green
+  `test_dyna_mal_simulator.py`).
 
 ## 10. Differences log
 

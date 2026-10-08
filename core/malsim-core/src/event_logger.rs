@@ -169,7 +169,19 @@ pub fn collect_logs(
 ) -> Result<Vec<LogEntry>, EventLoggerError> {
     let mut logs = Vec::new();
     for attack_step_id in step_compromised_nodes {
-        let node = &graph.nodes[attack_step_id];
+        // A node can be genuinely compromised this step and still vanish
+        // from the graph before this loop reaches it: in the dyna path, a
+        // step's own model effect (executed right after its compromise -
+        // `dyna_attacker_step`) can remove the very asset that step
+        // belongs to, which removes the step's own node too
+        // (`AttackGraph::partially_regenerate_graph`'s `nodes_to_be_removed`
+        // - see `PORTING_NOTES.md` §0 B5 for the traced repro). The
+        // compromise itself is unaffected - it's already recorded in
+        // `performed_nodes` by the caller - there's just no live node left
+        // to read detector data from, so there's nothing to log for it.
+        let Some(node) = graph.nodes.get(attack_step_id) else {
+            continue;
+        };
         if node.detectors.is_empty() {
             // Mirrors Python's `assert attack_step.model_asset is not
             // None` living *inside* `for detector in
@@ -272,6 +284,25 @@ mod tests {
         assert_eq!(logs[0].detector_id, (step, "d".to_string()));
         assert!(logs[0].context.is_empty());
         assert!(!logs[0].false_positive);
+    }
+
+    #[test]
+    fn collect_logs_skips_a_node_removed_from_the_graph_since_compromise() {
+        // Mirrors the dyna-path repro in `PORTING_NOTES.md` §0 B5: a node
+        // id can be genuinely compromised this step and then vanish from
+        // the graph (its own model effect removed its own asset) before
+        // `collect_logs` runs - this must not panic, and a vanished node
+        // has no live detectors left to log, even though it had one
+        // (tprate=1.0, would have always fired) while it was still live.
+        let mut graph = dummy_graph();
+        let step = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        graph.nodes[step].model_asset = Some(1);
+        add_detector(&mut graph, step, "d", Some(1.0), None, HashMap::new());
+        graph.remove_node(step).unwrap();
+
+        let mut rng = StdRng::seed_from_u64(11);
+        let logs = collect_logs(0, &graph, [step], &HashSet::new(), &mut rng).unwrap();
+        assert!(logs.is_empty());
     }
 
     #[test]
