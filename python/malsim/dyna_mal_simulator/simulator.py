@@ -395,6 +395,15 @@ def dyna_step(
     new_modification_record: list[AssetOp | AssocOp] = modification_record_from_native(
         attack_graph.model, native_out['sim_state']['step_modification_record']
     )
+    # `ttc_values`/etc. only appear in this step's output when a model
+    # effect actually grew the graph (PORTING_NOTES.md §6 Phase B5's
+    # TTC-gap fix) - `build_step_output`'s `insert_graph_state_fields` call
+    # is gated on `step_modification_record` being non-empty.
+    new_graph_state = (
+        _graph_state_from_native(attack_graph, native_out['sim_state'])
+        if 'ttc_values' in native_out['sim_state']
+        else None
+    )
     sim_state = update_simulator_state(
         sim_state,
         frozenset(
@@ -402,6 +411,7 @@ def dyna_step(
             for node_id in native_out['sim_state']['step_enabled_defenses']
         ),
         new_modification_record,
+        new_graph_state,
     )
 
     # Populate these from the results for all agents' actions.

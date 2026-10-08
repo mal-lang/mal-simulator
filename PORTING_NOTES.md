@@ -819,9 +819,11 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         --no-sync <cmd>` (not plain `uv run`) for every subsequent Python
         command in the session - plain `uv run` re-triggers the same broken
         resync and silently overwrites the manually-fixed `.so`.
-  - [~] B5 - Rewrite `DynaMalSimulator.reset()`/`.step()` to delegate to
-        native (A9-equivalent). **Partially landed, blocked on a real bug -
-        see below. Resume here, do not restart from scratch.**
+  - [x] B5 - Rewrite `DynaMalSimulator.reset()`/`.step()` to delegate to
+        native (A9-equivalent). **Complete as of session 3 - see the final
+        "Landed (session 3)" entry below for the closing fix; the two
+        blocking-bug writeups in between are kept verbatim as the actual
+        debugging history, not retrofitted to look clean.**
         Landed so far: `python/malsim/dyna_mal_simulator/simulator.py`'s
         module-level `dyna_reset`/`dyna_step` fully rewritten to delegate to
         B4's `dyna_reset_native`/`dyna_step_native`, mirroring A9's
@@ -1187,6 +1189,97 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         instrumented `execute_model_effects` - print `new_nodes` and the
         resulting `ttc_values` map's keys at each call - before guessing at
         a fix, for the same reason the CORRECTION above exists.**
+
+        **Landed (session 3): B5 is complete - `test_different_attackers`
+        is 12/12 passing, full gate green. Root cause found by reading
+        source, not by instrumenting the suggested two functions above -
+        they were a red herring; `add_new_nodes_to_graph_state`/
+        `fold_new_nodes_into_graph_state` were already correct (confirmed:
+        `new_nodes`/`ttc_values` are populated correctly on the Rust side
+        the moment a model effect creates a node).** The actual gap was one
+        layer further out, in `simulator.rs::build_step_output`'s own doc
+        comment: *"Episode-static fields (`ttc_values`, `necessity_per_node`,
+        `impossible_attack_steps`, `pre_enabled_defenses`) are dropped
+        entirely - Python caches them from `reset_native`'s output."* True
+        for Phase A (the graph never mutates after reset) - false for Phase
+        B, which grows these same `GraphState` maps mid-episode via
+        `fold_new_nodes_into_graph_state`, but `build_step_output` (shared
+        by `step_native`/`dyna_step_native`) never sent that growth back
+        across the FFI boundary, and
+        `dyna_mal_simulator/simulator_state.py::update_simulator_state`
+        passed `sim_state.graph_state` through unchanged on every step. So
+        native's internal `state.graph_state.ttc_values` had the new node's
+        value immediately; Python's mirrored copy never learned about it
+        until `TTCSoftMinAttacker` (the only built-in policy that calls
+        `node_ttc_value` for every node in its action surface) asserted on
+        the gap - exactly why `BreadthFirstAttacker`/`DepthFirstAttacker`/
+        `RandomAgent` never tripped it. Confirmed node-for-node against a
+        reduced repro (`posterLang_scenario.yml`'s `WiperMalware-4:execute`,
+        no seed needed - deterministic under `TtcMode::PreSample`) before
+        writing any fix.
+
+        **Design decision asked of and answered by the user (three
+        candidates, not picked unilaterally - per standing policy for
+        decisions like this):** how should the growing `GraphState` reach
+        Python on every dyna step, given `necessity_per_node` is a *whole-
+        graph* recompute on every fold (not just new keys), so a naive
+        "diff the new keys" delta can't provably stay correct if an
+        existing node's necessity value itself changes. Chose **"full
+        resend, gated on actual mutation"**: `build_step_output` resends
+        the full current `ttc_values`/`impossible_attack_steps`/
+        `necessity_per_node`/`pre_enabled_defenses` maps only on a step
+        where `step_modification_record` is non-empty (a model effect
+        genuinely ran) - correct by construction (no incremental-merge
+        risk), and the resend cost only hits steps that actually grow the
+        graph, not every step for the sim's whole lifetime. Rejected: full
+        resend unconditionally every dyna step (simpler, but pays the cost
+        on quiescent steps too); true per-field delta (most wire-efficient,
+        but mixes delta/full-resend semantics and risks the necessity-value
+        staleness above).
+        **Landed:**
+        - `py-bindings/malsim-pyo3/src/simulator.rs` - extracted
+          `insert_graph_state_fields` (free function, not a method) from
+          `build_reset_output`'s inline field-setting code, since it's now
+          shared with `build_step_output`; `build_step_output` calls it
+          right after `step_modification_record` is set, gated on
+          `!step_modification_record.is_empty()`. `build_reset_output`
+          itself is behavior-unchanged (same fields, now via the extracted
+          helper). No new crate dependency - pure reshuffling of existing
+          field-writing code plus one new `if`.
+        - `python/malsim/dyna_mal_simulator/simulator_state.py::
+          update_simulator_state` gained an optional `graph_state:
+          GraphState | None = None` parameter (default `None` = old
+          behavior, carry `sim_state.graph_state` over unchanged) -
+          replaces it wholesale when given, rather than merging field-by-
+          field, consistent with the "full resend" decision above.
+        - `python/malsim/dyna_mal_simulator/simulator.py::dyna_step` -
+          after `dyna_step_native` returns, checks for `'ttc_values' in
+          native_out['sim_state']` (the signal the Rust side's gate fired
+          this step) and if so calls the already-imported
+          `_graph_state_from_native` (previously only used by `dyna_reset`)
+          to rebuild a fresh `GraphState`, passed into
+          `update_simulator_state`'s new parameter. `step_native`/
+          `mal_simulator/simulator.py::step` are untouched - the key is
+          simply absent for a plain step, by construction.
+        - `tests/test_native.py` gained
+          `test_native_dyna_simulator_step_resends_graph_state_only_on_model_effect`
+          (using the same `wiper_scenario.yml` fixture as B4's dyna tests):
+          asserts all four keys are present and `Wiper-7:activate` (a node
+          that didn't exist at reset) has a `ttc_values` entry on the step
+          that creates it, *and* that all four keys are absent on a
+          following step with no actions at all (no model effect ran) -
+          locking in the gate, not just the happy path.
+        - Full gate green: `cargo test`/`clippy -D warnings`/`fmt --check`
+          clean in both the root (`malsim-core`, 150 tests, unchanged by
+          this fix - pure `py-bindings` change) and `py-bindings`
+          workspaces; `uv run --no-sync pytest tests` (170 passed, up from
+          168 pre-fix - the 1 new test plus `test_different_attackers`
+          gaining its remaining 2 passing parametrizations) and
+          `examples/*` (6 passed); `mypy`/`ruff check`/`ruff format --check`
+          clean on `python`/`tests`/`examples` (ruff flags a pre-existing,
+          unrelated `PORTING_NOTES.md` markdown-fence formatting diff at
+          this entry's own repro block - confirmed via `git stash` to
+          predate this session, not touched).
   - [ ] B6 - Audit every other `DynaMalSimulator` public method
         (A10-equivalent)
   - [ ] B7 - Full parity pass + cleanup (A11-equivalent)

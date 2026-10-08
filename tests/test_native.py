@@ -380,6 +380,61 @@ def test_native_dyna_simulator_step_executes_model_effects_and_grows_graph() -> 
     )
 
 
+def test_native_dyna_simulator_step_resends_graph_state_only_on_model_effect() -> None:
+    """PORTING_NOTES.md §6 Phase B5's TTC-gap fix: `ttc_values`/
+    `necessity_per_node`/`impossible_attack_steps`/`pre_enabled_defenses`
+    are episode-static for plain `step_native` (asserted by
+    `test_native_simulator_step_output_is_delta_only*` above), but
+    `dyna_step_native` can grow them mid-episode via model effects -
+    `build_step_output` resends the full current maps, but only on a step
+    that actually ran one (`step_modification_record` non-empty).
+    """
+    scenario = Scenario.load_from_file(
+        path_relative_to_tests('./testdata/scenarios/wiper_scenario.yml')
+    )
+    attack_graph = scenario.attack_graph
+    model = scenario.model
+    infect = attack_graph.get_node_by_full_name('InfectedDevice:infect')
+
+    sim = _native.Simulator(attack_graph)
+    sim.dyna_reset_native(
+        {'compromise_entrypoints_at_start': False, 'ttc_mode': 'PRE_SAMPLE'},
+        {'WiperController': {'type': 'attacker', 'entry_points': [infect.id]}},
+        model,
+        42,
+    )
+
+    # This step compromises `infect`, whose model effect creates `Wiper-7`
+    # and its attack steps (e.g. `Wiper-7:activate`) - a node that did not
+    # exist at reset, so it can only have a `ttc_values` entry if this
+    # step's output actually carried the grown map.
+    step_out = sim.dyna_step_native({'WiperController': [infect.id]})
+    assert step_out['sim_state']['step_modification_record']
+    for key in (
+        'ttc_values',
+        'impossible_attack_steps',
+        'necessity_per_node',
+        'pre_enabled_defenses',
+    ):
+        assert key in step_out['sim_state']
+
+    activate = attack_graph.get_node_by_full_name('Wiper-7:activate')
+    assert activate is not None
+    assert activate.id in step_out['sim_state']['ttc_values']
+
+    # A step with no actions at all runs no model effects - the maps must
+    # not be resent (the gate this fix added, not just "always send them").
+    quiet_step_out = sim.dyna_step_native({'WiperController': []})
+    assert not quiet_step_out['sim_state']['step_modification_record']
+    for key in (
+        'ttc_values',
+        'impossible_attack_steps',
+        'necessity_per_node',
+        'pre_enabled_defenses',
+    ):
+        assert key not in quiet_step_out['sim_state']
+
+
 def test_native_dyna_simulator_reset_restores_pristine_graph_after_mutation() -> None:
     scenario = Scenario.load_from_file(
         path_relative_to_tests('./testdata/scenarios/wiper_scenario.yml')

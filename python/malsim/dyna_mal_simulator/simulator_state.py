@@ -72,11 +72,19 @@ def update_simulator_state(
     sim_state: DynaMalSimulatorState,
     enabled_defenses: Set[AttackGraphNode],
     model_effects: list[AssetOp | AssocOp],
+    graph_state: GraphState | None = None,
 ) -> DynaMalSimulatorState:
+    """`graph_state` is only passed when this step's native output actually
+    carried a refreshed one (PORTING_NOTES.md §6 Phase B5's TTC-gap fix) -
+    a dyna step that ran a model effect and grew `ttc_values`/
+    `necessity_per_node`/etc. mid-episode. `None` means nothing grew this
+    step; `sim_state.graph_state` is still the correct, current value and
+    is carried over unchanged, same as before this fix.
+    """
     return DynaMalSimulatorState(
         sim_state.attack_graph,
         sim_state.settings,
-        sim_state.graph_state,
+        graph_state if graph_state is not None else sim_state.graph_state,
         enabled_defenses=enabled_defenses | sim_state.enabled_defenses,
         modification_record=sim_state.modification_record + model_effects,
     )

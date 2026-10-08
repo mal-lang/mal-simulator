@@ -1041,6 +1041,33 @@ impl Simulator {
     }
 }
 
+/// Writes `ttc_values`/`impossible_attack_steps`/`necessity_per_node`/
+/// `pre_enabled_defenses` into `sim_state` from `graph_state` - the full
+/// episode-accumulated `GraphState`, not a delta. Shared by
+/// `build_reset_output` (always) and `build_step_output` (only on a dyna
+/// step that actually ran a model effect - see that function's doc
+/// comment for why these can't be a delta against the previous step).
+fn insert_graph_state_fields(
+    sim_state: &Bound<'_, PyDict>,
+    graph: &AttackGraph,
+    graph_state: &GraphState,
+) -> PyResult<()> {
+    sim_state.set_item("ttc_values", id_value_map(graph, &graph_state.ttc_values))?;
+    sim_state.set_item(
+        "impossible_attack_steps",
+        stable_ids(graph, graph_state.impossible_attack_steps.iter().copied()),
+    )?;
+    sim_state.set_item(
+        "necessity_per_node",
+        id_value_map(graph, &graph_state.necessity_per_node),
+    )?;
+    sim_state.set_item(
+        "pre_enabled_defenses",
+        stable_ids(graph, graph_state.pre_enabled_defenses.iter().copied()),
+    )?;
+    Ok(())
+}
+
 impl Simulator {
     /// Builds `reset_native`'s plain-`dict` return value - full
     /// episode-initial state for every field, since there's no previous
@@ -1056,28 +1083,7 @@ impl Simulator {
             "enabled_defenses",
             stable_ids(&graph, state.enabled_defenses.iter().copied()),
         )?;
-        sim_state.set_item(
-            "ttc_values",
-            id_value_map(&graph, &state.graph_state.ttc_values),
-        )?;
-        sim_state.set_item(
-            "impossible_attack_steps",
-            stable_ids(
-                &graph,
-                state.graph_state.impossible_attack_steps.iter().copied(),
-            ),
-        )?;
-        sim_state.set_item(
-            "necessity_per_node",
-            id_value_map(&graph, &state.graph_state.necessity_per_node),
-        )?;
-        sim_state.set_item(
-            "pre_enabled_defenses",
-            stable_ids(
-                &graph,
-                state.graph_state.pre_enabled_defenses.iter().copied(),
-            ),
-        )?;
+        insert_graph_state_fields(&sim_state, &graph, &state.graph_state)?;
 
         let attacker_triples: Vec<_> = state
             .attackers
@@ -1164,7 +1170,20 @@ impl Simulator {
     /// cross the FFI boundary redundantly on every call. Episode-static
     /// fields (`ttc_values`, `necessity_per_node`,
     /// `impossible_attack_steps`, `pre_enabled_defenses`) are dropped
-    /// entirely - Python caches them from `reset_native`'s output.
+    /// entirely for a plain `step_native` call (`step_modification_record`
+    /// is always empty there) - Python caches them from `reset_native`'s
+    /// output, same as before.
+    ///
+    /// **Not episode-static for `dyna_step_native`, though** (PORTING_NOTES.md
+    /// §6 Phase B5's TTC-gap fix): `dyna_attacker_step`/`dyna_defender_step`
+    /// grow `state.graph_state` in place via `fold_new_nodes_into_graph_state`
+    /// whenever a model effect creates nodes mid-episode, and
+    /// `necessity_per_node` is a full-graph recompute each time (not just new
+    /// keys) - so a true per-field delta isn't provably correct. Whenever
+    /// `step_modification_record` is non-empty (a model effect genuinely ran
+    /// this step), this resends the full current maps via
+    /// `insert_graph_state_fields`, same shape as `build_reset_output`;
+    /// Python rebuilds its `GraphState` wholesale from them that step only.
     /// `action_surface`, `iteration` and `terminated` are unchanged (full
     /// current value every step), matching `build_reset_output`.
     #[allow(clippy::type_complexity)]
@@ -1200,6 +1219,9 @@ impl Simulator {
             .map(|op| mod_effect_op_to_py(py, op))
             .collect::<PyResult<_>>()?;
         sim_state.set_item("step_modification_record", modification_record)?;
+        if !step_modification_record.is_empty() {
+            insert_graph_state_fields(&sim_state, &graph, &state.graph_state)?;
+        }
 
         let attacker_triples: Vec<_> = state
             .attackers
