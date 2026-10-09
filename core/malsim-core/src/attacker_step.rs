@@ -564,6 +564,42 @@ mod tests {
         assert!(attempted.is_empty());
     }
 
+    /// Port of the first case of the old
+    /// `tests/test_mal_simulator.py::test_attacker_step` ("Can not attack
+    /// the notPresent step"): a defense node passed as an attacker action,
+    /// neither on the action surface nor an entry point, is skipped.
+    #[test]
+    fn step_skips_defense_node_outside_action_surface_and_not_entry_point() {
+        let mut graph = dummy_graph();
+        let defense = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
+
+        let empty_set: HashSet<AttackGraphNodeId> = HashSet::new();
+        let empty_map_u64: HashMap<AttackGraphNodeId, u64> = HashMap::new();
+        let empty_map_f64: HashMap<AttackGraphNodeId, f64> = HashMap::new();
+        let empty_map_bool: HashMap<AttackGraphNodeId, bool> = HashMap::new();
+        let mut r = rng();
+
+        let (successful, attempted) = attacker_step(
+            &graph,
+            &mut r,
+            TtcMode::Disabled,
+            &[defense],
+            &empty_set,
+            &empty_set,
+            &empty_set,
+            &empty_map_u64,
+            None,
+            None,
+            &empty_map_f64,
+            &empty_set,
+            &empty_set,
+            &empty_map_bool,
+        )
+        .unwrap();
+        assert!(successful.is_empty());
+        assert!(attempted.is_empty());
+    }
+
     #[test]
     fn step_entry_point_bypasses_action_surface_and_traversability() {
         let mut graph = dummy_graph();

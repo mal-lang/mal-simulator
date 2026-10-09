@@ -453,4 +453,86 @@ mod tests {
         let result = surface(&graph, true, false, None, &performed, &necessity);
         assert!(result.is_empty());
     }
+
+    /// Port of the property `tests/test_attacker.py::test_attack_surface_traininglang`
+    /// asserted, on a hand-built reduction of the trainingLang scenario
+    /// (`traininglang_scenario.yml`: entry points `User:3:phishing` and
+    /// `Host:0:connect`) instead of the scenario fixture itself (needs
+    /// Phase C's not-yet-ported scenario-YAML loader to build in Rust).
+    /// Enabling defenses must shrink the attack surface, with necessity
+    /// recomputed per phase, mirroring the simulator's recompute after a
+    /// defender step. Settings mirror `AttackSurfaceSettings` defaults
+    /// (`skip_compromised=True`, `skip_unnecessary=False`).
+    #[test]
+    fn attack_surface_shrinks_as_defenses_are_enabled() {
+        let mut graph = dummy_graph();
+        // User:3:phishing / Host:0:connect - the scenario's entry points.
+        let phishing = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let connect = add_dummy_node(&mut graph, "DummyAndAttackStep");
+        // Host:0:authenticate - an `or` step the attacker hasn't reached.
+        let auth = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        // User:3:notPresent / Host:0:notPresent.
+        let user_np = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
+        let host_np = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
+        // User:3:compromise (`and`: phishing + user notPresent).
+        let compromise = add_dummy_node(&mut graph, "DummyAndAttackStep");
+        // Host:0:access (`and`: connect + host notPresent + authenticate).
+        let access = add_dummy_node(&mut graph, "DummyAndAttackStep");
+
+        let link = |graph: &mut AttackGraph, parent, child| {
+            graph.nodes[parent].children.insert(child);
+            graph.nodes[child].parents.insert(parent);
+        };
+        link(&mut graph, phishing, compromise);
+        link(&mut graph, user_np, compromise);
+        link(&mut graph, connect, access);
+        link(&mut graph, host_np, access);
+        link(&mut graph, auth, access);
+
+        let performed: HashSet<_> = [phishing, connect].into_iter().collect();
+        let no_impossible = HashSet::new();
+
+        let surface_with = |impossible: &HashSet<AttackGraphNodeId>,
+                            enabled: &HashSet<AttackGraphNodeId>| {
+            let necessity = crate::necessity::calculate_necessity(&graph, enabled).unwrap();
+            get_attack_surface(
+                &graph, true, false, None, &performed, None, impossible, enabled, &necessity,
+            )
+            .unwrap()
+        };
+
+        // No defenses enabled: `compromise` is reachable (its disabled
+        // defense parent is unnecessary, so not required), `access` is not
+        // (its necessary `auth` parent is unperformed).
+        let none_enabled = HashSet::new();
+        assert_eq!(
+            surface_with(&no_impossible, &none_enabled),
+            [compromise].into_iter().collect()
+        );
+
+        // "This wont help, already compromised" - enabling Host:0:notPresent
+        // only blocks `access`, which wasn't on the surface anyway.
+        let host_enabled: HashSet<_> = [host_np].into_iter().collect();
+        assert_eq!(
+            surface_with(&no_impossible, &host_enabled),
+            [compromise].into_iter().collect()
+        );
+
+        // "This should block the attack from further propagating" -
+        // enabling User:3:notPresent too blocks `compromise`, leaving an
+        // empty surface and a terminated attacker.
+        let both_enabled: HashSet<_> = [host_np, user_np].into_iter().collect();
+        let blocked_surface = surface_with(&no_impossible, &both_enabled);
+        assert!(blocked_surface.is_empty());
+        assert!(crate::attacker_step::attacker_is_terminated(
+            &blocked_surface,
+            &HashSet::new(),
+            &performed
+        ));
+
+        // Rust-only extra: an impossible attack step is excluded the same
+        // way an enabled-defense-blocked one is.
+        let impossible: HashSet<_> = [compromise].into_iter().collect();
+        assert!(surface_with(&impossible, &none_enabled).is_empty());
+    }
 }

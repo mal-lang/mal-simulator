@@ -623,26 +623,77 @@ mod tests {
     /// using wiperLang (hand-built) instead of the
     /// `dynamic_remove_many_assoc` scenario (needs Phase C's not-yet-ported
     /// scenario-YAML loader to build in Rust).
+    ///
+    /// Edges are compared by each endpoint's *full* name (`"Asset:step"`,
+    /// resolved through the reverse of `full_name_to_node`), not the bare
+    /// step name, so same-named steps on different assets stay distinct -
+    /// mirrors Python's `node_id_to_full_name` lookups.
     fn assert_graph_equivalent(incremental: &AttackGraph, fresh: &AttackGraph) {
+        assert_eq!(
+            incremental.nodes.len(),
+            fresh.nodes.len(),
+            "number of nodes differ"
+        );
+
         let incremental_names: HashSet<&String> = incremental.full_name_to_node.keys().collect();
         let fresh_names: HashSet<&String> = fresh.full_name_to_node.keys().collect();
         assert_eq!(incremental_names, fresh_names, "node full_names differ");
 
-        let edge_names = |g: &AttackGraph, ids: &HashSet<AttackGraphNodeId>| -> HashSet<String> {
-            ids.iter().map(|&id| g.nodes[id].name.clone()).collect()
+        let id_to_full_name = |g: &AttackGraph| -> HashMap<AttackGraphNodeId, String> {
+            g.full_name_to_node
+                .iter()
+                .map(|(name, &id)| (id, name.clone()))
+                .collect()
+        };
+        let incremental_id_to_name = id_to_full_name(incremental);
+        let fresh_id_to_name = id_to_full_name(fresh);
+
+        let edge_names = |id_to_name: &HashMap<AttackGraphNodeId, String>,
+                          ids: &HashSet<AttackGraphNodeId>|
+         -> HashSet<String> {
+            ids.iter()
+                .map(|id| {
+                    id_to_name
+                        .get(id)
+                        .unwrap_or_else(|| {
+                            panic!("edge to node {id:?} missing from full_name_to_node")
+                        })
+                        .clone()
+                })
+                .collect()
         };
         for (full_name, &incr_id) in &incremental.full_name_to_node {
             let fresh_id = fresh.full_name_to_node[full_name];
             assert_eq!(
-                edge_names(incremental, &incremental.nodes[incr_id].children),
-                edge_names(fresh, &fresh.nodes[fresh_id].children),
+                edge_names(
+                    &incremental_id_to_name,
+                    &incremental.nodes[incr_id].children
+                ),
+                edge_names(&fresh_id_to_name, &fresh.nodes[fresh_id].children),
                 "different children for {full_name}"
             );
             assert_eq!(
-                edge_names(incremental, &incremental.nodes[incr_id].parents),
-                edge_names(fresh, &fresh.nodes[fresh_id].parents),
+                edge_names(&incremental_id_to_name, &incremental.nodes[incr_id].parents),
+                edge_names(&fresh_id_to_name, &fresh.nodes[fresh_id].parents),
                 "different parents for {full_name}"
             );
+        }
+    }
+
+    /// Port of `test_dyna_mal_simulator.py::assert_no_dangling_associations`:
+    /// every id in every asset's `associated_assets` must still resolve to
+    /// a live model asset.
+    fn assert_no_dangling_associations(model: &Model) {
+        for asset in model.assets.values() {
+            for (field_name, others) in &asset.associated_assets {
+                for &other in others {
+                    assert!(
+                        model.get_asset_by_id(other).is_some(),
+                        "{}.{field_name} points to removed asset id {other}",
+                        asset.name
+                    );
+                }
+            }
         }
     }
 
@@ -684,6 +735,8 @@ mod tests {
                 .any(|op| matches!(op, ModEffectOp::Asset(AssetOp::Removed { .. }))),
             "Wiper:trigger should remove the Wiper asset itself"
         );
+
+        assert_no_dangling_associations(&model);
 
         let fresh_graph = AttackGraph::from_model(&model).unwrap();
         assert_graph_equivalent(&graph, &fresh_graph);

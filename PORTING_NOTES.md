@@ -15,7 +15,7 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
       depending on `malsim-core` + pyo3). Builds; no logic yet.
 - [ ] Phase 0.5 - Architectural decisions confirmed (see §2). Done as of
       2026-10-07; revisit if reality disagrees once code is written.
-- [ ] Phase A - `MalSimulator` port (§5)
+- [x] Phase A - `MalSimulator` port (§5)
   - [x] A1 - Shared-graph handle extraction proven end to end. Not via a
         direct `PyAttackGraph` pyclass downcast as §2.2 originally
         specified (that doesn't work across independently-built `cdylib`s
@@ -520,10 +520,17 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         -m "not integration"` (161 passed), `uv run mypy python/malsim
         tests` (no issues), `uv run ruff check` / `ruff format --check`
         (clean) - all green, unchanged from A9's exit state.
-  - [ ] A11 - Full existing test suite green with native backend; delete
-        now-dead pure-Python hot-path modules (or demote to `#[cfg(test)]`
-        oracle comparisons - TBD per-module, see §5)
-- [~] Phase B - `DynaMalSimulator` port (§6)
+  - [x] A11 - Full existing test suite green with native backend; delete
+        now-dead pure-Python hot-path modules. **Landed together with B7
+        in one cleanup, since both phases delete code from the same
+        reachability analysis and several deleted modules (e.g.
+        `attack_surface.py`, `ttc_utils.py`'s graph helpers) were last
+        reachable only from the pre-B4 dyna path.** See B7 below for the
+        full writeup; the A11-specific part is the `mal_simulator/` half of
+        the deletions. User decisions taken here (recorded in §11):
+        delete outright rather than keep oracles, and keep live survivors
+        in their original modules.
+- [x] Phase B - `DynaMalSimulator` port (§6)
   - [x] B1 - Port association-traversal evaluation + model-effect
         application (`process_assoc_traversal.py`, `model_effects.py`) to
         `malsim-core`. Landed in `core/malsim-core/src/assoc_traversal.rs`
@@ -1326,7 +1333,116 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
           restored to the snapshot, so ids of removed/added nodes no
           longer resolve); expected, not guarded.
         Gate: pytest `-m "not integration"` 170 passed, mypy/ruff clean.
-  - [ ] B7 - Full parity pass + cleanup (A11-equivalent)
+  - [x] B7 - Full parity pass + cleanup (A11-equivalent). Done jointly
+        with A11.
+        **How dead code was identified.** A read-only call-graph pass over
+        `python/malsim`, `examples/` and `tests/` classified every top-level
+        function/class in the hot-path modules as LIVE (reachable from a
+        live root: either simulator's public API, `native_settings.py`,
+        `rewards.py`, `run_simulation.py`, `config/`, `scenario/`, `envs/`,
+        `policies/`, `visualization/`, `examples/`), TEST-ONLY, or DEAD.
+        Actual call sites were checked, not just imports; key results were
+        spot-verified by grep.
+        **Deleted files (11):** `mal_simulator/{attack_surface,
+        defense_surface,graph_processing,reset_agent,
+        simulator_static_data}.py` and `dyna_mal_simulator/{attacker_step,
+        defender_step,graph_state,model_effects,model_state,
+        process_assoc_traversal}.py`.
+        **Shrunk in place (per §11, import paths unchanged):**
+        - `event_logger.py`: only `LogEntry`.
+        - `graph_state.py`: only `GraphState`; `compute_initial_graph_state`
+          deleted.
+        - `attacker_step.py`: only `attacker_is_terminated`.
+        - `defender_step.py`: only `defender_is_terminated`.
+        - `false_alerts.py`: only the two rate getters.
+        - `observability.py`: only `node_is_observable`.
+        - `ttc_utils.py`: kept `TTCDist` and its helpers (still the
+          user-facing config type, §4); deleted the module-level
+          graph functions `attack_step_ttc_value(s)`,
+          `get_pre_enabled_defenses`, `(get_)is_impossible_attack_step(s)`.
+        - `graph_utils.py`: lost `node_is_live`. The A10 query predicates
+          stay, as A10 required.
+        - `node_getters.py`: lost `full_name_dict_to_node_dict`.
+        - `attacker_state_factories.py`/`defender_state_factories.py`: only
+          the `*_from_native` factories (+ `get_entry_points`,
+          `_log_entry_from_native`).
+        Not touched: `MalSimulator._defender_is_terminated` (unused private
+        method on the public class, out of this cleanup's scope).
+        **Viability/pruning ported to Rust rather than dropped** (user
+        decision, §11). `graph_processing.py`'s viability half was the one
+        piece of deleted Python with tests and no Rust port, since A3 had
+        skipped it as dead. It's now in `core/malsim-core/src/viability.rs`
+        (`evaluate_viability`, `propagate_viability_from_node`,
+        `calculate_viability`, `make_node_unviable`,
+        `prune_unviable_and_unnecessary_nodes`, `ViabilityError`), with all
+        four Python tests ported. The coreLang-fixture prune test is ported
+        twice: once on a hand-built chain, once on the generated wiperLang
+        graph. Six extra tests cover the error paths and
+        `make_node_unviable`. See §10 for small deviations.
+        **Python tests: deleted only where Rust covers them** (checked
+        assertion-by-assertion, not by name):
+        - Deleted, already covered: the 7 `test_graph_processing.py` tests
+          other than `test_node_is_blocked` (necessity.rs/viability.rs);
+          `test_mal_simulator.py::test_attacker_step`/`test_defender_step`
+          (attacker_step.rs/defender_step.rs);
+          `test_dyna_mal_simulator.py::test_assoc_traversal`/
+          `test_apply_model_effect` (assoc_traversal.rs/model_effects.rs).
+        - Gaps found and closed with new Rust tests before deleting:
+          `attack_surface_shrinks_as_defenses_are_enabled` (Rust tests
+          never passed enabled defenses or impossible steps into
+          `get_attack_surface`), `step_skips_defense_node_outside_action_
+          surface_and_not_entry_point`, `defender_step_skips_node_outside_
+          non_empty_action_surface`,
+          `node_is_traversable_and_false_when_blocked_by_enabled_defense`
+          (the old `node_is_traversable_false_when_blocked` never asserted
+          `false`; renamed to `node_is_traversable_or_true_when_only_some_
+          parents_block`). `model_effects.rs`'s `assert_graph_equivalent`
+          now compares edges by full name, not bare step name (which let
+          same-named steps on different assets mask wrong edges), and
+          checks node count. A new `assert_no_dangling_associations` port
+          runs in the removal test.
+        - Rewritten, not deleted, because they also cover live simulator
+          behavior: `test_attacker.py::test_attack_surface_traininglang`
+          now asserts on `sim.agent_states['Attacker1'].action_surface`
+          instead of calling `get_attack_surface` (same scenario, same
+          three assertions);
+          `test_apply_model_effect_modification_record_partially_
+          regenerates_graph` now performs the randomly picked `remove` step
+          through `DynaMalSimulator.step` (as an entry point, TTCs disabled)
+          and checks the same no-dangling-associations and
+          fresh-graph-equivalence properties against the native path, plus
+          that the recorded subtractive ops actually took effect. Run 40
+          times with fresh random picks: 40/40 passed.
+        **Integration check:** `envs/`/`policies/`/`visualization/`
+        unmodified; their tests and `examples/*` (6) pass.
+        **Memory-leak scrutiny (§6's B7 ask).** Both
+        `test_no_memory_leak_on_teardown` and
+        `test_no_memory_growth_over_repeated_simulations` pass, but they
+        only see Python objects (`weakref`, `gc.get_objects()`), not the
+        native heap behind the B3 `Model` capsule. So I also measured RSS
+        and ran valgrind:
+        - RSS over 300 repeated runs on `wiper_scenario.yml`
+          (`malloc_trim` before each reading): scenario load, a native
+          `Simulator` alone, repeated graph/model capsule extraction, and
+          plain `MalSimulator` runs all plateau after warm-up. Dyna runs
+          that apply model effects grow ~110-125 KB/run. `tracemalloc`
+          shows the Python heap flat over that span, so the growth is
+          native.
+        - **Pre-existing, not a port regression:** the pre-B4 pure-Python
+          dyna path (commit `0bf303f`'s `python/` tree) grows *faster*
+          (~220 KB/run) on the same script.
+        - **Not malsim's capsule handoff:** valgrind memcheck
+          (`PYTHONMALLOC=malloc`, 2 vs 8 runs) shows "definitely lost"
+          only for one-time import/type-object allocations, and *zero*
+          still-reachable bytes with a `malsim_pyo3`/`malsim_core` frame.
+          The growth that remains at exit is all in allocations from
+          `maltoolbox/_native.so`.
+        - Logged as a §9 open risk with a repro rather than fixed: it's in
+          upstream mal-toolbox, not this repo.
+        Gate: `uv run --no-sync pytest tests` (160 passed, incl.
+        `integration`), `pytest examples/*` (6), mypy (no issues), ruff
+        check/format clean; `cargo test` (164) / `clippy -D warnings` /
+        `fmt --check` clean in both the root and `py-bindings` workspaces.
 - [ ] Phase C - Rust-only library API (§7)
   - [ ] C1 - Port `NodePropertyRule`'s dict-shape + `.value()`/`.per_node()`
         matching as an independent Rust utility (not shared with the
@@ -1733,6 +1849,10 @@ vs. stays Python - not *location*. None of the parenthetical mentions of
 filename; per §2.7, where each piece lands inside the Rust crates is an
 implementation-time decision driven by Rust idioms, not a 1:1 mirror of
 this table's left column.
+
+**After A11/B7:** the "Ported" rows below were then deleted on the Python
+side (or shrunk to their still-live items); see §0's B7 entry for the
+exact list. The table is kept as the record of what moved where.
 
 | Python file | Disposition |
 |---|---|
@@ -2165,7 +2285,10 @@ checked by CI, not just asserted in prose.
 - **Seed-pinned exact-sampled-value tests found during A2's `grep -rn
   seed= tests/` check (per §2.1) - `tests/test_ttc_utils.py` still does
   NOT need relaxing even after A9, since `ttc_utils.py` itself was never
-  touched (§10: `DynaMalSimulator` still needs it pure-Python).** This
+  touched (§10: `DynaMalSimulator` still needs it pure-Python).**
+  **B7 update:** `ttc_utils.py` lost its module-level graph functions
+  (`attack_step_ttc_values` etc.) but `TTCDist` itself is unchanged, and
+  `test_ttc_utils.py` only exercises `TTCDist`, so this entry still holds. This
   entry's original framing ("once Python's `ttc_utils.py` actually starts
   delegating to native RNG (A9)") turned out to describe a trigger that
   never happens in A9 - `MalSimulator`'s new native-backed path bypasses
@@ -2311,6 +2434,19 @@ checked by CI, not just asserted in prose.
   panic - a normal catchable exception - so lower severity than the class
   above, but still blocks B5's acceptance gate (full green
   `test_dyna_mal_simulator.py`).
+
+- **Native memory grows across repeated `DynaMalSimulator` runs that
+  apply model effects (found at B7; pre-existing; upstream).** About
+  110-125 KB per run on `wiper_scenario.yml`. The Python heap stays flat,
+  and the existing gc-based leak tests can't see it. The pre-B4
+  pure-Python dyna path grows faster (~220 KB/run), and valgrind
+  attributes the retained memory entirely to mal-toolbox's native module,
+  none to `malsim_pyo3`/`malsim_core` (see §0 B7). Matters for very long
+  training loops that build fresh dyna simulators thousands of times.
+  Repro: load a dyna scenario, build `DynaMalSimulator.from_scenario`,
+  `run_simulation` with `RandomAgent`, repeat 300x, and read `VmRSS` from
+  `/proc/self/status` after `gc.collect()` + `malloc_trim(0)` every 50
+  runs. Worth reporting upstream to mal-toolbox with this repro.
 
 ## 10. Differences log
 
@@ -2472,7 +2608,7 @@ looks at `self.combine_with`, even for distributions like
 called out here per §2.7's rule, in case a future reader assumes it's a
 bug to be fixed rather than intentionally-preserved behavior.
 
-**A3: viability (`calculate_viability`/`evaluate_viability`/
+**(Superseded at B7: viability was ported after all, to `viability.rs`, so `graph_processing.py` could be deleted without losing test coverage; see §0 B7 and §11.)** **A3: viability (`calculate_viability`/`evaluate_viability`/
 `_propagate_viability_from_node`/`make_node_unviable`/
 `prune_unviable_and_unnecessary_nodes`) is not ported at all, by design -
 not an oversight.** `graph_processing.py`'s own module docstring already
@@ -3391,3 +3527,82 @@ install --reinstall-package mal-toolbox <that wheel>` directly, bypassing
 just-pushed mal-toolbox commit in this sandbox - verify with `strings`
 (or equivalent) on the actually-installed `.so` first, every time, before
 concluding a failing test means new Rust code is wrong.
+
+**B7: viability/pruning port (`viability.rs`) - small deliberate
+deviations from `graph_processing.py`.**
+- `prune_unviable_and_unnecessary_nodes` checks the necessity entry of
+  every node it is about to remove *before* removing any. Python only hits
+  that `KeyError` partway through its removal loop (in a debug-log line),
+  leaving the graph half-pruned; Rust errors with the graph untouched.
+- Nodes to remove are collected in graph iteration order (a `Vec`), not
+  a `set`, so removal order is deterministic.
+- `make_node_unviable` mutates the map through `&mut` and returns only
+  the set of nodes made unviable (Python also returns the dict it
+  mutated in place).
+- `propagate_viability_from_node` treats a missing child entry as
+  `MissingViability` (mirrors Python's `KeyError`). `necessity.rs`'s
+  propagation treats it as "changed" instead; that inconsistency predates
+  this phase and was left alone.
+- `ViabilityError` wraps upstream `GraphError` (from `remove_node`) the
+  same way `ModelEffectsError`/`ModelStateError` do, so it is `Debug`
+  only, not `Clone`/`Eq` like `NecessityError`.
+- Python's `logger.debug`/`logger.error` calls are dropped (the crate
+  has no logging dependency, same as every other ported module).
+
+**B7: `DynaMalSimulator.reset()` reads a settings snapshot.** Since B5,
+`dyna_reset` takes the `MALSimulatorStaticData` captured in `__init__`.
+Before B5 it took `self.sim_settings` at call time, so reassigning
+`sim.sim_settings` after construction changed the next episode; now it
+doesn't. This is exactly how `MalSimulator.reset` has always behaved
+(it used `_static_data` before the port began), so the two classes now
+agree. Recorded here because B6's audit didn't mention it.
+
+## 11. Conventions
+
+Standing decisions made by the user that later phases follow without
+asking again. Each entry names the phase it was decided in.
+
+- **Python code shadowed by native is deleted, not kept as an oracle**
+  (decided at A11/B7). Once a Python function no longer has a live caller
+  (one reachable from `MalSimulator`/`DynaMalSimulator`'s public API,
+  `native_settings.py`, `rewards.py`, `run_simulation.py`, `config/`,
+  `scenario/`, `envs/`, `policies/`, `visualization/` or `examples/`), it
+  is deleted outright: no feature flag, no test-only reference copy, no
+  deprecation period. Python tests of the deleted code are deleted with
+  it only if Rust tests cover the same behavior; where they don't, the
+  missing Rust tests are written first.
+- **Live code left behind in an otherwise-dead module stays in that
+  module** (decided at A11/B7). The file shrinks to just the live items
+  rather than having them moved somewhere tidier, so import paths don't
+  change. Example: `event_logger.py` now holds only `LogEntry`, and
+  `attacker_step.py` only `attacker_is_terminated`.
+- **Dead Python functionality with no Rust port gets ported, not dropped,
+  when deleting it would otherwise lose test coverage** (decided at B7
+  for `graph_processing.py`'s viability/pruning half). Applies even when
+  nothing calls the code: coverage is kept by porting the code and its
+  tests to `malsim-core`, not by keeping the Python copy alive.
+
+## 12. Decisions
+
+Ambiguities resolved during implementation without asking (per the
+standing instructions: the most reasonable choice, recorded here). Each
+entry names its phase.
+
+- **B7: `tests/test_graph_processing.py` keeps its name** although it now
+  holds only `test_node_is_blocked` (a `graph_utils.py` test). Renaming
+  test files is churn for no behavioral gain; revisit if the file grows.
+- **B7: the deleted-module reachability was decided against `examples/`
+  and everything in `python/malsim` outside the hot-path modules as live
+  roots.** Downstream code importing the deleted internals (e.g.
+  `malsim.mal_simulator.attack_surface`) breaks. That is accepted by the
+  §11 "delete outright" convention; none of those modules was exported
+  from a package `__init__`.
+- **B7: the memory growth found while scrutinizing the leak tests is
+  logged (§9), not fixed.** It's upstream in mal-toolbox, predates the
+  port, and the port reduced it.
+- **B7: the user named `mal-toolbox @ main` as the port source.** `main`
+  is mal-toolbox's original pure-Python toolbox and doesn't contain the
+  pinned `rust-rewrite` commit (`b96258b`) this repo's crates build
+  against, so the dependency pins were left unchanged. `main` was only
+  used as a reference.
+

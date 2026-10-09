@@ -101,6 +101,22 @@ mod tests {
         assert!(enabled.is_empty());
     }
 
+    /// Mirrors the second case of the old
+    /// `tests/test_mal_simulator.py::test_defender_step` ("Can not defend
+    /// attack_step"), where the defender's action surface was non-empty
+    /// (it held every defense in the graph) - the requested attack step is
+    /// still skipped because it isn't one of them.
+    #[test]
+    fn defender_step_skips_node_outside_non_empty_action_surface() {
+        let mut graph = dummy_graph();
+        let defense = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
+        let attack_step = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let action_surface: HashSet<_> = [defense].into_iter().collect();
+
+        let enabled = defender_step(&graph, &[attack_step], &action_surface).unwrap();
+        assert!(enabled.is_empty());
+    }
+
     #[test]
     fn defender_step_fails_on_node_not_in_graph() {
         let mut graph = dummy_graph();

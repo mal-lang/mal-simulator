@@ -453,7 +453,7 @@ mod tests {
     }
 
     #[test]
-    fn node_is_traversable_false_when_blocked() {
+    fn node_is_traversable_or_true_when_only_some_parents_block() {
         let mut graph = dummy_graph();
         let defense_node = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
         let parent = add_dummy_node(&mut graph, "DummyOrAttackStep");
@@ -476,6 +476,46 @@ mod tests {
             &empty,
             &enabled_defenses,
             &empty_map
+        )
+        .unwrap());
+    }
+
+    #[test]
+    fn node_is_traversable_and_false_when_blocked_by_enabled_defense() {
+        let mut graph = dummy_graph();
+        let defense_node = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
+        let parent = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let and_node = add_dummy_node(&mut graph, "DummyAndAttackStep");
+        graph.nodes[and_node].parents.insert(parent);
+        graph.nodes[and_node].parents.insert(defense_node);
+
+        let performed: HashSet<_> = [parent].into_iter().collect();
+        let enabled_defenses: HashSet<_> = [defense_node].into_iter().collect();
+        // The defense parent is marked unnecessary in both calls below, so
+        // `and_traversable` alone would pass (only `parent` is required and
+        // it's performed) - the only difference between the two calls is
+        // whether the defense is enabled, isolating the `node_is_blocked`
+        // check.
+        let necessity: HashMap<_, _> = [(parent, true), (defense_node, false)]
+            .into_iter()
+            .collect();
+        let empty = HashSet::new();
+
+        // Defense not enabled -> traversable.
+        assert!(
+            node_is_traversable(&graph, and_node, &performed, &empty, &empty, &necessity).unwrap()
+        );
+
+        // `and` node blocked as soon as *any* parent blocks - the enabled
+        // defense parent alone is enough, even with the other parent
+        // performed.
+        assert!(!node_is_traversable(
+            &graph,
+            and_node,
+            &performed,
+            &empty,
+            &enabled_defenses,
+            &necessity
         )
         .unwrap());
     }
