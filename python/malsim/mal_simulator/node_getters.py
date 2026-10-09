@@ -1,4 +1,3 @@
-from typing import Any
 from collections.abc import Iterable
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 
@@ -40,10 +39,3 @@ def full_names_or_nodes_to_nodes(
     """Generator converting nodes full_name to AttackGraphNode objects"""
     for n in nodes_or_full_names:
         yield full_name_or_node_to_node(attack_graph, n)
-
-
-def full_name_dict_to_node_dict(
-    attack_graph: AttackGraph, mapping: dict[str, Any] | dict[AttackGraphNode, Any]
-) -> dict[AttackGraphNode, Any]:
-    """Convert dict so it maps from AttackGraphNode instead of from full_name"""
-    return {full_name_or_node_to_node(attack_graph, k): v for k, v in mapping.items()}

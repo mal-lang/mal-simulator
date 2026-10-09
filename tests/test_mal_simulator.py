@@ -17,12 +17,12 @@ from malsim.mal_simulator import (
     TTCMode,
     RewardMode,
 )
-from malsim.mal_simulator.attacker_step import attacker_is_terminated, attacker_step
+from malsim.mal_simulator.attacker_step import attacker_is_terminated
 from malsim.mal_simulator.agent_states import (
     attacker_states,
     defender_states,
 )
-from malsim.mal_simulator.defender_step import defender_is_terminated, defender_step
+from malsim.mal_simulator.defender_step import defender_is_terminated
 from malsim.mal_simulator import TTCDist
 from malsim import Scenario, run_simulation
 
@@ -222,65 +222,6 @@ def test_get_agents() -> None:
 
     assert list(attacker_states(sim.agent_states)) == ['Attacker1']
     assert list(defender_states(sim.agent_states)) == ['Defender1']
-
-
-def test_attacker_step(corelang_lang_graph: LanguageGraph, model: Model) -> None:
-    attack_graph = AttackGraph(corelang_lang_graph, model)
-    entry_point = get_node(attack_graph, 'OS App:fullAccess')
-
-    sim = MalSimulator(
-        attack_graph,
-        agents=(
-            AttackerSettings(name='attacker', entry_points=frozenset({entry_point})),
-        ),
-    )
-
-    attacker_name = 'attacker'
-
-    sim.reset()
-
-    attacker_agent = sim._agent_states[attacker_name]
-    assert isinstance(attacker_agent, AttackerState)
-
-    # Can not attack the notPresent step
-    defense_step = get_node(attack_graph, 'OS App:notPresent')
-    actions, _ = attacker_step(sim.sim_state, attacker_agent, [defense_step], sim.rng)
-
-    assert not actions
-
-    attack_step = get_node(attack_graph, 'OS App:attemptRead')
-    actions, _ = attacker_step(sim.sim_state, attacker_agent, [attack_step], sim.rng)
-    assert actions == [attack_step]
-
-
-def test_defender_step(corelang_lang_graph: LanguageGraph, model: Model) -> None:
-    attack_graph = AttackGraph(corelang_lang_graph, model)
-    sim = MalSimulator(attack_graph, agents=(DefenderSettings(name='defender'),))
-
-    defender_name = 'defender'
-
-    sim.reset()
-
-    defender_agent = sim._agent_states[defender_name]
-    assert isinstance(defender_agent, DefenderState)
-
-    defense_step = get_node(attack_graph, 'OS App:notPresent')
-    enabled = defender_step(
-        sim.sim_state,
-        defender_agent,
-        [defense_step],
-    )
-    assert enabled == [defense_step]
-
-    # Can not defend attack_step
-    attack_step = get_node(attack_graph, 'OS App:attemptUseVulnerability')
-    assert attack_step
-    enabled = defender_step(
-        sim.sim_state,
-        defender_agent,
-        [attack_step],
-    )
-    assert enabled == []
 
 
 def test_node_full_names_to_simulator(

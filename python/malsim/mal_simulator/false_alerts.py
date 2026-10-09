@@ -1,10 +1,13 @@
-"""Functions to generate false negatives/positives in the simulator"""
+"""Per-node false negative/positive rate lookups.
+
+False alert generation itself runs natively (`malsim._native`); these
+helpers resolve the rate rules for the settings flattening and the
+`MalSimulator` query API.
+"""
 
 from __future__ import annotations
-from collections.abc import Set
 
-import numpy as np
-from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+from maltoolbox.attackgraph import AttackGraphNode
 from malsim.config.node_property_rule import NodePropertyRule
 
 
@@ -17,22 +20,6 @@ def node_false_negative_rate(
     return 0.0
 
 
-def generate_false_negatives(
-    false_negative_rate_rule: NodePropertyRule[float] | None,
-    observed_nodes: Set[AttackGraphNode],
-    rng: np.random.Generator,
-) -> Set[AttackGraphNode]:
-    """Return a set of false negative attack steps from observed nodes"""
-    if false_negative_rate_rule:
-        return {
-            node
-            for node in observed_nodes
-            if rng.random() < node_false_negative_rate(node, false_negative_rate_rule)
-        }
-    else:
-        return set()
-
-
 def node_false_positive_rate(
     node: AttackGraphNode,
     false_positive_rates_rule: NodePropertyRule[float] | None = None,
@@ -41,19 +28,3 @@ def node_false_positive_rate(
         # FPR from agent settings
         return float(false_positive_rates_rule.value(node, 0.0))
     return 0.0
-
-
-def generate_false_positives(
-    false_positive_rates_rule: NodePropertyRule[float] | None,
-    attack_graph: AttackGraph,
-    rng: np.random.Generator,
-) -> Set[AttackGraphNode]:
-    """Return a set of false positive attack steps from attack graph"""
-    if false_positive_rates_rule:
-        return {
-            node
-            for node in attack_graph.attack_steps
-            if rng.random() < node_false_positive_rate(node, false_positive_rates_rule)
-        }
-    else:
-        return set()

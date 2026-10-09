@@ -19,6 +19,7 @@ pub mod model_state;
 pub mod necessity;
 pub mod observability;
 pub mod ttc;
+pub mod viability;
 
 #[cfg(test)]
 mod test_fixtures;

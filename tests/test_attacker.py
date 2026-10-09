@@ -6,7 +6,6 @@ from maltoolbox.model import Model
 from malsim.config.agent_settings import AttackerSettings
 from malsim.config.sim_settings import AttackSurfaceSettings, MalSimulatorSettings
 from malsim.mal_simulator import run_simulation
-from malsim.mal_simulator.attack_surface import get_attack_surface
 from malsim.mal_simulator.simulator import MalSimulator
 from malsim.policies.attackers.searchers import BreadthFirstAttacker
 from malsim.scenario.scenario import Scenario
@@ -21,32 +20,17 @@ def test_attack_surface_traininglang() -> None:
     scenario = 'tests/testdata/scenarios/traininglang_scenario.yml'
     sim = MalSimulator.from_scenario(scenario)
 
-    attack_surface = get_attack_surface(
-        sim.sim_settings.attack_surface,
-        sim.sim_state,
-        sim.agent_states['Attacker1'].settings.actionable_steps,
-        sim.agent_states['Attacker1'].performed_nodes,
-    )
+    attack_surface = sim.agent_states['Attacker1'].action_surface
     assert attack_surface == {sim.get_node('User:3:compromise')}
 
     # This wont help, already compromised
     sim.step({'Defender1': [sim.get_node('Host:0:notPresent')]})
-    attack_surface = get_attack_surface(
-        sim.sim_settings.attack_surface,
-        sim.sim_state,
-        sim.agent_states['Attacker1'].settings.actionable_steps,
-        sim.agent_states['Attacker1'].performed_nodes,
-    )
+    attack_surface = sim.agent_states['Attacker1'].action_surface
     assert attack_surface == {sim.get_node('User:3:compromise')}
 
     # This should block the attack from further propagating
     sim.step({'Defender1': [sim.get_node('User:3:notPresent')]})
-    attack_surface = get_attack_surface(
-        sim.sim_settings.attack_surface,
-        sim.sim_state,
-        sim.agent_states['Attacker1'].settings.actionable_steps,
-        sim.agent_states['Attacker1'].performed_nodes,
-    )
+    attack_surface = sim.agent_states['Attacker1'].action_surface
     assert attack_surface == set()
     assert sim.agent_is_terminated('Attacker1')
 

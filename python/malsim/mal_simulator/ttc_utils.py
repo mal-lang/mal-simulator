@@ -3,14 +3,11 @@
 from __future__ import annotations
 import logging
 from enum import Enum
-from collections.abc import Mapping, Set
 
 from typing import Any, TYPE_CHECKING
-from collections.abc import Iterable
 
 import numpy as np
 from scipy.stats import expon, gamma, binom, lognorm, uniform, bernoulli
-from malsim.config.sim_settings import TTCMode
 
 if TYPE_CHECKING:
     from maltoolbox.attackgraph import AttackGraphNode
@@ -265,112 +262,3 @@ named_ttc_dists: dict[str, TTCDist] = {
     'Instant': TTCDist(DistFunction.BERNOULLI, [1.0]),
     'Disabled': TTCDist(DistFunction.BERNOULLI, [0.0]),
 }
-
-## Attack graph TTC functions
-
-
-def attack_step_ttc_value(
-    node: AttackGraphNode,
-    ttc_dist: TTCDist | None,
-    ttc_mode: TTCMode,
-    rng: np.random.Generator,
-) -> float | None:
-    _ttc_dist = ttc_dist or TTCDist.from_node(node)
-
-    # TODO Make this check comprehensive.
-    if ttc_mode == TTCMode.EXPECTED_VALUE:
-        return _ttc_dist.expected_value
-    elif ttc_mode == TTCMode.PRE_SAMPLE:
-        return _ttc_dist.sample_value(rng)
-    else:
-        return None
-
-
-def attack_step_ttc_values(
-    nodes: Iterable[AttackGraphNode],
-    rng: np.random.Generator,
-    ttc_mode: TTCMode = TTCMode.DISABLED,
-    ttc_dists: Mapping[AttackGraphNode, TTCDist] | None = None,
-) -> Mapping[AttackGraphNode, float]:
-    """
-    Calculate and return attack steps TTCs if settings use
-    pre sample or expected value.
-    Optionally give overriding `ttc_dists` per node.
-    """
-
-    return {
-        node: x
-        for node in nodes
-        if (
-            x := attack_step_ttc_value(
-                node,
-                ttc_dists[node] if ttc_dists and node in ttc_dists else None,
-                ttc_mode,
-                rng,
-            )
-        )
-        is not None
-    }
-
-
-def get_pre_enabled_defenses(
-    defense_steps: list[AttackGraphNode],
-    sample: bool,
-    rng: np.random.Generator | None = None,
-) -> Set[AttackGraphNode]:
-    """
-    Calculate and return pre defenses that got a non-infinite
-    ttc value sample, which means they will be pre enabled
-    """
-    pre_enabled_defenses = set()
-    for node in defense_steps:
-        if node.type == 'defense':
-            ttc_dist = TTCDist.from_node(node)
-
-            # Check for degenerate distributions
-            # that always lead to enabled or disabled
-            if ttc_dist.success_probability(0) in (0.0, 1.0):
-                if ttc_dist.success_probability(0) == 0.0:
-                    # never succeeds -> pre enabled
-                    # TODO: is this correct?
-                    pre_enabled_defenses.add(node)
-                elif ttc_dist.success_probability(0) == 1.0:
-                    # always suceeds -> not pre enabled
-                    continue
-
-            # Otherwise sample the distribution
-            if sample and ttc_dist.attempt_bernoulli(rng or np.random.default_rng()):
-                pre_enabled_defenses.add(node)
-
-    return frozenset(pre_enabled_defenses)
-
-
-def is_impossible_attack_step(
-    node: AttackGraphNode,
-    ttc_dist: TTCDist | None,
-    rng: np.random.Generator,
-) -> bool:
-    _ttc_dist = ttc_dist or TTCDist.from_node(node)
-    return not _ttc_dist.attempt_bernoulli(rng)
-
-
-def get_impossible_attack_steps(
-    nodes: Iterable[AttackGraphNode],
-    rng: np.random.Generator | None = None,
-    ttc_dists: Mapping[AttackGraphNode, TTCDist] | None = None,
-) -> Set[AttackGraphNode]:
-    """
-    Calculate and return which attack steps in `nodes` gets
-    infintity TTC in sample which means they are impossible.
-    Optionally give overriding `ttc_dists`.
-    """
-    ttc_dists = ttc_dists or {}
-    return frozenset(
-        node
-        for node in nodes
-        if is_impossible_attack_step(
-            node,
-            ttc_dists.get(node, None),
-            rng or np.random.default_rng(),
-        )
-    )

@@ -14,10 +14,6 @@ from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.model import Model, ModelAsset
 from maltoolbox.language.language_graph_model_effect import ModelEffectType
 from malsim.config.sim_settings import TTCMode
-from malsim.dyna_mal_simulator.model_effects import (
-    _apply_model_effect,
-)
-from malsim.dyna_mal_simulator.process_assoc_traversal import traverse_association_chain
 from malsim.dyna_mal_simulator.simulator_state import AssetOp, AssocOp
 from malsim.mal_simulator import (
     MalSimulatorSettings,
@@ -214,159 +210,6 @@ def test_reset(wiperLang_scenario: Scenario) -> None:
             assert necessity_before[node.full_name] == necessary
 
 
-def test_assoc_traversal(wiperLang_attack_graph: AttackGraph) -> None:
-    """Test the association traversal logic"""
-    rng = np.random.default_rng(42)
-    # Check Device:infect step has self as base, so the traversal should return
-    # the same asset
-    infect_step = wiperLang_attack_graph.get_node_by_full_name('InfectedDevice:infect')
-    assert infect_step.model_asset, 'Infect step should have a model asset'
-    assert infect_step.additive_model_effects, 'Infect step should have model effects'
-    terminating_assets = traverse_association_chain(
-        {infect_step.model_asset}, infect_step.additive_model_effects[0].base, rng
-    )
-    assert terminating_assets == {infect_step.model_asset}, (
-        'Infect step has self as base'
-    )
-    assert infect_step.additive_model_effects
-
-    # Check that target of Device:infect doesn't resolve to any assets
-    resolved_assets = traverse_association_chain(
-        terminating_assets,
-        infect_step.additive_model_effects[0].targets[0].assoc_traversal,
-        rng,
-    )
-    assert len(resolved_assets) == 0, 'Infect step should not have any targets yet'
-
-    # Add Wiper asset into model
-    model = wiperLang_attack_graph.model
-    assert model is not None, 'Model should be available in attack graph'
-    wiper = model.add_asset('Wiper', 'Wiper', max(model.assets.keys()) + 1)
-    infected_device = model.get_asset_by_name('InfectedDevice')
-    assert infected_device
-    wiper.add_associated_assets('victim', {infected_device})
-    wiperLang_attack_graph.regenerate_graph()
-
-    # Check that Device:infect step has Wiper as target, so the traversal should
-    # return the Wiper asset
-    terminating_assets = traverse_association_chain(
-        terminating_assets,
-        infect_step.additive_model_effects[0].targets[0].assoc_traversal,
-        rng,
-    )
-    assert terminating_assets == {wiper}, 'Infect step should have Wiper as target'
-
-    # Check that Wiper:exfiltrate step has the InfectedData as base
-    exfiltrate_step = wiperLang_attack_graph.get_node_by_full_name('Wiper:exfiltrate')
-    assert exfiltrate_step.model_asset
-    assert exfiltrate_step.additive_model_effects
-    terminating_assets = traverse_association_chain(
-        {exfiltrate_step.model_asset},
-        exfiltrate_step.additive_model_effects[0].base,
-        rng,
-    )
-    assert terminating_assets == {model.get_asset_by_name('InfectedData')}, (
-        'Exfiltrate step should have InfectedData as base'
-    )
-
-    # Check that target of Wiper:exfiltrate doesn't resolve to any assets,
-    # this is because the InfectedData is not yet associated to the C2Server
-    resolved_assets = traverse_association_chain(
-        terminating_assets,
-        exfiltrate_step.additive_model_effects[0].targets[0].assoc_traversal,
-        rng,
-    )
-    assert len(resolved_assets) == 0, (
-        'Exfiltrate step should not have any targets yet, because InfectedData is '
-        'not associated to C2Server'
-    )
-
-    infected_data = model.get_asset_by_name('InfectedData')
-    assert infected_data
-    c2_server = model.get_asset_by_name('C2Server')
-    assert c2_server
-    infected_data.add_associated_assets('node', {c2_server})
-
-    # This target refers to an additive assoc op,
-    # so the instigating asset is the asset where the step is defined
-    terminating_assets = traverse_association_chain(
-        {exfiltrate_step.model_asset},
-        exfiltrate_step.additive_model_effects[0].targets[0].assoc_traversal,
-        rng,
-    )
-    assert terminating_assets == {infected_data}, (
-        'Exfiltrate step target resolve to InfectedData after association to C2Server'
-    )
-
-
-def test_apply_model_effect(wiperLang_attack_graph: AttackGraph) -> None:
-    """Test that applying a model effect modifies the model as expected"""
-    rng = np.random.default_rng(42)
-
-    model = wiperLang_attack_graph.model
-    assert model
-    infected_device = model.get_asset_by_name('InfectedDevice')
-    assert infected_device
-    assert 'malware' not in infected_device.associated_assets, (
-        'InfectedDevice should not have malware associated before applying model effect'
-    )
-    infect_step = wiperLang_attack_graph.get_node_by_full_name('InfectedDevice:infect')
-    assert infect_step.additive_model_effects
-    model_effect_record = _apply_model_effect(
-        infect_step, infect_step.additive_model_effects[0], model, rng
-    )
-    assert 'malware' in infected_device.associated_assets, (
-        'InfectedDevice should have malware associated after applying model effect'
-    )
-    assert any(
-        assoc_op.assoc
-        == (
-            model.get_asset_by_name('InfectedDevice'),
-            'malware',
-            model.get_asset_by_name('Wiper-7'),
-        )
-        for assoc_op in model_effect_record
-        if isinstance(assoc_op, AssocOp)
-    )
-
-    wiper = next(asset for asset in model.assets.values() if asset.type == 'Wiper')
-    assert infected_device in wiper.associated_assets['victim'], (
-        'Wiper should have InfectedDevice as victim after applying model effect'
-    )
-    assert any(
-        asset_op.asset == wiper
-        for asset_op in model_effect_record
-        if isinstance(asset_op, AssetOp)
-    )
-
-    infected_data = model.get_asset_by_name('InfectedData')
-    assert infected_data
-    assert infected_data.associated_assets.get('node') == {infected_device}, (
-        'InfectedData should be associated to InfectedDevice before applying '
-        'model effect'
-    )
-    wiperLang_attack_graph.regenerate_graph()
-    exfiltrate_step = wiperLang_attack_graph.get_node_by_full_name('Wiper-7:exfiltrate')
-    assert exfiltrate_step.additive_model_effects
-    model_effect_record = _apply_model_effect(
-        exfiltrate_step, exfiltrate_step.additive_model_effects[0], model, rng
-    )
-    c2_server = model.get_asset_by_name('C2Server')
-    assert c2_server
-    assert infected_data.associated_assets.get('node') == {
-        infected_device,
-        c2_server,
-    }, (
-        'InfectedData should be associated to InfectedDevice and C2Server after '
-        'applying model effect'
-    )
-    assert any(
-        assoc_op.assoc == (c2_server, 'data', infected_data)
-        for assoc_op in model_effect_record
-        if isinstance(assoc_op, AssocOp)
-    )
-
-
 def test_apply_model_effect_modification_record_partially_regenerates_graph(
     dynamic_remove_many_assoc_scenario: Scenario,
 ) -> None:
@@ -385,25 +228,37 @@ def test_apply_model_effect_modification_record_partially_regenerates_graph(
 
     fuzz_step = random.choice(remove_steps)
     assert fuzz_step.subtractive_model_effects
-    modification_record = _apply_model_effect(
-        fuzz_step,
-        fuzz_step.subtractive_model_effects[0],
-        model,
-        np.random.default_rng(),
+
+    # Drive the removal through the simulator (native `execute_model_effects`
+    # + `partially_regenerate_graph`), with the step as an entry point so it
+    # can be performed directly regardless of the scenario's action surface.
+    sim = DynaMalSimulator(
+        attack_graph,
+        agents=[AttackerSettings(name='Fuzzer', entry_points={fuzz_step})],
+        sim_settings=MalSimulatorSettings(
+            ttc_mode=TTCMode.DISABLED, compromise_entrypoints_at_start=False
+        ),
     )
-    removed_assets: set[ModelAsset] = set()
-    removed_associations: set[tuple[ModelAsset, str, ModelAsset]] = set()
-    for op in modification_record:
-        if isinstance(op, AssetOp) and op.type == ModelEffectType.SUBTRACTIVE:
-            assert isinstance(op.asset, ModelAsset)
-            removed_assets.add(op.asset)
-        elif isinstance(op, AssocOp) and op.type == ModelEffectType.SUBTRACTIVE:
+    sim.reset()
+    sim.step({'Fuzzer': [fuzz_step]})
+
+    subtractive_ops = [
+        op
+        for op in sim.sim_state.modification_record
+        if op.type == ModelEffectType.SUBTRACTIVE
+    ]
+    assert subtractive_ops, f'{fuzz_step.full_name} removed nothing'
+    for op in subtractive_ops:
+        if isinstance(op, AssetOp):
+            assert op.asset.id not in model.assets, (
+                f'{op.asset.name} is recorded as removed but is still in the model'
+            )
+        else:
             left, field_name, right = op.assoc
-            assert isinstance(left, ModelAsset) and isinstance(right, ModelAsset)
-            removed_associations.add((left, field_name, right))
-    attack_graph.partially_regenerate_graph(
-        removed_assets=removed_assets, removed_associations=removed_associations
-    )
+            if isinstance(left, ModelAsset) and left.id in model.assets:
+                assert right.id not in {
+                    a.id for a in left.associated_assets.get(field_name, set())
+                }, f'{left.name}.{field_name} still points to {right.name}'
     assert_no_dangling_associations(model)
 
     fresh_attack_graph = AttackGraph(

@@ -1,14 +1,12 @@
 //! Rust port of `python/malsim/mal_simulator/graph_processing.py`'s
 //! necessity propagation - see `PORTING_NOTES.md` §5 Phase A3.
 //!
-//! Only necessity is ported here, not viability
-//! (`calculate_viability`/`evaluate_viability`/
-//! `prune_unviable_and_unnecessary_nodes`): confirmed via
-//! `grep -rn` that nothing outside `graph_processing.py` itself uses
-//! viability (its own module docstring already calls it
-//! "(deprecated)"), and `PORTING_NOTES.md` §5's A3 description only
-//! scopes in necessity. Not an oversight - see `PORTING_NOTES.md` §10 for
-//! the explicit note.
+//! Only necessity lives here; the viability/pruning half of the same
+//! Python file (`calculate_viability`/`evaluate_viability`/
+//! `prune_unviable_and_unnecessary_nodes`) is in `crate::viability` -
+//! originally left unported as dead code at A3, ported at B7 so the Python
+//! file could be deleted without losing its test coverage (see
+//! `PORTING_NOTES.md` §10).
 //!
 //! Rust-native tests (backfilled at Phase A4, per `PORTING_NOTES.md` §10's
 //! A3 entry): every case needs a real `AttackGraphNode` with a specific
