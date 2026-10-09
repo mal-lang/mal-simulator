@@ -1186,6 +1186,7 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
             ),
         )
         from malsim.mal_simulator.run_simulation import run_simulation
+
         run_simulation(sim)  # AssertionError a few iterations in, node name varies by scenario
         ```
         Also reproduces on `posterLang_scenario.yml` (different scenario,
