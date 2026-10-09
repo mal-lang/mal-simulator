@@ -183,4 +183,5 @@ prof/*
 *.sh
 
 # Claude
-.claude.langs/
+.claude
+.langs/
