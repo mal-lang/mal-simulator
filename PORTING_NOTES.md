@@ -1280,8 +1280,52 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
           unrelated `PORTING_NOTES.md` markdown-fence formatting diff at
           this entry's own repro block - confirmed via `git stash` to
           predate this session, not touched).
-  - [ ] B6 - Audit every other `DynaMalSimulator` public method
-        (A10-equivalent)
+  - [x] B6 - Audit every other `DynaMalSimulator` public method
+        (A10-equivalent). **Result: zero production-code changes; one
+        regression test added.** Did the diff first, as §6 prescribes:
+        `git diff f949c21 HEAD -- python/malsim/dyna_mal_simulator/` (only
+        `simulator.py`, `simulator_state.py`, `model_effects.py` changed,
+        all by B4/B5) and `git diff f949c21 HEAD -- python/malsim/
+        mal_simulator/` (nothing relevant). `DynaMalSimulator` still
+        defines nothing public beyond `__init__`/`from_scenario`/`reset`/
+        `step`.
+        **A10's premise changed and was re-verified:** A10 recorded that
+        `DynaMalSimulator` never sets `self._native_sim`; since B5 it does
+        (`__init__` builds `_native.Simulator(attack_graph)`). Re-checked
+        that no inherited method reaches for `_native_sim` outside
+        `reset()`/`step()` (both overridden), and that `__getstate__`
+        (which excludes `_native_sim`) applies to the dyna class too - a
+        pickled `DynaMalSimulator` round-trips and, like `MalSimulator`,
+        simply lacks `_native_sim` afterwards (pre-existing limitation,
+        §10).
+        **What actually needed auditing** was not new methods but whether
+        the 19 inherited query methods stay correct when the graph and
+        the native-computed `GraphState` they read change *mid-episode*.
+        Exercised each against a node that only exists after a model
+        effect (`Wiper-7:activate`, created by compromising
+        `InfectedDevice:infect` in `wiper_scenario.yml`), under
+        `PRE_SAMPLE` and `EXPECTED_VALUE`: `node_ttc_value` (with and
+        without agent), `node_is_necessary`, `node_is_blocked` (node and
+        full-name forms), `node_is_traversable`, `node_is_compromised`,
+        `node_is_enabled_defense`, `node_is_actionable`, `node_reward`,
+        `compromised_nodes`, `get_node` (by name and id), plus
+        `get_node` raising `LookupError` for the added node again after
+        `reset()`. All correct - this is B5's resend-on-model-effect fix
+        doing its job. Locked in by
+        `tests/test_dyna_mal_simulator.py::
+        test_inherited_query_methods_follow_graph_mutated_by_model_effects`.
+        **Decisions (no architectural/stylistic choice arose):**
+        - `node_ttc_value` raises `KeyError` under the default
+          `TTCMode.DISABLED`, for pre-existing nodes as well as new ones
+          (ttc_values is simply empty) - identical to `MalSimulator`, so
+          left alone rather than made dyna-specific.
+        - `reset(seed=...)` re-seeds `self.rng` *after* resetting, so the
+          seed only affects the next episode - identical to
+          `MalSimulator.reset`, preserved.
+        - A node reference held across `reset()` goes stale (the graph is
+          restored to the snapshot, so ids of removed/added nodes no
+          longer resolve); expected, not guarded.
+        Gate: pytest `-m "not integration"` 170 passed, mypy/ruff clean.
   - [ ] B7 - Full parity pass + cleanup (A11-equivalent)
 - [ ] Phase C - Rust-only library API (§7)
   - [ ] C1 - Port `NodePropertyRule`'s dict-shape + `.value()`/`.per_node()`

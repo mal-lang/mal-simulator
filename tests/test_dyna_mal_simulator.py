@@ -1046,3 +1046,46 @@ def test_no_memory_growth_over_repeated_simulations() -> None:
         'after repeatedly running independent simulations - this suggests a '
         'memory leak in DynaMalSimulator'
     )
+
+
+def test_inherited_query_methods_follow_graph_mutated_by_model_effects() -> None:
+    """PORTING_NOTES.md §6 Phase B6: `DynaMalSimulator` inherits all of
+    `MalSimulator`'s public query methods unmodified, but unlike the base
+    class its graph (and therefore the native-computed `GraphState` those
+    methods read) grows and shrinks mid-episode. Make sure the inherited
+    methods give correct answers for a node that only exists after a step.
+    """
+    sim = DynaMalSimulator.from_scenario(
+        'tests/testdata/scenarios/wiper_scenario.yml',
+        sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.PRE_SAMPLE, seed=1),
+    )
+    attacker = 'WiperController'
+    infect = sim.get_node(full_name='InfectedDevice:infect')
+    with pytest.raises(LookupError):
+        sim.get_node(full_name='Wiper-7:activate')
+
+    sim.step({attacker: [infect]})
+
+    new = sim.get_node(full_name='Wiper-7:activate')
+    assert sim.get_node(node_id=new.id) is new
+    assert sim.node_ttc_value(new) == sim.node_ttc_value(new, attacker) == 1.0
+    assert sim.node_is_necessary(new)
+    assert not sim.node_is_blocked(new)
+    assert not sim.node_is_blocked(new.full_name)
+    assert not sim.node_is_compromised(new)
+    assert not sim.node_is_enabled_defense(new)
+    assert sim.node_is_actionable(new, attacker)
+    assert sim.node_reward(new, attacker) == 0.0
+    assert sim.node_is_traversable(set(sim.compromised_nodes), new)
+    assert infect in sim.compromised_nodes
+
+    sim.step({attacker: [new]})
+    assert sim.node_is_compromised(new)
+    assert new in sim.compromised_nodes
+    assert not sim.done()
+
+    # Reset restores the pristine graph: the added node is gone again.
+    sim.reset()
+    with pytest.raises(LookupError):
+        sim.get_node(full_name='Wiper-7:activate')
+    assert not sim.compromised_nodes - set(sim.agent_states[attacker].performed_nodes)
