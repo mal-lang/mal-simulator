@@ -1473,9 +1473,30 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         a sweep over every fixture asserting the same validate outcome
         Python gives (three fixtures still use the deprecated top-level
         `rewards` and are rejected on both sides).
-  - [ ] C3 - Port agent-settings-from-dict construction (entry points,
+  - [x] C3 - Port agent-settings-from-dict construction (entry points,
         goals, resolved rule maps, reward_mode, ttc overrides); `policy`
-        field parsed but not instantiated (§2.6)
+        field parsed but not instantiated (§2.6). Landed in three places:
+        - `core/malsim-core/src/settings.rs` (new top-level module, §11):
+          `MalSimulatorSettings`/`AttackSurfaceSettings` with
+          `from_value` (port of `MalSimulatorSettings(**d)` incl.
+          `__post_init__`), `RewardMode`, `TtcMode::from_name`/`name`
+          (added to `graph_state.rs`), and the `Simulator` inputs
+          `FlatAttackerSettings`/`FlatDefenderSettings`/
+          `FlatAgentSettings`.
+        - `core/malsim-core/src/scenario/agent_settings.rs`:
+          `AttackerSettings<N>` (`N = String` when parsed, `N =
+          AttackGraphNodeId` after `convert_to_attack_graph_nodes`),
+          `DefenderSettings`, `AgentSettings<N>`, `EntryPoints<N>`
+          (single set vs alternatives), `AgentType`, and
+          `agent_settings_from_dict` (port of
+          `agent_settings_factories.py` without `policy_name_to_class`).
+        - `core/malsim-core/src/scenario/flatten.rs`: `get_entry_points`
+          and `flatten_attacker_settings`/`flatten_defender_settings`,
+          the Rust-only counterpart of `native_settings.py` with the
+          same per-node semantics (empty actionability rule = everything
+          actionable, empty observability rule = nothing observed, rate
+          maps cover every node, empty TTC resolution = `None`).
+        27 new Rust tests across the three files.
   - [ ] C4 - Wire scenario loading to mal-toolbox's pure-Rust
         language/model/attack-graph construction (`maltoolbox-language`/
         `maltoolbox-model`/`maltoolbox-attackgraph`, no PyO3)
@@ -3720,3 +3741,27 @@ entry names its phase.
 - **C2: `recursive_update` key order is deterministic** (old keys first,
   then new-only keys). Python iterates a `set` of keys, so its order is
   arbitrary, and nothing depends on it.
+- **C3: unknown `policy` names are accepted** (carried opaquely, per
+  §2.6). Python's `agent_settings_from_dict` raises `LookupError` for a
+  name outside `policy_name_to_class`. The Rust loader has no policy
+  registry, so `wrong_agent_classes_scenario.yml` loads in Rust and fails
+  in Python. C6's parity test records this case as an expected
+  divergence.
+- **C3: `_validate_agent_dict`'s missing-key check is ported as
+  written, i.e. it doesn't check.** Python tests `illegal_keys` twice
+  instead of `missing_keys`, so a missing `policy` is accepted. Rust
+  accepts it too. A missing `type` is still an error in both (Python
+  raises `KeyError` when reading it; Rust returns `MissingType`).
+- **C3: agent fields are type-checked where Python is duck-typed.**
+  `goals` must be a list of strings (Python's `frozenset(d['goals'])`
+  would turn a bare string into a set of characters), and `config` must
+  be a mapping or `null` (`null` is treated as `{}`). The `sim_settings`
+  booleans must be booleans, and `seed` a non-negative integer. No
+  fixture is affected.
+- **C3: `get_entry_points` with an empty list of alternatives returns no
+  entry points.** Python's `rng.choice([])` raises instead. The case
+  can't come from YAML (`entry_points: []` parses as an empty *single*
+  set, as in Python), only from programmatic construction.
+- **C3: `MalSimulatorSettings` is `Copy` and carries `seed:
+  Option<u64>`.** Python allows any int. A negative seed would be
+  rejected by numpy's `default_rng` anyway.

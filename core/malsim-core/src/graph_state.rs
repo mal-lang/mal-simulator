@@ -38,6 +38,32 @@ pub enum TtcMode {
     Disabled,
 }
 
+impl TtcMode {
+    /// Parses the Python enum member name (`TTCMode[name]`), e.g.
+    /// `"PRE_SAMPLE"`.
+    pub fn from_name(name: &str) -> Option<TtcMode> {
+        match name {
+            "EFFORT_BASED_PER_STEP_SAMPLE" => Some(TtcMode::EffortBasedPerStepSample),
+            "PER_STEP_SAMPLE" => Some(TtcMode::PerStepSample),
+            "PRE_SAMPLE" => Some(TtcMode::PreSample),
+            "EXPECTED_VALUE" => Some(TtcMode::ExpectedValue),
+            "DISABLED" => Some(TtcMode::Disabled),
+            _ => None,
+        }
+    }
+
+    /// The Python enum member name (`TTCMode.name`).
+    pub fn name(self) -> &'static str {
+        match self {
+            TtcMode::EffortBasedPerStepSample => "EFFORT_BASED_PER_STEP_SAMPLE",
+            TtcMode::PerStepSample => "PER_STEP_SAMPLE",
+            TtcMode::PreSample => "PRE_SAMPLE",
+            TtcMode::ExpectedValue => "EXPECTED_VALUE",
+            TtcMode::Disabled => "DISABLED",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum GraphStateError {
     TtcDist(TtcDistError),
