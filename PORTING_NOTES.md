@@ -1497,9 +1497,28 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
           actionable, empty observability rule = nothing observed, rate
           maps cover every node, empty TTC resolution = `None`).
         27 new Rust tests across the three files.
-  - [ ] C4 - Wire scenario loading to mal-toolbox's pure-Rust
+  - [x] C4 - Wire scenario loading to mal-toolbox's pure-Rust
         language/model/attack-graph construction (`maltoolbox-language`/
-        `maltoolbox-model`/`maltoolbox-attackgraph`, no PyO3)
+        `maltoolbox-model`/`maltoolbox-attackgraph`, no PyO3). Landed in
+        `core/malsim-core/src/scenario/mod.rs`: `Scenario` (`new`/
+        `from_dict`/`load_from_file`, `attacker_settings()`/
+        `defender_settings()`, and `flatten_agents(rng)`, which builds
+        `Simulator::reset`'s agent input the way `MalSimulator.reset`
+        does), plus `ModelSource` (file vs inline dict) and
+        `ScenarioError`. The graph and model are held as
+        `Rc<RefCell<..>>`, the `Simulator` handle types. `serde_json`'s
+        `preserve_order` feature is now explicit in `malsim-core` (it was
+        already on transitively via mal-toolbox), so agent order follows
+        the file as in Python. 15 Rust tests in `scenario/tests.rs`
+        port `test_scenario.py`'s scenario-level cases (load, the three
+        `extends` cases, no-defender, observability given/not given,
+        FP/FN rates, advanced agent settings) plus inline-model/TTC
+        overrides, `sim_settings`, unknown entry points, git URLs and
+        `flatten_agents`. Python-only cases not ported: pickling
+        (`test_scenario_pickle`), `to_dict`/`save_to_file` round trips
+        (`test_save_scenario`, half of
+        `test_scenario_advanced_agent_settings`; the Rust loader has no
+        writer), and the `integration`-marked git-URL test.
   - [ ] C5 - `Simulator::reset`/`::step` library API usable standalone
         (original Phase C scope)
   - [ ] C6 - Schema-parity test: run the same scenario YAML fixtures
@@ -3765,3 +3784,26 @@ entry names its phase.
 - **C3: `MalSimulatorSettings` is `Copy` and carries `seed:
   Option<u64>`.** Python allows any int. A negative seed would be
   rejected by numpy's `default_rng` anyway.
+- **C4: `lang_file` git URLs are not supported by the Rust loader.**
+  Python's `LanguageGraph.load_from_file` clones `.git` URLs (the
+  `integration`-marked `simple_scenario_git_url.yml` test). Supporting
+  that in Rust would need a git dependency or shelling out to `git`, for
+  a path that's already network-only on the Python side. Rust returns
+  `ScenarioError::Language` with an explanatory message instead.
+- **C4: `Scenario` has no `to_dict`/`save_to_file`.** §7 asks only for
+  loading. A writer can be added later on top of
+  `NodePropertyRule::to_value`.
+- **C4: `agents` must be present even though validation accepts
+  `agent_settings`.** `_validate_scenario_dict` treats `('agents',
+  'agent_settings')` as a one-of pair, but `from_dict` then reads
+  `scenario_dict['agents']` and raises `KeyError`. Rust mirrors that by
+  returning `InvalidAgents` rather than silently aliasing
+  `agent_settings`.
+- **C4: `sim_settings: null` means default settings.** Python would call
+  `MalSimulatorSettings(**None)` and raise a `TypeError`. Treating it like
+  an absent key is the natural reading, and no fixture has it.
+- **C4: `Scenario::new` takes a `ModelSource` (file path or inline
+  dict), not an already-built `Model`.** The model must share the
+  scenario's freshly loaded `Rc<LanguageGraph>`, which a caller-built
+  `Model` can't guarantee. Python's `Model`-instance branch has no safe
+  Rust equivalent.
