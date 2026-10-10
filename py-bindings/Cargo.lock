@@ -239,6 +239,7 @@ dependencies = [
  "maltoolbox-model",
  "rand",
  "serde_json",
+ "serde_yaml",
  "statrs",
 ]
 

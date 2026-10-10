@@ -1457,8 +1457,22 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         `per_node` truthiness, the `test_scenario.py` faulty-dict and
         old-rewards-format cases, TTC-name parsing, round-trip, and nodes
         without a model asset. Decisions in §12 (C1 entries).
-  - [ ] C2 - Port scenario YAML loading: field validation, `extends`
-        merge (`recursive_update`), path resolution
+  - [x] C2 - Port scenario YAML loading: field validation, `extends`
+        merge (`recursive_update`), path resolution. Landed in
+        `core/malsim-core/src/scenario/loading.rs`: `load_scenario_dict`
+        (YAML to `serde_json::Map`, recursive `extends`, `lang_file`/
+        `model_file` made relative to the scenario file, `git@` lang
+        URLs left alone), `recursive_update`, `path_relative_to_file_dir`,
+        `validate_scenario_dict` (+ the `DEPRECATED_FIELDS`/
+        `REQUIRED_FIELDS`/`ALLOWED_FIELDS` tables) and
+        `ScenarioFileError`. New direct dependency: `serde_yaml 0.9.34`
+        (the version already in both lockfiles via mal-toolbox). 11 Rust
+        tests: merge semantics (nested override, explicit-`null` removal,
+        mapping vs scalar replacement), validation cases, path resolution,
+        the three `test_scenario.py` `extends` fixtures at dict level, and
+        a sweep over every fixture asserting the same validate outcome
+        Python gives (three fixtures still use the deprecated top-level
+        `rewards` and are rejected on both sides).
   - [ ] C3 - Port agent-settings-from-dict construction (entry points,
         goals, resolved rule maps, reward_mode, ttc overrides); `policy`
         field parsed but not instantiated (§2.6)
@@ -3671,3 +3685,18 @@ entry names its phase.
   accept only booleans; Python would accept any truthy value, but none of
   the fixtures rely on that. An explicit `null` step value is treated as
   absent, which is what Python's `or` chain does with it.
+- **C2: a scenario file without `lang_file` is reported by validation,
+  not by path resolution.** Python's `load_scenario_dict` indexes
+  `scenario['lang_file']` unconditionally and raises a bare `KeyError`.
+  Rust skips path resolution for a missing key and lets
+  `validate_scenario_dict` report `MissingField("lang_file")`. Both reject
+  the file; only the error differs.
+- **C2: YAML 1.2 vs PyYAML's YAML 1.1.** `serde_yaml` follows YAML 1.2,
+  so `yes`/`no`/`on`/`off` are strings, not booleans as in
+  `yaml.safe_load`. No fixture uses those spellings (checked by grep).
+  `serde_yaml` is marked deprecated upstream; it's used anyway because §7
+  C2 specified it and mal-toolbox already depends on the same version.
+  Swapping it out later only touches `read_yaml_mapping`.
+- **C2: `recursive_update` key order is deterministic** (old keys first,
+  then new-only keys). Python iterates a `set` of keys, so its order is
+  arbitrary, and nothing depends on it.
