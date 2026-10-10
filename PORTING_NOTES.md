@@ -3583,6 +3583,43 @@ asking again. Each entry names the phase it was decided in.
   nothing calls the code: coverage is kept by porting the code and its
   tests to `malsim-core`, not by keeping the Python copy alive.
 
+- **One `Simulator`, in `malsim-core`** (decided at C, 2026-10-10). All reset/step orchestration
+  (per-agent runtime state, `SimState`, plain and dyna reset/step) lives
+  in a public `malsim_core::Simulator` that takes plain-Rust settings
+  structs and returns a core error type. `malsim-pyo3` is only a thin
+  wrapper: it parses Python dicts into those core structs and builds
+  Python output from core results. New orchestration logic never goes
+  into `malsim-pyo3`.
+- **Rust scenario types keep the Python names** (decided at C). They live in
+  `malsim_core::scenario` (with submodules) and are named
+  `NodePropertyRule<T>`, `AttackerSettings`, `DefenderSettings`,
+  `AgentSettings` (an enum over the two), `MalSimulatorSettings`,
+  `AttackSurfaceSettings`, `RewardMode`, `Scenario` and
+  `Scenario::load_from_file`. Like Python, settings keep their
+  *unresolved* `NodePropertyRule`s. A separate resolve step turns them
+  into the id-keyed maps/sets the `Simulator` consumes. This applies
+  §2.7's terminology rule to type names as well.
+- **`NodePropertyRule<T: RuleValue>` is generic** (decided at C). The `RuleValue` trait
+  covers three things: parsing from a JSON value, what a list-form entry
+  means (`true` for bool, `1.0` for f64, an error for `TtcDist`), and
+  Python truthiness. Truthiness matters because precedence is
+  `by_asset_name or by_asset_type or default`, so a falsy value falls
+  through, exactly as in Python.
+- **Rust/Python parity checks use committed golden JSON** (decided at C). A Python
+  generator dumps the resolved, non-random shape of each fixture to
+  committed JSON. A pytest asserts that the JSON is current, and a Rust
+  `#[test]` asserts that the Rust implementation matches it. No test-only
+  FFI hooks, and `cargo test` never shells out to Python.
+- **The dynamic scenario-dict representation is `serde_json::Value`** (decided at C).
+  YAML is parsed with `serde_yaml` (as §7 C2 specified; it is already
+  in the lockfile via mal-toolbox) straight into `serde_json::Value`.
+  That is the type mal-toolbox's `maltoolbox_model::from_dict` and node
+  `ttc` already use. Typed structs are built from it by hand-written
+  conversion code, not by `serde` derive.
+- **Errors (existing convention, restated at C):** each module gets one
+  hand-written error enum with `Display` + `std::error::Error` and
+  `From` impls for wrapped errors. No `thiserror`.
+
 ## 12. Decisions
 
 Ambiguities resolved during implementation without asking (per the
