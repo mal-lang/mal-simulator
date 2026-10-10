@@ -1519,7 +1519,7 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         (`test_save_scenario`, half of
         `test_scenario_advanced_agent_settings`; the Rust loader has no
         writer), and the `integration`-marked git-URL test.
-  - [~] C5 - `Simulator::reset`/`::step` library API usable standalone
+  - [x] C5 - `Simulator::reset`/`::step` library API usable standalone
         (original Phase C scope)
         - Part 1 (done): the reset/step orchestration moved from
           `py-bindings/malsim-pyo3/src/simulator.rs` (1395 → 814 lines)
@@ -1540,6 +1540,17 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
           clean. Earlier §0/§10 text that names `simulator.rs`'s
           `do_reset`/`DynaHandle` describes the pre-C5 location; those
           items now live in `malsim_core::simulator`.
+        - Part 2 (done): `core/malsim-core/tests/scenario_simulator.rs`,
+          an integration test using only `malsim-core`'s public API
+          (`cargo tree -p malsim-core` has no pyo3). It loads real
+          fixtures with `Scenario::load_from_file`, builds a `Simulator`
+          from `scenario.attack_graph`/`scenario.model`, resets it with
+          `scenario.flatten_agents(rng)` and steps it with hand-picked
+          actions. 4 tests: attacker step on traininglang, defender
+          enabling a defense, a full episode until the attacker
+          terminates, and a dyna episode on wiperLang where stepping
+          `InfectedDevice:infect` fires a model effect that adds a Wiper
+          asset, repeated across two resets.
   - [ ] C6 - Schema-parity test: run the same scenario YAML fixtures
         (`tests/testdata/scenarios/*.yml`) through both the Python
         `Scenario` and the new Rust loader, compare resulting settings
@@ -3855,3 +3866,9 @@ entry names its phase.
 - **C5: `SimulatorError::ModelState` boxes its payload**, following the
   existing `DynaAttackerStepError::ModelEffects(Box<..>)` precedent
   (clippy `result_large_err`).
+- **C5: model asset ids keep counting across dyna resets** (`Wiper-7`,
+  then `Wiper-8`, ... for the asset wiperLang's effect adds). This was
+  checked against Python's `DynaMalSimulator`, which does the same: the
+  model's id counter isn't part of the restored snapshot. The Rust smoke
+  test looks new nodes up by pattern instead of pinning a name. Left as
+  is (matches Python).
