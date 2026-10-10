@@ -3616,12 +3616,32 @@ asking again. Each entry names the phase it was decided in.
 - **Rust scenario types keep the Python names** (decided at C). They live in
   `malsim_core::scenario` (with submodules) and are named
   `NodePropertyRule<T>`, `AttackerSettings`, `DefenderSettings`,
-  `AgentSettings` (an enum over the two), `MalSimulatorSettings`,
-  `AttackSurfaceSettings`, `RewardMode`, `Scenario` and
-  `Scenario::load_from_file`. Like Python, settings keep their
+  `AgentSettings` (an enum over the two), `Scenario` and
+  `Scenario::load_from_file`. The exception is `MalSimulatorSettings`,
+  `AttackSurfaceSettings` and `RewardMode`, which live in a top-level
+  `malsim_core::settings` module (see the next bullets). Like Python, settings keep their
   *unresolved* `NodePropertyRule`s. A separate resolve step turns them
   into the id-keyed maps/sets the `Simulator` consumes. This applies
   §2.7's terminology rule to type names as well.
+- **Settings shared by the scenario loader and the `Simulator` live in
+  a top-level `malsim_core::settings` module** (decided at C). This
+  covers `MalSimulatorSettings`, `AttackSurfaceSettings`, `RewardMode`
+  and the flat inputs below; `TtcMode` stays in `graph_state.rs` and is
+  re-exported there. `scenario` and `simulator` both depend on
+  `settings`; `simulator` never depends on `scenario`.
+- **The flat, id-resolved per-agent `Simulator` inputs are
+  `FlatAttackerSettings`, `FlatDefenderSettings` and the
+  `FlatAgentSettings` enum** (decided at C). They are named after
+  `native_settings.py`'s `flatten_*_settings`, which produce the same
+  shape on the Python side.
+- **`Simulator` API: settings are passed at reset, mirroring
+  `reset_native`** (decided at C). `Simulator::new(graph)`,
+  `Simulator::new_dyna(graph, model)`, `reset(&MalSimulatorSettings,
+  agents, seed) -> Result<&SimState, _>`, `step(&actions) ->
+  Result<StepOutcome, _>` (per-step deltas, like `step_native`) and
+  `state() -> Option<&SimState>` for the full accumulated state. Multiple
+  entry-point sets are sampled before reset by the caller: Python's
+  `get_entry_points`, or a Rust helper on `Scenario`.
 - **`NodePropertyRule<T: RuleValue>` is generic** (decided at C). The `RuleValue` trait
   covers three things: parsing from a JSON value, what a list-form entry
   means (`true` for bool, `1.0` for f64, an error for `TtcDist`), and
