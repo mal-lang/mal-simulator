@@ -1444,7 +1444,7 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         `integration`), `pytest examples/*` (6), mypy (no issues), ruff
         check/format clean; `cargo test` (164) / `clippy -D warnings` /
         `fmt --check` clean in both the root and `py-bindings` workspaces.
-- [ ] Phase C - Rust-only library API (§7)
+- [x] Phase C - Rust-only library API (§7)
   - [x] C1 - Port `NodePropertyRule`'s dict-shape + `.value()`/`.per_node()`
         matching as an independent Rust utility (not shared with the
         Python-path flattening in §2.4 - see §2.6). Landed in
@@ -1551,9 +1551,31 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
           terminates, and a dyna episode on wiperLang where stepping
           `InfectedDevice:infect` fires a model effect that adds a Wiper
           asset, repeated across two resets.
-  - [ ] C6 - Schema-parity test: run the same scenario YAML fixtures
+  - [x] C6 - Schema-parity test: run the same scenario YAML fixtures
         (`tests/testdata/scenarios/*.yml`) through both the Python
-        `Scenario` and the new Rust loader, compare resulting settings
+        `Scenario` and the new Rust loader, compare resulting settings.
+        Done with committed golden JSON (§11):
+        `tests/scenario_parity.py` (`python -m tests.scenario_parity`
+        regenerates) writes `tests/testdata/scenario_parity.json`, which
+        holds each fixture's resolved, non-random shape. That covers
+        repo-relative lang/model paths, node count, sim settings, and per
+        agent the policy name, reward mode, entry points/goals by full
+        name, every rule's `per_node()` by full name, and the flattened
+        `reset_native` inputs (rate maps as length + non-zero entries).
+        A fixture Python refuses records only its error type. All 60
+        fixtures under `scenarios/**` except the network-only git-URL one
+        are included. `tests/test_scenario_parity.py` asserts the file is
+        current, and `core/malsim-core/tests/scenario_parity.rs` asserts
+        the Rust `Scenario` + `scenario::flatten` produce the same shape
+        (numbers compared by value, first differing JSON path reported).
+        Checked by deliberately corrupting a golden value: the Rust test
+        then names the exact path. Known divergences are an explicit list
+        in the Rust test, currently only `wrong_agent_classes_scenario.yml`
+        (§12 C3). The test found one real gap, YAML `!!set` entry points
+        (`detector_lang_scenario.yml`), which was fixed in
+        `agent_settings.rs` (§12 C6). Gates: `cargo test -p malsim-core`
+        225 unit + 1 parity + 4 smoke tests; `pytest tests -m "not
+        integration"` 160 passed; ruff/mypy clean.
 
 ## 1. Goals and non-goals
 
@@ -3872,3 +3894,15 @@ entry names its phase.
   model's id counter isn't part of the restored snapshot. The Rust smoke
   test looks new nodes up by pattern instead of pinning a name. Left as
   is (matches Python).
+- **C6: YAML `!!set` is read from `serde_yaml`'s untagged form.**
+  PyYAML loads `entry_points: !!set {A: null}` as a Python `set`, which
+  `_load_entry_points` accepts. `serde_yaml` drops the tag and yields the
+  mapping `{A: null}`. The Rust loader therefore treats a mapping whose
+  values are all `null` as a set, for `entry_points` and `goals`. This is
+  slightly more permissive than Python: an *untagged* all-`null` mapping
+  is a `ValueError` there. Found by the parity test on
+  `detector_lang_scenario.yml`.
+- **C6: the golden file records rate maps as `{len, nonzero}`.** Full
+  per-node rate maps would make the file several times larger for no
+  extra coverage (every non-listed node is `0.0`, which `len` already
+  pins).

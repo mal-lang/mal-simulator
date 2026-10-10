@@ -298,8 +298,20 @@ fn string_set(
         .collect()
 }
 
+/// The members of a YAML `!!set`. PyYAML loads `!!set` as a Python `set`,
+/// but `serde_yaml` drops the tag and yields the underlying mapping of
+/// member -> `null`, so a mapping whose values are all `null` is read as a
+/// set. Returns `None` for any other value.
+fn yaml_set_members(value: &Value) -> Option<Vec<Value>> {
+    let map = value.as_object()?;
+    map.values()
+        .all(Value::is_null)
+        .then(|| map.keys().cloned().map(Value::String).collect())
+}
+
 /// Port of `_load_entry_points`: absent/`null` is an empty set, a list of
-/// strings is one set, a list of lists is several alternative sets.
+/// strings (or a YAML `!!set`) is one set, a list of lists is several
+/// alternative sets.
 fn load_entry_points(
     name: &str,
     d: Option<&Value>,
@@ -312,6 +324,14 @@ fn load_entry_points(
     let items = match d {
         None | Some(Value::Null) => return Ok(EntryPoints::default()),
         Some(Value::Array(items)) => items,
+        Some(other) if yaml_set_members(other).is_some() => {
+            let members = yaml_set_members(other).expect("checked is_some");
+            return Ok(EntryPoints::Single(string_set(
+                name,
+                "entry_points",
+                &members,
+            )?));
+        }
         Some(other) => {
             return Err(invalid(format!(
                 "entry_points must be a set or list of strings, got {other}"
@@ -350,6 +370,11 @@ fn load_goals(name: &str, d: Option<&Value>) -> Result<BTreeSet<String>, AgentSe
     match d {
         None => Ok(BTreeSet::new()),
         Some(Value::Array(items)) => string_set(name, "goals", items),
+        Some(other) if yaml_set_members(other).is_some() => string_set(
+            name,
+            "goals",
+            &yaml_set_members(other).expect("checked is_some"),
+        ),
         Some(other) => Err(AgentSettingsError::InvalidField {
             agent: name.to_string(),
             field: "goals",
@@ -590,6 +615,21 @@ mod tests {
             agent_settings_from_dict(
                 "a",
                 &json!({"type": "attacker", "entry_points": ["A:x", ["B:y"]]})
+            ),
+            Err(AgentSettingsError::InvalidField {
+                field: "entry_points",
+                ..
+            })
+        ));
+        // YAML `!!set` as serde_yaml hands it over (`detector_lang_scenario.yml`).
+        assert_eq!(
+            load(json!({"A:x": null, "B:y": null})),
+            EntryPoints::Single(names(&["A:x", "B:y"]))
+        );
+        assert!(matches!(
+            agent_settings_from_dict(
+                "a",
+                &json!({"type": "attacker", "entry_points": {"A:x": 1}})
             ),
             Err(AgentSettingsError::InvalidField {
                 field: "entry_points",
