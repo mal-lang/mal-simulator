@@ -18,7 +18,3 @@ maltoolbox-attackgraph = { workspace = true }
 # extraction needs to name `maltoolbox_model::Model` itself.
 maltoolbox-model = { workspace = true }
 pyo3 = { workspace = true, features = ["extension-module"] }
-# Already in the dependency tree transitively via malsim-core (same pinned
-# version) - added directly here because Phase A8's `Simulator` pyclass
-# seeds its own `StdRng` from the `seed` passed to `reset_native`.
-rand = "0.10.3"

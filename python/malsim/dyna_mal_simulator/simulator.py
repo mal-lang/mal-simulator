@@ -287,7 +287,7 @@ def dyna_reset(
     Delegates to `malsim._native.Simulator.dyna_reset_native`
     (PORTING_NOTES.md §6 Phase B5, A9-equivalent) - the live `Model`
     (restored to the pristine snapshot native captured the first time it
-    was attached - see `simulator.rs`'s `DynaHandle` doc comment) and
+    was attached - see `malsim_core::simulator`'s `DynaHandle`) and
     `AttackGraph` are both mutated in place through the shared handles,
     same `AttackGraph::partially_regenerate_graph` bookkeeping B1/B2
     already proved. "Multiple entry point sets, sampled at reset" is

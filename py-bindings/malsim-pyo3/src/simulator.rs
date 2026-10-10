@@ -2,6 +2,12 @@
 //! extended at Phase A9 to back `MalSimulator.reset()`/`.step()` (see
 //! `PORTING_NOTES.md` §5 Phase A8/A9/§10).
 //!
+//! A thin wrapper around `malsim_core::simulator::Simulator`, which owns
+//! the reset/step orchestration: this module parses the flat Python dicts
+//! into `MalSimulatorSettings`/`FlatAgentSettings`, calls the core
+//! `Simulator`, and builds the plain-`dict` output from its `StepOutcome`
+//! and `SimState`.
+//!
 //! Scope still deliberately smaller than the full Python
 //! `MalSimulatorSettings`/`AttackerSettings`/`DefenderSettings` surface:
 //! - No "multiple entry point sets, sampled at reset" support
@@ -16,7 +22,7 @@
 //!
 //! Per-agent TTC distribution overrides (`AttackerSettings.ttc_dists`) *are*
 //! supported as of A9 - see `parse_ttc_dist_from_py`/
-//! `extract_optional_ttc_dist_overrides`/`attacker_ttc_overrides` below.
+//! `extract_optional_ttc_dist_overrides` below.
 //! Every other hot-loop-relevant field (`ttc_mode`, both
 //! `AttackSurfaceSettings` fields, both bernoulli toggles,
 //! `compromise_entrypoints_at_start`, entry points/goals/actionable steps/
@@ -29,39 +35,38 @@
 //! internally. `AttackGraph::id_to_node`/`graph.nodes[id].id` are the two
 //! directions of that translation (see `to_node_id`/`stable_ids` below).
 
-use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
 use std::str::FromStr;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
-use maltoolbox_model::Model;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyDict};
-use rand::rngs::StdRng;
-use rand::SeedableRng;
 
-use malsim_core::attack_surface::{get_attack_surface, get_effects_of_attack_step};
-use malsim_core::attacker_step::{attacker_is_terminated, attacker_step};
-use malsim_core::defender_step::{defender_is_terminated, defender_step};
-use malsim_core::defense_surface::get_defense_surface;
-use malsim_core::dyna_attacker_step::dyna_attacker_step;
-use malsim_core::dyna_defender_step::dyna_defender_step;
-use malsim_core::event_logger::{collect_false_positives, collect_logs, LogEntry};
-use malsim_core::graph_state::{
-    attack_step_ttc_value, compute_initial_graph_state, is_impossible_attack_step, GraphState,
-    TtcMode,
-};
+use malsim_core::event_logger::LogEntry;
+use malsim_core::graph_state::{GraphState, TtcMode};
 use malsim_core::model_effects::{AssetOp, AssetRef, AssocOp, ModEffectOp};
-use malsim_core::model_state::{capture_model_snapshot, reset_model_effects, ModelSnapshot};
-use malsim_core::observability::observed_nodes;
+use malsim_core::settings::{
+    FlatAgentSettings, FlatAttackerSettings, FlatDefenderSettings, MalSimulatorSettings,
+};
+use malsim_core::simulator::{Simulator as CoreSimulator, SimulatorError, StepOutcome};
 use malsim_core::ttc::{named_ttc_dist, DistFunction, Operation, TtcDist};
 
 use crate::{extract_shared_graph, extract_shared_model};
 
 fn to_py_err<E: std::fmt::Display>(e: E) -> PyErr {
     PyValueError::new_err(e.to_string())
+}
+
+/// Maps a core `SimulatorError` to the Python exception this module has
+/// always raised for that case: every error is a `ValueError` carrying the
+/// wrapped error's message, except `NotReset`, which keeps this module's
+/// own `step_native`-worded message.
+fn sim_err_to_py(e: SimulatorError) -> PyErr {
+    match e {
+        SimulatorError::NotReset => not_reset_err(),
+        other => to_py_err(other),
+    }
 }
 
 fn not_reset_err() -> PyErr {
@@ -73,17 +78,6 @@ fn not_attached_err() -> PyErr {
         "Simulator.dyna_step_native() called before dyna_reset_native() - no Model is attached",
     )
 }
-
-/// Per-defender intermediate results computed in `step_native`'s first
-/// defender-update pass (defense surface, newly observed nodes, new logs,
-/// previous `performed_nodes`) before the second pass applies them - kept
-/// as a named alias purely to satisfy clippy's `type_complexity` lint.
-type DefenderStepUpdate = (
-    HashSet<AttackGraphNodeId>,
-    HashSet<AttackGraphNodeId>,
-    Vec<LogEntry>,
-    HashSet<AttackGraphNodeId>,
-);
 
 // --- Node id translation (stable i64 <-> AttackGraphNodeId) ---
 
@@ -252,39 +246,6 @@ fn extract_optional_ttc_dist_overrides(
     Ok(Some(out))
 }
 
-/// Computes an attacker's override-only `ttc_values`/`impossible_steps`
-/// (§2.4/§10: when `ttc_dists` is configured, these fields hold *only*
-/// the override-affected nodes - mirroring
-/// `attacker_state_factories.py::attacker_overriding_ttc_settings`
-/// exactly, not a merge with the graph-wide values).
-fn attacker_ttc_overrides(
-    graph: &AttackGraph,
-    rng: &mut StdRng,
-    ttc_mode: TtcMode,
-    ttc_dist_overrides: &HashMap<AttackGraphNodeId, TtcDist>,
-) -> PyResult<(HashMap<AttackGraphNodeId, f64>, HashSet<AttackGraphNodeId>)> {
-    let mut ttc_values = HashMap::new();
-    let mut impossible_steps = HashSet::new();
-    for (&node_id, dist) in ttc_dist_overrides {
-        // `ttc_dist_overrides` is resolved once at reset and never
-        // updated - a dyna-path node it names can later be removed from
-        // the graph (same staleness shape as `stable_ids` above). A
-        // removed node has no TTC left to override.
-        let Some(node) = graph.nodes.get(node_id) else {
-            continue;
-        };
-        if let Some(v) =
-            attack_step_ttc_value(node, Some(dist), ttc_mode, rng).map_err(to_py_err)?
-        {
-            ttc_values.insert(node_id, v);
-        }
-        if is_impossible_attack_step(node, Some(dist), rng).map_err(to_py_err)? {
-            impossible_steps.insert(node_id);
-        }
-    }
-    Ok((ttc_values, impossible_steps))
-}
-
 fn parse_ttc_mode(s: &str) -> PyResult<TtcMode> {
     match s {
         "DISABLED" => Ok(TtcMode::Disabled),
@@ -298,110 +259,104 @@ fn parse_ttc_mode(s: &str) -> PyResult<TtcMode> {
     }
 }
 
-/// Port of the subset of `MalSimulatorSettings`/`AttackSurfaceSettings`
-/// this module's hot loop reads - see module docs for what's deliberately
-/// not here yet. Flattened to one dict (no nested `attack_surface` key)
-/// since there's no settings struct on this side to mirror the nesting of.
-struct NativeSettings {
-    ttc_mode: TtcMode,
-    run_defense_step_bernoullis: bool,
-    run_attack_step_bernoullis: bool,
-    skip_compromised: bool,
-    skip_unnecessary: bool,
-    compromise_entrypoints_at_start: bool,
-}
-
-fn parse_settings(dict: &Bound<'_, PyDict>) -> PyResult<NativeSettings> {
+/// Parses the flat settings dict (`native_settings.py::flatten_sim_settings`'s
+/// output - no nested `attack_surface` key, `skip_compromised`/
+/// `skip_unnecessary` at the top level) into a `MalSimulatorSettings`.
+/// Fields the dict doesn't carry (`seed`, `uncompromise_untraversable_steps`)
+/// keep their `Default`.
+fn parse_settings(dict: &Bound<'_, PyDict>) -> PyResult<MalSimulatorSettings> {
     let ttc_mode_str = match get_dict_value(dict, "ttc_mode")? {
         Some(v) => v.extract::<String>()?,
         None => "DISABLED".to_string(),
     };
-    Ok(NativeSettings {
+    let mut settings = MalSimulatorSettings {
         ttc_mode: parse_ttc_mode(&ttc_mode_str)?,
-        run_defense_step_bernoullis: get_bool(dict, "run_defense_step_bernoullis", true)?,
-        run_attack_step_bernoullis: get_bool(dict, "run_attack_step_bernoullis", true)?,
-        skip_compromised: get_bool(dict, "skip_compromised", true)?,
-        skip_unnecessary: get_bool(dict, "skip_unnecessary", false)?,
-        compromise_entrypoints_at_start: get_bool(dict, "compromise_entrypoints_at_start", true)?,
+        ..MalSimulatorSettings::default()
+    };
+    settings.run_defense_step_bernoullis = get_bool(dict, "run_defense_step_bernoullis", true)?;
+    settings.run_attack_step_bernoullis = get_bool(dict, "run_attack_step_bernoullis", true)?;
+    settings.attack_surface.skip_compromised = get_bool(dict, "skip_compromised", true)?;
+    settings.attack_surface.skip_unnecessary = get_bool(dict, "skip_unnecessary", false)?;
+    settings.compromise_entrypoints_at_start =
+        get_bool(dict, "compromise_entrypoints_at_start", true)?;
+    Ok(settings)
+}
+
+/// Parses one attacker's flat dict (`native_settings.py::
+/// flatten_attacker_settings`'s output) into `FlatAttackerSettings`.
+fn parse_attacker(graph: &AttackGraph, cfg: &Bound<'_, PyDict>) -> PyResult<FlatAttackerSettings> {
+    let entry_points = extract_id_set(graph, &require_dict_value(cfg, "entry_points")?)?;
+    let goals = extract_optional_id_set(graph, cfg, "goals")?.unwrap_or_default();
+    let actionable_steps = extract_optional_id_set(graph, cfg, "actionable_steps")?;
+    let ttc_dists = extract_optional_ttc_dist_overrides(graph, cfg, "ttc_dists")?;
+    Ok(FlatAttackerSettings {
+        entry_points,
+        goals,
+        actionable_steps,
+        ttc_dists,
     })
 }
 
-// --- Per-agent runtime state ---
-
-/// The Rust-side equivalent of the mutable parts of `AttackerState` this
-/// phase needs (§3) - no `AttackerState` exists on the Rust side itself
-/// yet, so this is a private, module-local struct, not a port of a
-/// specific Python type.
-struct AttackerRuntime {
-    entry_points: HashSet<AttackGraphNodeId>,
-    goals: HashSet<AttackGraphNodeId>,
-    actionable_steps: Option<HashSet<AttackGraphNodeId>>,
-    performed_nodes: HashSet<AttackGraphNodeId>,
-    attempted_nodes: HashSet<AttackGraphNodeId>,
-    action_surface: HashSet<AttackGraphNodeId>,
-    num_attempts: HashMap<AttackGraphNodeId, u64>,
-    iteration: u64,
-    /// Per-node TTC distribution overrides (`AttackerSettings.ttc_dists`,
-    /// already flattened - §2.4) - `None` when this attacker has no
-    /// override configured, matching `attempt_attacker_step`'s existing
-    /// `ttc_dist_overrides` parameter shape.
-    ttc_dist_overrides: Option<HashMap<AttackGraphNodeId, TtcDist>>,
-    /// The `AttackerState.ttc_values`/`.impossible_steps` fields this
-    /// attacker exposes - override-only when `ttc_dist_overrides` is
-    /// `Some`, otherwise a clone of the graph-wide values (see
-    /// `attacker_ttc_overrides`'s doc comment).
-    ttc_values: HashMap<AttackGraphNodeId, f64>,
-    impossible_steps: HashSet<AttackGraphNodeId>,
+/// Parses one defender's flat dict (`native_settings.py::
+/// flatten_defender_settings`'s output) into `FlatDefenderSettings`.
+fn parse_defender(graph: &AttackGraph, cfg: &Bound<'_, PyDict>) -> PyResult<FlatDefenderSettings> {
+    let actionable_steps = extract_optional_id_set(graph, cfg, "actionable_steps")?;
+    let observable_steps = extract_optional_id_set(graph, cfg, "observable_steps")?;
+    let false_positive_rates = extract_optional_rate_map(graph, cfg, "false_positive_rates")?;
+    let false_negative_rates = extract_optional_rate_map(graph, cfg, "false_negative_rates")?;
+    Ok(FlatDefenderSettings {
+        actionable_steps,
+        observable_steps,
+        false_positive_rates,
+        false_negative_rates,
+    })
 }
 
-/// The Rust-side equivalent of the mutable parts of `DefenderState` - see
-/// `AttackerRuntime`'s doc comment.
-struct DefenderRuntime {
-    actionable_steps: Option<HashSet<AttackGraphNodeId>>,
-    observable_steps: Option<HashSet<AttackGraphNodeId>>,
-    false_positive_rates: Option<HashMap<AttackGraphNodeId, f64>>,
-    false_negative_rates: Option<HashMap<AttackGraphNodeId, f64>>,
-    performed_nodes: HashSet<AttackGraphNodeId>,
-    compromised_nodes: HashSet<AttackGraphNodeId>,
-    observed_nodes: HashSet<AttackGraphNodeId>,
-    action_surface: HashSet<AttackGraphNodeId>,
-    iteration: u64,
-    logs: Vec<LogEntry>,
-}
+/// Parses the `agents` dict (`name -> flat per-agent dict`) into the
+/// `(name, FlatAgentSettings)` list `CoreSimulator::reset` takes. Every
+/// agent's `type` is checked first (in dict order), then attackers are
+/// parsed, then defenders - the same order these errors surfaced in before
+/// the orchestration moved to malsim-core.
+fn parse_agents(
+    graph: &AttackGraph,
+    agents: &Bound<'_, PyDict>,
+) -> PyResult<Vec<(String, FlatAgentSettings)>> {
+    let mut attacker_cfgs = Vec::new();
+    let mut defender_cfgs = Vec::new();
+    for (name_obj, cfg_obj) in agents.iter() {
+        let name: String = name_obj.extract()?;
+        let cfg = cfg_obj.cast::<PyDict>()?.clone();
+        let kind: String = require_dict_value(&cfg, "type")?.extract()?;
+        match kind.as_str() {
+            "attacker" => attacker_cfgs.push((name, cfg)),
+            "defender" => defender_cfgs.push((name, cfg)),
+            other => {
+                return Err(PyValueError::new_err(format!(
+                    "agent \"{name}\" has unknown type \"{other}\" (expected \"attacker\" or \"defender\")"
+                )))
+            }
+        }
+    }
 
-/// Everything computed/mutated by `reset_native`/`step_native`, as a
-/// separate type from the pyclass itself so helper functions can take
-/// `&mut SimState` directly rather than the whole `&mut Simulator` -
-/// letting the borrow checker see `graph_state`/`enabled_defenses`/`rng`/
-/// `attackers`/`defenders` as disjoint fields instead of one opaque `self`.
-struct SimState {
-    rng: StdRng,
-    settings: NativeSettings,
-    graph_state: GraphState,
-    enabled_defenses: HashSet<AttackGraphNodeId>,
-    attackers: HashMap<String, AttackerRuntime>,
-    defenders: HashMap<String, DefenderRuntime>,
-}
-
-/// B3's shared `Model` handle, plus the pristine snapshot
-/// `dyna_reset_native` restores to on every call - captured natively from
-/// the live model the first time it's attached (mirrors
-/// `DynaMalSimulator.__init__` capturing `attack_graph.model.to_dict()`
-/// once, before any mutation), rather than crossing the FFI boundary as a
-/// dict - PORTING_NOTES.md §6 Phase B4's deviation from its own
-/// placeholder signature, recorded in §10.
-struct DynaHandle {
-    model: Rc<RefCell<Model>>,
-    snapshot: ModelSnapshot,
+    let mut out = Vec::with_capacity(attacker_cfgs.len() + defender_cfgs.len());
+    for (name, cfg) in attacker_cfgs {
+        let parsed = parse_attacker(graph, &cfg)?;
+        out.push((name, FlatAgentSettings::Attacker(parsed)));
+    }
+    for (name, cfg) in defender_cfgs {
+        let parsed = parse_defender(graph, &cfg)?;
+        out.push((name, FlatAgentSettings::Defender(parsed)));
+    }
+    Ok(out)
 }
 
 #[pyclass(name = "Simulator", module = "malsim._native", unsendable)]
 pub struct Simulator {
-    graph: Rc<RefCell<AttackGraph>>,
-    /// `None` until `dyna_reset_native` is first called - plain
-    /// `MalSimulator` use never populates this (§6 Phase B4).
-    dyna: Option<DynaHandle>,
-    state: Option<SimState>,
+    /// A plain `CoreSimulator::new` until `dyna_reset_native` is first
+    /// called, which replaces it with `CoreSimulator::new_dyna` attached to
+    /// that call's `model`; later `dyna_reset_native` calls reuse it (a
+    /// different `model` passed later is ignored) - §6 Phase B4.
+    inner: CoreSimulator,
 }
 
 #[pymethods]
@@ -409,21 +364,11 @@ impl Simulator {
     #[new]
     fn new(graph: &Bound<'_, PyAny>) -> PyResult<Self> {
         Ok(Simulator {
-            graph: extract_shared_graph(graph)?,
-            dyna: None,
-            state: None,
+            inner: CoreSimulator::new(extract_shared_graph(graph)?),
         })
     }
 
-    /// Resets the simulator: (re)computes the initial graph state (TTC
-    /// values, pre-enabled defenses, impossible attack steps, necessity -
-    /// `graph_state::compute_initial_graph_state`, mirroring
-    /// `graph_state.py`'s namesake) and (re)builds every agent's runtime
-    /// state from scratch, mirroring `reset_agent.py`'s
-    /// `reset_attackers`/`reset_defenders` - including entry-point
-    /// compromise-at-start (`compromise_entrypoints_at_start`) and the
-    /// resulting pre-compromised-nodes feed into every defender's initial
-    /// `observed_nodes`/`logs`.
+    /// Resets the simulator - see `CoreSimulator::reset`.
     fn reset_native(
         &mut self,
         py: Python<'_>,
@@ -434,11 +379,11 @@ impl Simulator {
         self.do_reset(py, settings, agents, seed)
     }
 
-    /// Dyna-aware reset (Phase B4, A8/B3-equivalent entry point): restores
-    /// the shared `Model`/`AttackGraph` to the pristine snapshot captured
-    /// the first time `model` is attached (via `extract_shared_model` +
-    /// `capture_model_snapshot` - see `DynaHandle`'s doc comment), then
-    /// runs the exact same reset `reset_native` does (`do_reset`) -
+    /// Dyna-aware reset (Phase B4, A8/B3-equivalent entry point): attaches
+    /// `model` the first time this is called (via `extract_shared_model` +
+    /// `CoreSimulator::new_dyna`, which captures the pristine snapshot),
+    /// then runs `CoreSimulator::reset`, which restores the shared
+    /// `Model`/`AttackGraph` to that snapshot before the shared reset -
     /// mirroring `dyna_reset`'s `reset_model_effects` call followed by
     /// `compute_initial_graph_state`/`reset_agents`.
     fn dyna_reset_native(
@@ -449,262 +394,34 @@ impl Simulator {
         model: &Bound<'_, PyAny>,
         seed: u64,
     ) -> PyResult<Py<PyAny>> {
-        if self.dyna.is_none() {
+        if self.inner.model().is_none() {
             let model_rc = extract_shared_model(model)?;
-            let snapshot = capture_model_snapshot(&model_rc.borrow());
-            self.dyna = Some(DynaHandle {
-                model: model_rc,
-                snapshot,
-            });
-        }
-        {
-            let dyna = self.dyna.as_ref().expect("just populated above");
-            let mut graph = self.graph.borrow_mut();
-            let mut model = dyna.model.borrow_mut();
-            reset_model_effects(&mut graph, &mut model, &dyna.snapshot).map_err(to_py_err)?;
+            self.inner = CoreSimulator::new_dyna(self.inner.graph().clone(), model_rc);
         }
         self.do_reset(py, settings, agents, seed)
     }
 
-    /// Steps the simulation: defenders act first (`defender_step`,
-    /// mirroring `simulator.py::step`'s own ordering), newly-enabled
-    /// defenses are folded into `enabled_defenses` before any attacker
-    /// acts, then attackers act (`attacker_step`), then every agent's
-    /// runtime state (action surface, observed nodes, logs, ...) is
-    /// recomputed from the step's results - same two-phase "compute all
-    /// steps, then update all state" shape `simulator.py::step` uses.
+    /// Steps the simulation - see `CoreSimulator::step`.
     fn step_native(&mut self, py: Python<'_>, actions: &Bound<'_, PyDict>) -> PyResult<Py<PyAny>> {
-        let graph_rc = self.graph.clone();
-        let (attacker_names, defender_names) = {
-            let state = self.state.as_ref().ok_or_else(not_reset_err)?;
-            (
-                state.attackers.keys().cloned().collect::<Vec<String>>(),
-                state.defenders.keys().cloned().collect::<Vec<String>>(),
-            )
-        };
-
-        // Mirrors `_pre_step_check`'s `KeyError` on an `actions` key that
-        // names no registered agent.
-        for key_obj in actions.keys() {
-            let name: String = key_obj.extract()?;
-            if !attacker_names.contains(&name) && !defender_names.contains(&name) {
-                return Err(PyValueError::new_err(format!("No agent has name '{name}'")));
-            }
-        }
-
-        let mut action_nodes: HashMap<String, Vec<AttackGraphNodeId>> = HashMap::new();
-        {
-            let graph = graph_rc.borrow();
-            for name in attacker_names.iter().chain(defender_names.iter()) {
-                let nodes = match actions.get_item(name)? {
-                    Some(v) if !v.is_none() => extract_id_list(&graph, &v)?,
-                    _ => Vec::new(),
-                };
-                action_nodes.insert(name.clone(), nodes);
-            }
-        }
-
-        let state = self.state.as_mut().ok_or_else(not_reset_err)?;
-
-        // --- Defenders act first ---
-        let mut step_enabled_defenses: HashSet<AttackGraphNodeId> = HashSet::new();
-        {
-            let graph = graph_rc.borrow();
-            for name in &defender_names {
-                let runtime = &state.defenders[name];
-                let enabled = defender_step(&graph, &action_nodes[name], &runtime.action_surface)
-                    .map_err(to_py_err)?;
-                step_enabled_defenses.extend(enabled);
-            }
-        }
-        state
-            .enabled_defenses
-            .extend(step_enabled_defenses.iter().copied());
-
-        // --- Attackers act afterwards ---
-        let mut step_compromised_nodes: HashSet<AttackGraphNodeId> = HashSet::new();
-        let mut attacker_results: HashMap<
-            String,
-            (Vec<AttackGraphNodeId>, Vec<AttackGraphNodeId>),
-        > = HashMap::new();
-        {
-            let graph = graph_rc.borrow();
-            for name in &attacker_names {
-                let runtime = &state.attackers[name];
-                let (compromised, attempted) = attacker_step(
-                    &graph,
-                    &mut state.rng,
-                    state.settings.ttc_mode,
-                    &action_nodes[name],
-                    &runtime.entry_points,
-                    &runtime.action_surface,
-                    &runtime.performed_nodes,
-                    &runtime.num_attempts,
-                    runtime.ttc_dist_overrides.as_ref(),
-                    Some(&runtime.ttc_values),
-                    &state.graph_state.ttc_values,
-                    &state.graph_state.impossible_attack_steps,
-                    &state.enabled_defenses,
-                    &state.graph_state.necessity_per_node,
-                )
-                .map_err(to_py_err)?;
-                step_compromised_nodes.extend(compromised.iter().copied());
-                attacker_results.insert(name.clone(), (compromised, attempted));
-            }
-        }
-
-        let attacker_step_deltas =
-            self.update_attacker_runtimes(&attacker_names, attacker_results)?;
-        let defender_step_deltas = self.update_defender_runtimes(
-            &defender_names,
-            &step_enabled_defenses,
-            &step_compromised_nodes,
-        )?;
-
-        self.build_step_output(
-            py,
-            &step_enabled_defenses,
-            &step_compromised_nodes,
-            &attacker_step_deltas,
-            &defender_step_deltas,
-            &[],
-        )
+        let action_nodes = self.extract_actions(actions)?;
+        let outcome = self.inner.step(&action_nodes).map_err(sim_err_to_py)?;
+        self.build_step_output(py, &outcome)
     }
 
-    /// Dyna-aware step (Phase B4, A9-equivalent entry point): same
-    /// two-phase shape as `step_native`, except defenders/
-    /// attackers act via `dyna_defender_step`/`dyna_attacker_step`
-    /// (model-effect-aware, mutating the shared `AttackGraph`/`Model`
-    /// in place and folding any newly-created nodes into `graph_state`/
-    /// `enabled_defenses` internally) instead of the plain
-    /// `defender_step`/`attacker_step`. Requires `dyna_reset_native` to
-    /// have been called at least once (for `self.dyna` to be populated).
+    /// Dyna-aware step (Phase B4, A9-equivalent entry point) - see
+    /// `CoreSimulator::step`. Requires `dyna_reset_native` to have been
+    /// called at least once (for a `Model` to be attached).
     fn dyna_step_native(
         &mut self,
         py: Python<'_>,
         actions: &Bound<'_, PyDict>,
     ) -> PyResult<Py<PyAny>> {
-        let model_rc = self
-            .dyna
-            .as_ref()
-            .ok_or_else(not_attached_err)?
-            .model
-            .clone();
-        let graph_rc = self.graph.clone();
-        let (attacker_names, defender_names) = {
-            let state = self.state.as_ref().ok_or_else(not_reset_err)?;
-            (
-                state.attackers.keys().cloned().collect::<Vec<String>>(),
-                state.defenders.keys().cloned().collect::<Vec<String>>(),
-            )
-        };
-
-        for key_obj in actions.keys() {
-            let name: String = key_obj.extract()?;
-            if !attacker_names.contains(&name) && !defender_names.contains(&name) {
-                return Err(PyValueError::new_err(format!("No agent has name '{name}'")));
-            }
+        if self.inner.model().is_none() {
+            return Err(not_attached_err());
         }
-
-        let mut action_nodes: HashMap<String, Vec<AttackGraphNodeId>> = HashMap::new();
-        {
-            let graph = graph_rc.borrow();
-            for name in attacker_names.iter().chain(defender_names.iter()) {
-                let nodes = match actions.get_item(name)? {
-                    Some(v) if !v.is_none() => extract_id_list(&graph, &v)?,
-                    _ => Vec::new(),
-                };
-                action_nodes.insert(name.clone(), nodes);
-            }
-        }
-
-        let state = self.state.as_mut().ok_or_else(not_reset_err)?;
-        let mut modification_record: Vec<ModEffectOp> = Vec::new();
-
-        // --- Defenders act first ---
-        let mut step_enabled_defenses: HashSet<AttackGraphNodeId> = HashSet::new();
-        {
-            let mut graph = graph_rc.borrow_mut();
-            let mut model = model_rc.borrow_mut();
-            for name in &defender_names {
-                let runtime = &state.defenders[name];
-                let (enabled, ops) = dyna_defender_step(
-                    &mut graph,
-                    &mut model,
-                    &mut state.rng,
-                    state.settings.ttc_mode,
-                    state.settings.run_defense_step_bernoullis,
-                    state.settings.run_attack_step_bernoullis,
-                    &action_nodes[name],
-                    &runtime.action_surface,
-                    &mut state.graph_state,
-                    &mut state.enabled_defenses,
-                )
-                .map_err(to_py_err)?;
-                step_enabled_defenses.extend(enabled);
-                modification_record.extend(ops);
-            }
-        }
-        // `dyna_defender_step` only folds *newly model-effect-created*
-        // defense nodes into `enabled_defenses` internally (via
-        // `fold_new_nodes_into_graph_state`) - the defenses actually
-        // enabled by this step's requested actions still need merging
-        // here, same as plain `step_native` does for `defender_step`.
-        state
-            .enabled_defenses
-            .extend(step_enabled_defenses.iter().copied());
-
-        // --- Attackers act afterwards ---
-        let mut step_compromised_nodes: HashSet<AttackGraphNodeId> = HashSet::new();
-        let mut attacker_results: HashMap<
-            String,
-            (Vec<AttackGraphNodeId>, Vec<AttackGraphNodeId>),
-        > = HashMap::new();
-        {
-            let mut graph = graph_rc.borrow_mut();
-            let mut model = model_rc.borrow_mut();
-            for name in &attacker_names {
-                let runtime = &state.attackers[name];
-                let (compromised, attempted, ops) = dyna_attacker_step(
-                    &mut graph,
-                    &mut model,
-                    &mut state.rng,
-                    state.settings.ttc_mode,
-                    state.settings.run_defense_step_bernoullis,
-                    state.settings.run_attack_step_bernoullis,
-                    &action_nodes[name],
-                    &runtime.entry_points,
-                    &runtime.action_surface,
-                    &runtime.performed_nodes,
-                    &runtime.num_attempts,
-                    runtime.ttc_dist_overrides.as_ref(),
-                    Some(&runtime.ttc_values),
-                    &mut state.graph_state,
-                    &mut state.enabled_defenses,
-                )
-                .map_err(to_py_err)?;
-                step_compromised_nodes.extend(compromised.iter().copied());
-                modification_record.extend(ops);
-                attacker_results.insert(name.clone(), (compromised, attempted));
-            }
-        }
-
-        let attacker_step_deltas =
-            self.update_attacker_runtimes(&attacker_names, attacker_results)?;
-        let defender_step_deltas = self.update_defender_runtimes(
-            &defender_names,
-            &step_enabled_defenses,
-            &step_compromised_nodes,
-        )?;
-
-        self.build_step_output(
-            py,
-            &step_enabled_defenses,
-            &step_compromised_nodes,
-            &attacker_step_deltas,
-            &defender_step_deltas,
-            &modification_record,
-        )
+        let action_nodes = self.extract_actions(actions)?;
+        let outcome = self.inner.step(&action_nodes).map_err(sim_err_to_py)?;
+        self.build_step_output(py, &outcome)
     }
 }
 
@@ -718,326 +435,45 @@ impl Simulator {
         agents: &Bound<'_, PyDict>,
         seed: u64,
     ) -> PyResult<Py<PyAny>> {
-        let graph_rc = self.graph.clone();
-        let native_settings = parse_settings(settings)?;
-        let mut rng = StdRng::seed_from_u64(seed);
-
-        let graph_state = {
-            let graph = graph_rc.borrow();
-            compute_initial_graph_state(
-                &graph,
-                native_settings.ttc_mode,
-                native_settings.run_defense_step_bernoullis,
-                native_settings.run_attack_step_bernoullis,
-                &mut rng,
-            )
-            .map_err(to_py_err)?
+        let settings = parse_settings(settings)?;
+        let agents = {
+            let graph = self.inner.graph().borrow();
+            parse_agents(&graph, agents)?
         };
-        let enabled_defenses = graph_state.pre_enabled_defenses.clone();
-
-        let mut attacker_cfgs = Vec::new();
-        let mut defender_cfgs = Vec::new();
-        for (name_obj, cfg_obj) in agents.iter() {
-            let name: String = name_obj.extract()?;
-            let cfg = cfg_obj.cast::<PyDict>()?.clone();
-            let kind: String = require_dict_value(&cfg, "type")?.extract()?;
-            match kind.as_str() {
-                "attacker" => attacker_cfgs.push((name, cfg)),
-                "defender" => defender_cfgs.push((name, cfg)),
-                other => {
-                    return Err(PyValueError::new_err(format!(
-                        "agent \"{name}\" has unknown type \"{other}\" (expected \"attacker\" or \"defender\")"
-                    )))
-                }
-            }
-        }
-
-        let mut attackers: HashMap<String, AttackerRuntime> = HashMap::new();
-        let mut pre_compromised: HashSet<AttackGraphNodeId> = HashSet::new();
-
-        {
-            let graph = graph_rc.borrow();
-            for (name, cfg) in &attacker_cfgs {
-                let entry_points =
-                    extract_id_set(&graph, &require_dict_value(cfg, "entry_points")?)?;
-                let goals = extract_optional_id_set(&graph, cfg, "goals")?.unwrap_or_default();
-                let actionable_steps = extract_optional_id_set(&graph, cfg, "actionable_steps")?;
-
-                let ttc_dist_overrides =
-                    extract_optional_ttc_dist_overrides(&graph, cfg, "ttc_dists")?;
-                let (ttc_values, impossible_steps) = match &ttc_dist_overrides {
-                    Some(overrides) => attacker_ttc_overrides(
-                        &graph,
-                        &mut rng,
-                        native_settings.ttc_mode,
-                        overrides,
-                    )?,
-                    None => (
-                        graph_state.ttc_values.clone(),
-                        graph_state.impossible_attack_steps.clone(),
-                    ),
-                };
-
-                let mut performed_nodes: HashSet<AttackGraphNodeId> = HashSet::new();
-                if native_settings.compromise_entrypoints_at_start {
-                    for &entry_point in &entry_points {
-                        performed_nodes.insert(entry_point);
-                        let effects = get_effects_of_attack_step(
-                            &graph,
-                            entry_point,
-                            &performed_nodes,
-                            &graph_state.impossible_attack_steps,
-                            &enabled_defenses,
-                            &graph_state.necessity_per_node,
-                        )
-                        .map_err(to_py_err)?;
-                        performed_nodes.extend(effects);
-                    }
-                }
-
-                let mut action_surface = get_attack_surface(
-                    &graph,
-                    native_settings.skip_compromised,
-                    native_settings.skip_unnecessary,
-                    actionable_steps.as_ref(),
-                    &performed_nodes,
-                    None,
-                    &graph_state.impossible_attack_steps,
-                    &enabled_defenses,
-                    &graph_state.necessity_per_node,
-                )
-                .map_err(to_py_err)?;
-                if !native_settings.compromise_entrypoints_at_start {
-                    action_surface.extend(entry_points.iter().copied());
-                }
-
-                pre_compromised.extend(performed_nodes.iter().copied());
-
-                attackers.insert(
-                    name.clone(),
-                    AttackerRuntime {
-                        entry_points,
-                        goals,
-                        actionable_steps,
-                        performed_nodes,
-                        attempted_nodes: HashSet::new(),
-                        action_surface,
-                        num_attempts: HashMap::new(),
-                        iteration: 0,
-                        ttc_dist_overrides,
-                        ttc_values,
-                        impossible_steps,
-                    },
-                );
-            }
-        }
-
-        let mut defenders: HashMap<String, DefenderRuntime> = HashMap::new();
-        {
-            let graph = graph_rc.borrow();
-            for (name, cfg) in &defender_cfgs {
-                let actionable_steps = extract_optional_id_set(&graph, cfg, "actionable_steps")?;
-                let observable_steps = extract_optional_id_set(&graph, cfg, "observable_steps")?;
-                let false_positive_rates =
-                    extract_optional_rate_map(&graph, cfg, "false_positive_rates")?;
-                let false_negative_rates =
-                    extract_optional_rate_map(&graph, cfg, "false_negative_rates")?;
-
-                let action_surface = get_defense_surface(
-                    &graph,
-                    actionable_steps.as_ref(),
-                    &graph_state.impossible_attack_steps,
-                    &enabled_defenses,
-                )
-                .map_err(to_py_err)?;
-
-                let new_observed_nodes = observed_nodes(
-                    observable_steps.as_ref(),
-                    false_positive_rates.as_ref(),
-                    false_negative_rates.as_ref(),
-                    &graph,
-                    &pre_compromised,
-                    &mut rng,
-                );
-
-                let mut logs = collect_logs(
-                    0,
-                    &graph,
-                    pre_compromised.iter().copied(),
-                    &HashSet::new(),
-                    &mut rng,
-                )
-                .map_err(to_py_err)?;
-                logs.extend(collect_false_positives(0, &graph, &mut rng).map_err(to_py_err)?);
-
-                defenders.insert(
-                    name.clone(),
-                    DefenderRuntime {
-                        actionable_steps,
-                        observable_steps,
-                        false_positive_rates,
-                        false_negative_rates,
-                        performed_nodes: enabled_defenses.clone(),
-                        compromised_nodes: pre_compromised.clone(),
-                        observed_nodes: new_observed_nodes,
-                        action_surface,
-                        iteration: 0,
-                        logs,
-                    },
-                );
-            }
-        }
-
-        self.state = Some(SimState {
-            rng,
-            settings: native_settings,
-            graph_state,
-            enabled_defenses,
-            attackers,
-            defenders,
-        });
-
+        self.inner
+            .reset(&settings, agents, seed)
+            .map_err(sim_err_to_py)?;
         self.build_reset_output(py)
     }
 
-    /// Recomputes each attacker's bookkeeping (`action_surface`,
-    /// `performed_nodes`, `attempted_nodes`, `num_attempts`, `iteration`)
-    /// after this step's compromises/attempts - shared by `step_native`/
-    /// `dyna_step_native` (Phase A9/Phase B4): identical regardless of
-    /// whether the compromises came from plain `attacker_step` or
-    /// model-effect-aware `dyna_attacker_step`, since both only ever grow
-    /// `graph_state`/`enabled_defenses`/the graph itself and this just
-    /// reads whatever the graph looks like once stepping has finished.
-    #[allow(clippy::type_complexity)]
-    fn update_attacker_runtimes(
-        &mut self,
-        attacker_names: &[String],
-        mut attacker_results: HashMap<String, (Vec<AttackGraphNodeId>, Vec<AttackGraphNodeId>)>,
-    ) -> PyResult<HashMap<String, (HashSet<AttackGraphNodeId>, HashSet<AttackGraphNodeId>)>> {
-        let graph_rc = self.graph.clone();
-        let state = self.state.as_mut().ok_or_else(not_reset_err)?;
-        let mut attacker_step_deltas = HashMap::new();
-        let graph = graph_rc.borrow();
-        for name in attacker_names {
-            let (compromised, attempted) = attacker_results.remove(name).unwrap();
-            let new_action_surface = {
-                let runtime = &state.attackers[name];
-                let mut performed_nodes = runtime.performed_nodes.clone();
-                performed_nodes.extend(compromised.iter().copied());
-                get_attack_surface(
-                    &graph,
-                    state.settings.skip_compromised,
-                    state.settings.skip_unnecessary,
-                    runtime.actionable_steps.as_ref(),
-                    &performed_nodes,
-                    None,
-                    &state.graph_state.impossible_attack_steps,
-                    &state.enabled_defenses,
-                    &state.graph_state.necessity_per_node,
-                )
-                .map_err(to_py_err)?
-            };
+    /// Translates `step_native`'s `actions` dict (`name -> [stable id]`)
+    /// into `CoreSimulator::step`'s input. Mirrors `_pre_step_check`'s
+    /// `KeyError` on an `actions` key that names no registered agent
+    /// (checked in key order, before any node id is parsed); an agent
+    /// missing from `actions` (or mapped to `None`) takes no action.
+    fn extract_actions(
+        &self,
+        actions: &Bound<'_, PyDict>,
+    ) -> PyResult<HashMap<String, Vec<AttackGraphNodeId>>> {
+        let state = self.inner.state().ok_or_else(not_reset_err)?;
 
-            let runtime = state.attackers.get_mut(name).unwrap();
-            runtime.performed_nodes.extend(compromised.iter().copied());
-            runtime.attempted_nodes.extend(attempted.iter().copied());
-            for &node_id in &attempted {
-                *runtime.num_attempts.entry(node_id).or_insert(0) += 1;
+        for key_obj in actions.keys() {
+            let name: String = key_obj.extract()?;
+            if !state.attackers.contains_key(&name) && !state.defenders.contains_key(&name) {
+                return Err(sim_err_to_py(SimulatorError::UnknownAgent(name)));
             }
-            runtime.action_surface = new_action_surface;
-            runtime.iteration += 1;
-
-            attacker_step_deltas.insert(
-                name.clone(),
-                (
-                    compromised.into_iter().collect(),
-                    attempted.into_iter().collect(),
-                ),
-            );
-        }
-        Ok(attacker_step_deltas)
-    }
-
-    /// Recomputes each defender's bookkeeping (`action_surface`,
-    /// `performed_nodes`, `compromised_nodes`, `observed_nodes`, `logs`,
-    /// `iteration`) after this step's enables/compromises - shared by
-    /// `step_native`/`dyna_step_native`, same reasoning as
-    /// `update_attacker_runtimes` above.
-    #[allow(clippy::type_complexity)]
-    fn update_defender_runtimes(
-        &mut self,
-        defender_names: &[String],
-        step_enabled_defenses: &HashSet<AttackGraphNodeId>,
-        step_compromised_nodes: &HashSet<AttackGraphNodeId>,
-    ) -> PyResult<HashMap<String, (HashSet<AttackGraphNodeId>, Vec<LogEntry>)>> {
-        let graph_rc = self.graph.clone();
-        let state = self.state.as_mut().ok_or_else(not_reset_err)?;
-        let mut defender_step_deltas = HashMap::new();
-        let graph = graph_rc.borrow();
-        let mut pass1: HashMap<String, DefenderStepUpdate> = HashMap::new();
-
-        for name in defender_names {
-            let runtime = &state.defenders[name];
-            let previous_performed = runtime.performed_nodes.clone();
-
-            let defense_surface_full = get_defense_surface(
-                &graph,
-                runtime.actionable_steps.as_ref(),
-                &state.graph_state.impossible_attack_steps,
-                &state.enabled_defenses,
-            )
-            .map_err(to_py_err)?;
-
-            let new_observed = observed_nodes(
-                runtime.observable_steps.as_ref(),
-                runtime.false_positive_rates.as_ref(),
-                runtime.false_negative_rates.as_ref(),
-                &graph,
-                step_compromised_nodes,
-                &mut state.rng,
-            );
-
-            let mut logs = collect_logs(
-                runtime.iteration,
-                &graph,
-                step_compromised_nodes.iter().copied(),
-                &runtime.compromised_nodes,
-                &mut state.rng,
-            )
-            .map_err(to_py_err)?;
-            logs.extend(
-                collect_false_positives(runtime.iteration, &graph, &mut state.rng)
-                    .map_err(to_py_err)?,
-            );
-
-            pass1.insert(
-                name.clone(),
-                (defense_surface_full, new_observed, logs, previous_performed),
-            );
         }
 
-        for name in defender_names {
-            let (defense_surface_full, new_observed, logs, previous_performed) =
-                pass1.remove(name).unwrap();
-            let runtime = state.defenders.get_mut(name).unwrap();
-            runtime
-                .performed_nodes
-                .extend(step_enabled_defenses.iter().copied());
-            runtime.action_surface = defense_surface_full
-                .difference(&previous_performed)
-                .copied()
-                .collect();
-            runtime.observed_nodes.extend(new_observed.iter().copied());
-            runtime
-                .compromised_nodes
-                .extend(step_compromised_nodes.iter().copied());
-            runtime.logs.extend(logs.iter().cloned());
-            runtime.iteration += 1;
-
-            defender_step_deltas.insert(name.clone(), (new_observed, logs));
+        let mut action_nodes: HashMap<String, Vec<AttackGraphNodeId>> = HashMap::new();
+        let graph = self.inner.graph().borrow();
+        for name in state.attackers.keys().chain(state.defenders.keys()) {
+            let nodes = match actions.get_item(name)? {
+                Some(v) if !v.is_none() => extract_id_list(&graph, &v)?,
+                _ => Vec::new(),
+            };
+            action_nodes.insert(name.clone(), nodes);
         }
-
-        Ok(defender_step_deltas)
+        Ok(action_nodes)
     }
 }
 
@@ -1075,8 +511,8 @@ impl Simulator {
     /// shape. Deliberately no custom pyclasses in the return value (per
     /// A8's own plan text: "keep it boring and inspectable").
     fn build_reset_output(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        let state = self.state.as_ref().ok_or_else(not_reset_err)?;
-        let graph = self.graph.borrow();
+        let state = self.inner.state().ok_or_else(not_reset_err)?;
+        let graph = self.inner.graph().borrow();
 
         let sim_state = PyDict::new(py);
         sim_state.set_item(
@@ -1085,13 +521,7 @@ impl Simulator {
         )?;
         insert_graph_state_fields(&sim_state, &graph, &state.graph_state)?;
 
-        let attacker_triples: Vec<_> = state
-            .attackers
-            .values()
-            .map(|a| (&a.action_surface, &a.goals, &a.performed_nodes))
-            .collect();
-        let defenders_terminated =
-            defender_is_terminated(attacker_triples.iter().map(|&(s, g, p)| (s, g, p)));
+        let defenders_terminated = state.defender_is_terminated();
 
         let agents = PyDict::new(py);
         for (name, a) in &state.attackers {
@@ -1116,10 +546,7 @@ impl Simulator {
                 stable_ids(&graph, a.impossible_steps.iter().copied()),
             )?;
             d.set_item("iteration", a.iteration)?;
-            d.set_item(
-                "terminated",
-                attacker_is_terminated(&a.action_surface, &a.goals, &a.performed_nodes),
-            )?;
+            d.set_item("terminated", state.attacker_is_terminated(name))?;
             agents.set_item(name, d)?;
         }
 
@@ -1165,7 +592,7 @@ impl Simulator {
     /// `build_reset_output`, every monotonically-growing field is this
     /// step's *delta* only (`step_*` keys - see module docs' wire-format
     /// table), not the full episode-accumulated value: the accumulated
-    /// values still live in `self.state` for Rust's own internal use
+    /// values still live in the core `SimState` for Rust's own internal use
     /// (`get_attack_surface`, `*_is_terminated`, ...), they just no longer
     /// cross the FFI boundary redundantly on every call. Episode-static
     /// fields (`ttc_values`, `necessity_per_node`,
@@ -1186,21 +613,19 @@ impl Simulator {
     /// Python rebuilds its `GraphState` wholesale from them that step only.
     /// `action_surface`, `iteration` and `terminated` are unchanged (full
     /// current value every step), matching `build_reset_output`.
-    #[allow(clippy::type_complexity)]
-    fn build_step_output(
-        &self,
-        py: Python<'_>,
-        step_enabled_defenses: &HashSet<AttackGraphNodeId>,
-        step_compromised_nodes: &HashSet<AttackGraphNodeId>,
-        attacker_step_deltas: &HashMap<
-            String,
-            (HashSet<AttackGraphNodeId>, HashSet<AttackGraphNodeId>),
-        >,
-        defender_step_deltas: &HashMap<String, (HashSet<AttackGraphNodeId>, Vec<LogEntry>)>,
-        step_modification_record: &[ModEffectOp],
-    ) -> PyResult<Py<PyAny>> {
-        let state = self.state.as_ref().ok_or_else(not_reset_err)?;
-        let graph = self.graph.borrow();
+    fn build_step_output(&self, py: Python<'_>, outcome: &StepOutcome) -> PyResult<Py<PyAny>> {
+        let state = self.inner.state().ok_or_else(not_reset_err)?;
+        let graph = self.inner.graph().borrow();
+
+        let step_enabled_defenses = &outcome.step_enabled_defenses;
+        let step_modification_record = &outcome.step_modification_record;
+        // Every node any attacker compromised this step - what each
+        // defender's `compromised_nodes` grew by.
+        let step_compromised_nodes: HashSet<AttackGraphNodeId> = outcome
+            .attackers
+            .values()
+            .flat_map(|a| a.step_performed_nodes.iter().copied())
+            .collect();
 
         let sim_state = PyDict::new(py);
         sim_state.set_item(
@@ -1223,17 +648,13 @@ impl Simulator {
             insert_graph_state_fields(&sim_state, &graph, &state.graph_state)?;
         }
 
-        let attacker_triples: Vec<_> = state
-            .attackers
-            .values()
-            .map(|a| (&a.action_surface, &a.goals, &a.performed_nodes))
-            .collect();
-        let defenders_terminated =
-            defender_is_terminated(attacker_triples.iter().map(|&(s, g, p)| (s, g, p)));
+        let defenders_terminated = state.defender_is_terminated();
 
         let agents = PyDict::new(py);
         for (name, a) in &state.attackers {
-            let (step_performed_nodes, step_attempted_nodes) = &attacker_step_deltas[name];
+            let delta = &outcome.attackers[name];
+            let (step_performed_nodes, step_attempted_nodes) =
+                (&delta.step_performed_nodes, &delta.step_attempted_nodes);
             let d = PyDict::new(py);
             d.set_item("type", "attacker")?;
             d.set_item(
@@ -1249,15 +670,13 @@ impl Simulator {
                 stable_ids(&graph, a.action_surface.iter().copied()),
             )?;
             d.set_item("iteration", a.iteration)?;
-            d.set_item(
-                "terminated",
-                attacker_is_terminated(&a.action_surface, &a.goals, &a.performed_nodes),
-            )?;
+            d.set_item("terminated", state.attacker_is_terminated(name))?;
             agents.set_item(name, d)?;
         }
 
         for (name, de) in &state.defenders {
-            let (step_observed_nodes, step_logs) = &defender_step_deltas[name];
+            let delta = &outcome.defenders[name];
+            let (step_observed_nodes, step_logs) = (&delta.step_observed_nodes, &delta.step_logs);
             let d = PyDict::new(py);
             d.set_item("type", "defender")?;
             d.set_item(

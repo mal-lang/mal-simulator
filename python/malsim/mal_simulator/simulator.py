@@ -611,7 +611,7 @@ def step(
     Delegates to `malsim._native.Simulator.step_native` (PORTING_NOTES.md
     §5 Phase A9), which already runs defenders before attackers internally
     (mirroring this function's own historical ordering) - see
-    `simulator.rs::step_native`'s doc comment.
+    `malsim_core::simulator::Simulator::step`'s doc comment.
     """
 
     _pre_step_check(agent_states, alive_agents(agent_states), actions)

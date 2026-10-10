@@ -1519,8 +1519,27 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         (`test_save_scenario`, half of
         `test_scenario_advanced_agent_settings`; the Rust loader has no
         writer), and the `integration`-marked git-URL test.
-  - [ ] C5 - `Simulator::reset`/`::step` library API usable standalone
+  - [~] C5 - `Simulator::reset`/`::step` library API usable standalone
         (original Phase C scope)
+        - Part 1 (done): the reset/step orchestration moved from
+          `py-bindings/malsim-pyo3/src/simulator.rs` (1395 → 814 lines)
+          into the new public `core/malsim-core/src/simulator.rs`, per
+          §11: `Simulator::{new, new_dyna, graph, model, reset, step,
+          state}`, `SimState` (with `attacker_is_terminated`/
+          `defender_is_terminated`), `AttackerRuntime`/`DefenderRuntime`,
+          `StepOutcome` with per-agent `AttackerStepOutcome`/
+          `DefenderStepOutcome`, and `SimulatorError`. Moved items:
+          `do_reset` (now `reset_state`), the plain/dyna step bodies,
+          `update_*_runtimes`, `attacker_ttc_overrides`, `DynaHandle`.
+          `malsim-pyo3` is now only dict parsing (into
+          `MalSimulatorSettings`/`Flat*Settings`), error mapping and output
+          building. Its direct `rand` dependency was dropped. 8 new Rust
+          tests cover plain/dyna reset+step, unknown agent, step before
+          reset, and same-seed determinism with two attackers. Python
+          gate: `pytest tests -m "not integration"` 159 passed, ruff/mypy
+          clean. Earlier §0/§10 text that names `simulator.rs`'s
+          `do_reset`/`DynaHandle` describes the pre-C5 location; those
+          items now live in `malsim_core::simulator`.
   - [ ] C6 - Schema-parity test: run the same scenario YAML fixtures
         (`tests/testdata/scenarios/*.yml`) through both the Python
         `Scenario` and the new Rust loader, compare resulting settings
@@ -3807,3 +3826,32 @@ entry names its phase.
   scenario's freshly loaded `Rc<LanguageGraph>`, which a caller-built
   `Model` can't guarantee. Python's `Model`-instance branch has no safe
   Rust equivalent.
+- **C5: agents are processed in name order (`BTreeMap`), not insertion
+  order.** The pre-C5 pyo3 code used `HashMap`s, whose per-process random
+  iteration order made RNG consumption with more than one attacker or
+  defender nondeterministic across processes for a fixed seed. Sorted
+  order is deterministic. It differs from Python's dict order, but seeded
+  runs were never bit-compatible with Python anyway (§2.1). Native output
+  dicts are also keyed in name order now.
+- **C5: on `dyna_reset_native`, node ids are resolved before the model
+  is restored, not after.** Core `reset` takes already-resolved
+  `FlatAgentSettings` and runs `reset_model_effects` itself, so pyo3
+  parses the ids first. Python's `dyna_reset` flattens against the
+  *previous* episode's graph (before native restores the model). So ids
+  of nodes that model effects added last episode used to raise
+  `ValueError("node id X is not part of ...")` after the restore whenever
+  a rule spans every node (e.g. FP/FN rate maps). Now they are accepted
+  and stay inert: slotmap keys are versioned, so a removed node's key
+  never aliases a new node. Parse errors are now raised before the
+  model reset. **Pre-existing and not fixed:** nodes *removed* by last
+  episode's effects and restored by this reset are missing from Python's
+  flattened maps for the new episode. Fixing that needs Python to
+  flatten after the restore, which is outside Phase C.
+- **C5: the pyo3 `Simulator` becomes dyna-only once `dyna_reset_native`
+  has been called.** Its inner core simulator is replaced by
+  `Simulator::new_dyna` (lazily, on that first call, as before). After
+  that, `step_native`/`reset_native` also take the dyna path. No Python
+  caller mixes the two on one native object.
+- **C5: `SimulatorError::ModelState` boxes its payload**, following the
+  existing `DynaAttackerStepError::ModelEffects(Box<..>)` precedent
+  (clippy `result_large_err`).

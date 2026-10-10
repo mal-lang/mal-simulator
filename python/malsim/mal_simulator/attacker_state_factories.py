@@ -47,7 +47,7 @@ def create_attacker_state_from_native(
     `previous_state`. `ttc_values`/`impossible_steps` are resolved once
     from `reset_native`'s output and carried forward unchanged - native
     never re-sends them (they're static after reset even when
-    `ttc_dists` overrides are configured - see `simulator.rs`'s
+    `ttc_dists` overrides are configured - see `malsim_core::simulator`'s
     `attacker_ttc_overrides` doc comment). `performed_nodes_order` is
     Python-only bookkeeping native has no concept of, built incrementally
     via a diff against `previous_state`, same as before.

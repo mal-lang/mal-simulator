@@ -20,6 +20,7 @@ pub mod necessity;
 pub mod observability;
 pub mod scenario;
 pub mod settings;
+pub mod simulator;
 pub mod ttc;
 pub mod viability;
 
