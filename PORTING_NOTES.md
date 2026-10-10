@@ -1445,9 +1445,18 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         check/format clean; `cargo test` (164) / `clippy -D warnings` /
         `fmt --check` clean in both the root and `py-bindings` workspaces.
 - [ ] Phase C - Rust-only library API (§7)
-  - [ ] C1 - Port `NodePropertyRule`'s dict-shape + `.value()`/`.per_node()`
+  - [x] C1 - Port `NodePropertyRule`'s dict-shape + `.value()`/`.per_node()`
         matching as an independent Rust utility (not shared with the
-        Python-path flattening in §2.4 - see §2.6)
+        Python-path flattening in §2.4 - see §2.6). Landed in
+        `core/malsim-core/src/scenario/node_property_rule.rs`:
+        `NodePropertyRule<T: RuleValue>` (`from_value`/
+        `from_optional_value`/`to_value`/`len`/`value`/`per_node`),
+        `StepValues<T>` (list vs mapping form), and `RuleValue` impls for
+        `bool`, `f64` and `TtcDist`. 11 Rust tests: precedence
+        (by-name > by-type > default), falsy fall-through, list form,
+        `per_node` truthiness, the `test_scenario.py` faulty-dict and
+        old-rewards-format cases, TTC-name parsing, round-trip, and nodes
+        without a model asset. Decisions in §12 (C1 entries).
   - [ ] C2 - Port scenario YAML loading: field validation, `extends`
         merge (`recursive_update`), path resolution
   - [ ] C3 - Port agent-settings-from-dict construction (entry points,
@@ -3643,4 +3652,22 @@ entry names its phase.
   pinned `rust-rewrite` commit (`b96258b`) this repo's crates build
   against, so the dependency pins were left unchanged. `main` was only
   used as a reference.
-
+- **C1: `NodePropertyRule.default` (the dataclass field) is not ported.**
+  `value()` never reads it (it uses its `default` *argument*), and
+  `from_dict()` never sets it, so it's dead state. Rust's `value()`
+  returns `Option<T>` instead; `None` is where Python returns its
+  `default` argument, so `rule.value(..).unwrap_or(d)` is the exact call.
+- **C1: `per_node()` is keyed by node id, not full name** (§7 C1's
+  `HashMap<NodeId, T>`). Full names are one `full_name_of` away and ids are
+  what the `Simulator` consumes.
+- **C1: TTC override values are parsed (and validated) when the rule is
+  loaded.** Python keeps the raw YAML value and only calls
+  `TTCDist.from_name` at reset time (`_flatten_ttc_dists`). The Rust rule
+  holds parsed `TtcDist`s, so an unknown name fails at scenario load
+  instead of at the first reset. Only the name form is accepted, as on
+  the Python path. A dict-form TTC is rejected there too.
+- **C1: value parsing is typed but Python-lenient where Python visibly
+  is.** `f64` rules accept booleans (`True == 1` in Python). `bool` rules
+  accept only booleans; Python would accept any truthy value, but none of
+  the fixtures rely on that. An explicit `null` step value is treated as
+  absent, which is what Python's `or` chain does with it.

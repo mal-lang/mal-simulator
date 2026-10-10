@@ -18,6 +18,7 @@ pub mod model_effects;
 pub mod model_state;
 pub mod necessity;
 pub mod observability;
+pub mod scenario;
 pub mod ttc;
 pub mod viability;
 
