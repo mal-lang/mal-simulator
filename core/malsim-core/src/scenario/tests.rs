@@ -372,7 +372,9 @@ fn git_lang_url_is_reported() {
 #[test]
 fn flatten_agents_orders_attackers_first_and_resolves_ids() {
     let scenario = load("simple_scenario.yml");
-    let flat = scenario.flatten_agents(&mut StdRng::seed_from_u64(0));
+    let flat = scenario
+        .flatten_agents(&mut StdRng::seed_from_u64(0))
+        .unwrap();
     let names: Vec<&str> = flat.iter().map(|(name, _)| name.as_str()).collect();
     assert_eq!(names, vec!["Attacker1", "Defender1"]);
     match &flat[0].1 {

@@ -49,7 +49,9 @@ fn first_by_name(
 fn load_scenario_reset_and_step() {
     let scenario = Scenario::load_from_file(scenario_path("traininglang_scenario.yml")).unwrap();
     let mut sim = Simulator::new(scenario.attack_graph.clone());
-    let agents = scenario.flatten_agents(&mut StdRng::seed_from_u64(1));
+    let agents = scenario
+        .flatten_agents(&mut StdRng::seed_from_u64(1))
+        .unwrap();
 
     let state = sim.reset(&scenario.sim_settings, agents, 1).unwrap();
 
@@ -90,7 +92,9 @@ fn load_scenario_reset_and_step() {
 fn defender_action_enables_defense() {
     let scenario = Scenario::load_from_file(scenario_path("traininglang_scenario.yml")).unwrap();
     let mut sim = Simulator::new(scenario.attack_graph.clone());
-    let agents = scenario.flatten_agents(&mut StdRng::seed_from_u64(2));
+    let agents = scenario
+        .flatten_agents(&mut StdRng::seed_from_u64(2))
+        .unwrap();
     let state = sim.reset(&scenario.sim_settings, agents, 2).unwrap();
 
     let defense = first_by_name(
@@ -118,7 +122,9 @@ fn run_until_attacker_terminates() {
     // name until it runs out of moves, with a step bound as a safety net.
     let scenario = Scenario::load_from_file(scenario_path("traininglang_scenario.yml")).unwrap();
     let mut sim = Simulator::new(scenario.attack_graph.clone());
-    let agents = scenario.flatten_agents(&mut StdRng::seed_from_u64(3));
+    let agents = scenario
+        .flatten_agents(&mut StdRng::seed_from_u64(3))
+        .unwrap();
     sim.reset(&scenario.sim_settings, agents, 3).unwrap();
 
     let max_steps = scenario.attack_graph.borrow().nodes.len();
@@ -162,7 +168,9 @@ fn dyna_scenario_reset_and_step() {
     for seed in 0..2 {
         // Restore before flattening, as `Scenario::flatten_agents` documents.
         sim.restore_model().unwrap();
-        let agents = scenario.flatten_agents(&mut StdRng::seed_from_u64(seed));
+        let agents = scenario
+            .flatten_agents(&mut StdRng::seed_from_u64(seed))
+            .unwrap();
         sim.reset(&scenario.sim_settings, agents, seed).unwrap();
         // Every reset restores the pristine model/graph.
         assert_eq!(scenario.attack_graph.borrow().nodes.len(), nodes_before);
@@ -194,12 +202,11 @@ fn dyna_scenario_reset_and_step() {
     }
 }
 
-#[test]
-fn dyna_reset_restored_nodes_keep_rule_settings() {
-    // Rust twin of `test_dyna_mal_simulator.py::
-    // test_reset_restored_nodes_keep_rule_settings`: `Start:0:remove`
-    // deletes `Object:1`, the next reset restores it with regenerated
-    // nodes, and the defender's observability rule must cover them again.
+/// A `dynamic_remove_add.mal` scenario whose pristine model has `Object:1`
+/// associated to `Start:0`: stepping `Start:0:remove` deletes `Object:1`,
+/// and a restore brings it back with regenerated nodes. Mirrors
+/// `test_dyna_mal_simulator.py::_restorable_object_scenario`.
+fn restorable_object_scenario(agents: serde_json::Value) -> Scenario {
     let lang_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/testdata/langs/dynamic_remove_add.mal");
     let scenario_dict = serde_json::json!({
@@ -220,20 +227,29 @@ fn dyna_reset_restored_nodes_keep_rule_settings() {
                       "associated_assets": {"start": {"0": "Start:0"}}},
             },
         },
-        "agents": {
-            "Attacker": {"type": "attacker", "entry_points": ["Start:0:access"]},
-            "Defender": {"type": "defender",
-                         "observable_steps": {"by_asset_type": {"Object": ["addStart"]}}},
-        },
+        "agents": agents,
     });
-    let scenario = Scenario::from_dict(scenario_dict.as_object().unwrap()).unwrap();
+    Scenario::from_dict(scenario_dict.as_object().unwrap()).unwrap()
+}
+
+#[test]
+fn dyna_reset_restored_nodes_keep_rule_settings() {
+    // Rust twin of `test_dyna_mal_simulator.py::
+    // test_reset_restored_nodes_keep_rule_settings`: `Start:0:remove`
+    // deletes `Object:1`, the next reset restores it with regenerated
+    // nodes, and the defender's observability rule must cover them again.
+    let scenario = restorable_object_scenario(serde_json::json!({
+        "Attacker": {"type": "attacker", "entry_points": ["Start:0:access"]},
+        "Defender": {"type": "defender",
+                     "observable_steps": {"by_asset_type": {"Object": ["addStart"]}}},
+    }));
     let mut sim = Simulator::new_dyna(scenario.attack_graph.clone(), scenario.model.clone());
     let mut rng = StdRng::seed_from_u64(0);
     let attacker = "Attacker".to_string();
 
     let mut reset = |sim: &mut Simulator| {
         sim.restore_model().unwrap();
-        let agents = scenario.flatten_agents(&mut rng);
+        let agents = scenario.flatten_agents(&mut rng).unwrap();
         sim.reset(&scenario.sim_settings, agents, 0).unwrap();
     };
     let step = |sim: &mut Simulator, full_name: &str| {
@@ -267,4 +283,60 @@ fn dyna_reset_restored_nodes_keep_rule_settings() {
 
     reset(&mut sim);
     assert!(defender_observes_add_start(&mut sim));
+}
+
+#[test]
+fn dyna_reset_re_resolves_entry_points_and_goals_on_restored_nodes() {
+    // Rust twin of `test_dyna_mal_simulator.py::
+    // test_reset_re_resolves_entry_points_and_goals_on_restored_nodes`:
+    // an entry point and a goal on `Object:1` must point at the regenerated
+    // nodes after the asset is removed and restored, for both entry-point
+    // shapes.
+    for entry_points in [
+        serde_json::json!(["Start:0:access", "Object:1:addStartAssoc"]),
+        serde_json::json!([["Start:0:access", "Object:1:addStartAssoc"]]),
+    ] {
+        let scenario = restorable_object_scenario(serde_json::json!({
+            "Attacker": {"type": "attacker", "entry_points": entry_points,
+                         "goals": ["Object:1:addStart"]},
+        }));
+        let mut sim = Simulator::new_dyna(scenario.attack_graph.clone(), scenario.model.clone());
+        let mut rng = StdRng::seed_from_u64(0);
+        let attacker = "Attacker".to_string();
+        let mut reset = |sim: &mut Simulator| {
+            sim.restore_model().unwrap();
+            let agents = scenario.flatten_agents(&mut rng).unwrap();
+            sim.reset(&scenario.sim_settings, agents, 0).unwrap();
+        };
+        let step = |sim: &mut Simulator, full_name: &str| {
+            let target = node(&scenario, full_name);
+            sim.step(&HashMap::from([(attacker.clone(), vec![target])]))
+                .unwrap();
+            target
+        };
+
+        reset(&mut sim);
+        step(&mut sim, "Start:0:remove");
+        assert!(scenario
+            .model
+            .borrow()
+            .get_asset_by_name("Object:1")
+            .is_none());
+
+        reset(&mut sim);
+        let entry_point = node(&scenario, "Object:1:addStartAssoc");
+        let goal = node(&scenario, "Object:1:addStart");
+        let runtime = &sim.state().unwrap().attackers[&attacker];
+        assert!(runtime.entry_points.contains(&entry_point));
+        assert!(runtime.performed_nodes.contains(&entry_point));
+        assert_eq!(runtime.goals, std::collections::HashSet::from([goal]));
+
+        // The episode runs to the restored goal.
+        step(&mut sim, "Start:0:add");
+        step(&mut sim, "Object:1:addStart");
+        assert_eq!(
+            sim.state().unwrap().attacker_is_terminated(&attacker),
+            Some(true)
+        );
+    }
 }

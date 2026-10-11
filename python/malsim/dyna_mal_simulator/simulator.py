@@ -149,17 +149,25 @@ class DynaMalSimulator(MalSimulator):
         _attacker_settings = [a for a in agents if isinstance(a, AttackerSettings)]
         _defender_settings = [a for a in agents if isinstance(a, DefenderSettings)]
 
+        # Entry points/goals by full name, captured while the graph is still
+        # pristine: a node removed by a model effect can't be read any more,
+        # and `dyna_reset` re-resolves these against the restored graph.
+        attacker_settings_by_full_name = {
+            a.name: _attacker_settings_with_full_names(a) for a in _attacker_settings
+        }
         attacker_settings_with_nodes = [
-            a.convert_to_attack_graph_nodes(attack_graph) for a in _attacker_settings
+            a.convert_to_attack_graph_nodes(attack_graph)
+            for a in attacker_settings_by_full_name.values()
         ]
 
         _agent_settings: AgentSettings = {
             a.name: a for a in (_defender_settings + attacker_settings_with_nodes)
         } or {}
 
-        agent_states, sim_state, recording = dyna_reset(
+        agent_states, sim_state, recording, _agent_settings = dyna_reset(
             static_sim_data,
             _agent_settings,
+            attacker_settings_by_full_name,
             rng,
             rest_api_client,
             native_sim,
@@ -190,6 +198,7 @@ class DynaMalSimulator(MalSimulator):
         self.recording = recording
         self.sim_settings = sim_settings
         self.agent_settings = _agent_settings
+        self._attacker_settings_by_full_name = attacker_settings_by_full_name
         self.rest_api_client = rest_api_client
         self._attack_graph = attack_graph
         self._static_data = static_sim_data
@@ -223,9 +232,11 @@ class DynaMalSimulator(MalSimulator):
             self._agent_states,
             self.sim_state,
             self.recording,
+            self.agent_settings,
         ) = dyna_reset(
             self._static_data,
             self.agent_settings,
+            self._attacker_settings_by_full_name,
             self.rng,
             self.rest_api_client,
             self._native_sim,
@@ -271,9 +282,40 @@ def dyna_create_simulator_from_scenario(
     )
 
 
+def _attacker_settings_with_full_names(
+    settings: AttackerSettings[AttackGraphNode | str],
+) -> AttackerSettings[str]:
+    """`settings` with entry points and goals as full names, so they can be
+    resolved again after a reset regenerates the nodes they refer to."""
+
+    def full_name(node: AttackGraphNode | str) -> str:
+        return node if isinstance(node, str) else node.full_name
+
+    entry_points: tuple[Set[str], ...] | Set[str]
+    if isinstance(settings.entry_points, Set):
+        entry_points = frozenset(full_name(n) for n in settings.entry_points)
+    else:
+        entry_points = tuple(
+            frozenset(full_name(n) for n in eps) for eps in settings.entry_points
+        )
+    return AttackerSettings(
+        name=settings.name,
+        entry_points=entry_points,
+        goals=frozenset(full_name(n) for n in settings.goals),
+        policy=settings.policy,
+        actionable_steps=settings.actionable_steps,
+        rewards=settings.rewards,
+        config=settings.config,
+        type=settings.type,
+        reward_mode=settings.reward_mode,
+        ttc_dists=settings.ttc_dists,
+    )
+
+
 def dyna_reset(
     static_data: MALSimulatorStaticData,
     agent_settings: AgentSettings,
+    attacker_settings_by_full_name: Mapping[str, AttackerSettings[str]],
     rng: np.random.Generator,
     rest_api_client: MalSimGUIClient | None,
     native_sim: _native.Simulator,
@@ -281,6 +323,7 @@ def dyna_reset(
     AgentStates,
     DynaMalSimulatorState,
     Recording,
+    AgentSettings,
 ]:
     """Reset attack graph and reinitialize agents.
 
@@ -297,6 +340,9 @@ def dyna_reset(
     settings are flattened: nodes the previous episode's model effects
     removed only come back, with regenerated ids, on restore, so rules
     must be resolved against the restored graph (PORTING_NOTES.md §12).
+    For the same reason attacker entry points and goals are re-resolved
+    from `attacker_settings_by_full_name` after the restore, and the
+    re-resolved `agent_settings` are returned alongside the states.
     """
     logger.info('Resetting Dyna MAL Simulator.')
     attack_graph = static_data.attack_graph
@@ -307,6 +353,13 @@ def dyna_reset(
 
     native_sim.dyna_restore_model_native(attack_graph.model)
 
+    agent_settings = {
+        **agent_settings,
+        **{
+            name: named.convert_to_attack_graph_nodes(attack_graph)
+            for name, named in attacker_settings_by_full_name.items()
+        },
+    }
     _attacker_settings = attacker_settings(agent_settings)
     _defender_settings = defender_settings(agent_settings)
 
@@ -360,7 +413,7 @@ def dyna_reset(
     if rest_api_client:
         rest_api_client.upload_initial_state(attack_graph)
 
-    return agent_states, sim_state, defaultdict(dict)
+    return agent_states, sim_state, defaultdict(dict), agent_settings
 
 
 def dyna_step(

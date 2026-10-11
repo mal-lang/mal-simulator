@@ -3741,6 +3741,15 @@ asking again. Each entry names the phase it was decided in.
   *before* resolving per-node settings into `FlatAgentSettings`: Python's
   `dyna_reset` through pyo3's `dyna_restore_model_native(model)`, Rust
   callers before `Scenario::flatten_agents`.
+- **Attacker entry points/goals are re-resolved by full name on every
+  reset** (decided 2026-10-11). The Rust `Scenario` keeps a private
+  full-name copy of its attacker settings, and `Scenario::flatten_agents`
+  resolves it against the current graph on each call. It now returns
+  `Result<_, AgentSettingsError>`; `UnknownNode` only happens if the
+  caller skipped `restore_model`. The public `agent_settings` keeps the
+  load-time ids. On the Python side, `DynaMalSimulator` captures the same
+  full-name copy at construction and `dyna_reset` re-resolves it after
+  the restore.
 - **`NodePropertyRule<T: RuleValue>` is generic** (decided at C). The `RuleValue` trait
   covers three things: parsing from a JSON value, what a list-form entry
   means (`true` for bool, `1.0` for f64, an error for `TtcDist`), and
@@ -3892,15 +3901,19 @@ entry names its phase.
   and its Rust twin `scenario_simulator.rs::
   dyna_reset_restored_nodes_keep_rule_settings`. Both fail without the
   restore-first call.
-  **Still open (pre-existing, same root cause):** `AttackerSettings`
-  entry points and goals are node objects resolved once at scenario load.
-  If last episode's effects removed their asset, the restore regenerates
-  those nodes with new ids, and the next `dyna_reset` raises
-  `ValueError: node id N is not part of this simulator's attack graph`.
-  Reproduced with an entry point on a removed `Object:1` step in
-  `dynamic_remove_add.mal`. Fixing it means re-resolving entry points and
-  goals by full name after the restore, which wasn't in scope for this
-  change.
+  **Also fixed on 2026-10-11 (same root cause):** `AttackerSettings` entry
+  points and goals were node objects resolved once at scenario load. If
+  the previous episode's effects removed their asset, the restore
+  regenerated those nodes with new ids. The next `dyna_reset` then raised
+  `ValueError: node id N is not part of this simulator's attack graph`,
+  and the Rust-only path silently dropped the stale entry point. A stale
+  Python `AttackGraphNode` can't even be read (`.full_name` raises
+  `LookupError`), so the full names are captured up front and re-resolved
+  after every restore (§11). Regression tests:
+  `test_dyna_mal_simulator.py::test_reset_re_resolves_entry_points_and_goals_on_restored_nodes`
+  (single and multiple entry-point sets) and its Rust twin
+  `scenario_simulator.rs::dyna_reset_re_resolves_entry_points_and_goals_on_restored_nodes`.
+  Both fail without the fix.
 - **C5: the pyo3 `Simulator` becomes dyna-only once `dyna_reset_native`
   has been called.** Its inner core simulator is replaced by
   `Simulator::new_dyna` (lazily, on that first call, as before). After
@@ -3927,3 +3940,16 @@ entry names its phase.
   per-node rate maps would make the file several times larger for no
   extra coverage (every non-listed node is `0.0`, which `len` already
   pins).
+- **Dyna reset: `DynaMalSimulator.agent_settings` gets fresh
+  `AttackerSettings` objects on every reset.** `dyna_reset` now returns the
+  re-resolved settings as a fourth tuple element, and both callers
+  (`__init__`, `reset`) store them. Code that held on to an old
+  `sim.agent_settings[...]` object across a reset keeps the previous
+  episode's node objects. Rules and every other field are the same objects
+  (shallow copy), so the reward closures built in `__init__`, which only
+  read rules, are unaffected. `dyna_reset` isn't exported from
+  `malsim.dyna_mal_simulator`, so changing its signature breaks no public
+  API. Entry points or goals whose asset is removed *mid-episode* are
+  still not handled (e.g. a removed goal can never be performed); that
+  case predates the port and is a different question from the
+  reset-time staleness fixed here.

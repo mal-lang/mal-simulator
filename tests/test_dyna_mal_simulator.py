@@ -32,6 +32,7 @@ from malsim.policies.attackers.searchers import BreadthFirstAttacker, DepthFirst
 from malsim.policies.attackers.ttc_soft_min import TTCSoftMinAttacker
 from malsim.policies.random_agent import RandomAgent
 from malsim.dyna_mal_simulator import DynaMalSimulator
+from malsim.mal_simulator.attacker_state import AttackerState
 from malsim.mal_simulator.defender_state import DefenderState
 
 if TYPE_CHECKING:
@@ -947,19 +948,23 @@ def test_inherited_query_methods_follow_graph_mutated_by_model_effects() -> None
     assert not sim.compromised_nodes - set(sim.agent_states[attacker].performed_nodes)
 
 
-def test_reset_restored_nodes_keep_rule_settings() -> None:
-    """Nodes removed by one episode's model effects and restored by
-    `reset()` must get their rule-derived agent settings in the next
-    episode (PORTING_NOTES.md §12, C5/dyna-reset entry).
-
-    `Start:0:remove` deletes `Object:1` (and its attack steps). The next
-    `reset()` restores it with freshly generated nodes, so per-node settings
-    must be resolved against the restored graph, not the mutated one.
+def _restorable_object_scenario(
+    attacker: dict[str, Any], defender: dict[str, Any] | None = None
+) -> Scenario:
+    """`dynamic_remove_add.mal` scenario whose pristine model has `Object:1`
+    associated to `Start:0`: stepping `Start:0:remove` deletes `Object:1`,
+    and `reset()` restores it with freshly generated nodes.
+    `attacker`/`defender` are merged into the agents' settings dicts.
     """
     lang_file = str(
         Path(__file__).parent / 'testdata' / 'langs' / 'dynamic_remove_add.mal'
     )
-    scenario = Scenario.from_dict(
+    agents: dict[str, Any] = {
+        'Attacker': {'type': 'attacker', 'policy': None, **attacker},
+    }
+    if defender is not None:
+        agents['Defender'] = {'type': 'defender', 'policy': None, **defender}
+    return Scenario.from_dict(
         {
             'lang_file': lang_file,
             'model': {
@@ -984,19 +989,23 @@ def test_reset_restored_nodes_keep_rule_settings() -> None:
                     },
                 },
             },
-            'agents': {
-                'Attacker': {
-                    'type': 'attacker',
-                    'policy': None,
-                    'entry_points': ['Start:0:access'],
-                },
-                'Defender': {
-                    'type': 'defender',
-                    'policy': None,
-                    'observable_steps': {'by_asset_type': {'Object': ['addStart']}},
-                },
-            },
+            'agents': agents,
         }
+    )
+
+
+def test_reset_restored_nodes_keep_rule_settings() -> None:
+    """Nodes removed by one episode's model effects and restored by
+    `reset()` must get their rule-derived agent settings in the next
+    episode (PORTING_NOTES.md §12, C5/dyna-reset entry).
+
+    `Start:0:remove` deletes `Object:1` (and its attack steps). The next
+    `reset()` restores it with freshly generated nodes, so per-node settings
+    must be resolved against the restored graph, not the mutated one.
+    """
+    scenario = _restorable_object_scenario(
+        attacker={'entry_points': ['Start:0:access']},
+        defender={'observable_steps': {'by_asset_type': {'Object': ['addStart']}}},
     )
     sim = DynaMalSimulator.from_scenario(scenario)
     attack_graph = scenario.attack_graph
@@ -1024,3 +1033,49 @@ def test_reset_restored_nodes_keep_rule_settings() -> None:
 
     # After reset `Object:1` is back and must still be observable.
     assert defender_observes_add_start()
+
+
+@pytest.mark.parametrize(
+    'entry_points',
+    [
+        ['Start:0:access', 'Object:1:addStartAssoc'],
+        # Multiple alternative entry-point sets, sampled at reset.
+        [['Start:0:access', 'Object:1:addStartAssoc']],
+    ],
+)
+def test_reset_re_resolves_entry_points_and_goals_on_restored_nodes(
+    entry_points: list[Any],
+) -> None:
+    """Entry points and goals on an asset that one episode's model effects
+    removed must point at the restored (regenerated) nodes after `reset()`,
+    instead of the removed ones (PORTING_NOTES.md §12, C5/dyna-reset entry).
+    """
+    scenario = _restorable_object_scenario(
+        attacker={'entry_points': entry_points, 'goals': ['Object:1:addStart']}
+    )
+    sim = DynaMalSimulator.from_scenario(scenario)
+    attack_graph = scenario.attack_graph
+    model = attack_graph.model
+    assert model
+
+    sim.reset()
+    sim.step({'Attacker': [attack_graph.get_node_by_full_name('Start:0:remove')]})
+    assert model.get_asset_by_name('Object:1') is None
+
+    state = sim.reset()['Attacker']
+    assert isinstance(state, AttackerState)
+    entry_point = attack_graph.get_node_by_full_name('Object:1:addStartAssoc')
+    goal = attack_graph.get_node_by_full_name('Object:1:addStart')
+    assert entry_point in state.entry_points
+    assert entry_point in state.performed_nodes
+    assert state.goals == frozenset({goal})
+    settings = sim.agent_settings['Attacker']
+    assert isinstance(settings, AttackerSettings)
+    assert settings.goals == frozenset({goal})
+
+    # The episode runs to the restored goal.
+    sim.step({'Attacker': [attack_graph.get_node_by_full_name('Start:0:add')]})
+    state = sim.step({'Attacker': [goal]})['Attacker']
+    assert isinstance(state, AttackerState)
+    assert goal in state.performed_nodes
+    assert sim.done()
