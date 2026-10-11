@@ -1,0 +1,700 @@
+from __future__ import annotations
+
+from collections import defaultdict
+import logging
+from typing import Any, NamedTuple
+from collections.abc import Callable, Iterable, Mapping, Set
+import numpy as np
+from numpy.random import default_rng
+
+from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+
+from malsim import _native
+from malsim.config.agent_settings import defender_settings
+from malsim.config.agent_settings import attacker_settings
+from malsim.mal_simulator.agent_states import (
+    AgentStates,
+    attacker_states,
+    defender_states,
+)
+from malsim.mal_simulator.attacker_state import AttackerState
+from malsim.mal_simulator.attacker_step import attacker_is_terminated
+from malsim.mal_simulator.defender_state import DefenderState
+from malsim.mal_simulator.defender_step import defender_is_terminated
+from malsim.mal_simulator.graph_state import GraphState
+from malsim.mal_simulator.native_settings import (
+    flatten_attacker_settings,
+    flatten_defender_settings,
+    flatten_sim_settings,
+)
+from malsim.mal_simulator.node_getters import (
+    full_name_or_node_to_node,
+    full_names_or_nodes_to_nodes,
+    get_node,
+)
+from malsim.mal_simulator.observability import node_is_observable
+
+from malsim.mal_simulator.rewards import (
+    attacker_step_reward_fn,
+    defender_step_reward_fn,
+)
+from malsim.mal_simulator.false_alerts import (
+    node_false_negative_rate,
+    node_false_positive_rate,
+)
+from malsim.config.agent_settings import (
+    AgentSettings,
+    AttackerSettings,
+    DefenderSettings,
+)
+from malsim.types import (
+    Recording,
+)
+from malsim.scenario.scenario import Scenario
+from malsim.mal_simulator.attacker_state_factories import (
+    create_attacker_state_from_native,
+    get_entry_points,
+)
+from malsim.mal_simulator.defender_state_factories import (
+    create_defender_state_from_native,
+)
+from malsim.mal_simulator.simulator_state import (
+    MalSimulatorState,
+    create_simulator_state,
+    update_simulator_state,
+)
+from malsim.config.sim_settings import MalSimulatorSettings, RewardMode
+from malsim.mal_simulator.graph_utils import (
+    node_is_actionable,
+    node_is_necessary,
+    node_is_traversable,
+    node_is_blocked,
+    node_reward,
+)
+from malsim.mal_simulator.state_query import (
+    compromised_nodes,
+    node_is_compromised,
+    node_is_enabled_defense,
+    node_ttc_value,
+)
+from malsim.visualization.malsim_gui_client import MalSimGUIClient
+
+logger = logging.getLogger(__name__)
+
+PERFORMED_ATTACKS_FUNCS: Mapping[
+    RewardMode,
+    Callable[[AttackerState], Set[AttackGraphNode]],
+] = {
+    RewardMode.CUMULATIVE: lambda ds: ds.performed_nodes,
+    RewardMode.ONE_OFF: lambda ds: ds.step_performed_nodes,
+    RewardMode.EXPECTED_TTC: lambda ds: ds.step_performed_nodes,
+    RewardMode.SAMPLE_TTC: lambda ds: ds.step_performed_nodes,
+}
+
+ENABLED_DEFENSES_FUNCS: Mapping[
+    RewardMode, Callable[[DefenderState], Set[AttackGraphNode]]
+] = {
+    # all enabled defenses
+    RewardMode.CUMULATIVE: lambda ds: ds.performed_nodes,
+    # only newly enabled defenses
+    # (this means that the reward actually be defined
+    # as a function of the state+action
+    #  but whatever)
+    RewardMode.ONE_OFF: lambda ds: ds.step_performed_nodes,
+}
+
+ENABLED_ATTACKS_FUNCS: Mapping[
+    RewardMode, Callable[[DefenderState], Set[AttackGraphNode]]
+] = {
+    # all performed attacks
+    RewardMode.CUMULATIVE: lambda ds: ds.compromised_nodes,
+    # only newly performed attacks
+    RewardMode.ONE_OFF: lambda ds: ds.step_compromised_nodes,
+}
+
+BASE_SETTINGS = MalSimulatorSettings()
+
+
+class MALSimulatorStaticData(NamedTuple):
+    attack_graph: AttackGraph
+    sim_settings: MalSimulatorSettings
+
+
+class MalSimulator:
+    """A MAL Simulator that works on the AttackGraph
+
+    Allows user to register agents (defender and attacker)
+    and lets the agents perform actions step by step and updates
+    the state of the attack graph based on the steps chosen.
+    """
+
+    def __init__(
+        self,
+        attack_graph: AttackGraph,
+        agents: Iterable[AttackerSettings[AttackGraphNode | str] | DefenderSettings],
+        sim_settings: MalSimulatorSettings = BASE_SETTINGS,
+        send_to_api: bool = False,
+    ):
+        """
+        Args:
+            attack_graph           - The attack graph to use
+            sim_settings           - Settings for simulator
+            agent_settings         - The agents to pre-register
+            rewards                - Global rewards per node
+            false_positive_rates   - global fpr per node
+            false_negative_rates   - global fnr per node
+            node_actionabilities   - global actionabilities per node
+            node_observabilities   - global obserabilities per node
+            send_to_api            - Enable to send data to malsim-gui rest api
+        """
+        rng = default_rng(sim_settings.seed)
+        rest_api_client = MalSimGUIClient() if send_to_api else None
+        native_sim = _native.Simulator(attack_graph)
+
+        static_sim_data = MALSimulatorStaticData(
+            attack_graph,
+            sim_settings,
+        )
+
+        _attacker_settings = [a for a in agents if isinstance(a, AttackerSettings)]
+        _defender_settings = [a for a in agents if isinstance(a, DefenderSettings)]
+
+        attacker_settings_with_nodes = [
+            a.convert_to_attack_graph_nodes(attack_graph) for a in _attacker_settings
+        ]
+
+        _agent_settings: AgentSettings = {
+            a.name: a for a in (_defender_settings + attacker_settings_with_nodes)
+        } or {}
+
+        agent_states, sim_state, recording = reset(
+            static_sim_data,
+            _agent_settings,
+            rng,
+            rest_api_client,
+            native_sim,
+        )
+
+        defender_reward_fns = {
+            agent_id: defender_step_reward_fn(
+                ENABLED_DEFENSES_FUNCS[agent_settings.reward_mode],
+                ENABLED_ATTACKS_FUNCS[agent_settings.reward_mode],
+                agent_settings,
+            )
+            for agent_id, agent_settings in defender_settings(_agent_settings).items()
+        }
+        attacker_reward_fns = {
+            agent_id: attacker_step_reward_fn(
+                PERFORMED_ATTACKS_FUNCS[agent_setting.reward_mode],
+                sim_settings.ttc_mode,
+                agent_setting,
+                rng,
+            )
+            for agent_id, agent_setting in attacker_settings(_agent_settings).items()
+        }
+
+        # Set all instance variables
+        self.rng = rng
+        self._agent_states = agent_states
+        self.sim_state = sim_state
+        self.recording = recording
+        self.sim_settings = sim_settings
+        self.agent_settings = _agent_settings
+        self.rest_api_client = rest_api_client
+        self._static_data = static_sim_data
+        self._native_sim = native_sim
+        self._defender_reward_fns = defender_reward_fns
+        self._attacker_reward_fns = attacker_reward_fns
+
+    def __getstate__(self) -> dict[str, Any]:
+        """This just ensures a pickled simulator doesn't contain some data
+        structures. `_native_sim` (the native `malsim._native.Simulator`
+        handle - §5/A9) is excluded the same way `_defender_reward_fns`/
+        `_attacker_reward_fns` already are: there is no `__setstate__`, so
+        it's simply absent after unpickling, same as those two already are
+        today - PORTING_NOTES.md §10 records this as a pre-existing style
+        of limitation this phase extends rather than a new one."""
+        do_not_pickle = {
+            '_defender_reward_fns',
+            '_attacker_reward_fns',
+            '_native_sim',
+        }
+        return {k: v for (k, v) in self.__dict__.items() if k not in do_not_pickle}
+
+    @classmethod
+    def from_scenario(
+        cls,
+        scenario: Scenario | str,
+        send_to_api: bool = False,
+        sim_settings: MalSimulatorSettings | None = None,
+    ) -> MalSimulator:
+        """Create a MalSimulator object from a Scenario object or file
+
+        Args:
+            scenario - a Scenario object or a path to a scenario file
+            send_to_api - whether to send data to GUI REST API or not
+        """
+        return create_simulator_from_scenario(scenario, send_to_api, sim_settings)
+
+    def done(self) -> bool:
+        return done(self.alive_agents)
+
+    @property
+    def alive_agents(self) -> Set[str]:
+        return alive_agents(self._agent_states)
+
+    def node_ttc_value(
+        self, node: AttackGraphNode, agent_name: str | None = None
+    ) -> float:
+        if agent_name:
+            agent = self._agent_states[agent_name]
+            assert isinstance(agent, AttackerState), (
+                'TTC values only apply to attackers'
+            )
+            return node_ttc_value(agent, node)
+        else:
+            return self.sim_state.graph_state.ttc_values[node]
+
+    def node_is_actionable(
+        self, node: AttackGraphNode, agent_name: str | None = None
+    ) -> bool:
+        agent_actionability = (
+            self.agent_settings[agent_name].actionable_steps if agent_name else None
+        )
+        return node_is_actionable(agent_actionability, node)
+
+    def node_reward(self, node: AttackGraphNode, agent_name: str) -> float:
+        return node_reward(node, reward_rule=self.agent_settings[agent_name].rewards)
+
+    def node_is_observable(
+        self, node: AttackGraphNode, agent_name: str | None = None
+    ) -> bool:
+        agent_observability = None
+        if agent_name:
+            agent = defender_settings(self.agent_settings)[agent_name]
+            agent_observability = agent.observable_steps
+
+        return (
+            node_is_observable(agent_observability, node)
+            if agent_observability
+            else True
+        )
+
+    def node_false_positive_rate(
+        self, node: AttackGraphNode, agent_name: str | None = None
+    ) -> float:
+        false_positive_rates_rule = None
+        if agent_name:
+            agent = defender_settings(self.agent_settings)[agent_name]
+            false_positive_rates_rule = agent.false_positive_rates
+        return node_false_positive_rate(node, false_positive_rates_rule)
+
+    def node_false_negative_rate(
+        self, node: AttackGraphNode, agent_name: str | None = None
+    ) -> float:
+        false_negative_rates_rule = None
+        if agent_name:
+            agent = defender_settings(self.agent_settings)[agent_name]
+            false_negative_rates_rule = agent.false_negative_rates
+        return node_false_negative_rate(node, false_negative_rates_rule)
+
+    def node_is_blocked(self, node: AttackGraphNode | str) -> bool:
+        node = full_name_or_node_to_node(self.sim_state.attack_graph, node)
+        return node_is_blocked(self.sim_state, node)
+
+    def node_is_necessary(self, node: AttackGraphNode | str) -> bool:
+        node = full_name_or_node_to_node(self.sim_state.attack_graph, node)
+        return node_is_necessary(self.sim_state, node)
+
+    def node_is_enabled_defense(self, node: AttackGraphNode | str) -> bool:
+        return node_is_enabled_defense(
+            self.sim_state.attack_graph,
+            self._agent_states,
+            node,
+        )
+
+    def node_is_compromised(self, node: AttackGraphNode | str) -> bool:
+        return node_is_compromised(
+            self.sim_state.attack_graph,
+            self._agent_states,
+            node,
+        )
+
+    @property
+    def compromised_nodes(self) -> Set[AttackGraphNode]:
+        return compromised_nodes(
+            self._agent_states,
+        )
+
+    def node_is_traversable(
+        self, performed_nodes: Set[AttackGraphNode], node: AttackGraphNode
+    ) -> bool:
+        return node_is_traversable(self.sim_state, performed_nodes, node)
+
+    def get_node(
+        self, full_name: str | None = None, node_id: int | None = None
+    ) -> AttackGraphNode:
+        return get_node(self.sim_state.attack_graph, full_name, node_id)
+
+    def agent_reward_by_name(self, agent_name: str) -> float:
+        return self.agent_reward(agent_state=self.agent_states[agent_name])
+
+    def agent_reward(self, agent_state: AttackerState | DefenderState) -> float:
+        return self._agent_reward_from_state(agent_state) or 0.0
+
+    def agent_is_terminated(self, agent_name: str) -> bool:
+        return agent_is_terminated(self._agent_states, agent_name)
+
+    def reset(
+        self, seed: int | None = None
+    ) -> dict[str, AttackerState | DefenderState]:
+        """
+        Reset the simulator to the initial state.
+        Optionally, a seed can be provided to re-seed the random number generator.
+        """
+        (
+            self._agent_states,
+            self.sim_state,
+            self.recording,
+        ) = reset(
+            self._static_data,
+            self.agent_settings,
+            self.rng,
+            self.rest_api_client,
+            self._native_sim,
+        )
+
+        if seed is not None:
+            self.rng = default_rng(seed)
+
+        return self._agent_states
+
+    @property
+    def agent_states(self) -> dict[str, AttackerState | DefenderState]:
+        """Return read only agent state for all dead and alive agents"""
+        return self._agent_states
+
+    def _defender_is_terminated(self) -> bool:
+        return defender_is_terminated(self._agent_states)
+
+    def _agent_reward_from_state(
+        self, state: AttackerState | DefenderState
+    ) -> float | None:
+        return (
+            (
+                self._defender_reward_fns[state.name](state)
+                if state.name in self._defender_reward_fns
+                else None
+            )
+            if isinstance(state, DefenderState)
+            else (
+                self._attacker_reward_fns[state.name](state)
+                if state.name in self._attacker_reward_fns
+                else None
+            )
+        )
+
+    def step(
+        self, actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]]
+    ) -> dict[str, AttackerState | DefenderState]:
+        agent_states, recording, sim_state = step(
+            self.recording,
+            self.sim_state,
+            self._agent_states,
+            actions,
+            self._native_sim,
+            self.rest_api_client,
+        )
+        self._agent_states = agent_states
+        self.recording = recording
+        self.sim_state = sim_state
+
+        return self._agent_states
+
+
+def create_simulator_from_scenario(
+    scenario: str | Scenario,
+    send_to_api: bool = False,
+    sim_settings: MalSimulatorSettings | None = None,
+) -> MalSimulator:
+    if isinstance(scenario, str):
+        # Load scenario if file was given
+        scenario = Scenario.load_from_file(scenario)
+
+    return MalSimulator(
+        scenario.attack_graph,
+        sim_settings=sim_settings or scenario.sim_settings,
+        send_to_api=send_to_api,
+        agents=scenario.agent_settings,
+    )
+
+
+def done(alive_agents: Set[str]) -> bool:
+    """Return True if simulation run is done"""
+    return len(alive_agents) == 0
+
+
+def agent_is_terminated(agent_states: AgentStates, agent_name: str) -> bool:
+    """Return True if agent was terminated"""
+    agent_state = agent_states[agent_name]
+    if isinstance(agent_state, AttackerState):
+        return attacker_is_terminated(agent_state)
+    elif isinstance(agent_state, DefenderState):
+        return defender_is_terminated(agent_states)
+    else:
+        raise TypeError(f'Unknown agent state for {agent_name}')
+
+
+def _graph_state_from_native(
+    attack_graph: AttackGraph, native_sim_state: Mapping[str, Any]
+) -> GraphState:
+    """Resolve `reset_native`'s `sim_state` dict (ttc_values/
+    impossible_attack_steps/necessity_per_node/pre_enabled_defenses, all
+    id-keyed - §5/A9) back into a `GraphState` of real `AttackGraphNode`s."""
+    return GraphState(
+        ttc_values={
+            attack_graph.nodes[node_id]: value
+            for node_id, value in native_sim_state['ttc_values'].items()
+        },
+        pre_enabled_defenses=frozenset(
+            attack_graph.nodes[node_id]
+            for node_id in native_sim_state['pre_enabled_defenses']
+        ),
+        impossible_attack_steps=frozenset(
+            attack_graph.nodes[node_id]
+            for node_id in native_sim_state['impossible_attack_steps']
+        ),
+        necessity_per_node={
+            attack_graph.nodes[node_id]: value
+            for node_id, value in native_sim_state['necessity_per_node'].items()
+        },
+    )
+
+
+def reset(
+    static_data: MALSimulatorStaticData,
+    agent_settings: AgentSettings,
+    rng: np.random.Generator,
+    rest_api_client: MalSimGUIClient | None,
+    native_sim: _native.Simulator,
+) -> tuple[
+    AgentStates,
+    MalSimulatorState,
+    Recording,
+]:
+    """Reset attack graph and reinitialize agents.
+
+    Delegates to `malsim._native.Simulator.reset_native` (PORTING_NOTES.md
+    §5 Phase A9) - the only piece still resolved in pure Python beforehand
+    is "multiple entry point sets, sampled at reset"
+    (`AttackerSettings.entry_points` as a `tuple[Set, ...]`): native only
+    accepts a single flat entry-point set per attacker, so the sampling
+    (`get_entry_points`, unchanged - also used by `DynaMalSimulator`'s
+    pure-Python path, §2.3/§10) happens here first, and only the resolved
+    single set crosses the FFI boundary.
+    """
+    logger.info('Resetting MAL Simulator.')
+    attack_graph = static_data.attack_graph
+    settings = static_data.sim_settings
+
+    _attacker_settings = attacker_settings(agent_settings)
+    _defender_settings = defender_settings(agent_settings)
+
+    entry_points_by_attacker = {
+        name: get_entry_points(attack_graph, a_settings, rng)
+        for name, a_settings in _attacker_settings.items()
+    }
+
+    native_settings = flatten_sim_settings(settings)
+    native_agents: dict[str, Any] = {
+        name: flatten_attacker_settings(
+            a_settings, attack_graph, entry_points_by_attacker[name]
+        )
+        for name, a_settings in _attacker_settings.items()
+    }
+    native_agents.update(
+        {
+            name: flatten_defender_settings(d_settings, attack_graph)
+            for name, d_settings in _defender_settings.items()
+        }
+    )
+
+    # Native's RNG state can't be derived from `rng` beyond a seed (§2.1:
+    # statistically-, not bit-, equivalent only) - drawing one here keeps
+    # native's sampling reproducible for a fixed `sim_settings.seed`,
+    # consistent with the rest of this `rng`-seeded reset.
+    native_seed = int(rng.integers(0, 2**63 - 1))
+    native_out = native_sim.reset_native(native_settings, native_agents, native_seed)
+
+    graph_state = _graph_state_from_native(attack_graph, native_out['sim_state'])
+    sim_state = create_simulator_state(attack_graph, graph_state, settings)
+
+    agent_states: AgentStates = {}
+    for name, a_settings in _attacker_settings.items():
+        agent_states[name] = create_attacker_state_from_native(
+            sim_state,
+            name,
+            a_settings,
+            entry_points_by_attacker[name],
+            native_out['agents'][name],
+            previous_state=None,
+        )
+    for name, d_settings in _defender_settings.items():
+        agent_states[name] = create_defender_state_from_native(
+            sim_state,
+            name,
+            d_settings,
+            native_out['agents'][name],
+            previous_state=None,
+        )
+
+    # Upload initial state to the REST API
+    if rest_api_client:
+        rest_api_client.upload_initial_state(attack_graph)
+
+    return agent_states, sim_state, defaultdict(dict)
+
+
+def _pre_step_check(
+    agent_states: AgentStates,
+    alive_agents: Set[str],
+    actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]],
+) -> None:
+    """Do some checks before performing step to inform the users"""
+    if not agent_states:
+        msg = 'No agents registered'
+        logger.warning(msg)
+
+    if done(alive_agents):
+        msg = 'Simulation is done but you can still step'
+        logger.warning(msg)
+
+    for agent_name in actions:
+        if agent_name not in agent_states:
+            raise KeyError(f"No agent has name '{agent_name}'")
+
+
+def _ordered_new_nodes(
+    requested: list[AttackGraphNode], new_nodes: Set[AttackGraphNode]
+) -> list[AttackGraphNode]:
+    """Order `new_nodes` (this step's newly-performed nodes, from a
+    native-returned set - unordered) the same way the old pure-Python
+    `attacker_step`/`defender_step` effectively did: the explicitly
+    `requested` actions first, in request order, filtered to the ones
+    that actually succeeded, followed by any remaining nodes (effect-chain
+    compromises, which were never explicitly requested) - whose *relative*
+    order is no longer reproducible from native's aggregated per-step
+    output and is therefore implementation-defined (PORTING_NOTES.md §10,
+    A9)."""
+    direct = [n for n in requested if n in new_nodes]
+    effects = [n for n in new_nodes if n not in requested]
+    return direct + effects
+
+
+def step(
+    recording: Recording,
+    sim_state: MalSimulatorState,
+    agent_states: AgentStates,
+    actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]],
+    native_sim: _native.Simulator,
+    rest_api_client: MalSimGUIClient | None = None,
+) -> tuple[AgentStates, Recording, MalSimulatorState]:
+    """Take a step in the simulation
+
+    Args:
+    actions - a dict mapping agent name to agent actions which is a list
+                of AttackGraphNode or full names of the nodes to perform
+
+    Returns:
+    - A dictionary containing the agent state views keyed by agent names
+
+    Delegates to `malsim._native.Simulator.step_native` (PORTING_NOTES.md
+    §5 Phase A9), which already runs defenders before attackers internally
+    (mirroring this function's own historical ordering) - see
+    `malsim_core::simulator::Simulator::step`'s doc comment.
+    """
+
+    _pre_step_check(agent_states, alive_agents(agent_states), actions)
+
+    attack_graph = sim_state.attack_graph
+    native_actions = {
+        name: [node.id for node in full_names_or_nodes_to_nodes(attack_graph, nodes)]
+        for name, nodes in actions.items()
+    }
+    native_out = native_sim.step_native(native_actions)
+
+    sim_state = update_simulator_state(
+        sim_state,
+        frozenset(
+            attack_graph.nodes[node_id]
+            for node_id in native_out['sim_state']['step_enabled_defenses']
+        ),
+    )
+
+    # Populate these from the results for all agents' actions.
+    step_compromised_nodes: list[AttackGraphNode] = []
+    step_enabled_defenses: list[AttackGraphNode] = []
+    current_iteration = 0
+
+    # Perform defender actions first
+    for defender_state in defender_states(agent_states).values():
+        new_defender_state = create_defender_state_from_native(
+            sim_state,
+            defender_state.name,
+            defender_state.settings,
+            native_out['agents'][defender_state.name],
+            previous_state=defender_state,
+        )
+        current_iteration = defender_state.iteration
+
+        requested = list(
+            full_names_or_nodes_to_nodes(
+                attack_graph, actions.get(defender_state.name, [])
+            )
+        )
+        enabled = _ordered_new_nodes(requested, new_defender_state.step_performed_nodes)
+        recording[current_iteration][defender_state.name] = enabled
+        step_enabled_defenses += enabled
+        agent_states[defender_state.name] = new_defender_state
+
+    # Perform attacker actions afterwards
+    for attacker_state in attacker_states(agent_states).values():
+        new_attacker_state = create_attacker_state_from_native(
+            sim_state,
+            attacker_state.name,
+            attacker_state.settings,
+            attacker_state.entry_points,
+            native_out['agents'][attacker_state.name],
+            previous_state=attacker_state,
+        )
+        current_iteration = attacker_state.iteration
+
+        requested = list(
+            full_names_or_nodes_to_nodes(
+                attack_graph, actions.get(attacker_state.name, [])
+            )
+        )
+        compromised = _ordered_new_nodes(
+            requested, new_attacker_state.step_performed_nodes
+        )
+        step_compromised_nodes += compromised
+        recording[current_iteration][attacker_state.name] = compromised
+        agent_states[attacker_state.name] = new_attacker_state
+
+    # the way current_iteration is used here is flawed.
+    if rest_api_client:
+        rest_api_client.upload_performed_nodes(
+            step_compromised_nodes + step_enabled_defenses,
+            current_iteration,
+        )
+
+    return agent_states, recording, sim_state
+
+
+def alive_agents(agent_states: AgentStates) -> Set[str]:
+    """Return a set of alive agents"""
+    return {
+        agent_name
+        for agent_name in agent_states
+        if not agent_is_terminated(agent_states, agent_name)
+    }

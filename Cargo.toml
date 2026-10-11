@@ -1,0 +1,19 @@
+[workspace]
+resolver = "2"
+members = [
+    "core/malsim-core",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/mal-lang/mal-simulator"
+publish = false
+
+[workspace.dependencies]
+malsim-core = { path = "core/malsim-core" }
+
+maltoolbox-attackgraph = { git = "https://github.com/mal-lang/mal-toolbox", branch = "rust-rewrite" }
+maltoolbox-language = { git = "https://github.com/mal-lang/mal-toolbox", branch = "rust-rewrite" }
+maltoolbox-model = { git = "https://github.com/mal-lang/mal-toolbox", branch = "rust-rewrite" }

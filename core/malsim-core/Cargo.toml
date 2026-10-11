@@ -1,0 +1,16 @@
+[package]
+name = "malsim-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+maltoolbox-attackgraph = { workspace = true }
+maltoolbox-language = { workspace = true }
+maltoolbox-model = { workspace = true }
+rand = "0.10.3"
+serde_json = { version = "1.0.151", features = ["preserve_order"] }
+serde_yaml = "0.9.34"
+statrs = { version = "0.19.1", default-features = false, features = ["std", "rand"] }

@@ -1,108 +1,108 @@
-from malsim.config.sim_settings import MalSimulatorSettings
+import itertools
+
 from malsim.mal_simulator.defender_state import DefenderState
-from malsim.mal_simulator.event_logger import LogEntry
 from malsim.mal_simulator.simulator import MalSimulator
 from malsim.mal_simulator import run_simulation
 from malsim.scenario.scenario import Scenario
-from maltoolbox.attackgraph import Detector
+from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+from malsim import _native
+
+from .conftest import get_node
+
+SCENARIO_FILE = 'tests/testdata/scenarios/detector_lang_scenario.yml'
+
+
+def _force_detector_rates(
+    graph: AttackGraph, node: AttackGraphNode, tprate: float, fprate: float
+) -> None:
+    """Forces node's 'logExploit' detector's tprate/fprate.
+
+    `node.detectors['logExploit'] = Detector(...)` only mutates a
+    Python-side cache `maltoolbox`'s bindings hand out - it's never
+    visible to malsim's Rust-native `collect_logs`/`collect_false_positives`
+    (PORTING_NOTES.md §5/§10 Phase A9), which read the attack graph's real
+    detector data through the shared graph handle. `_native.set_detector_rates`
+    mutates that real data directly instead.
+    """
+    _native.set_detector_rates(graph, node.id, 'logExploit', tprate, fprate)
 
 
 def test_logger_attacks() -> None:
-    """Verify that compromised nodes are logged correctly in defender state"""
+    """Every compromised node with a detector produces exactly one
+    true-positive log, with the expected detector context."""
 
-    scenario = Scenario.load_from_file(
-        'tests/testdata/scenarios/detector_lang_scenario.yml'
-    )
-    sim = MalSimulator.from_scenario(
-        scenario, sim_settings=MalSimulatorSettings(seed=10)
-    )
+    scenario = Scenario.load_from_file(SCENARIO_FILE)
+    graph = scenario.attack_graph
+
+    # Force certain detection and no false positives, so the logs produced
+    # depend only on which nodes get compromised, not on rng draws.
+    for name in ('Application:1:exploit', 'Application:5:exploit'):
+        _force_detector_rates(graph, get_node(graph, name), tprate=1.0, fprate=0.0)
+
+    sim = MalSimulator.from_scenario(scenario)
     run_simulation(sim)
+
     defender_state = sim.agent_states['Defender']
     assert isinstance(defender_state, DefenderState)
-    assert defender_state.logs == (
-        LogEntry(
-            timestep=2,
-            detector_name='logExploit',
-            detector=sim.get_node('Application:1:exploit').detectors['logExploit'],
-            trigger=sim.get_node('Application:1:exploit'),
-            context={'computer': sim.get_node('Computer:0:authenticate')},
-            false_positive=False,
-        ),
-        LogEntry(
-            timestep=3,
-            detector_name='logExploit',
-            detector=sim.get_node('Application:5:exploit').detectors['logExploit'],
-            trigger=sim.get_node('Application:5:exploit'),
-            context={},
-            false_positive=False,
-        ),
-    )
+
+    app1_exploit = sim.get_node('Application:1:exploit')
+    app5_exploit = sim.get_node('Application:5:exploit')
+    assert {app1_exploit, app5_exploit} <= defender_state.compromised_nodes
+
+    logs_by_trigger = {log.trigger: log for log in defender_state.logs}
+    assert set(logs_by_trigger) == {app1_exploit, app5_exploit}
+    assert all(not log.false_positive for log in defender_state.logs)
+    assert logs_by_trigger[app1_exploit].context == {
+        'computer': sim.get_node('Computer:0:authenticate')
+    }
+    assert logs_by_trigger[app5_exploit].context == {}
 
 
 def test_logger_attacks_false_negative() -> None:
     """Verify that false negatives can occur"""
 
-    scenario = Scenario.load_from_file(
-        'tests/testdata/scenarios/detector_lang_scenario.yml'
+    scenario = Scenario.load_from_file(SCENARIO_FILE)
+    graph = scenario.attack_graph
+
+    # Application:1's detector can never trigger (tprate below any rng
+    # draw), Application:5's always does -- fprate is forced to 0 on both
+    # so the only logs possible are true positives.
+    _force_detector_rates(
+        graph, get_node(graph, 'Application:1:exploit'), tprate=-1.0, fprate=0.0
     )
-    sim = MalSimulator.from_scenario(
-        scenario, sim_settings=MalSimulatorSettings(seed=10)
+    _force_detector_rates(
+        graph, get_node(graph, 'Application:5:exploit'), tprate=1.0, fprate=0.0
     )
 
-    app1_exploit = sim.get_node('Application:1:exploit')
-    # Set tprate to 0 to guarantee false negative for this step,
-    # even though it is exploited
-    app1_exploit.detectors['logExploit'] = Detector(
-        name=app1_exploit.detectors['logExploit'].name,
-        node=app1_exploit.detectors['logExploit'].node,
-        potential_context=app1_exploit.detectors['logExploit'].potential_context,
-        tprate=0.1,
-    )
-
+    sim = MalSimulator.from_scenario(scenario)
     run_simulation(sim)
 
     defender_state = sim.agent_states['Defender']
     assert isinstance(defender_state, DefenderState)
+
+    app1_exploit = sim.get_node('Application:1:exploit')
     assert app1_exploit in defender_state.compromised_nodes
-    assert defender_state.logs == (
-        # No logs for Application 1 since it had too low TPRATE,
-        # even though it was exploited
-        LogEntry(
-            timestep=3,
-            detector_name='logExploit',
-            detector=sim.get_node('Application:5:exploit').detectors['logExploit'],
-            trigger=sim.get_node('Application:5:exploit'),
-            context={},
-            false_positive=False,
-        ),
-    )
+
+    triggers = {log.trigger for log in defender_state.logs}
+    assert app1_exploit not in triggers
+    assert sim.get_node('Application:5:exploit') in triggers
 
 
 def test_logger_attacks_false_positive() -> None:
     """Verify that false positives can occur"""
 
-    scenario = Scenario.load_from_file(
-        'tests/testdata/scenarios/detector_lang_scenario.yml'
+    scenario = Scenario.load_from_file(SCENARIO_FILE)
+    graph = scenario.attack_graph
+
+    # fprate=1.0 guarantees a false positive every step regardless of the
+    # rng draw. Application:5's fprate is silenced so it doesn't also log.
+    app1_exploit = get_node(graph, 'Application:1:exploit')
+    _force_detector_rates(graph, app1_exploit, tprate=1.0, fprate=1.0)
+    _force_detector_rates(
+        graph, get_node(graph, 'Application:5:exploit'), tprate=1.0, fprate=0.0
     )
 
-    # Set fprate to 0.9 to guarantee false positive for this step,
-    # even though it is not exploited
-    app1_exploit = scenario.attack_graph.get_node_by_full_name('Application:1:exploit')
-
-    mocked_detector = Detector(
-        name=app1_exploit.detectors['logExploit'].name,
-        node=app1_exploit.detectors['logExploit'].node,
-        potential_context=app1_exploit.detectors['logExploit'].potential_context,
-        tprate=1.0,
-        fprate=0.9,
-    )
-
-    scenario.attack_graph.detectors.remove(app1_exploit.detectors['logExploit'])
-    scenario.attack_graph.detectors.append(mocked_detector)
-
-    sim = MalSimulator.from_scenario(
-        scenario, sim_settings=MalSimulatorSettings(seed=10)
-    )
+    sim = MalSimulator.from_scenario(scenario)
 
     for _ in range(5):
         sim.step({})
@@ -111,45 +111,60 @@ def test_logger_attacks_false_positive() -> None:
     assert isinstance(defender_state, DefenderState)
     assert app1_exploit not in defender_state.compromised_nodes
     assert defender_state.logs
-    assert defender_state.logs == (
-        LogEntry(
-            timestep=0,
-            detector_name='logExploit',
-            detector=mocked_detector,
-            trigger=sim.get_node('Application:1:exploit'),
-            context={'computer': sim.get_node('Computer:0:authenticate')},
-            false_positive=True,
-        ),
-        LogEntry(
-            timestep=1,
-            detector_name='logExploit',
-            detector=mocked_detector,
-            trigger=sim.get_node('Application:1:exploit'),
-            context={'computer': sim.get_node('Computer:0:authenticate')},
-            false_positive=True,
-        ),
-        LogEntry(
-            timestep=2,
-            detector_name='logExploit',
-            detector=mocked_detector,
-            trigger=sim.get_node('Application:1:exploit'),
-            context={'computer': sim.get_node('Computer:0:authenticate')},
-            false_positive=True,
-        ),
-        LogEntry(
-            timestep=4,
-            detector_name='logExploit',
-            detector=mocked_detector,
-            trigger=sim.get_node('Application:1:exploit'),
-            context={'computer': sim.get_node('Computer:0:authenticate')},
-            false_positive=True,
-        ),
-        LogEntry(
-            timestep=5,
-            detector_name='logExploit',
-            detector=mocked_detector,
-            trigger=sim.get_node('Application:1:exploit'),
-            context={'computer': sim.get_node('Computer:0:authenticate')},
-            false_positive=True,
-        ),
+    assert all(log.false_positive for log in defender_state.logs)
+    assert all(log.trigger == app1_exploit for log in defender_state.logs)
+
+
+def test_logger_incremental_log_merge_matches_full_rerun() -> None:
+    """Regression test for the O(episode^2) `logs` bug (PORTING_NOTES.md
+    §10's post-A10/pre-A11 differences-log entry): `step_native` used to
+    resend the full episode-accumulated log history every step, which
+    `create_defender_state_from_native` then re-parsed from scratch into
+    fresh `LogEntry` objects every single call. It's since been changed
+    to exchange and merge only this step's delta against
+    `previous_state.logs` - this test is the one that would have caught a
+    broken merge (double-counted or dropped log entries): it forces a
+    detector to fire on *every* step for several steps, and confirms that
+    reading `defender_state.logs` after every individual incremental
+    `sim.step()` call produces exactly the same accumulated history as
+    only reading `.logs` once, after running the identical episode to
+    completion in one shot.
+    """
+    scenario = Scenario.load_from_file(SCENARIO_FILE)
+    graph = scenario.attack_graph
+
+    # fprate=1.0 guarantees a false positive every step regardless of the
+    # rng draw - Application:5's fprate is silenced so it doesn't also log.
+    app1_exploit = get_node(graph, 'Application:1:exploit')
+    _force_detector_rates(graph, app1_exploit, tprate=1.0, fprate=1.0)
+    _force_detector_rates(
+        graph, get_node(graph, 'Application:5:exploit'), tprate=1.0, fprate=0.0
     )
+
+    n_steps = 5
+
+    # Incremental: read `.logs` after every single step.
+    sim_incremental = MalSimulator.from_scenario(scenario)
+    logs_after_each_step = []
+    for _ in range(n_steps):
+        sim_incremental.step({})
+        defender_state = sim_incremental.agent_states['Defender']
+        assert isinstance(defender_state, DefenderState)
+        logs_after_each_step.append(defender_state.logs)
+
+    # One-shot: run the identical episode on a separate simulator, only
+    # reading `.logs` once, after the whole thing has run.
+    sim_one_shot = MalSimulator.from_scenario(scenario)
+    for _ in range(n_steps):
+        sim_one_shot.step({})
+    defender_state_one_shot = sim_one_shot.agent_states['Defender']
+    assert isinstance(defender_state_one_shot, DefenderState)
+
+    # Every step's incrementally-merged `.logs` must be a prefix of the
+    # next, growing by exactly one new log per step (the forced false
+    # positive fires every step, no more, no less), and the final step's
+    # must equal the one-shot read exactly.
+    for earlier, later in itertools.pairwise(logs_after_each_step):
+        assert earlier == later[: len(earlier)]
+        assert len(later) == len(earlier) + 1
+    assert logs_after_each_step[-1] == defender_state_one_shot.logs

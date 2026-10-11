@@ -12,7 +12,7 @@ description = "A MAL compliant simulator."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "mal-toolbox>=2.11.0",
+  "mal-toolbox @ git+https://github.com/mal-lang/mal-toolbox.git@rust-rewrite",
   "PyYAML>=6.0.1",
   "numpy>=1.21.4",
   "scipy",
@@ -54,14 +54,17 @@ dev = [
 malsim = "malsim.__main__:main"
 
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1,<2"]
+build-backend = "maturin"
 
-[tool.setuptools.packages.find]
-include = ["malsim*"]
+[tool.maturin]
+manifest-path = "py-bindings/malsim-pyo3/Cargo.toml"
+module-name = "malsim._native"
+python-source = "python"
+include = ["malsim/_native-stubs/**/*.pyi"]
 
 [tool.pytest.ini_options]
-pythonpath = ['.']
+pythonpath = ['python']
 
 [tool.mypy]
 strict = true

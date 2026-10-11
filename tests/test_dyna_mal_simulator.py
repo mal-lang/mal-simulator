@@ -14,10 +14,6 @@ from maltoolbox.attackgraph import AttackGraph
 from maltoolbox.model import Model, ModelAsset
 from maltoolbox.language.language_graph_model_effect import ModelEffectType
 from malsim.config.sim_settings import TTCMode
-from malsim.dyna_mal_simulator.model_effects import (
-    _apply_model_effect,
-)
-from malsim.dyna_mal_simulator.process_assoc_traversal import traverse_association_chain
 from malsim.dyna_mal_simulator.simulator_state import AssetOp, AssocOp
 from malsim.mal_simulator import (
     MalSimulatorSettings,
@@ -36,6 +32,8 @@ from malsim.policies.attackers.searchers import BreadthFirstAttacker, DepthFirst
 from malsim.policies.attackers.ttc_soft_min import TTCSoftMinAttacker
 from malsim.policies.random_agent import RandomAgent
 from malsim.dyna_mal_simulator import DynaMalSimulator
+from malsim.mal_simulator.attacker_state import AttackerState
+from malsim.mal_simulator.defender_state import DefenderState
 
 if TYPE_CHECKING:
     from maltoolbox.model import Model
@@ -214,159 +212,6 @@ def test_reset(wiperLang_scenario: Scenario) -> None:
             assert necessity_before[node.full_name] == necessary
 
 
-def test_assoc_traversal(wiperLang_attack_graph: AttackGraph) -> None:
-    """Test the association traversal logic"""
-    rng = np.random.default_rng(42)
-    # Check Device:infect step has self as base, so the traversal should return
-    # the same asset
-    infect_step = wiperLang_attack_graph.get_node_by_full_name('InfectedDevice:infect')
-    assert infect_step.model_asset, 'Infect step should have a model asset'
-    assert infect_step.additive_model_effects, 'Infect step should have model effects'
-    terminating_assets = traverse_association_chain(
-        {infect_step.model_asset}, infect_step.additive_model_effects[0].base, rng
-    )
-    assert terminating_assets == {infect_step.model_asset}, (
-        'Infect step has self as base'
-    )
-    assert infect_step.additive_model_effects
-
-    # Check that target of Device:infect doesn't resolve to any assets
-    resolved_assets = traverse_association_chain(
-        terminating_assets,
-        infect_step.additive_model_effects[0].targets[0].assoc_traversal,
-        rng,
-    )
-    assert len(resolved_assets) == 0, 'Infect step should not have any targets yet'
-
-    # Add Wiper asset into model
-    model = wiperLang_attack_graph.model
-    assert model is not None, 'Model should be available in attack graph'
-    wiper = model.add_asset('Wiper', 'Wiper', max(model.assets.keys()) + 1)
-    infected_device = model.get_asset_by_name('InfectedDevice')
-    assert infected_device
-    wiper.add_associated_assets('victim', {infected_device})
-    wiperLang_attack_graph.regenerate_graph()
-
-    # Check that Device:infect step has Wiper as target, so the traversal should
-    # return the Wiper asset
-    terminating_assets = traverse_association_chain(
-        terminating_assets,
-        infect_step.additive_model_effects[0].targets[0].assoc_traversal,
-        rng,
-    )
-    assert terminating_assets == {wiper}, 'Infect step should have Wiper as target'
-
-    # Check that Wiper:exfiltrate step has the InfectedData as base
-    exfiltrate_step = wiperLang_attack_graph.get_node_by_full_name('Wiper:exfiltrate')
-    assert exfiltrate_step.model_asset
-    assert exfiltrate_step.additive_model_effects
-    terminating_assets = traverse_association_chain(
-        {exfiltrate_step.model_asset},
-        exfiltrate_step.additive_model_effects[0].base,
-        rng,
-    )
-    assert terminating_assets == {model.get_asset_by_name('InfectedData')}, (
-        'Exfiltrate step should have InfectedData as base'
-    )
-
-    # Check that target of Wiper:exfiltrate doesn't resolve to any assets,
-    # this is because the InfectedData is not yet associated to the C2Server
-    resolved_assets = traverse_association_chain(
-        terminating_assets,
-        exfiltrate_step.additive_model_effects[0].targets[0].assoc_traversal,
-        rng,
-    )
-    assert len(resolved_assets) == 0, (
-        'Exfiltrate step should not have any targets yet, because InfectedData is '
-        'not associated to C2Server'
-    )
-
-    infected_data = model.get_asset_by_name('InfectedData')
-    assert infected_data
-    c2_server = model.get_asset_by_name('C2Server')
-    assert c2_server
-    infected_data.add_associated_assets('node', {c2_server})
-
-    # This target refers to an additive assoc op,
-    # so the instigating asset is the asset where the step is defined
-    terminating_assets = traverse_association_chain(
-        {exfiltrate_step.model_asset},
-        exfiltrate_step.additive_model_effects[0].targets[0].assoc_traversal,
-        rng,
-    )
-    assert terminating_assets == {infected_data}, (
-        'Exfiltrate step target resolve to InfectedData after association to C2Server'
-    )
-
-
-def test_apply_model_effect(wiperLang_attack_graph: AttackGraph) -> None:
-    """Test that applying a model effect modifies the model as expected"""
-    rng = np.random.default_rng(42)
-
-    model = wiperLang_attack_graph.model
-    assert model
-    infected_device = model.get_asset_by_name('InfectedDevice')
-    assert infected_device
-    assert 'malware' not in infected_device.associated_assets, (
-        'InfectedDevice should not have malware associated before applying model effect'
-    )
-    infect_step = wiperLang_attack_graph.get_node_by_full_name('InfectedDevice:infect')
-    assert infect_step.additive_model_effects
-    model_effect_record = _apply_model_effect(
-        infect_step, infect_step.additive_model_effects[0], model, rng
-    )
-    assert 'malware' in infected_device.associated_assets, (
-        'InfectedDevice should have malware associated after applying model effect'
-    )
-    assert any(
-        assoc_op.assoc
-        == (
-            model.get_asset_by_name('InfectedDevice'),
-            'malware',
-            model.get_asset_by_name('Wiper-7'),
-        )
-        for assoc_op in model_effect_record
-        if isinstance(assoc_op, AssocOp)
-    )
-
-    wiper = next(asset for asset in model.assets.values() if asset.type == 'Wiper')
-    assert infected_device in wiper.associated_assets['victim'], (
-        'Wiper should have InfectedDevice as victim after applying model effect'
-    )
-    assert any(
-        asset_op.asset == wiper
-        for asset_op in model_effect_record
-        if isinstance(asset_op, AssetOp)
-    )
-
-    infected_data = model.get_asset_by_name('InfectedData')
-    assert infected_data
-    assert infected_data.associated_assets.get('node') == {infected_device}, (
-        'InfectedData should be associated to InfectedDevice before applying '
-        'model effect'
-    )
-    wiperLang_attack_graph.regenerate_graph()
-    exfiltrate_step = wiperLang_attack_graph.get_node_by_full_name('Wiper-7:exfiltrate')
-    assert exfiltrate_step.additive_model_effects
-    model_effect_record = _apply_model_effect(
-        exfiltrate_step, exfiltrate_step.additive_model_effects[0], model, rng
-    )
-    c2_server = model.get_asset_by_name('C2Server')
-    assert c2_server
-    assert infected_data.associated_assets.get('node') == {
-        infected_device,
-        c2_server,
-    }, (
-        'InfectedData should be associated to InfectedDevice and C2Server after '
-        'applying model effect'
-    )
-    assert any(
-        assoc_op.assoc == (c2_server, 'data', infected_data)
-        for assoc_op in model_effect_record
-        if isinstance(assoc_op, AssocOp)
-    )
-
-
 def test_apply_model_effect_modification_record_partially_regenerates_graph(
     dynamic_remove_many_assoc_scenario: Scenario,
 ) -> None:
@@ -385,25 +230,37 @@ def test_apply_model_effect_modification_record_partially_regenerates_graph(
 
     fuzz_step = random.choice(remove_steps)
     assert fuzz_step.subtractive_model_effects
-    modification_record = _apply_model_effect(
-        fuzz_step,
-        fuzz_step.subtractive_model_effects[0],
-        model,
-        np.random.default_rng(),
+
+    # Drive the removal through the simulator (native `execute_model_effects`
+    # + `partially_regenerate_graph`), with the step as an entry point so it
+    # can be performed directly regardless of the scenario's action surface.
+    sim = DynaMalSimulator(
+        attack_graph,
+        agents=[AttackerSettings(name='Fuzzer', entry_points={fuzz_step})],
+        sim_settings=MalSimulatorSettings(
+            ttc_mode=TTCMode.DISABLED, compromise_entrypoints_at_start=False
+        ),
     )
-    removed_assets = {
-        op.asset
-        for op in modification_record
-        if isinstance(op, AssetOp) and op.type == ModelEffectType.SUBTRACTIVE
-    }
-    removed_associations = {
-        op.assoc
-        for op in modification_record
-        if isinstance(op, AssocOp) and op.type == ModelEffectType.SUBTRACTIVE
-    }
-    attack_graph.partially_regenerate_graph(
-        removed_assets=removed_assets, removed_associations=removed_associations
-    )
+    sim.reset()
+    sim.step({'Fuzzer': [fuzz_step]})
+
+    subtractive_ops = [
+        op
+        for op in sim.sim_state.modification_record
+        if op.type == ModelEffectType.SUBTRACTIVE
+    ]
+    assert subtractive_ops, f'{fuzz_step.full_name} removed nothing'
+    for op in subtractive_ops:
+        if isinstance(op, AssetOp):
+            assert op.asset.id not in model.assets, (
+                f'{op.asset.name} is recorded as removed but is still in the model'
+            )
+        else:
+            left, field_name, right = op.assoc
+            if isinstance(left, ModelAsset) and left.id in model.assets:
+                assert right.id not in {
+                    a.id for a in left.associated_assets.get(field_name, set())
+                }, f'{left.name}.{field_name} still points to {right.name}'
     assert_no_dangling_associations(model)
 
     fresh_attack_graph = AttackGraph(
@@ -1046,3 +903,179 @@ def test_no_memory_growth_over_repeated_simulations() -> None:
         'after repeatedly running independent simulations - this suggests a '
         'memory leak in DynaMalSimulator'
     )
+
+
+def test_inherited_query_methods_follow_graph_mutated_by_model_effects() -> None:
+    """PORTING_NOTES.md §6 Phase B6: `DynaMalSimulator` inherits all of
+    `MalSimulator`'s public query methods unmodified, but unlike the base
+    class its graph (and therefore the native-computed `GraphState` those
+    methods read) grows and shrinks mid-episode. Make sure the inherited
+    methods give correct answers for a node that only exists after a step.
+    """
+    sim = DynaMalSimulator.from_scenario(
+        'tests/testdata/scenarios/wiper_scenario.yml',
+        sim_settings=MalSimulatorSettings(ttc_mode=TTCMode.PRE_SAMPLE, seed=1),
+    )
+    attacker = 'WiperController'
+    infect = sim.get_node(full_name='InfectedDevice:infect')
+    with pytest.raises(LookupError):
+        sim.get_node(full_name='Wiper-7:activate')
+
+    sim.step({attacker: [infect]})
+
+    new = sim.get_node(full_name='Wiper-7:activate')
+    assert sim.get_node(node_id=new.id) is new
+    assert sim.node_ttc_value(new) == sim.node_ttc_value(new, attacker) == 1.0
+    assert sim.node_is_necessary(new)
+    assert not sim.node_is_blocked(new)
+    assert not sim.node_is_blocked(new.full_name)
+    assert not sim.node_is_compromised(new)
+    assert not sim.node_is_enabled_defense(new)
+    assert sim.node_is_actionable(new, attacker)
+    assert sim.node_reward(new, attacker) == 0.0
+    assert sim.node_is_traversable(set(sim.compromised_nodes), new)
+    assert infect in sim.compromised_nodes
+
+    sim.step({attacker: [new]})
+    assert sim.node_is_compromised(new)
+    assert new in sim.compromised_nodes
+    assert not sim.done()
+
+    # Reset restores the pristine graph: the added node is gone again.
+    sim.reset()
+    with pytest.raises(LookupError):
+        sim.get_node(full_name='Wiper-7:activate')
+    assert not sim.compromised_nodes - set(sim.agent_states[attacker].performed_nodes)
+
+
+def _restorable_object_scenario(
+    attacker: dict[str, Any], defender: dict[str, Any] | None = None
+) -> Scenario:
+    """`dynamic_remove_add.mal` scenario whose pristine model has `Object:1`
+    associated to `Start:0`: stepping `Start:0:remove` deletes `Object:1`,
+    and `reset()` restores it with freshly generated nodes.
+    `attacker`/`defender` are merged into the agents' settings dicts.
+    """
+    lang_file = str(
+        Path(__file__).parent / 'testdata' / 'langs' / 'dynamic_remove_add.mal'
+    )
+    agents: dict[str, Any] = {
+        'Attacker': {'type': 'attacker', 'policy': None, **attacker},
+    }
+    if defender is not None:
+        agents['Defender'] = {'type': 'defender', 'policy': None, **defender}
+    return Scenario.from_dict(
+        {
+            'lang_file': lang_file,
+            'model': {
+                'metadata': {
+                    'name': 'restore_model',
+                    'langVersion': '1.0.0',
+                    'langID': 'org.mal-lang.dynamicRemoveAdd',
+                    'malVersion': '0.1.0-SNAPSHOT',
+                    'MAL-Toolbox Version': '2.10.0',
+                    'info': '',
+                },
+                'assets': {
+                    0: {
+                        'name': 'Start:0',
+                        'type': 'Start',
+                        'associated_assets': {'objects': {1: 'Object:1'}},
+                    },
+                    1: {
+                        'name': 'Object:1',
+                        'type': 'Object',
+                        'associated_assets': {'start': {0: 'Start:0'}},
+                    },
+                },
+            },
+            'agents': agents,
+        }
+    )
+
+
+def test_reset_restored_nodes_keep_rule_settings() -> None:
+    """Nodes removed by one episode's model effects and restored by
+    `reset()` must get their rule-derived agent settings in the next
+    episode (PORTING_NOTES.md §12, C5/dyna-reset entry).
+
+    `Start:0:remove` deletes `Object:1` (and its attack steps). The next
+    `reset()` restores it with freshly generated nodes, so per-node settings
+    must be resolved against the restored graph, not the mutated one.
+    """
+    scenario = _restorable_object_scenario(
+        attacker={'entry_points': ['Start:0:access']},
+        defender={'observable_steps': {'by_asset_type': {'Object': ['addStart']}}},
+    )
+    sim = DynaMalSimulator.from_scenario(scenario)
+    attack_graph = scenario.attack_graph
+    model = attack_graph.model
+    assert model
+
+    def defender_observes_add_start() -> bool:
+        """One episode: reach and compromise `Object:1:addStart`, return
+        whether the defender observed it."""
+        sim.reset()
+        sim.step({'Attacker': [attack_graph.get_node_by_full_name('Start:0:add')]})
+        add_start = attack_graph.get_node_by_full_name('Object:1:addStart')
+        states = sim.step({'Attacker': [add_start]})
+        assert add_start in states['Attacker'].performed_nodes
+        defender_state = states['Defender']
+        assert isinstance(defender_state, DefenderState)
+        return add_start in defender_state.observed_nodes
+
+    assert defender_observes_add_start()
+
+    # An episode whose model effect removes `Object:1`.
+    sim.reset()
+    sim.step({'Attacker': [attack_graph.get_node_by_full_name('Start:0:remove')]})
+    assert model.get_asset_by_name('Object:1') is None
+
+    # After reset `Object:1` is back and must still be observable.
+    assert defender_observes_add_start()
+
+
+@pytest.mark.parametrize(
+    'entry_points',
+    [
+        ['Start:0:access', 'Object:1:addStartAssoc'],
+        # Multiple alternative entry-point sets, sampled at reset.
+        [['Start:0:access', 'Object:1:addStartAssoc']],
+    ],
+)
+def test_reset_re_resolves_entry_points_and_goals_on_restored_nodes(
+    entry_points: list[Any],
+) -> None:
+    """Entry points and goals on an asset that one episode's model effects
+    removed must point at the restored (regenerated) nodes after `reset()`,
+    instead of the removed ones (PORTING_NOTES.md §12, C5/dyna-reset entry).
+    """
+    scenario = _restorable_object_scenario(
+        attacker={'entry_points': entry_points, 'goals': ['Object:1:addStart']}
+    )
+    sim = DynaMalSimulator.from_scenario(scenario)
+    attack_graph = scenario.attack_graph
+    model = attack_graph.model
+    assert model
+
+    sim.reset()
+    sim.step({'Attacker': [attack_graph.get_node_by_full_name('Start:0:remove')]})
+    assert model.get_asset_by_name('Object:1') is None
+
+    state = sim.reset()['Attacker']
+    assert isinstance(state, AttackerState)
+    entry_point = attack_graph.get_node_by_full_name('Object:1:addStartAssoc')
+    goal = attack_graph.get_node_by_full_name('Object:1:addStart')
+    assert entry_point in state.entry_points
+    assert entry_point in state.performed_nodes
+    assert state.goals == frozenset({goal})
+    settings = sim.agent_settings['Attacker']
+    assert isinstance(settings, AttackerSettings)
+    assert settings.goals == frozenset({goal})
+
+    # The episode runs to the restored goal.
+    sim.step({'Attacker': [attack_graph.get_node_by_full_name('Start:0:add')]})
+    state = sim.step({'Attacker': [goal]})['Attacker']
+    assert isinstance(state, AttackerState)
+    assert goal in state.performed_nodes
+    assert sim.done()

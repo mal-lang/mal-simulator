@@ -1,0 +1,3417 @@
+{
+ "actions_effects_scenario.yml": {
+  "lang_file": "tests/testdata/langs/actions_effects_lang.mal",
+  "model_file": null,
+  "num_nodes": 48,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker",
+    "type": "attacker",
+    "policy": "RandomAgent",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "ComputerA:access"
+    ],
+    "goals": [
+     "SecretData:read"
+    ],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   }
+  ]
+ },
+ "actions_effects_scenario_entrypoint_with_effects.yml": {
+  "lang_file": "tests/testdata/langs/actions_effects_lang.mal",
+  "model_file": null,
+  "num_nodes": 48,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker",
+    "type": "attacker",
+    "policy": "RandomAgent",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "ComputerA:attemptAccess"
+    ],
+    "goals": [
+     "SecretData:read"
+    ],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   }
+  ]
+ },
+ "bfs_vs_bfs_network_app_data_scenario.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/network_app_data_model.yml",
+  "num_nodes": 189,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "attacker1",
+    "type": "attacker",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Internet:accessUninspected"
+    ],
+    "goals": [],
+    "rewards": {
+     "Secret data:read": 100
+    },
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "defender1",
+    "type": "defender",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Linux system:notPresent": 50
+    },
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "bfs_vs_bfs_scenario.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/basic_model.yml",
+  "num_nodes": 212,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "attacker1",
+    "type": "attacker",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "ONE_OFF",
+    "entry_points": [
+     "Program 1:fullAccess"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "defender1",
+    "type": "defender",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Program 1:notPresent": 2,
+     "Program 1:supplyChainAuditing": 7,
+     "Program 2:notPresent": 3,
+     "Program 2:supplyChainAuditing": 7
+    },
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "bfs_vs_bfs_scenario_multiple_entrypoint_sets.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/basic_model.yml",
+  "num_nodes": 212,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "attacker1",
+    "type": "attacker",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "ONE_OFF",
+    "entry_points": [
+     [
+      "Program 1:fullAccess"
+     ],
+     [
+      "Program 2:fullAccess"
+     ]
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "defender1",
+    "type": "defender",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Program 1:notPresent": 2,
+     "Program 1:supplyChainAuditing": 7,
+     "Program 2:notPresent": 3,
+     "Program 2:supplyChainAuditing": 7
+    },
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "credentials_scenario.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar",
+  "model_file": null,
+  "num_nodes": 50,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Creds:use"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   }
+  ]
+ },
+ "detector_lang_scenario.yml": {
+  "lang_file": "tests/testdata/langs/detector_lang.mal",
+  "model_file": null,
+  "num_nodes": 11,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker",
+    "type": "attacker",
+    "policy": "RandomAgent",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Computer:0:physicalAccess"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/advanced/diceLang_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/advanced/diceLang.mal",
+  "model_file": null,
+  "num_nodes": 100,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": "RandomAgent",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Dice:1:startingPoint"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/basic/baseDynamicTestLang10_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/basic/baseDynamicTestLang10.mal",
+  "model_file": null,
+  "num_nodes": 2,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Plantation:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/basic/baseDynamicTestLang1_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/basic/baseDynamicTestLang1.mal",
+  "model_file": null,
+  "num_nodes": 2,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Bowl:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/basic/baseDynamicTestLang2_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/basic/baseDynamicTestLang2.mal",
+  "model_file": null,
+  "num_nodes": 2,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Bowl:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/basic/baseDynamicTestLang3_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/basic/baseDynamicTestLang3.mal",
+  "model_file": null,
+  "num_nodes": 3,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Bowl:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/basic/baseDynamicTestLang4_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/basic/baseDynamicTestLang4.mal",
+  "model_file": null,
+  "num_nodes": 2,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Bowl:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/basic/baseDynamicTestLang5_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/basic/baseDynamicTestLang5.mal",
+  "model_file": null,
+  "num_nodes": 2,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Storage:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/basic/baseDynamicTestLang6_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/basic/baseDynamicTestLang6.mal",
+  "model_file": null,
+  "num_nodes": 2,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Typewriter:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/basic/baseDynamicTestLang7_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/basic/baseDynamicTestLang7.mal",
+  "model_file": null,
+  "num_nodes": 4,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "MagicPlantation:1:access",
+     "Plantation:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/basic/baseDynamicTestLang8_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/basic/baseDynamicTestLang8.mal",
+  "model_file": null,
+  "num_nodes": 4,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Plantation:1:access",
+     "PlantationWithSmallTrees:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/basic/baseDynamicTestLang9_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/basic/baseDynamicTestLang9.mal",
+  "model_file": null,
+  "num_nodes": 2,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Plantation:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/basic/doorProblemLang_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/basic/doorProblemLang.mal",
+  "model_file": null,
+  "num_nodes": 4,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Room:1:leave",
+     "Room:2:leave"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/basic/easyRansomwareLang_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/basic/easyRansomwareLang.mal",
+  "model_file": null,
+  "num_nodes": 2,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Host:1:connect"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/basic/glider_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/basic/glider.mal",
+  "model_file": null,
+  "num_nodes": 2,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Glider:1:glide",
+     "Glider:2:glide"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/basic/looper_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/basic/looper.mal",
+  "model_file": null,
+  "num_nodes": 2,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Looper:1:loop",
+     "Looper:2:loop"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/basic/posterLang_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/basic/posterLang.mal",
+  "model_file": null,
+  "num_nodes": 3,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Host:1:infect"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/intermediate/intDynamicTestLang10_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/intermediate/intDynamicTestLang10.mal",
+  "model_file": null,
+  "num_nodes": 1,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Table:1:delegateFruit"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/intermediate/intDynamicTestLang11_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/intermediate/intDynamicTestLang11.mal",
+  "model_file": null,
+  "num_nodes": 7,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Table:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/intermediate/intDynamicTestLang12_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/intermediate/intDynamicTestLang12.mal",
+  "model_file": null,
+  "num_nodes": 93,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Table:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/intermediate/intDynamicTestLang13_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/intermediate/intDynamicTestLang13.mal",
+  "model_file": null,
+  "num_nodes": 79,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Directory:1:testAll",
+     "Directory:1:testBottom",
+     "Directory:1:testMiddle",
+     "Directory:1:testTop",
+     "Directory:2:testAll",
+     "Directory:2:testBottom",
+     "Directory:2:testMiddle",
+     "Directory:2:testTop"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/intermediate/intDynamicTestLang1_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/intermediate/intDynamicTestLang1.mal",
+  "model_file": null,
+  "num_nodes": 3,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Apples:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/intermediate/intDynamicTestLang2_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/intermediate/intDynamicTestLang2.mal",
+  "model_file": null,
+  "num_nodes": 4,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Monkey:1:attemptTheft"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/intermediate/intDynamicTestLang3_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/intermediate/intDynamicTestLang3.mal",
+  "model_file": null,
+  "num_nodes": 3,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "BananaTree:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/intermediate/intDynamicTestLang4_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/intermediate/intDynamicTestLang4.mal",
+  "model_file": null,
+  "num_nodes": 6,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Apples:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/intermediate/intDynamicTestLang5_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/intermediate/intDynamicTestLang5.mal",
+  "model_file": null,
+  "num_nodes": 6,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Monkey:1:eatApples",
+     "Monkey:1:eatBananas",
+     "Monkey:1:eatPerishables"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/intermediate/intDynamicTestLang6_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/intermediate/intDynamicTestLang6.mal",
+  "model_file": null,
+  "num_nodes": 3,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Table:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/intermediate/intDynamicTestLang7_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/intermediate/intDynamicTestLang7.mal",
+  "model_file": null,
+  "num_nodes": 3,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Table:1:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/intermediate/intDynamicTestLang8_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/intermediate/intDynamicTestLang8.mal",
+  "model_file": null,
+  "num_nodes": 1,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Table:1:assembleFruitBowl"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamal_example_scenarios/intermediate/intDynamicTestLang9_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamal_example_langs/intermediate/intDynamicTestLang9.mal",
+  "model_file": null,
+  "num_nodes": 2,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Room:1:addChairs",
+     "Room:1:installTable"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "dynamic_add_remove.yml": {
+  "lang_file": "tests/testdata/langs/dynamic_remove_add.mal",
+  "model_file": null,
+  "num_nodes": 4,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Start:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   }
+  ]
+ },
+ "dynamic_remove_many_assoc_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dynamic_remove_many_assoc.mal",
+  "model_file": null,
+  "num_nodes": 252,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker",
+    "type": "attacker",
+    "policy": "RandomAgent",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Object0:reach"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   }
+  ]
+ },
+ "huge_scenario.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.tyrLang-0.0.8.mar",
+  "model_file": "tests/testdata/models/huge_model.yml",
+  "num_nodes": 19708,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "attacker",
+    "type": "attacker",
+    "policy": "RandomAgent",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "App0OnNetwork0:fullAccess"
+    ],
+    "goals": [
+     "DataOnApp8OnNetwork1:read"
+    ],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   }
+  ]
+ },
+ "no_defender_agent_scenario.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/basic_model.yml",
+  "num_nodes": 212,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "attacker1",
+    "type": "attacker",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Program 1:fullAccess"
+    ],
+    "goals": [],
+    "rewards": {
+     "Program 1:notPresent": 2,
+     "Program 1:supplyChainAuditing": 7,
+     "Program 2:notPresent": 3,
+     "Program 2:supplyChainAuditing": 7
+    },
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   }
+  ]
+ },
+ "no_entry_points_simple_scenario.yml": {
+  "error": "SyntaxError"
+ },
+ "no_existing_attacker_in_model_scenario.yml": {
+  "error": "SyntaxError"
+ },
+ "rand_multiplicity_scenario.yml": {
+  "lang_file": "tests/testdata/langs/randMultiplicityLang.mal",
+  "model_file": null,
+  "num_nodes": 12,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "TestAttacker",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "A:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   }
+  ]
+ },
+ "run_demo_scenario.yml": {
+  "error": "SyntaxError"
+ },
+ "simple_ai_scenario.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/simple_test_model.yml",
+  "num_nodes": 545,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "OS App:fullAccess"
+    ],
+    "goals": [],
+    "rewards": {
+     "Identity:8:assume": 50
+    },
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Credentials:6:notPhishable": 7,
+     "Data:5:notPresent": 1,
+     "Identity:11:notPresent": 3.5,
+     "OS App:notPresent": 2,
+     "OS App:supplyChainAuditing": 7,
+     "Program 1:notPresent": 3,
+     "Program 1:supplyChainAuditing": 7,
+     "SoftwareVulnerability:4:notPresent": 4
+    },
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "simple_ai_scenario_with_heuristic_defender.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/simple_test_model.yml",
+  "num_nodes": 545,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "OS App:fullAccess"
+    ],
+    "goals": [],
+    "rewards": {
+     "Identity:8:assume": 50
+    },
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": "RandomAgent",
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Credentials:6:notPhishable": 7,
+     "Data:5:notPresent": 1,
+     "Identity:11:notPresent": 3.5,
+     "OS App:notPresent": 2,
+     "OS App:supplyChainAuditing": 7,
+     "Program 1:notPresent": 3,
+     "Program 1:supplyChainAuditing": 7,
+     "SoftwareVulnerability:4:notPresent": 4
+    },
+    "actionable_steps": {
+     "OS App:notPresent": true,
+     "Program 1:notPresent": true,
+     "Program 2:notPresent": true
+    },
+    "observable_steps": {
+     "Data:5:read": true,
+     "Data:5:write": true,
+     "Identity:11:attemptAssume": true,
+     "Identity:8:attemptAssume": true,
+     "OS App:attemptModify": true,
+     "OS App:attemptRead": true,
+     "OS App:attemptUseVulnerability": true,
+     "OS App:networkConnect": true,
+     "OS App:notPresent": true,
+     "Program 1:attemptModify": true,
+     "Program 1:attemptRead": true,
+     "Program 1:attemptUseVulnerability": true,
+     "Program 1:networkConnect": true,
+     "Program 1:notPresent": true,
+     "Program 2:attemptModify": true,
+     "Program 2:attemptRead": true,
+     "Program 2:attemptUseVulnerability": true,
+     "Program 2:networkConnect": true,
+     "Program 2:notPresent": true
+    },
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": [
+      "OS App:notPresent",
+      "Program 1:notPresent",
+      "Program 2:notPresent"
+     ],
+     "observable_steps": [
+      "Data:5:read",
+      "Data:5:write",
+      "Identity:11:attemptAssume",
+      "Identity:8:attemptAssume",
+      "OS App:attemptModify",
+      "OS App:attemptRead",
+      "OS App:attemptUseVulnerability",
+      "OS App:networkConnect",
+      "OS App:notPresent",
+      "Program 1:attemptModify",
+      "Program 1:attemptRead",
+      "Program 1:attemptUseVulnerability",
+      "Program 1:networkConnect",
+      "Program 1:notPresent",
+      "Program 2:attemptModify",
+      "Program 2:attemptRead",
+      "Program 2:attemptUseVulnerability",
+      "Program 2:networkConnect",
+      "Program 2:notPresent"
+     ],
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "simple_filtered_observability_scenario.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/simple_test_model.yml",
+  "num_nodes": 545,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Credentials:6:attemptCredentialsReuse"
+    ],
+    "goals": [],
+    "rewards": {
+     "Identity:8:assume": 50
+    },
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": "KeyboardAgent",
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Credentials:6:notPhishable": 7,
+     "Data:5:notPresent": 1,
+     "Identity:11:notPresent": 3.5,
+     "OS App:notPresent": 2,
+     "OS App:supplyChainAuditing": 7,
+     "Program 1:notPresent": 3,
+     "Program 1:supplyChainAuditing": 7,
+     "SoftwareVulnerability:4:notPresent": 4
+    },
+    "actionable_steps": null,
+    "observable_steps": {
+     "Identity:8:assume": true,
+     "OS App:fullAccess": true,
+     "OS App:supplyChainAuditing": true,
+     "Program 1:fullAccess": true,
+     "Program 1:supplyChainAuditing": true,
+     "Program 2:fullAccess": true,
+     "Program 2:supplyChainAuditing": true
+    },
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": [
+      "Identity:8:assume",
+      "OS App:fullAccess",
+      "OS App:supplyChainAuditing",
+      "Program 1:fullAccess",
+      "Program 1:supplyChainAuditing",
+      "Program 2:fullAccess",
+      "Program 2:supplyChainAuditing"
+     ],
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "simple_random_defender.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/simple_test_model.yml",
+  "num_nodes": 545,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Defender",
+    "type": "defender",
+    "policy": "RandomAgent",
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Credentials:6:notPhishable": 7,
+     "Data:5:notPresent": 1,
+     "Identity:11:notPresent": 3.5,
+     "Identity:8:assume": 50,
+     "OS App:notPresent": 2,
+     "OS App:supplyChainAuditing": 7,
+     "Program 1:notPresent": 3,
+     "Program 1:supplyChainAuditing": 7,
+     "SoftwareVulnerability:4:notPresent": 4
+    },
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "simple_scenario.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/simple_test_model.yml",
+  "num_nodes": 545,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "OS App:fullAccess"
+    ],
+    "goals": [],
+    "rewards": {
+     "Identity:8:assume": 50
+    },
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": "PassiveAgent",
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Credentials:6:notPhishable": 7,
+     "Data:5:notPresent": 1,
+     "Identity:11:notPresent": 3.5,
+     "OS App:notPresent": 2,
+     "OS App:supplyChainAuditing": 7,
+     "Program 1:notPresent": 3,
+     "Program 1:supplyChainAuditing": 7,
+     "SoftwareVulnerability:4:notPresent": 4
+    },
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "socialEngineering_scenario.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.coreLang-1.0.0.mar",
+  "model_file": null,
+  "num_nodes": 38,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Human:attemptSocialEngineering"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "sub/traininglang_scenario_extended_again.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/traininglang_model.yml",
+  "num_nodes": 15,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Data:2:modify": 1,
+     "Data:2:notPresent": 1,
+     "Data:2:read": 1,
+     "Host:0:access": 1,
+     "Host:0:notPresent": 1,
+     "Host:1:access": 1,
+     "Host:1:notPresent": 1
+    },
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "sub/traininglang_scenario_override_lang_model.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/traininglang_model.yml",
+  "num_nodes": 15,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Host:0:connect",
+     "User:3:phishing"
+    ],
+    "goals": [],
+    "rewards": {
+     "Data:2:modify": 10,
+     "Data:2:notPresent": 8,
+     "Data:2:read": 5,
+     "Host:0:access": 4,
+     "Host:0:notPresent": 2,
+     "Host:1:access": 5,
+     "Host:1:notPresent": 7
+    },
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Data:2:modify": 10,
+     "Data:2:notPresent": 8,
+     "Data:2:read": 5,
+     "Host:0:access": 4,
+     "Host:0:notPresent": 2,
+     "Host:1:access": 5,
+     "Host:1:notPresent": 7
+    },
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "traininglang_actionability_scenario.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/traininglang_model.yml",
+  "num_nodes": 15,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Host:0:connect",
+     "User:3:phishing"
+    ],
+    "goals": [],
+    "rewards": {
+     "Data:2:modify": 10,
+     "Data:2:read": 5,
+     "Host:0:access": 4,
+     "Host:1:access": 5
+    },
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": "KeyboardAgent",
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Data:2:notPresent": 8,
+     "Host:0:notPresent": 2,
+     "Host:1:notPresent": 7
+    },
+    "actionable_steps": {
+     "Data:2:notPresent": true,
+     "Host:0:notPresent": true,
+     "Host:1:notPresent": true,
+     "User:3:notPresent": true
+    },
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": [
+      "Data:2:notPresent",
+      "Host:0:notPresent",
+      "Host:1:notPresent",
+      "User:3:notPresent"
+     ],
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "traininglang_ai_scenario_with_model.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar",
+  "model_file": null,
+  "num_nodes": 15,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Host:0:connect",
+     "User:3:phishing"
+    ],
+    "goals": [],
+    "rewards": {
+     "Data:2:modify": 10,
+     "Data:2:notPresent": 8,
+     "Data:2:read": 5,
+     "Host:0:access": 4,
+     "Host:0:notPresent": 2,
+     "Host:1:access": 5,
+     "Host:1:notPresent": 7
+    },
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Data:2:modify": 10,
+     "Data:2:notPresent": 8,
+     "Data:2:read": 5,
+     "Host:0:access": 4,
+     "Host:0:notPresent": 2,
+     "Host:1:access": 5,
+     "Host:1:notPresent": 7
+    },
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "traininglang_fp_fn_scenario.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/traininglang_model.yml",
+  "num_nodes": 15,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Host:0:connect",
+     "User:3:phishing"
+    ],
+    "goals": [],
+    "rewards": {
+     "Data:2:modify": 10,
+     "Data:2:read": 5,
+     "Host:0:access": 4,
+     "Host:1:access": 5
+    },
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "defender",
+    "type": "defender",
+    "policy": "PassiveAgent",
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Data:2:notPresent": 8,
+     "Host:0:notPresent": 2,
+     "Host:1:notPresent": 7
+    },
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": {
+     "Host:0:access": 0.2,
+     "Host:1:access": 0.3
+    },
+    "false_negative_rates": {
+     "Host:0:access": 0.4,
+     "Host:1:access": 0.5,
+     "User:3:compromise": 1.0
+    },
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": {
+      "len": 15,
+      "nonzero": {
+       "Host:0:access": 0.2,
+       "Host:1:access": 0.3
+      }
+     },
+     "false_negative_rates": {
+      "len": 15,
+      "nonzero": {
+       "Host:0:access": 0.4,
+       "Host:1:access": 0.5,
+       "User:3:compromise": 1.0
+      }
+     }
+    }
+   }
+  ]
+ },
+ "traininglang_observability_scenario.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/traininglang_model.yml",
+  "num_nodes": 15,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Host:0:connect",
+     "User:3:phishing"
+    ],
+    "goals": [],
+    "rewards": {
+     "Data:2:modify": 10,
+     "Data:2:read": 5,
+     "Host:0:access": 4,
+     "Host:1:access": 5
+    },
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": "KeyboardAgent",
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Data:2:notPresent": 8,
+     "Host:0:notPresent": 2,
+     "Host:1:notPresent": 7
+    },
+    "actionable_steps": null,
+    "observable_steps": {
+     "Data:2:read": true,
+     "Host:0:access": true,
+     "Host:0:authenticate": true,
+     "Host:1:access": true,
+     "Host:1:authenticate": true,
+     "User:3:phishing": true
+    },
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": [
+      "Data:2:read",
+      "Host:0:access",
+      "Host:0:authenticate",
+      "Host:1:access",
+      "Host:1:authenticate",
+      "User:3:phishing"
+     ],
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "traininglang_scenario.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/traininglang_model.yml",
+  "num_nodes": 15,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Host:0:connect",
+     "User:3:phishing"
+    ],
+    "goals": [],
+    "rewards": {
+     "Data:2:modify": 10,
+     "Data:2:notPresent": 8,
+     "Data:2:read": 5,
+     "Host:0:access": 4,
+     "Host:0:notPresent": 2,
+     "Host:1:access": 5,
+     "Host:1:notPresent": 7
+    },
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Data:2:modify": 10,
+     "Data:2:notPresent": 8,
+     "Data:2:read": 5,
+     "Host:0:access": 4,
+     "Host:0:notPresent": 2,
+     "Host:1:access": 5,
+     "Host:1:notPresent": 7
+    },
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "traininglang_scenario_advanced_agent_settings.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/traininglang_model.yml",
+  "num_nodes": 15,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Host:0:connect",
+     "User:3:phishing"
+    ],
+    "goals": [],
+    "rewards": {
+     "Data:2:modify": 10,
+     "Data:2:read": 5,
+     "Host:0:access": 4,
+     "Host:0:authenticate": 1000,
+     "Host:1:access": 5
+    },
+    "actionable_steps": {
+     "Host:0:authenticate": true,
+     "Host:0:connect": true,
+     "Host:1:authenticate": true,
+     "Host:1:connect": true,
+     "User:3:compromise": true
+    },
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": [
+      "Host:0:authenticate",
+      "Host:0:connect",
+      "Host:1:authenticate",
+      "Host:1:connect",
+      "User:3:compromise"
+     ],
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": "DefendCompromisedDefender",
+    "reward_mode": "ONE_OFF",
+    "rewards": {
+     "Data:2:notPresent": 8,
+     "Host:0:notPresent": 100,
+     "Host:1:notPresent": 7
+    },
+    "actionable_steps": {
+     "Host:0:notPresent": true,
+     "Host:1:notPresent": true
+    },
+    "observable_steps": {
+     "Host:0:connect": true,
+     "Host:1:connect": true
+    },
+    "false_positive_rates": {
+     "Host:0:connect": 0.5,
+     "Host:1:connect": 0.5
+    },
+    "false_negative_rates": {
+     "Host:0:access": 0.5,
+     "Host:1:access": 0.5
+    },
+    "flat": {
+     "actionable_steps": [
+      "Host:0:notPresent",
+      "Host:1:notPresent"
+     ],
+     "observable_steps": [
+      "Host:0:connect",
+      "Host:1:connect"
+     ],
+     "false_positive_rates": {
+      "len": 15,
+      "nonzero": {
+       "Host:0:connect": 0.5,
+       "Host:1:connect": 0.5
+      }
+     },
+     "false_negative_rates": {
+      "len": 15,
+      "nonzero": {
+       "Host:0:access": 0.5,
+       "Host:1:access": 0.5
+      }
+     }
+    }
+   }
+  ]
+ },
+ "traininglang_scenario_extended.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar",
+  "model_file": "tests/testdata/models/traininglang_model.yml",
+  "num_nodes": 15,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Host:0:connect",
+     "User:3:phishing"
+    ],
+    "goals": [],
+    "rewards": {
+     "Data:2:modify": 10,
+     "Data:2:notPresent": 8,
+     "Data:2:read": 5,
+     "Host:0:access": 4,
+     "Host:0:notPresent": 2,
+     "Host:1:access": 5,
+     "Host:1:notPresent": 7
+    },
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Data:2:modify": 1,
+     "Data:2:notPresent": 1,
+     "Data:2:read": 1,
+     "Host:0:access": 1,
+     "Host:0:notPresent": 1,
+     "Host:1:access": 1,
+     "Host:1:notPresent": 1
+    },
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "traininglang_scenario_with_model.yml": {
+  "lang_file": "tests/testdata/langs/org.mal-lang.trainingLang-1.0.0.mar",
+  "model_file": null,
+  "num_nodes": 15,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": "BreadthFirstAttacker",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "Host:0:connect",
+     "User:3:phishing"
+    ],
+    "goals": [],
+    "rewards": {
+     "Data:2:modify": 10,
+     "Data:2:notPresent": 8,
+     "Data:2:read": 5,
+     "Host:0:access": 4,
+     "Host:0:notPresent": 2,
+     "Host:1:access": 5,
+     "Host:1:notPresent": 7
+    },
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": {
+     "Data:2:modify": 10,
+     "Data:2:notPresent": 8,
+     "Data:2:read": 5,
+     "Host:0:access": 4,
+     "Host:0:notPresent": 2,
+     "Host:1:access": 5,
+     "Host:1:notPresent": 7
+    },
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "ttc_lang_scenario.yml": {
+  "lang_file": "tests/testdata/langs/ttc_lang.mal",
+  "model_file": null,
+  "num_nodes": 55,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker",
+    "type": "attacker",
+    "policy": "ShortestPathAttacker",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "ComputerA:easyAccess"
+    ],
+    "goals": [
+     "DataD:read"
+    ],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   }
+  ]
+ },
+ "ttc_lang_scenario_override_ttcs.yml": {
+  "lang_file": "tests/testdata/langs/ttc_lang.mal",
+  "model_file": null,
+  "num_nodes": 55,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "BadAttacker",
+    "type": "attacker",
+    "policy": "ShortestPathAttacker",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "ComputerA:easyAccess"
+    ],
+    "goals": [
+     "DataD:read"
+    ],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": {
+     "ComputerA:easyConnect": {
+      "lhs": {
+       "name": "Exponential",
+       "arguments": [
+        0.1
+       ],
+       "type": "function"
+      },
+      "rhs": {
+       "name": "Bernoulli",
+       "arguments": [
+        0.5
+       ],
+       "type": "function"
+      },
+      "type": "multiplication"
+     },
+     "ComputerB:easyConnect": {
+      "lhs": {
+       "name": "Exponential",
+       "arguments": [
+        0.1
+       ],
+       "type": "function"
+      },
+      "rhs": {
+       "name": "Bernoulli",
+       "arguments": [
+        0.5
+       ],
+       "type": "function"
+      },
+      "type": "multiplication"
+     },
+     "ComputerC:easyConnect": {
+      "lhs": {
+       "name": "Exponential",
+       "arguments": [
+        0.1
+       ],
+       "type": "function"
+      },
+      "rhs": {
+       "name": "Bernoulli",
+       "arguments": [
+        0.5
+       ],
+       "type": "function"
+      },
+      "type": "multiplication"
+     },
+     "ComputerD:easyConnect": {
+      "lhs": {
+       "name": "Exponential",
+       "arguments": [
+        0.1
+       ],
+       "type": "function"
+      },
+      "rhs": {
+       "name": "Bernoulli",
+       "arguments": [
+        0.5
+       ],
+       "type": "function"
+      },
+      "type": "multiplication"
+     }
+    },
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": {
+      "ComputerA:easyConnect": {
+       "lhs": {
+        "name": "Exponential",
+        "arguments": [
+         0.1
+        ],
+        "type": "function"
+       },
+       "rhs": {
+        "name": "Bernoulli",
+        "arguments": [
+         0.5
+        ],
+        "type": "function"
+       },
+       "type": "multiplication"
+      },
+      "ComputerB:easyConnect": {
+       "lhs": {
+        "name": "Exponential",
+        "arguments": [
+         0.1
+        ],
+        "type": "function"
+       },
+       "rhs": {
+        "name": "Bernoulli",
+        "arguments": [
+         0.5
+        ],
+        "type": "function"
+       },
+       "type": "multiplication"
+      },
+      "ComputerC:easyConnect": {
+       "lhs": {
+        "name": "Exponential",
+        "arguments": [
+         0.1
+        ],
+        "type": "function"
+       },
+       "rhs": {
+        "name": "Bernoulli",
+        "arguments": [
+         0.5
+        ],
+        "type": "function"
+       },
+       "type": "multiplication"
+      },
+      "ComputerD:easyConnect": {
+       "lhs": {
+        "name": "Exponential",
+        "arguments": [
+         0.1
+        ],
+        "type": "function"
+       },
+       "rhs": {
+        "name": "Bernoulli",
+        "arguments": [
+         0.5
+        ],
+        "type": "function"
+       },
+       "type": "multiplication"
+      }
+     }
+    }
+   },
+   {
+    "name": "GoodAttacker",
+    "type": "attacker",
+    "policy": "ShortestPathAttacker",
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "ComputerA:easyAccess"
+    ],
+    "goals": [
+     "DataD:read"
+    ],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
+ "wiper_scenario.yml": {
+  "lang_file": "tests/testdata/langs/wiperLang.mal",
+  "model_file": "tests/testdata/models/wiper_model.yml",
+  "num_nodes": 5,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": false,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "WiperController",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "entry_points": [
+     "C2Server:accessData",
+     "InfectedDevice:infect"
+    ],
+    "goals": [
+     "InfectedData:read"
+    ],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   }
+  ]
+ },
+ "wrong_agent_classes_scenario.yml": {
+  "error": "LookupError"
+ }
+}
