@@ -160,6 +160,8 @@ fn dyna_scenario_reset_and_step() {
     let mut sim = Simulator::new_dyna(scenario.attack_graph.clone(), scenario.model.clone());
 
     for seed in 0..2 {
+        // Restore before flattening, as `Scenario::flatten_agents` documents.
+        sim.restore_model().unwrap();
         let agents = scenario.flatten_agents(&mut StdRng::seed_from_u64(seed));
         sim.reset(&scenario.sim_settings, agents, seed).unwrap();
         // Every reset restores the pristine model/graph.
@@ -190,4 +192,79 @@ fn dyna_scenario_reset_and_step() {
             .performed_nodes
             .contains(&activate));
     }
+}
+
+#[test]
+fn dyna_reset_restored_nodes_keep_rule_settings() {
+    // Rust twin of `test_dyna_mal_simulator.py::
+    // test_reset_restored_nodes_keep_rule_settings`: `Start:0:remove`
+    // deletes `Object:1`, the next reset restores it with regenerated
+    // nodes, and the defender's observability rule must cover them again.
+    let lang_file = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/testdata/langs/dynamic_remove_add.mal");
+    let scenario_dict = serde_json::json!({
+        "lang_file": lang_file.to_string_lossy(),
+        "model": {
+            "metadata": {
+                "name": "restore_model",
+                "langVersion": "1.0.0",
+                "langID": "org.mal-lang.dynamicRemoveAdd",
+                "malVersion": "0.1.0-SNAPSHOT",
+                "MAL-Toolbox Version": "2.10.0",
+                "info": "",
+            },
+            "assets": {
+                "0": {"name": "Start:0", "type": "Start",
+                      "associated_assets": {"objects": {"1": "Object:1"}}},
+                "1": {"name": "Object:1", "type": "Object",
+                      "associated_assets": {"start": {"0": "Start:0"}}},
+            },
+        },
+        "agents": {
+            "Attacker": {"type": "attacker", "entry_points": ["Start:0:access"]},
+            "Defender": {"type": "defender",
+                         "observable_steps": {"by_asset_type": {"Object": ["addStart"]}}},
+        },
+    });
+    let scenario = Scenario::from_dict(scenario_dict.as_object().unwrap()).unwrap();
+    let mut sim = Simulator::new_dyna(scenario.attack_graph.clone(), scenario.model.clone());
+    let mut rng = StdRng::seed_from_u64(0);
+    let attacker = "Attacker".to_string();
+
+    let mut reset = |sim: &mut Simulator| {
+        sim.restore_model().unwrap();
+        let agents = scenario.flatten_agents(&mut rng);
+        sim.reset(&scenario.sim_settings, agents, 0).unwrap();
+    };
+    let step = |sim: &mut Simulator, full_name: &str| {
+        let target = node(&scenario, full_name);
+        sim.step(&HashMap::from([(attacker.clone(), vec![target])]))
+            .unwrap();
+        target
+    };
+    let defender_observes_add_start = |sim: &mut Simulator| {
+        step(sim, "Start:0:add");
+        let add_start = step(sim, "Object:1:addStart");
+        let state = sim.state().unwrap();
+        assert!(state.attackers[&attacker]
+            .performed_nodes
+            .contains(&add_start));
+        state.defenders["Defender"]
+            .observed_nodes
+            .contains(&add_start)
+    };
+
+    reset(&mut sim);
+    assert!(defender_observes_add_start(&mut sim));
+
+    reset(&mut sim);
+    step(&mut sim, "Start:0:remove");
+    assert!(scenario
+        .model
+        .borrow()
+        .get_asset_by_name("Object:1")
+        .is_none());
+
+    reset(&mut sim);
+    assert!(defender_observes_add_start(&mut sim));
 }

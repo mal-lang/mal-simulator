@@ -253,6 +253,11 @@ impl Scenario {
     /// Python's `MalSimulator.reset` builds before calling native: one
     /// entry-point set sampled per attacker (attackers first, in order),
     /// then every agent's settings flattened against the current graph.
+    ///
+    /// For a dyna simulator, call `Simulator::restore_model` before this
+    /// on every reset after the first, so the rules see nodes that the
+    /// previous episode's model effects removed and the restore brought
+    /// back.
     pub fn flatten_agents(&self, rng: &mut impl Rng) -> Vec<(String, FlatAgentSettings)> {
         let graph = self.attack_graph.borrow();
         let model = self.model.borrow();

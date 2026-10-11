@@ -292,6 +292,11 @@ def dyna_reset(
     same `AttackGraph::partially_regenerate_graph` bookkeeping B1/B2
     already proved. "Multiple entry point sets, sampled at reset" is
     resolved here first, same reasoning as `mal_simulator.simulator.reset`.
+
+    The model is restored (`dyna_restore_model_native`) *before* agent
+    settings are flattened: nodes the previous episode's model effects
+    removed only come back, with regenerated ids, on restore, so rules
+    must be resolved against the restored graph (PORTING_NOTES.md §12).
     """
     logger.info('Resetting Dyna MAL Simulator.')
     attack_graph = static_data.attack_graph
@@ -299,6 +304,8 @@ def dyna_reset(
     assert attack_graph.model is not None, (
         'DynaMalSimulator requires attack_graph.model to be set.'
     )
+
+    native_sim.dyna_restore_model_native(attack_graph.model)
 
     _attacker_settings = attacker_settings(agent_settings)
     _defender_settings = defender_settings(agent_settings)

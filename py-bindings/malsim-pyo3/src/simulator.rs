@@ -379,13 +379,25 @@ impl Simulator {
         self.do_reset(py, settings, agents, seed)
     }
 
+    /// Restores the shared `Model`/`AttackGraph` to the pristine snapshot -
+    /// see `CoreSimulator::restore_model`. Attaches `model` first if this
+    /// is the first dyna call (same as `dyna_reset_native`). Python's
+    /// `dyna_reset` calls this before flattening agent settings, so nodes
+    /// removed by the previous episode's model effects are back (with
+    /// their regenerated ids) when the rules are resolved.
+    fn dyna_restore_model_native(&mut self, model: &Bound<'_, PyAny>) -> PyResult<()> {
+        self.attach_model(model)?;
+        self.inner.restore_model().map_err(sim_err_to_py)
+    }
+
     /// Dyna-aware reset (Phase B4, A8/B3-equivalent entry point): attaches
     /// `model` the first time this is called (via `extract_shared_model` +
     /// `CoreSimulator::new_dyna`, which captures the pristine snapshot),
     /// then runs `CoreSimulator::reset`, which restores the shared
     /// `Model`/`AttackGraph` to that snapshot before the shared reset -
     /// mirroring `dyna_reset`'s `reset_model_effects` call followed by
-    /// `compute_initial_graph_state`/`reset_agents`.
+    /// `compute_initial_graph_state`/`reset_agents`. `agents` must already be
+    /// resolved against the restored graph (`dyna_restore_model_native`).
     fn dyna_reset_native(
         &mut self,
         py: Python<'_>,
@@ -394,10 +406,7 @@ impl Simulator {
         model: &Bound<'_, PyAny>,
         seed: u64,
     ) -> PyResult<Py<PyAny>> {
-        if self.inner.model().is_none() {
-            let model_rc = extract_shared_model(model)?;
-            self.inner = CoreSimulator::new_dyna(self.inner.graph().clone(), model_rc);
-        }
+        self.attach_model(model)?;
         self.do_reset(py, settings, agents, seed)
     }
 
@@ -428,6 +437,17 @@ impl Simulator {
 impl Simulator {
     /// Shared body of `reset_native`/`dyna_reset_native` - see each
     /// pymethod's doc comment for what differs before this is called.
+    /// Switches the inner simulator to a dyna one over `model` on the first
+    /// dyna call; later calls keep the already-attached model (a different
+    /// `model` is ignored, as before).
+    fn attach_model(&mut self, model: &Bound<'_, PyAny>) -> PyResult<()> {
+        if self.inner.model().is_none() {
+            let model_rc = extract_shared_model(model)?;
+            self.inner = CoreSimulator::new_dyna(self.inner.graph().clone(), model_rc);
+        }
+        Ok(())
+    }
+
     fn do_reset(
         &mut self,
         py: Python<'_>,

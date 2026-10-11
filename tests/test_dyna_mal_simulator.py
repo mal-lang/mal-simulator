@@ -32,6 +32,7 @@ from malsim.policies.attackers.searchers import BreadthFirstAttacker, DepthFirst
 from malsim.policies.attackers.ttc_soft_min import TTCSoftMinAttacker
 from malsim.policies.random_agent import RandomAgent
 from malsim.dyna_mal_simulator import DynaMalSimulator
+from malsim.mal_simulator.defender_state import DefenderState
 
 if TYPE_CHECKING:
     from maltoolbox.model import Model
@@ -944,3 +945,82 @@ def test_inherited_query_methods_follow_graph_mutated_by_model_effects() -> None
     with pytest.raises(LookupError):
         sim.get_node(full_name='Wiper-7:activate')
     assert not sim.compromised_nodes - set(sim.agent_states[attacker].performed_nodes)
+
+
+def test_reset_restored_nodes_keep_rule_settings() -> None:
+    """Nodes removed by one episode's model effects and restored by
+    `reset()` must get their rule-derived agent settings in the next
+    episode (PORTING_NOTES.md §12, C5/dyna-reset entry).
+
+    `Start:0:remove` deletes `Object:1` (and its attack steps). The next
+    `reset()` restores it with freshly generated nodes, so per-node settings
+    must be resolved against the restored graph, not the mutated one.
+    """
+    lang_file = str(
+        Path(__file__).parent / 'testdata' / 'langs' / 'dynamic_remove_add.mal'
+    )
+    scenario = Scenario.from_dict(
+        {
+            'lang_file': lang_file,
+            'model': {
+                'metadata': {
+                    'name': 'restore_model',
+                    'langVersion': '1.0.0',
+                    'langID': 'org.mal-lang.dynamicRemoveAdd',
+                    'malVersion': '0.1.0-SNAPSHOT',
+                    'MAL-Toolbox Version': '2.10.0',
+                    'info': '',
+                },
+                'assets': {
+                    0: {
+                        'name': 'Start:0',
+                        'type': 'Start',
+                        'associated_assets': {'objects': {1: 'Object:1'}},
+                    },
+                    1: {
+                        'name': 'Object:1',
+                        'type': 'Object',
+                        'associated_assets': {'start': {0: 'Start:0'}},
+                    },
+                },
+            },
+            'agents': {
+                'Attacker': {
+                    'type': 'attacker',
+                    'policy': None,
+                    'entry_points': ['Start:0:access'],
+                },
+                'Defender': {
+                    'type': 'defender',
+                    'policy': None,
+                    'observable_steps': {'by_asset_type': {'Object': ['addStart']}},
+                },
+            },
+        }
+    )
+    sim = DynaMalSimulator.from_scenario(scenario)
+    attack_graph = scenario.attack_graph
+    model = attack_graph.model
+    assert model
+
+    def defender_observes_add_start() -> bool:
+        """One episode: reach and compromise `Object:1:addStart`, return
+        whether the defender observed it."""
+        sim.reset()
+        sim.step({'Attacker': [attack_graph.get_node_by_full_name('Start:0:add')]})
+        add_start = attack_graph.get_node_by_full_name('Object:1:addStart')
+        states = sim.step({'Attacker': [add_start]})
+        assert add_start in states['Attacker'].performed_nodes
+        defender_state = states['Defender']
+        assert isinstance(defender_state, DefenderState)
+        return add_start in defender_state.observed_nodes
+
+    assert defender_observes_add_start()
+
+    # An episode whose model effect removes `Object:1`.
+    sim.reset()
+    sim.step({'Attacker': [attack_graph.get_node_by_full_name('Start:0:remove')]})
+    assert model.get_asset_by_name('Object:1') is None
+
+    # After reset `Object:1` is back and must still be observable.
+    assert defender_observes_add_start()

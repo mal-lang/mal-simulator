@@ -3734,6 +3734,13 @@ asking again. Each entry names the phase it was decided in.
   `state() -> Option<&SimState>` for the full accumulated state. Multiple
   entry-point sets are sampled before reset by the caller: Python's
   `get_entry_points`, or a Rust helper on `Scenario`.
+- **`Simulator::restore_model()` restores a dyna model before agents are
+  flattened** (decided after C, 2026-10-11). It is additive: a no-op for a
+  plain simulator or an already-pristine model, and `reset` still
+  restores too (a no-op diff by then). Every dyna reset caller calls it
+  *before* resolving per-node settings into `FlatAgentSettings`: Python's
+  `dyna_reset` through pyo3's `dyna_restore_model_native(model)`, Rust
+  callers before `Scenario::flatten_agents`.
 - **`NodePropertyRule<T: RuleValue>` is generic** (decided at C). The `RuleValue` trait
   covers three things: parsing from a JSON value, what a list-form entry
   means (`true` for bool, `1.0` for f64, an error for `TtcDist`), and
@@ -3876,10 +3883,24 @@ entry names its phase.
   a rule spans every node (e.g. FP/FN rate maps). Now they are accepted
   and stay inert: slotmap keys are versioned, so a removed node's key
   never aliases a new node. Parse errors are now raised before the
-  model reset. **Pre-existing and not fixed:** nodes *removed* by last
-  episode's effects and restored by this reset are missing from Python's
-  flattened maps for the new episode. Fixing that needs Python to
-  flatten after the restore, which is outside Phase C.
+  model reset. **Fixed on 2026-10-11:** nodes *removed* by last episode's
+  effects and restored by this reset were missing from Python's flattened
+  maps for the new episode. `dyna_reset` now calls
+  `dyna_restore_model_native` (core `Simulator::restore_model`, see §11)
+  before flattening. Regression tests:
+  `test_dyna_mal_simulator.py::test_reset_restored_nodes_keep_rule_settings`
+  and its Rust twin `scenario_simulator.rs::
+  dyna_reset_restored_nodes_keep_rule_settings`. Both fail without the
+  restore-first call.
+  **Still open (pre-existing, same root cause):** `AttackerSettings`
+  entry points and goals are node objects resolved once at scenario load.
+  If last episode's effects removed their asset, the restore regenerates
+  those nodes with new ids, and the next `dyna_reset` raises
+  `ValueError: node id N is not part of this simulator's attack graph`.
+  Reproduced with an entry point on a removed `Object:1` step in
+  `dynamic_remove_add.mal`. Fixing it means re-resolving entry points and
+  goals by full name after the restore, which wasn't in scope for this
+  change.
 - **C5: the pyo3 `Simulator` becomes dyna-only once `dyna_reset_native`
   has been called.** Its inner core simulator is replaced by
   `Simulator::new_dyna` (lazily, on that first call, as before). After

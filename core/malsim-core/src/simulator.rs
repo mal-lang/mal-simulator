@@ -297,9 +297,30 @@ impl Simulator {
         self.state.as_ref()
     }
 
+    /// For a dyna simulator, restores the shared `Model`/`AttackGraph` to
+    /// the snapshot captured at `new_dyna` (`reset_model_effects`); a no-op
+    /// for a plain simulator. Restoring an already-pristine model is a
+    /// no-op as well.
+    ///
+    /// `reset` does this itself, but a caller that resolves per-node agent
+    /// settings against the graph (`FlatAgentSettings`) must call this
+    /// first: nodes that the previous episode's model effects removed are
+    /// only regenerated (with new ids) by the restore, so flattening
+    /// against the mutated graph would miss them.
+    pub fn restore_model(&mut self) -> Result<(), SimulatorError> {
+        if let Some(dyna) = &self.dyna {
+            let mut graph = self.graph.borrow_mut();
+            let mut model = dyna.model.borrow_mut();
+            reset_model_effects(&mut graph, &mut model, &dyna.snapshot)?;
+        }
+        Ok(())
+    }
+
     /// Resets the simulator. For a dyna simulator, first restores the shared
     /// `Model`/`AttackGraph` to the snapshot captured at `new_dyna`
-    /// (mirroring `dyna_reset`'s `reset_model_effects` call). Then
+    /// (`restore_model`, mirroring `dyna_reset`'s `reset_model_effects`
+    /// call). `agents` must already be resolved against the restored graph,
+    /// so call `restore_model` before flattening them. Then
     /// (re)computes the initial graph state (TTC values, pre-enabled
     /// defenses, impossible attack steps, necessity -
     /// `graph_state::compute_initial_graph_state`) and (re)builds every
@@ -315,11 +336,7 @@ impl Simulator {
         agents: Vec<(String, FlatAgentSettings)>,
         seed: u64,
     ) -> Result<&SimState, SimulatorError> {
-        if let Some(dyna) = &self.dyna {
-            let mut graph = self.graph.borrow_mut();
-            let mut model = dyna.model.borrow_mut();
-            reset_model_effects(&mut graph, &mut model, &dyna.snapshot)?;
-        }
+        self.restore_model()?;
         let state = reset_state(&self.graph.borrow(), *settings, agents, seed)?;
         Ok(self.state.insert(state))
     }
@@ -1132,6 +1149,50 @@ mod tests {
         // A second reset restores the pristine model/graph.
         sim.reset(&s, agents(), 42).unwrap();
         assert_eq!(graph_rc.borrow().nodes.len(), initial_node_count);
+    }
+
+    #[test]
+    fn restore_model_is_a_no_op_for_a_plain_simulator() {
+        let (mut sim, _) = dummy_sim();
+        let before: Vec<_> = sim.graph().borrow().nodes.keys().collect();
+        sim.restore_model().unwrap();
+        assert!(sim.state().is_none());
+        assert_eq!(
+            sim.graph().borrow().nodes.keys().collect::<Vec<_>>(),
+            before
+        );
+    }
+
+    #[test]
+    fn restore_model_undoes_model_effects_and_is_idempotent() {
+        let (graph, model) = wiper_attack_graph();
+        let infect = graph.full_name_to_node["InfectedDevice:infect"];
+        let graph_rc = Rc::new(RefCell::new(graph));
+        let mut sim = Simulator::new_dyna(graph_rc.clone(), Rc::new(RefCell::new(model)));
+
+        // Restoring a pristine model changes nothing (not even node ids),
+        // so `reset`'s own restore after an explicit one is harmless.
+        let pristine: Vec<_> = graph_rc.borrow().nodes.keys().collect();
+        sim.restore_model().unwrap();
+        assert_eq!(graph_rc.borrow().nodes.keys().collect::<Vec<_>>(), pristine);
+
+        let s = MalSimulatorSettings {
+            compromise_entrypoints_at_start: false,
+            ..settings()
+        };
+        let agents = || vec![("WiperController".to_string(), attacker(&[infect]))];
+        sim.reset(&s, agents(), 1).unwrap();
+        sim.step(&actions(&[("WiperController", vec![infect])]))
+            .unwrap();
+        assert!(graph_rc.borrow().nodes.len() > pristine.len());
+
+        // The explicit restore brings the graph back before `reset` runs,
+        // and `reset`'s own restore is then a no-op.
+        sim.restore_model().unwrap();
+        let restored: Vec<_> = graph_rc.borrow().nodes.keys().collect();
+        assert_eq!(restored.len(), pristine.len());
+        sim.reset(&s, agents(), 1).unwrap();
+        assert_eq!(graph_rc.borrow().nodes.keys().collect::<Vec<_>>(), restored);
     }
 
     /// Runs reset + two steps on a fresh dummy simulator with two attackers
