@@ -14,6 +14,6 @@ publish = false
 [workspace.dependencies]
 malsim-core = { path = "core/malsim-core" }
 
-maltoolbox-attackgraph = { git = "https://github.com/mal-lang/mal-toolbox", rev = "b96258bad474282b975245d9848f7c25d195d508" }
-maltoolbox-language = { git = "https://github.com/mal-lang/mal-toolbox", rev = "b96258bad474282b975245d9848f7c25d195d508" }
-maltoolbox-model = { git = "https://github.com/mal-lang/mal-toolbox", rev = "b96258bad474282b975245d9848f7c25d195d508" }
+maltoolbox-attackgraph = { git = "https://github.com/mal-lang/mal-toolbox", branch = "rust-rewrite" }
+maltoolbox-language = { git = "https://github.com/mal-lang/mal-toolbox", branch = "rust-rewrite" }
+maltoolbox-model = { git = "https://github.com/mal-lang/mal-toolbox", branch = "rust-rewrite" }

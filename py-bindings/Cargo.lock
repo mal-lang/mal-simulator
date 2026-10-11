@@ -256,7 +256,7 @@ dependencies = [
 [[package]]
 name = "maltoolbox-attackgraph"
 version = "0.1.0"
-source = "git+https://github.com/mal-lang/mal-toolbox?rev=b96258bad474282b975245d9848f7c25d195d508#b96258bad474282b975245d9848f7c25d195d508"
+source = "git+https://github.com/mal-lang/mal-toolbox?branch=rust-rewrite#b96258bad474282b975245d9848f7c25d195d508"
 dependencies = [
  "indexmap",
  "maltoolbox-io",
@@ -272,7 +272,7 @@ dependencies = [
 [[package]]
 name = "maltoolbox-io"
 version = "0.1.0"
-source = "git+https://github.com/mal-lang/mal-toolbox?rev=b96258bad474282b975245d9848f7c25d195d508#b96258bad474282b975245d9848f7c25d195d508"
+source = "git+https://github.com/mal-lang/mal-toolbox?branch=rust-rewrite#b96258bad474282b975245d9848f7c25d195d508"
 dependencies = [
  "serde",
  "serde_json",
@@ -283,7 +283,7 @@ dependencies = [
 [[package]]
 name = "maltoolbox-language"
 version = "0.1.0"
-source = "git+https://github.com/mal-lang/mal-toolbox?rev=b96258bad474282b975245d9848f7c25d195d508#b96258bad474282b975245d9848f7c25d195d508"
+source = "git+https://github.com/mal-lang/mal-toolbox?branch=rust-rewrite#b96258bad474282b975245d9848f7c25d195d508"
 dependencies = [
  "indexmap",
  "maltoolbox-io",
@@ -300,7 +300,7 @@ dependencies = [
 [[package]]
 name = "maltoolbox-model"
 version = "0.1.0"
-source = "git+https://github.com/mal-lang/mal-toolbox?rev=b96258bad474282b975245d9848f7c25d195d508#b96258bad474282b975245d9848f7c25d195d508"
+source = "git+https://github.com/mal-lang/mal-toolbox?branch=rust-rewrite#b96258bad474282b975245d9848f7c25d195d508"
 dependencies = [
  "maltoolbox-io",
  "maltoolbox-language",
