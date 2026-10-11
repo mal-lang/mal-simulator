@@ -1576,6 +1576,31 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` done.
         `agent_settings.rs` (§12 C6). Gates: `cargo test -p malsim-core`
         225 unit + 1 parity + 4 smoke tests; `pytest tests -m "not
         integration"` 160 passed; ruff/mypy clean.
+- [x] Separate the static and dynamic simulators (2026-10-11, §11
+      "Static and dynamic simulators are separate types"). `malsim-core`'s
+      one `Simulator` (with `new_dyna`/`Option<DynaHandle>`) is split:
+      `simulator.rs` keeps only the static `Simulator`, and the new
+      `dyna_simulator.rs` has `DynaSimulator { sim: Simulator, model,
+      snapshot }` with `new`/`restore_model`/`reset`/`step` and
+      `DynaStepOutcome { step: StepOutcome, step_modification_record }`.
+      `StepOutcome` loses `step_modification_record`. The two share
+      `reset_state`, `update_attacker_runtimes`/
+      `update_defender_runtimes`, `check_action_agents` and
+      `agent_actions` (all `pub(crate)`). `malsim-pyo3` now has two
+      pyclasses, `_native.Simulator(graph)` (`reset_native`/
+      `step_native`) and `_native.DynaSimulator(graph, model)`
+      (`restore_model_native`/`reset_native`/`step_native`), sharing the
+      dict conversions in `simulator.rs`. The `dyna_*_native` methods are
+      gone. `DynaMalSimulator` builds a `DynaSimulator` in `__init__` and
+      keeps it as `_dyna_native_sim`. Tests: the dyna cases of
+      `simulator.rs`'s tests moved to `dyna_simulator.rs`;
+      `restore_model_is_a_no_op_for_a_plain_simulator` was dropped
+      because the static `Simulator` has no `restore_model` any more;
+      `step_does_not_run_model_effects` (static) and a dyna
+      `step_before_reset_fails` were added. `tests/scenario_simulator.rs`
+      and `tests/test_native.py` use the new types. Gates: `cargo test`
+      228 unit + 1 parity + 6 smoke tests; `pytest tests examples/*` 170
+      passed (integration included); clippy/fmt/ruff/mypy clean.
 
 ## 1. Goals and non-goals
 
@@ -3698,14 +3723,34 @@ asking again. Each entry names the phase it was decided in.
   nothing calls the code: coverage is kept by porting the code and its
   tests to `malsim-core`, not by keeping the Python copy alive.
 
-- **One `Simulator`, in `malsim-core`** (decided at C, 2026-10-10). All reset/step orchestration
-  (per-agent runtime state, `SimState`, plain and dyna reset/step) lives
-  in a public `malsim_core::Simulator` that takes plain-Rust settings
-  structs and returns a core error type. `malsim-pyo3` is only a thin
+- **Orchestration lives in `malsim-core`** (decided at C, 2026-10-10;
+  the "one `Simulator`" part was superseded on 2026-10-11, see the next
+  bullet). All reset/step orchestration (per-agent runtime state,
+  `SimState`, static and dyna reset/step) lives in public `malsim-core`
+  types that take plain-Rust settings structs and return a core error
+  type. `malsim-pyo3` is only a thin
   wrapper: it parses Python dicts into those core structs and builds
   Python output from core results. New orchestration logic never goes
   into `malsim-pyo3`.
-- **Rust scenario types keep the Python names** (decided at C). They live in
+- **Static and dynamic simulators are separate types** (decided
+  2026-10-11, replacing C's single `Simulator` with `new_dyna`). The user
+  asked for "a simulator object for running the simulator with static
+  instance model/attack graph" and a "DynaSimulator" for the dynamic one.
+  - `malsim_core::simulator::Simulator` runs a static graph.
+    `malsim_core::dyna_simulator::DynaSimulator` *contains* a `Simulator`,
+    plus the shared `Model` handle and its snapshot. It reuses the
+    `Simulator`'s reset and per-agent bookkeeping and swaps in only the
+    dyna step functions. This is composition, the Rust analogue of
+    `DynaMalSimulator(MalSimulator)`: no step-mode trait or generic, and
+    no `Deref` from `DynaSimulator` to `Simulator`.
+  - Python sees two pyclasses with the same method names:
+    `_native.Simulator(graph)` and `_native.DynaSimulator(graph, model)`,
+    both with `reset_native(settings, agents, seed)`/`step_native(actions)`.
+    The `Model` is captured and snapshotted in `DynaSimulator`'s
+    constructor (mirroring `DynaMalSimulator.__init__`), not passed per
+    call. No `dyna_`-prefixed method names.
+  - Both types return the one `SimulatorError` enum (the error convention
+    below). (decided at C). They live in
   `malsim_core::scenario` (with submodules) and are named
   `NodePropertyRule<T>`, `AttackerSettings`, `DefenderSettings`,
   `AgentSettings` (an enum over the two), `Scenario` and
@@ -3728,19 +3773,22 @@ asking again. Each entry names the phase it was decided in.
   shape on the Python side.
 - **`Simulator` API: settings are passed at reset, mirroring
   `reset_native`** (decided at C). `Simulator::new(graph)`,
-  `Simulator::new_dyna(graph, model)`, `reset(&MalSimulatorSettings,
+  `DynaSimulator::new(graph, model)`, `reset(&MalSimulatorSettings,
   agents, seed) -> Result<&SimState, _>`, `step(&actions) ->
-  Result<StepOutcome, _>` (per-step deltas, like `step_native`) and
+  Result<StepOutcome, _>` (per-step deltas, like `step_native`;
+  `DynaSimulator::step` returns `DynaStepOutcome`, which adds the
+  modification record) and
   `state() -> Option<&SimState>` for the full accumulated state. Multiple
   entry-point sets are sampled before reset by the caller: Python's
   `get_entry_points`, or a Rust helper on `Scenario`.
-- **`Simulator::restore_model()` restores a dyna model before agents are
-  flattened** (decided after C, 2026-10-11). It is additive: a no-op for a
-  plain simulator or an already-pristine model, and `reset` still
-  restores too (a no-op diff by then). Every dyna reset caller calls it
-  *before* resolving per-node settings into `FlatAgentSettings`: Python's
-  `dyna_reset` through pyo3's `dyna_restore_model_native(model)`, Rust
-  callers before `Scenario::flatten_agents`.
+- **`DynaSimulator::restore_model()` restores a dyna model before agents
+  are flattened** (decided after C, 2026-10-11; it moved from `Simulator`
+  to `DynaSimulator` in the split above). It is a no-op for an
+  already-pristine model, and `reset` still restores too (a no-op diff
+  by then). Every dyna reset caller calls it *before* resolving per-node
+  settings into `FlatAgentSettings`: Python's `dyna_reset` through pyo3's
+  `DynaSimulator.restore_model_native()`, and Rust callers before
+  `Scenario::flatten_agents`.
 - **Attacker entry points/goals are re-resolved by full name on every
   reset** (decided 2026-10-11). The Rust `Scenario` keeps a private
   full-name copy of its attacker settings, and `Scenario::flatten_agents`
@@ -3953,3 +4001,24 @@ entry names its phase.
   still not handled (e.g. a removed goal can never be performed); that
   case predates the port and is a different question from the
   reset-time staleness fixed here.
+- **Simulator split (2026-10-11): the static `Simulator.step_native`
+  output no longer has `step_modification_record`.** The static path
+  never runs model effects, so it was always `[]`, and the core
+  `StepOutcome` no longer carries the field. Only
+  `DynaSimulator.step_native` sends it.
+  `test_native_simulator_step_output_is_delta_only(_attacker_only)` now
+  assert the exact key set `{'step_enabled_defenses'}`, so they are as
+  strict as before. No Python code read the key on the static path.
+- **Simulator split: `DynaMalSimulator` keeps its native handle in
+  `_dyna_native_sim`, not the inherited `_native_sim`.** `MalSimulator`
+  types `_native_sim` as `_native.Simulator`, and `DynaSimulator` is
+  deliberately not a subtype of it (§11). `DynaMalSimulator` overrides
+  every method that reads the handle (`reset`/`step`), so a dyna instance
+  never needs the base attribute. `DynaMalSimulator.__getstate__` drops
+  `_dyna_native_sim` from pickles, the same way the base drops
+  `_native_sim`.
+- **Simulator split: the pyo3 `NotReset` message names the pyclass**
+  (`"Simulator.step_native() called before reset_native()"` /
+  `"DynaSimulator.step_native() ..."`). Both are still `ValueError`s. The
+  old dyna-only "no Model is attached" error is gone, because a
+  `DynaSimulator` always has its model.

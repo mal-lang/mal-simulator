@@ -205,10 +205,7 @@ def test_native_simulator_step_output_is_delta_only() -> None:
 
     step_out = sim.step_native({'Attacker1': [action_surface[0]], 'Defender1': []})
 
-    assert set(step_out['sim_state'].keys()) == {
-        'step_enabled_defenses',
-        'step_modification_record',
-    }
+    assert set(step_out['sim_state'].keys()) == {'step_enabled_defenses'}
 
     attacker_out = step_out['agents']['Attacker1']
     assert set(attacker_out.keys()) == {
@@ -259,10 +256,7 @@ def test_native_simulator_step_output_is_delta_only_attacker_only() -> None:
 
     step_out = sim.step_native({'Attacker1': [action_surface[0]]})
 
-    assert set(step_out['sim_state'].keys()) == {
-        'step_enabled_defenses',
-        'step_modification_record',
-    }
+    assert set(step_out['sim_state'].keys()) == {'step_enabled_defenses'}
     assert set(step_out['agents'].keys()) == {'Attacker1'}
 
     attacker_out = step_out['agents']['Attacker1']
@@ -301,7 +295,7 @@ def test_native_simulator_step_unknown_agent_raises() -> None:
         sim.step_native({'NoSuchAgent': []})
 
 
-# --- Phase B4 (PORTING_NOTES.md §6/B4): dyna_reset_native/dyna_step_native ---
+# --- Phase B4 (PORTING_NOTES.md §6/B4, §11): _native.DynaSimulator ---
 #
 # `wiperLang_scenario`/`wiperLang_attack_graph`/`wiperLang_model` come from
 # `tests/conftest.py` - the same fixtures `test_dyna_mal_simulator.py`'s
@@ -315,10 +309,10 @@ def test_native_dyna_simulator_step_before_reset_raises() -> None:
     scenario = Scenario.load_from_file(
         path_relative_to_tests('./testdata/scenarios/wiper_scenario.yml')
     )
-    sim = _native.Simulator(scenario.attack_graph)
+    sim = _native.DynaSimulator(scenario.attack_graph, scenario.model)
 
     with pytest.raises(ValueError):
-        sim.dyna_step_native({})
+        sim.step_native({})
 
 
 def test_native_dyna_simulator_step_executes_model_effects_and_grows_graph() -> None:
@@ -330,15 +324,14 @@ def test_native_dyna_simulator_step_executes_model_effects_and_grows_graph() -> 
     infect = attack_graph.get_node_by_full_name('InfectedDevice:infect')
     initial_node_count = len(attack_graph.nodes)
 
-    sim = _native.Simulator(attack_graph)
-    sim.dyna_reset_native(
+    sim = _native.DynaSimulator(attack_graph, model)
+    sim.reset_native(
         {'compromise_entrypoints_at_start': False},
         {'WiperController': {'type': 'attacker', 'entry_points': [infect.id]}},
-        model,
         42,
     )
 
-    step_out = sim.dyna_step_native({'WiperController': [infect.id]})
+    step_out = sim.step_native({'WiperController': [infect.id]})
     attacker_out = step_out['agents']['WiperController']
 
     assert infect.id in attacker_out['step_performed_nodes']
@@ -385,7 +378,7 @@ def test_native_dyna_simulator_step_resends_graph_state_only_on_model_effect() -
     `necessity_per_node`/`impossible_attack_steps`/`pre_enabled_defenses`
     are episode-static for plain `step_native` (asserted by
     `test_native_simulator_step_output_is_delta_only*` above), but
-    `dyna_step_native` can grow them mid-episode via model effects -
+    `DynaSimulator.step_native` can grow them mid-episode via model effects -
     `build_step_output` resends the full current maps, but only on a step
     that actually ran one (`step_modification_record` non-empty).
     """
@@ -396,11 +389,10 @@ def test_native_dyna_simulator_step_resends_graph_state_only_on_model_effect() -
     model = scenario.model
     infect = attack_graph.get_node_by_full_name('InfectedDevice:infect')
 
-    sim = _native.Simulator(attack_graph)
-    sim.dyna_reset_native(
+    sim = _native.DynaSimulator(attack_graph, model)
+    sim.reset_native(
         {'compromise_entrypoints_at_start': False, 'ttc_mode': 'PRE_SAMPLE'},
         {'WiperController': {'type': 'attacker', 'entry_points': [infect.id]}},
-        model,
         42,
     )
 
@@ -408,7 +400,7 @@ def test_native_dyna_simulator_step_resends_graph_state_only_on_model_effect() -
     # and its attack steps (e.g. `Wiper-7:activate`) - a node that did not
     # exist at reset, so it can only have a `ttc_values` entry if this
     # step's output actually carried the grown map.
-    step_out = sim.dyna_step_native({'WiperController': [infect.id]})
+    step_out = sim.step_native({'WiperController': [infect.id]})
     assert step_out['sim_state']['step_modification_record']
     for key in (
         'ttc_values',
@@ -424,7 +416,7 @@ def test_native_dyna_simulator_step_resends_graph_state_only_on_model_effect() -
 
     # A step with no actions at all runs no model effects - the maps must
     # not be resent (the gate this fix added, not just "always send them").
-    quiet_step_out = sim.dyna_step_native({'WiperController': []})
+    quiet_step_out = sim.step_native({'WiperController': []})
     assert not quiet_step_out['sim_state']['step_modification_record']
     for key in (
         'ttc_values',
@@ -444,25 +436,22 @@ def test_native_dyna_simulator_reset_restores_pristine_graph_after_mutation() ->
     infect = attack_graph.get_node_by_full_name('InfectedDevice:infect')
     pristine_full_names = {node.full_name for node in attack_graph.nodes.values()}
 
-    sim = _native.Simulator(attack_graph)
-    sim.dyna_reset_native(
+    sim = _native.DynaSimulator(attack_graph, model)
+    sim.reset_native(
         {'compromise_entrypoints_at_start': False},
         {'WiperController': {'type': 'attacker', 'entry_points': [infect.id]}},
-        model,
         42,
     )
-    sim.dyna_step_native({'WiperController': [infect.id]})
+    sim.step_native({'WiperController': [infect.id]})
     assert model.get_asset_by_name('Wiper-7') is not None
 
-    # Resetting again must restore both the live `Model` (captured once,
-    # natively, the first time `dyna_reset_native` was called - §10's B4
-    # deviation from this phase's own placeholder signature) and the
+    # Resetting again must restore both the live `Model` (snapshotted once,
+    # natively, when the `DynaSimulator` was constructed - §11) and the
     # `AttackGraph` derived from it back to the pristine pre-mutation
     # state, exactly like `DynaMalSimulator.reset()` does today.
-    sim.dyna_reset_native(
+    sim.reset_native(
         {'compromise_entrypoints_at_start': False},
         {'WiperController': {'type': 'attacker', 'entry_points': [infect.id]}},
-        model,
         42,
     )
 

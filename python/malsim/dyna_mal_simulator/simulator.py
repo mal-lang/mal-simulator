@@ -139,7 +139,7 @@ class DynaMalSimulator(MalSimulator):
                 'to be set.'
             )
 
-        native_sim = _native.Simulator(attack_graph)
+        native_sim = _native.DynaSimulator(attack_graph, attack_graph.model)
 
         static_sim_data = MALSimulatorStaticData(
             attack_graph,
@@ -202,9 +202,18 @@ class DynaMalSimulator(MalSimulator):
         self.rest_api_client = rest_api_client
         self._attack_graph = attack_graph
         self._static_data = static_sim_data
-        self._native_sim = native_sim
+        self._dyna_native_sim = native_sim
         self._defender_reward_fns = defender_reward_fns
         self._attacker_reward_fns = attacker_reward_fns
+
+    def __getstate__(self) -> dict[str, Any]:
+        """Same as `MalSimulator.__getstate__`, but also leaves out the
+        native `malsim._native.DynaSimulator` handle - kept under its own
+        name because it's a different native type than `_native_sim`
+        (PORTING_NOTES.md §11)."""
+        state = super().__getstate__()
+        state.pop('_dyna_native_sim', None)
+        return state
 
     @classmethod
     def from_scenario(
@@ -239,7 +248,7 @@ class DynaMalSimulator(MalSimulator):
             self._attacker_settings_by_full_name,
             self.rng,
             self.rest_api_client,
-            self._native_sim,
+            self._dyna_native_sim,
         )
 
         if seed is not None:
@@ -255,7 +264,7 @@ class DynaMalSimulator(MalSimulator):
             self.sim_state,
             self._agent_states,
             actions,
-            self._native_sim,
+            self._dyna_native_sim,
             self.rest_api_client,
         )
         self._agent_states = agent_states
@@ -318,7 +327,7 @@ def dyna_reset(
     attacker_settings_by_full_name: Mapping[str, AttackerSettings[str]],
     rng: np.random.Generator,
     rest_api_client: MalSimGUIClient | None,
-    native_sim: _native.Simulator,
+    native_sim: _native.DynaSimulator,
 ) -> tuple[
     AgentStates,
     DynaMalSimulatorState,
@@ -327,16 +336,17 @@ def dyna_reset(
 ]:
     """Reset attack graph and reinitialize agents.
 
-    Delegates to `malsim._native.Simulator.dyna_reset_native`
+    Delegates to `malsim._native.DynaSimulator.reset_native`
     (PORTING_NOTES.md §6 Phase B5, A9-equivalent) - the live `Model`
-    (restored to the pristine snapshot native captured the first time it
-    was attached - see `malsim_core::simulator`'s `DynaHandle`) and
+    (restored to the pristine snapshot native captured when the
+    `DynaSimulator` was constructed in `DynaMalSimulator.__init__` - see
+    `malsim_core::dyna_simulator::DynaSimulator`, PORTING_NOTES.md §11) and
     `AttackGraph` are both mutated in place through the shared handles,
     same `AttackGraph::partially_regenerate_graph` bookkeeping B1/B2
     already proved. "Multiple entry point sets, sampled at reset" is
     resolved here first, same reasoning as `mal_simulator.simulator.reset`.
 
-    The model is restored (`dyna_restore_model_native`) *before* agent
+    The model is restored (`restore_model_native`) *before* agent
     settings are flattened: nodes the previous episode's model effects
     removed only come back, with regenerated ids, on restore, so rules
     must be resolved against the restored graph (PORTING_NOTES.md §12).
@@ -351,7 +361,7 @@ def dyna_reset(
         'DynaMalSimulator requires attack_graph.model to be set.'
     )
 
-    native_sim.dyna_restore_model_native(attack_graph.model)
+    native_sim.restore_model_native()
 
     agent_settings = {
         **agent_settings,
@@ -383,9 +393,7 @@ def dyna_reset(
     )
 
     native_seed = int(rng.integers(0, 2**63 - 1))
-    native_out = native_sim.dyna_reset_native(
-        native_settings, native_agents, attack_graph.model, native_seed
-    )
+    native_out = native_sim.reset_native(native_settings, native_agents, native_seed)
 
     graph_state = _graph_state_from_native(attack_graph, native_out['sim_state'])
     sim_state = create_simulator_state(attack_graph, graph_state, settings)
@@ -421,7 +429,7 @@ def dyna_step(
     sim_state: DynaMalSimulatorState,
     agent_states: AgentStates,
     actions: dict[str, list[AttackGraphNode]] | dict[str, list[str]],
-    native_sim: _native.Simulator,
+    native_sim: _native.DynaSimulator,
     rest_api_client: MalSimGUIClient | None = None,
 ) -> tuple[AgentStates, Recording, DynaMalSimulatorState]:
     """Take a step in the simulation
@@ -433,7 +441,7 @@ def dyna_step(
     Returns:
     - A dictionary containing the agent state views keyed by agent names
 
-    Delegates to `malsim._native.Simulator.dyna_step_native`
+    Delegates to `malsim._native.DynaSimulator.step_native`
     (PORTING_NOTES.md §6 Phase B5, A9-equivalent), which runs defenders
     before attackers internally and folds any model-effect-created nodes
     into its own `graph_state`/`enabled_defenses` as it goes (B1/B2),
@@ -450,7 +458,7 @@ def dyna_step(
         name: [node.id for node in full_names_or_nodes_to_nodes(attack_graph, nodes)]
         for name, nodes in actions.items()
     }
-    native_out = native_sim.dyna_step_native(native_actions)
+    native_out = native_sim.step_native(native_actions)
 
     new_modification_record: list[AssetOp | AssocOp] = modification_record_from_native(
         attack_graph.model, native_out['sim_state']['step_modification_record']

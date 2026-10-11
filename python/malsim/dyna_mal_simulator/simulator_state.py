@@ -115,10 +115,11 @@ def _resolve_asset_ref(
 def modification_record_from_native(
     model: Model, native_record: list[Mapping[str, Any]]
 ) -> list[AssetOp | AssocOp]:
-    """Resolves `dyna_step_native`'s `step_modification_record` output
-    (PORTING_NOTES.md §6 Phase B4/B5 - a list of plain dicts, each
-    already carrying every asset's id/type/name snapshot inline, per
-    `AssetRef`'s doc comment on the Rust side) into `AssetOp`/`AssocOp`
+    """Resolves `malsim._native.DynaSimulator.step_native`'s
+    `step_modification_record` output (PORTING_NOTES.md §6 Phase B4/B5,
+    §11 - a list of plain dicts, each already carrying every asset's
+    id/type/name snapshot inline, per `AssetRef`'s doc comment on the
+    Rust side) into `AssetOp`/`AssocOp`
     objects, for `DynaMalSimulatorState.modification_record`.
     """
     record: list[AssetOp | AssocOp] = []

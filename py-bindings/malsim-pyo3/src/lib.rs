@@ -20,6 +20,7 @@ use maltoolbox_model::Model;
 use pyo3::prelude::*;
 use pyo3::types::PyCapsule;
 
+mod dyna_simulator;
 mod simulator;
 
 /// Must match mal-toolbox's `py-bindings/maltoolbox-attackgraph-py/src/
@@ -166,5 +167,6 @@ fn _native(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(model_add_asset_native, m)?)?;
     m.add_function(wrap_pyfunction!(set_detector_rates, m)?)?;
     m.add_class::<simulator::Simulator>()?;
+    m.add_class::<dyna_simulator::DynaSimulator>()?;
     Ok(())
 }

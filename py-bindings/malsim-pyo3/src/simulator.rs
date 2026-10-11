@@ -1,6 +1,7 @@
 //! `malsim._native.Simulator` - the Phase A8 native simulator pyclass,
 //! extended at Phase A9 to back `MalSimulator.reset()`/`.step()` (see
-//! `PORTING_NOTES.md` §5 Phase A8/A9/§10).
+//! `PORTING_NOTES.md` §5 Phase A8/A9/§10) - plus the dict conversions it
+//! shares with `dyna_simulator.rs`'s `DynaSimulator` pyclass (§11).
 //!
 //! A thin wrapper around `malsim_core::simulator::Simulator`, which owns
 //! the reset/step orchestration: this module parses the flat Python dicts
@@ -49,34 +50,30 @@ use malsim_core::model_effects::{AssetOp, AssetRef, AssocOp, ModEffectOp};
 use malsim_core::settings::{
     FlatAgentSettings, FlatAttackerSettings, FlatDefenderSettings, MalSimulatorSettings,
 };
-use malsim_core::simulator::{Simulator as CoreSimulator, SimulatorError, StepOutcome};
+use malsim_core::simulator::{SimState, Simulator as CoreSimulator, SimulatorError, StepOutcome};
 use malsim_core::ttc::{named_ttc_dist, DistFunction, Operation, TtcDist};
 
-use crate::{extract_shared_graph, extract_shared_model};
+use crate::extract_shared_graph;
 
-fn to_py_err<E: std::fmt::Display>(e: E) -> PyErr {
+pub(crate) fn to_py_err<E: std::fmt::Display>(e: E) -> PyErr {
     PyValueError::new_err(e.to_string())
 }
 
-/// Maps a core `SimulatorError` to the Python exception this module has
-/// always raised for that case: every error is a `ValueError` carrying the
-/// wrapped error's message, except `NotReset`, which keeps this module's
-/// own `step_native`-worded message.
-fn sim_err_to_py(e: SimulatorError) -> PyErr {
+/// Maps a core `SimulatorError` to the Python exception these pyclasses
+/// have always raised for that case: every error is a `ValueError`
+/// carrying the wrapped error's message, except `NotReset`, which keeps a
+/// `step_native`-worded message naming the pyclass (`class_name`).
+pub(crate) fn sim_err_to_py(e: SimulatorError, class_name: &str) -> PyErr {
     match e {
-        SimulatorError::NotReset => not_reset_err(),
+        SimulatorError::NotReset => not_reset_err(class_name),
         other => to_py_err(other),
     }
 }
 
-fn not_reset_err() -> PyErr {
-    PyValueError::new_err("Simulator.step_native() called before reset_native()")
-}
-
-fn not_attached_err() -> PyErr {
-    PyValueError::new_err(
-        "Simulator.dyna_step_native() called before dyna_reset_native() - no Model is attached",
-    )
+pub(crate) fn not_reset_err(class_name: &str) -> PyErr {
+    PyValueError::new_err(format!(
+        "{class_name}.step_native() called before reset_native()"
+    ))
 }
 
 // --- Node id translation (stable i64 <-> AttackGraphNodeId) ---
@@ -264,7 +261,7 @@ fn parse_ttc_mode(s: &str) -> PyResult<TtcMode> {
 /// `skip_unnecessary` at the top level) into a `MalSimulatorSettings`.
 /// Fields the dict doesn't carry (`seed`, `uncompromise_untraversable_steps`)
 /// keep their `Default`.
-fn parse_settings(dict: &Bound<'_, PyDict>) -> PyResult<MalSimulatorSettings> {
+pub(crate) fn parse_settings(dict: &Bound<'_, PyDict>) -> PyResult<MalSimulatorSettings> {
     let ttc_mode_str = match get_dict_value(dict, "ttc_mode")? {
         Some(v) => v.extract::<String>()?,
         None => "DISABLED".to_string(),
@@ -317,7 +314,7 @@ fn parse_defender(graph: &AttackGraph, cfg: &Bound<'_, PyDict>) -> PyResult<Flat
 /// agent's `type` is checked first (in dict order), then attackers are
 /// parsed, then defenders - the same order these errors surfaced in before
 /// the orchestration moved to malsim-core.
-fn parse_agents(
+pub(crate) fn parse_agents(
     graph: &AttackGraph,
     agents: &Bound<'_, PyDict>,
 ) -> PyResult<Vec<(String, FlatAgentSettings)>> {
@@ -350,14 +347,15 @@ fn parse_agents(
     Ok(out)
 }
 
+/// Python handle on a `malsim_core::simulator::Simulator` (static instance
+/// model/attack graph). The dynamic counterpart is `dyna_simulator.rs`'s
+/// `DynaSimulator`.
 #[pyclass(name = "Simulator", module = "malsim._native", unsendable)]
 pub struct Simulator {
-    /// A plain `CoreSimulator::new` until `dyna_reset_native` is first
-    /// called, which replaces it with `CoreSimulator::new_dyna` attached to
-    /// that call's `model`; later `dyna_reset_native` calls reuse it (a
-    /// different `model` passed later is ignored) - §6 Phase B4.
     inner: CoreSimulator,
 }
+
+const CLASS_NAME: &str = "Simulator";
 
 #[pymethods]
 impl Simulator {
@@ -376,125 +374,64 @@ impl Simulator {
         agents: &Bound<'_, PyDict>,
         seed: u64,
     ) -> PyResult<Py<PyAny>> {
-        self.do_reset(py, settings, agents, seed)
-    }
-
-    /// Restores the shared `Model`/`AttackGraph` to the pristine snapshot -
-    /// see `CoreSimulator::restore_model`. Attaches `model` first if this
-    /// is the first dyna call (same as `dyna_reset_native`). Python's
-    /// `dyna_reset` calls this before flattening agent settings, so nodes
-    /// removed by the previous episode's model effects are back (with
-    /// their regenerated ids) when the rules are resolved.
-    fn dyna_restore_model_native(&mut self, model: &Bound<'_, PyAny>) -> PyResult<()> {
-        self.attach_model(model)?;
-        self.inner.restore_model().map_err(sim_err_to_py)
-    }
-
-    /// Dyna-aware reset (Phase B4, A8/B3-equivalent entry point): attaches
-    /// `model` the first time this is called (via `extract_shared_model` +
-    /// `CoreSimulator::new_dyna`, which captures the pristine snapshot),
-    /// then runs `CoreSimulator::reset`, which restores the shared
-    /// `Model`/`AttackGraph` to that snapshot before the shared reset -
-    /// mirroring `dyna_reset`'s `reset_model_effects` call followed by
-    /// `compute_initial_graph_state`/`reset_agents`. `agents` must already be
-    /// resolved against the restored graph (`dyna_restore_model_native`).
-    fn dyna_reset_native(
-        &mut self,
-        py: Python<'_>,
-        settings: &Bound<'_, PyDict>,
-        agents: &Bound<'_, PyDict>,
-        model: &Bound<'_, PyAny>,
-        seed: u64,
-    ) -> PyResult<Py<PyAny>> {
-        self.attach_model(model)?;
-        self.do_reset(py, settings, agents, seed)
+        let graph_rc = self.inner.graph().clone();
+        let settings = parse_settings(settings)?;
+        let agents = parse_agents(&graph_rc.borrow(), agents)?;
+        let state = self
+            .inner
+            .reset(&settings, agents, seed)
+            .map_err(|e| sim_err_to_py(e, CLASS_NAME))?;
+        let graph = graph_rc.borrow();
+        build_reset_output(py, &graph, state)
     }
 
     /// Steps the simulation - see `CoreSimulator::step`.
     fn step_native(&mut self, py: Python<'_>, actions: &Bound<'_, PyDict>) -> PyResult<Py<PyAny>> {
-        let action_nodes = self.extract_actions(actions)?;
-        let outcome = self.inner.step(&action_nodes).map_err(sim_err_to_py)?;
-        self.build_step_output(py, &outcome)
-    }
-
-    /// Dyna-aware step (Phase B4, A9-equivalent entry point) - see
-    /// `CoreSimulator::step`. Requires `dyna_reset_native` to have been
-    /// called at least once (for a `Model` to be attached).
-    fn dyna_step_native(
-        &mut self,
-        py: Python<'_>,
-        actions: &Bound<'_, PyDict>,
-    ) -> PyResult<Py<PyAny>> {
-        if self.inner.model().is_none() {
-            return Err(not_attached_err());
-        }
-        let action_nodes = self.extract_actions(actions)?;
-        let outcome = self.inner.step(&action_nodes).map_err(sim_err_to_py)?;
-        self.build_step_output(py, &outcome)
+        let action_nodes = {
+            let state = self
+                .inner
+                .state()
+                .ok_or_else(|| not_reset_err(CLASS_NAME))?;
+            extract_actions(&self.inner.graph().borrow(), state, actions)?
+        };
+        let outcome = self
+            .inner
+            .step(&action_nodes)
+            .map_err(|e| sim_err_to_py(e, CLASS_NAME))?;
+        let state = self
+            .inner
+            .state()
+            .ok_or_else(|| not_reset_err(CLASS_NAME))?;
+        build_step_output(py, &self.inner.graph().borrow(), state, &outcome, None)
     }
 }
 
-impl Simulator {
-    /// Shared body of `reset_native`/`dyna_reset_native` - see each
-    /// pymethod's doc comment for what differs before this is called.
-    /// Switches the inner simulator to a dyna one over `model` on the first
-    /// dyna call; later calls keep the already-attached model (a different
-    /// `model` is ignored, as before).
-    fn attach_model(&mut self, model: &Bound<'_, PyAny>) -> PyResult<()> {
-        if self.inner.model().is_none() {
-            let model_rc = extract_shared_model(model)?;
-            self.inner = CoreSimulator::new_dyna(self.inner.graph().clone(), model_rc);
+/// Translates `step_native`'s `actions` dict (`name -> [stable id]`) into
+/// the core `step`'s input. Mirrors `_pre_step_check`'s `KeyError` on an
+/// `actions` key that names no registered agent (checked in key order,
+/// before any node id is parsed); an agent missing from `actions` (or
+/// mapped to `None`) takes no action.
+pub(crate) fn extract_actions(
+    graph: &AttackGraph,
+    state: &SimState,
+    actions: &Bound<'_, PyDict>,
+) -> PyResult<HashMap<String, Vec<AttackGraphNodeId>>> {
+    for key_obj in actions.keys() {
+        let name: String = key_obj.extract()?;
+        if !state.attackers.contains_key(&name) && !state.defenders.contains_key(&name) {
+            return Err(to_py_err(SimulatorError::UnknownAgent(name)));
         }
-        Ok(())
     }
 
-    fn do_reset(
-        &mut self,
-        py: Python<'_>,
-        settings: &Bound<'_, PyDict>,
-        agents: &Bound<'_, PyDict>,
-        seed: u64,
-    ) -> PyResult<Py<PyAny>> {
-        let settings = parse_settings(settings)?;
-        let agents = {
-            let graph = self.inner.graph().borrow();
-            parse_agents(&graph, agents)?
+    let mut action_nodes: HashMap<String, Vec<AttackGraphNodeId>> = HashMap::new();
+    for name in state.attackers.keys().chain(state.defenders.keys()) {
+        let nodes = match actions.get_item(name)? {
+            Some(v) if !v.is_none() => extract_id_list(graph, &v)?,
+            _ => Vec::new(),
         };
-        self.inner
-            .reset(&settings, agents, seed)
-            .map_err(sim_err_to_py)?;
-        self.build_reset_output(py)
+        action_nodes.insert(name.clone(), nodes);
     }
-
-    /// Translates `step_native`'s `actions` dict (`name -> [stable id]`)
-    /// into `CoreSimulator::step`'s input. Mirrors `_pre_step_check`'s
-    /// `KeyError` on an `actions` key that names no registered agent
-    /// (checked in key order, before any node id is parsed); an agent
-    /// missing from `actions` (or mapped to `None`) takes no action.
-    fn extract_actions(
-        &self,
-        actions: &Bound<'_, PyDict>,
-    ) -> PyResult<HashMap<String, Vec<AttackGraphNodeId>>> {
-        let state = self.inner.state().ok_or_else(not_reset_err)?;
-
-        for key_obj in actions.keys() {
-            let name: String = key_obj.extract()?;
-            if !state.attackers.contains_key(&name) && !state.defenders.contains_key(&name) {
-                return Err(sim_err_to_py(SimulatorError::UnknownAgent(name)));
-            }
-        }
-
-        let mut action_nodes: HashMap<String, Vec<AttackGraphNodeId>> = HashMap::new();
-        let graph = self.inner.graph().borrow();
-        for name in state.attackers.keys().chain(state.defenders.keys()) {
-            let nodes = match actions.get_item(name)? {
-                Some(v) if !v.is_none() => extract_id_list(&graph, &v)?,
-                _ => Vec::new(),
-            };
-            action_nodes.insert(name.clone(), nodes);
-        }
-        Ok(action_nodes)
-    }
+    Ok(action_nodes)
 }
 
 /// Writes `ttc_values`/`impossible_attack_steps`/`necessity_per_node`/
@@ -524,214 +461,222 @@ fn insert_graph_state_fields(
     Ok(())
 }
 
-impl Simulator {
-    /// Builds `reset_native`'s plain-`dict` return value - full
-    /// episode-initial state for every field, since there's no previous
-    /// step to delta against at reset. See module docs for the exact
-    /// shape. Deliberately no custom pyclasses in the return value (per
-    /// A8's own plan text: "keep it boring and inspectable").
-    fn build_reset_output(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        let state = self.inner.state().ok_or_else(not_reset_err)?;
-        let graph = self.inner.graph().borrow();
+/// Builds `reset_native`'s plain-`dict` return value - full
+/// episode-initial state for every field, since there's no previous
+/// step to delta against at reset. See module docs for the exact
+/// shape. Deliberately no custom pyclasses in the return value (per
+/// A8's own plan text: "keep it boring and inspectable"). Shared by
+/// `Simulator`/`DynaSimulator`'s `reset_native`.
+pub(crate) fn build_reset_output(
+    py: Python<'_>,
+    graph: &AttackGraph,
+    state: &SimState,
+) -> PyResult<Py<PyAny>> {
+    let sim_state = PyDict::new(py);
+    sim_state.set_item(
+        "enabled_defenses",
+        stable_ids(graph, state.enabled_defenses.iter().copied()),
+    )?;
+    insert_graph_state_fields(&sim_state, graph, &state.graph_state)?;
 
-        let sim_state = PyDict::new(py);
-        sim_state.set_item(
-            "enabled_defenses",
-            stable_ids(&graph, state.enabled_defenses.iter().copied()),
+    let defenders_terminated = state.defender_is_terminated();
+
+    let agents = PyDict::new(py);
+    for (name, a) in &state.attackers {
+        let d = PyDict::new(py);
+        d.set_item("type", "attacker")?;
+        d.set_item(
+            "performed_nodes",
+            stable_ids(graph, a.performed_nodes.iter().copied()),
         )?;
-        insert_graph_state_fields(&sim_state, &graph, &state.graph_state)?;
-
-        let defenders_terminated = state.defender_is_terminated();
-
-        let agents = PyDict::new(py);
-        for (name, a) in &state.attackers {
-            let d = PyDict::new(py);
-            d.set_item("type", "attacker")?;
-            d.set_item(
-                "performed_nodes",
-                stable_ids(&graph, a.performed_nodes.iter().copied()),
-            )?;
-            d.set_item(
-                "attempted_nodes",
-                stable_ids(&graph, a.attempted_nodes.iter().copied()),
-            )?;
-            d.set_item(
-                "action_surface",
-                stable_ids(&graph, a.action_surface.iter().copied()),
-            )?;
-            d.set_item("num_attempts", id_value_map(&graph, &a.num_attempts))?;
-            d.set_item("ttc_values", id_value_map(&graph, &a.ttc_values))?;
-            d.set_item(
-                "impossible_steps",
-                stable_ids(&graph, a.impossible_steps.iter().copied()),
-            )?;
-            d.set_item("iteration", a.iteration)?;
-            d.set_item("terminated", state.attacker_is_terminated(name))?;
-            agents.set_item(name, d)?;
-        }
-
-        for (name, de) in &state.defenders {
-            let d = PyDict::new(py);
-            d.set_item("type", "defender")?;
-            d.set_item(
-                "performed_nodes",
-                stable_ids(&graph, de.performed_nodes.iter().copied()),
-            )?;
-            d.set_item(
-                "compromised_nodes",
-                stable_ids(&graph, de.compromised_nodes.iter().copied()),
-            )?;
-            d.set_item(
-                "observed_nodes",
-                stable_ids(&graph, de.observed_nodes.iter().copied()),
-            )?;
-            d.set_item(
-                "action_surface",
-                stable_ids(&graph, de.action_surface.iter().copied()),
-            )?;
-            d.set_item("iteration", de.iteration)?;
-            d.set_item("terminated", defenders_terminated)?;
-
-            let logs: Vec<Py<PyAny>> = de
-                .logs
-                .iter()
-                .map(|log| log_entry_to_py(py, &graph, log))
-                .collect::<PyResult<_>>()?;
-            d.set_item("logs", logs)?;
-
-            agents.set_item(name, d)?;
-        }
-
-        let out = PyDict::new(py);
-        out.set_item("sim_state", sim_state)?;
-        out.set_item("agents", agents)?;
-        Ok(out.into())
+        d.set_item(
+            "attempted_nodes",
+            stable_ids(graph, a.attempted_nodes.iter().copied()),
+        )?;
+        d.set_item(
+            "action_surface",
+            stable_ids(graph, a.action_surface.iter().copied()),
+        )?;
+        d.set_item("num_attempts", id_value_map(graph, &a.num_attempts))?;
+        d.set_item("ttc_values", id_value_map(graph, &a.ttc_values))?;
+        d.set_item(
+            "impossible_steps",
+            stable_ids(graph, a.impossible_steps.iter().copied()),
+        )?;
+        d.set_item("iteration", a.iteration)?;
+        d.set_item("terminated", state.attacker_is_terminated(name))?;
+        agents.set_item(name, d)?;
     }
 
-    /// Builds `step_native`'s plain-`dict` return value - unlike
-    /// `build_reset_output`, every monotonically-growing field is this
-    /// step's *delta* only (`step_*` keys - see module docs' wire-format
-    /// table), not the full episode-accumulated value: the accumulated
-    /// values still live in the core `SimState` for Rust's own internal use
-    /// (`get_attack_surface`, `*_is_terminated`, ...), they just no longer
-    /// cross the FFI boundary redundantly on every call. Episode-static
-    /// fields (`ttc_values`, `necessity_per_node`,
-    /// `impossible_attack_steps`, `pre_enabled_defenses`) are dropped
-    /// entirely for a plain `step_native` call (`step_modification_record`
-    /// is always empty there) - Python caches them from `reset_native`'s
-    /// output, same as before.
-    ///
-    /// **Not episode-static for `dyna_step_native`, though** (PORTING_NOTES.md
-    /// §6 Phase B5's TTC-gap fix): `dyna_attacker_step`/`dyna_defender_step`
-    /// grow `state.graph_state` in place via `fold_new_nodes_into_graph_state`
-    /// whenever a model effect creates nodes mid-episode, and
-    /// `necessity_per_node` is a full-graph recompute each time (not just new
-    /// keys) - so a true per-field delta isn't provably correct. Whenever
-    /// `step_modification_record` is non-empty (a model effect genuinely ran
-    /// this step), this resends the full current maps via
-    /// `insert_graph_state_fields`, same shape as `build_reset_output`;
-    /// Python rebuilds its `GraphState` wholesale from them that step only.
-    /// `action_surface`, `iteration` and `terminated` are unchanged (full
-    /// current value every step), matching `build_reset_output`.
-    fn build_step_output(&self, py: Python<'_>, outcome: &StepOutcome) -> PyResult<Py<PyAny>> {
-        let state = self.inner.state().ok_or_else(not_reset_err)?;
-        let graph = self.inner.graph().borrow();
-
-        let step_enabled_defenses = &outcome.step_enabled_defenses;
-        let step_modification_record = &outcome.step_modification_record;
-        // Every node any attacker compromised this step - what each
-        // defender's `compromised_nodes` grew by.
-        let step_compromised_nodes: HashSet<AttackGraphNodeId> = outcome
-            .attackers
-            .values()
-            .flat_map(|a| a.step_performed_nodes.iter().copied())
-            .collect();
-
-        let sim_state = PyDict::new(py);
-        sim_state.set_item(
-            "step_enabled_defenses",
-            stable_ids(&graph, step_enabled_defenses.iter().copied()),
+    for (name, de) in &state.defenders {
+        let d = PyDict::new(py);
+        d.set_item("type", "defender")?;
+        d.set_item(
+            "performed_nodes",
+            stable_ids(graph, de.performed_nodes.iter().copied()),
         )?;
-        // Always present (empty for plain `step_native` - §6 Phase B4):
-        // this step's model-effect modification record, as plain dicts
-        // (`{"kind": "asset"/"assoc", "type": "ADDITIVE"/"SUBTRACTIVE",
-        // ...}`) - Python resolves these back into `AssetOp`/`AssocOp`
-        // objects and appends them onto `DynaMalSimulatorState.
-        // modification_record` (delta-only, same wire-format discipline
-        // A10 established for `logs`/etc. - see module docs).
-        let modification_record: Vec<Py<PyAny>> = step_modification_record
+        d.set_item(
+            "compromised_nodes",
+            stable_ids(graph, de.compromised_nodes.iter().copied()),
+        )?;
+        d.set_item(
+            "observed_nodes",
+            stable_ids(graph, de.observed_nodes.iter().copied()),
+        )?;
+        d.set_item(
+            "action_surface",
+            stable_ids(graph, de.action_surface.iter().copied()),
+        )?;
+        d.set_item("iteration", de.iteration)?;
+        d.set_item("terminated", defenders_terminated)?;
+
+        let logs: Vec<Py<PyAny>> = de
+            .logs
+            .iter()
+            .map(|log| log_entry_to_py(py, graph, log))
+            .collect::<PyResult<_>>()?;
+        d.set_item("logs", logs)?;
+
+        agents.set_item(name, d)?;
+    }
+
+    let out = PyDict::new(py);
+    out.set_item("sim_state", sim_state)?;
+    out.set_item("agents", agents)?;
+    Ok(out.into())
+}
+
+/// Builds `step_native`'s plain-`dict` return value - unlike
+/// `build_reset_output`, every monotonically-growing field is this
+/// step's *delta* only (`step_*` keys - see module docs' wire-format
+/// table), not the full episode-accumulated value: the accumulated
+/// values still live in the core `SimState` for Rust's own internal use
+/// (`get_attack_surface`, `*_is_terminated`, ...), they just no longer
+/// cross the FFI boundary redundantly on every call. Episode-static
+/// fields (`ttc_values`, `necessity_per_node`,
+/// `impossible_attack_steps`, `pre_enabled_defenses`) are dropped
+/// entirely for a plain `step_native` call (`step_modification_record`
+/// is always empty there) - Python caches them from `reset_native`'s
+/// output, same as before.
+///
+/// `modification_record` is `Some` only for `DynaSimulator.step_native`
+/// (the static `Simulator` has no model effects, so its output has no
+/// `step_modification_record` key at all).
+///
+/// **Not episode-static for `DynaSimulator.step_native`, though** (PORTING_NOTES.md
+/// §6 Phase B5's TTC-gap fix): `dyna_attacker_step`/`dyna_defender_step`
+/// grow `state.graph_state` in place via `fold_new_nodes_into_graph_state`
+/// whenever a model effect creates nodes mid-episode, and
+/// `necessity_per_node` is a full-graph recompute each time (not just new
+/// keys) - so a true per-field delta isn't provably correct. Whenever
+/// `step_modification_record` is non-empty (a model effect genuinely ran
+/// this step), this resends the full current maps via
+/// `insert_graph_state_fields`, same shape as `build_reset_output`;
+/// Python rebuilds its `GraphState` wholesale from them that step only.
+/// `action_surface`, `iteration` and `terminated` are unchanged (full
+/// current value every step), matching `build_reset_output`.
+pub(crate) fn build_step_output(
+    py: Python<'_>,
+    graph: &AttackGraph,
+    state: &SimState,
+    outcome: &StepOutcome,
+    modification_record: Option<&[ModEffectOp]>,
+) -> PyResult<Py<PyAny>> {
+    let step_enabled_defenses = &outcome.step_enabled_defenses;
+    // Every node any attacker compromised this step - what each
+    // defender's `compromised_nodes` grew by.
+    let step_compromised_nodes: HashSet<AttackGraphNodeId> = outcome
+        .attackers
+        .values()
+        .flat_map(|a| a.step_performed_nodes.iter().copied())
+        .collect();
+
+    let sim_state = PyDict::new(py);
+    sim_state.set_item(
+        "step_enabled_defenses",
+        stable_ids(graph, step_enabled_defenses.iter().copied()),
+    )?;
+    // Dyna only (§6 Phase B4, §11): this step's model-effect
+    // modification record, as plain dicts (`{"kind": "asset"/"assoc",
+    // "type": "ADDITIVE"/"SUBTRACTIVE", ...}`) - Python resolves these
+    // back into `AssetOp`/`AssocOp` objects and appends them onto
+    // `DynaMalSimulatorState.modification_record` (delta-only, same
+    // wire-format discipline A10 established for `logs`/etc. - see
+    // module docs).
+    if let Some(record) = modification_record {
+        let record_py: Vec<Py<PyAny>> = record
             .iter()
             .map(|op| mod_effect_op_to_py(py, op))
             .collect::<PyResult<_>>()?;
-        sim_state.set_item("step_modification_record", modification_record)?;
-        if !step_modification_record.is_empty() {
-            insert_graph_state_fields(&sim_state, &graph, &state.graph_state)?;
+        sim_state.set_item("step_modification_record", record_py)?;
+        if !record.is_empty() {
+            insert_graph_state_fields(&sim_state, graph, &state.graph_state)?;
         }
-
-        let defenders_terminated = state.defender_is_terminated();
-
-        let agents = PyDict::new(py);
-        for (name, a) in &state.attackers {
-            let delta = &outcome.attackers[name];
-            let (step_performed_nodes, step_attempted_nodes) =
-                (&delta.step_performed_nodes, &delta.step_attempted_nodes);
-            let d = PyDict::new(py);
-            d.set_item("type", "attacker")?;
-            d.set_item(
-                "step_performed_nodes",
-                stable_ids(&graph, step_performed_nodes.iter().copied()),
-            )?;
-            d.set_item(
-                "step_attempted_nodes",
-                stable_ids(&graph, step_attempted_nodes.iter().copied()),
-            )?;
-            d.set_item(
-                "action_surface",
-                stable_ids(&graph, a.action_surface.iter().copied()),
-            )?;
-            d.set_item("iteration", a.iteration)?;
-            d.set_item("terminated", state.attacker_is_terminated(name))?;
-            agents.set_item(name, d)?;
-        }
-
-        for (name, de) in &state.defenders {
-            let delta = &outcome.defenders[name];
-            let (step_observed_nodes, step_logs) = (&delta.step_observed_nodes, &delta.step_logs);
-            let d = PyDict::new(py);
-            d.set_item("type", "defender")?;
-            d.set_item(
-                "step_performed_nodes",
-                stable_ids(&graph, step_enabled_defenses.iter().copied()),
-            )?;
-            d.set_item(
-                "step_compromised_nodes",
-                stable_ids(&graph, step_compromised_nodes.iter().copied()),
-            )?;
-            d.set_item(
-                "step_observed_nodes",
-                stable_ids(&graph, step_observed_nodes.iter().copied()),
-            )?;
-            d.set_item(
-                "action_surface",
-                stable_ids(&graph, de.action_surface.iter().copied()),
-            )?;
-            d.set_item("iteration", de.iteration)?;
-            d.set_item("terminated", defenders_terminated)?;
-
-            let logs: Vec<Py<PyAny>> = step_logs
-                .iter()
-                .map(|log| log_entry_to_py(py, &graph, log))
-                .collect::<PyResult<_>>()?;
-            d.set_item("step_logs", logs)?;
-
-            agents.set_item(name, d)?;
-        }
-
-        let out = PyDict::new(py);
-        out.set_item("sim_state", sim_state)?;
-        out.set_item("agents", agents)?;
-        Ok(out.into())
     }
+
+    let defenders_terminated = state.defender_is_terminated();
+
+    let agents = PyDict::new(py);
+    for (name, a) in &state.attackers {
+        let delta = &outcome.attackers[name];
+        let (step_performed_nodes, step_attempted_nodes) =
+            (&delta.step_performed_nodes, &delta.step_attempted_nodes);
+        let d = PyDict::new(py);
+        d.set_item("type", "attacker")?;
+        d.set_item(
+            "step_performed_nodes",
+            stable_ids(graph, step_performed_nodes.iter().copied()),
+        )?;
+        d.set_item(
+            "step_attempted_nodes",
+            stable_ids(graph, step_attempted_nodes.iter().copied()),
+        )?;
+        d.set_item(
+            "action_surface",
+            stable_ids(graph, a.action_surface.iter().copied()),
+        )?;
+        d.set_item("iteration", a.iteration)?;
+        d.set_item("terminated", state.attacker_is_terminated(name))?;
+        agents.set_item(name, d)?;
+    }
+
+    for (name, de) in &state.defenders {
+        let delta = &outcome.defenders[name];
+        let (step_observed_nodes, step_logs) = (&delta.step_observed_nodes, &delta.step_logs);
+        let d = PyDict::new(py);
+        d.set_item("type", "defender")?;
+        d.set_item(
+            "step_performed_nodes",
+            stable_ids(graph, step_enabled_defenses.iter().copied()),
+        )?;
+        d.set_item(
+            "step_compromised_nodes",
+            stable_ids(graph, step_compromised_nodes.iter().copied()),
+        )?;
+        d.set_item(
+            "step_observed_nodes",
+            stable_ids(graph, step_observed_nodes.iter().copied()),
+        )?;
+        d.set_item(
+            "action_surface",
+            stable_ids(graph, de.action_surface.iter().copied()),
+        )?;
+        d.set_item("iteration", de.iteration)?;
+        d.set_item("terminated", defenders_terminated)?;
+
+        let logs: Vec<Py<PyAny>> = step_logs
+            .iter()
+            .map(|log| log_entry_to_py(py, graph, log))
+            .collect::<PyResult<_>>()?;
+        d.set_item("step_logs", logs)?;
+
+        agents.set_item(name, d)?;
+    }
+
+    let out = PyDict::new(py);
+    out.set_item("sim_state", sim_state)?;
+    out.set_item("agents", agents)?;
+    Ok(out.into())
 }
 
 /// Writes one `AssetRef`'s `id`/`asset_type`/`name` into `d` under
@@ -746,7 +691,7 @@ fn set_asset_ref(d: &Bound<'_, PyDict>, prefix: &str, asset: &AssetRef) -> PyRes
 }
 
 /// Converts one `ModEffectOp` (Phase B1/B5) into the plain dict shape
-/// that `dyna_step_native`'s `step_modification_record` crosses the FFI
+/// that `DynaSimulator.step_native`'s `step_modification_record` crosses the FFI
 /// boundary with. Every asset reference carries its `AssetRef` snapshot
 /// (id + type + name) rather than a bare id - per `AssetRef`'s own doc
 /// comment, the asset an op describes may already be gone from the live

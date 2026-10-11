@@ -10,6 +10,7 @@ pub mod defense_surface;
 pub mod dyna_attacker_step;
 pub mod dyna_defender_step;
 pub mod dyna_graph_state;
+pub mod dyna_simulator;
 pub mod event_logger;
 pub mod false_alerts;
 pub mod graph_state;

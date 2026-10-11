@@ -1,11 +1,15 @@
-//! The pure-Rust reset/step orchestration of `malsim`'s simulator: a port
-//! of `python/malsim/mal_simulator/simulator.py::reset`/`step` (and of
-//! `dyna_mal_simulator/simulator.py::dyna_reset`/`dyna_step` for the dyna
-//! variant), moved here from `malsim-pyo3`'s `Simulator` pyclass so it can
-//! be driven without Python. `malsim-pyo3` is now a thin wrapper around
-//! this module: it parses Python dicts into `MalSimulatorSettings`/
-//! `FlatAgentSettings`, calls `Simulator::reset`/`Simulator::step`, and
-//! builds its plain-`dict` output from `StepOutcome` + `Simulator::state`.
+//! The pure-Rust reset/step orchestration of `malsim`'s simulator over a
+//! *static* instance model/attack graph: a port of
+//! `python/malsim/mal_simulator/simulator.py::reset`/`step`, moved here from
+//! `malsim-pyo3`'s `Simulator` pyclass so it can be driven without Python.
+//! The dynamic counterpart, where model effects mutate the `Model`/
+//! `AttackGraph` mid-episode, is [`crate::dyna_simulator::DynaSimulator`]: it
+//! wraps a `Simulator` and reuses its reset and per-agent bookkeeping,
+//! swapping in only the dyna step functions (`PORTING_NOTES.md` §11).
+//!
+//! `malsim-pyo3` is a thin wrapper around both: it parses Python dicts into
+//! `MalSimulatorSettings`/`FlatAgentSettings`, calls `reset`/`step`, and
+//! builds its plain-`dict` output from `StepOutcome` + `state()`.
 //!
 //! All node references here are `AttackGraphNodeId` slotmap keys; the
 //! stable `AttackGraphNode.id: i64` translation stays at the FFI boundary.
@@ -20,7 +24,6 @@ use std::fmt;
 use std::rc::Rc;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
-use maltoolbox_model::Model;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
@@ -28,18 +31,15 @@ use crate::attack_surface::{get_attack_surface, get_effects_of_attack_step};
 use crate::attacker_step::{attacker_step, AttackerStepError};
 use crate::defender_step::{defender_step, DefenderStepError};
 use crate::defense_surface::get_defense_surface;
-use crate::dyna_attacker_step::{dyna_attacker_step, DynaAttackerStepError};
-use crate::dyna_defender_step::{dyna_defender_step, DynaDefenderStepError};
+use crate::dyna_attacker_step::DynaAttackerStepError;
+use crate::dyna_defender_step::DynaDefenderStepError;
 use crate::event_logger::{collect_false_positives, collect_logs, EventLoggerError, LogEntry};
 use crate::graph_state::{
     attack_step_ttc_value, compute_initial_graph_state, is_impossible_attack_step, GraphState,
     GraphStateError, TtcMode,
 };
 use crate::graph_utils::GraphUtilsError;
-use crate::model_effects::ModEffectOp;
-use crate::model_state::{
-    capture_model_snapshot, reset_model_effects, ModelSnapshot, ModelStateError,
-};
+use crate::model_state::ModelStateError;
 use crate::observability::observed_nodes;
 use crate::settings::{
     FlatAgentSettings, FlatAttackerSettings, FlatDefenderSettings, MalSimulatorSettings,
@@ -182,7 +182,7 @@ pub struct DefenderRuntime {
 /// `enabled_defenses`/`rng`/`attackers`/`defenders` as disjoint fields.
 #[derive(Debug)]
 pub struct SimState {
-    rng: StdRng,
+    pub(crate) rng: StdRng,
     pub settings: MalSimulatorSettings,
     pub graph_state: GraphState,
     pub enabled_defenses: HashSet<AttackGraphNodeId>,
@@ -214,7 +214,8 @@ impl SimState {
     }
 }
 
-/// One attacker's deltas from a single `Simulator::step` - the nodes this
+/// One attacker's deltas from a single `Simulator::step` (or
+/// `DynaSimulator::step`) - the nodes this
 /// step compromised/attempted, not the episode-accumulated sets (those
 /// live in `AttackerRuntime`).
 #[derive(Debug, Clone, PartialEq)]
@@ -238,57 +239,23 @@ pub struct StepOutcome {
     pub defenders: BTreeMap<String, DefenderStepOutcome>,
     /// Defenses enabled by this step's defender actions.
     pub step_enabled_defenses: HashSet<AttackGraphNodeId>,
-    /// This step's model-effect modification record - always empty for a
-    /// plain (non-dyna) `Simulator`.
-    pub step_modification_record: Vec<ModEffectOp>,
 }
 
-/// The shared `Model` handle, plus the pristine snapshot every dyna reset
-/// restores to - captured once at `Simulator::new_dyna` (mirrors
-/// `DynaMalSimulator.__init__` capturing `attack_graph.model.to_dict()`
-/// once, before any mutation).
-struct DynaHandle {
-    model: Rc<RefCell<Model>>,
-    snapshot: ModelSnapshot,
-}
-
-/// Port of `MalSimulator`'s reset/step orchestration (and of
-/// `DynaMalSimulator`'s, when built with `Simulator::new_dyna`).
+/// Port of `MalSimulator`'s reset/step orchestration, over a static
+/// instance model/attack graph. See `DynaSimulator` for the dynamic one.
 pub struct Simulator {
     graph: Rc<RefCell<AttackGraph>>,
-    /// `None` for a plain simulator.
-    dyna: Option<DynaHandle>,
     state: Option<SimState>,
 }
 
 impl Simulator {
-    /// A plain (non-dyna) simulator over `graph`.
+    /// A simulator over the static `graph`.
     pub fn new(graph: Rc<RefCell<AttackGraph>>) -> Self {
-        Simulator {
-            graph,
-            dyna: None,
-            state: None,
-        }
-    }
-
-    /// A dyna simulator over `graph`/`model`: captures the pristine model
-    /// snapshot every `reset` restores to.
-    pub fn new_dyna(graph: Rc<RefCell<AttackGraph>>, model: Rc<RefCell<Model>>) -> Self {
-        let snapshot = capture_model_snapshot(&model.borrow());
-        Simulator {
-            graph,
-            dyna: Some(DynaHandle { model, snapshot }),
-            state: None,
-        }
+        Simulator { graph, state: None }
     }
 
     pub fn graph(&self) -> &Rc<RefCell<AttackGraph>> {
         &self.graph
-    }
-
-    /// The attached `Model` - `Some` only for a `new_dyna` simulator.
-    pub fn model(&self) -> Option<&Rc<RefCell<Model>>> {
-        self.dyna.as_ref().map(|d| &d.model)
     }
 
     /// The state built by the last successful `reset` (and advanced by every
@@ -297,31 +264,12 @@ impl Simulator {
         self.state.as_ref()
     }
 
-    /// For a dyna simulator, restores the shared `Model`/`AttackGraph` to
-    /// the snapshot captured at `new_dyna` (`reset_model_effects`); a no-op
-    /// for a plain simulator. Restoring an already-pristine model is a
-    /// no-op as well.
-    ///
-    /// `reset` does this itself, but a caller that resolves per-node agent
-    /// settings against the graph (`FlatAgentSettings`) must call this
-    /// first: nodes that the previous episode's model effects removed are
-    /// only regenerated (with new ids) by the restore, so flattening
-    /// against the mutated graph would miss them.
-    pub fn restore_model(&mut self) -> Result<(), SimulatorError> {
-        if let Some(dyna) = &self.dyna {
-            let mut graph = self.graph.borrow_mut();
-            let mut model = dyna.model.borrow_mut();
-            reset_model_effects(&mut graph, &mut model, &dyna.snapshot)?;
-        }
-        Ok(())
+    /// `state`, mutably, for `DynaSimulator::step`.
+    pub(crate) fn state_mut(&mut self) -> Result<&mut SimState, SimulatorError> {
+        self.state.as_mut().ok_or(SimulatorError::NotReset)
     }
 
-    /// Resets the simulator. For a dyna simulator, first restores the shared
-    /// `Model`/`AttackGraph` to the snapshot captured at `new_dyna`
-    /// (`restore_model`, mirroring `dyna_reset`'s `reset_model_effects`
-    /// call). `agents` must already be resolved against the restored graph,
-    /// so call `restore_model` before flattening them. Then
-    /// (re)computes the initial graph state (TTC values, pre-enabled
+    /// Resets the simulator: (re)computes the initial graph state (TTC values, pre-enabled
     /// defenses, impossible attack steps, necessity -
     /// `graph_state::compute_initial_graph_state`) and (re)builds every
     /// agent's runtime state from scratch, mirroring `reset_agent.py`'s
@@ -336,7 +284,6 @@ impl Simulator {
         agents: Vec<(String, FlatAgentSettings)>,
         seed: u64,
     ) -> Result<&SimState, SimulatorError> {
-        self.restore_model()?;
         let state = reset_state(&self.graph.borrow(), *settings, agents, seed)?;
         Ok(self.state.insert(state))
     }
@@ -349,10 +296,8 @@ impl Simulator {
     /// same two-phase "compute all steps, then update all state" shape
     /// `simulator.py::step` uses.
     ///
-    /// A plain simulator steps via `defender_step`/`attacker_step`; a dyna
-    /// simulator via the model-effect-aware `dyna_defender_step`/
-    /// `dyna_attacker_step` (mutating the shared `AttackGraph`/`Model` in
-    /// place). `actions` maps agent name to chosen nodes; an agent missing
+    /// Defenders/attackers act via `defender_step`/`attacker_step`.
+    /// `actions` maps agent name to chosen nodes; an agent missing
     /// from it takes no action, and a name that is no registered agent is
     /// an error.
     pub fn step(
@@ -360,28 +305,30 @@ impl Simulator {
         actions: &HashMap<String, Vec<AttackGraphNodeId>>,
     ) -> Result<StepOutcome, SimulatorError> {
         let state = self.state.as_mut().ok_or(SimulatorError::NotReset)?;
+        check_action_agents(state, actions)?;
+        plain_step(&self.graph, state, actions)
+    }
+}
 
-        // Mirrors `_pre_step_check`'s `KeyError`. The smallest unknown name
-        // is reported, so the error doesn't depend on `HashMap` order.
-        if let Some(unknown) = actions
-            .keys()
-            .filter(|name| {
-                !state.attackers.contains_key(*name) && !state.defenders.contains_key(*name)
-            })
-            .min()
-        {
-            return Err(SimulatorError::UnknownAgent(unknown.clone()));
-        }
-
-        match &self.dyna {
-            None => plain_step(&self.graph, state, actions),
-            Some(dyna) => dyna_step(&self.graph, &dyna.model, state, actions),
-        }
+/// Mirrors `_pre_step_check`'s `KeyError` on an `actions` key that names no
+/// registered agent. The smallest unknown name is reported, so the error
+/// doesn't depend on `HashMap` order.
+pub(crate) fn check_action_agents(
+    state: &SimState,
+    actions: &HashMap<String, Vec<AttackGraphNodeId>>,
+) -> Result<(), SimulatorError> {
+    match actions
+        .keys()
+        .filter(|name| !state.attackers.contains_key(*name) && !state.defenders.contains_key(*name))
+        .min()
+    {
+        Some(unknown) => Err(SimulatorError::UnknownAgent(unknown.clone())),
+        None => Ok(()),
     }
 }
 
 /// The nodes `name` chose this step - none when `actions` doesn't name it.
-fn agent_actions<'a>(
+pub(crate) fn agent_actions<'a>(
     actions: &'a HashMap<String, Vec<AttackGraphNodeId>>,
     name: &str,
 ) -> &'a [AttackGraphNodeId] {
@@ -418,9 +365,9 @@ fn attacker_ttc_overrides(
     Ok((ttc_values, impossible_steps))
 }
 
-/// Shared body of `Simulator::reset` for plain and dyna simulators, after
-/// any model reset - see `Simulator::reset`'s doc comment.
-fn reset_state(
+/// Shared body of `Simulator::reset` and `DynaSimulator::reset` (after its
+/// model restore) - see `Simulator::reset`'s doc comment.
+pub(crate) fn reset_state(
     graph: &AttackGraph,
     settings: MalSimulatorSettings,
     agents: Vec<(String, FlatAgentSettings)>,
@@ -585,7 +532,8 @@ fn reset_state(
 
 /// Each attacker's `(compromised, attempted)` nodes from this step's
 /// stepping pass, before `update_attacker_runtimes` folds them in.
-type AttackerResults = BTreeMap<String, (Vec<AttackGraphNodeId>, Vec<AttackGraphNodeId>)>;
+pub(crate) type AttackerResults =
+    BTreeMap<String, (Vec<AttackGraphNodeId>, Vec<AttackGraphNodeId>)>;
 
 /// `Simulator::step` for a plain simulator (`defender_step`/
 /// `attacker_step`).
@@ -657,115 +605,18 @@ fn plain_step(
         attackers,
         defenders,
         step_enabled_defenses,
-        step_modification_record: Vec::new(),
-    })
-}
-
-/// `Simulator::step` for a dyna simulator: same two-phase shape as
-/// `plain_step`, except defenders/attackers act via `dyna_defender_step`/
-/// `dyna_attacker_step` (model-effect-aware, mutating the shared
-/// `AttackGraph`/`Model` in place and folding any newly-created nodes into
-/// `graph_state`/`enabled_defenses` internally).
-fn dyna_step(
-    graph_rc: &Rc<RefCell<AttackGraph>>,
-    model_rc: &Rc<RefCell<Model>>,
-    state: &mut SimState,
-    actions: &HashMap<String, Vec<AttackGraphNodeId>>,
-) -> Result<StepOutcome, SimulatorError> {
-    let attacker_names: Vec<String> = state.attackers.keys().cloned().collect();
-    let defender_names: Vec<String> = state.defenders.keys().cloned().collect();
-    let mut modification_record: Vec<ModEffectOp> = Vec::new();
-
-    // --- Defenders act first ---
-    let mut step_enabled_defenses: HashSet<AttackGraphNodeId> = HashSet::new();
-    {
-        let mut graph = graph_rc.borrow_mut();
-        let mut model = model_rc.borrow_mut();
-        for name in &defender_names {
-            let runtime = &state.defenders[name];
-            let (enabled, ops) = dyna_defender_step(
-                &mut graph,
-                &mut model,
-                &mut state.rng,
-                state.settings.ttc_mode,
-                state.settings.run_defense_step_bernoullis,
-                state.settings.run_attack_step_bernoullis,
-                agent_actions(actions, name),
-                &runtime.action_surface,
-                &mut state.graph_state,
-                &mut state.enabled_defenses,
-            )?;
-            step_enabled_defenses.extend(enabled);
-            modification_record.extend(ops);
-        }
-    }
-    // `dyna_defender_step` only folds *newly model-effect-created*
-    // defense nodes into `enabled_defenses` internally (via
-    // `fold_new_nodes_into_graph_state`) - the defenses actually
-    // enabled by this step's requested actions still need merging
-    // here, same as `plain_step` does for `defender_step`.
-    state
-        .enabled_defenses
-        .extend(step_enabled_defenses.iter().copied());
-
-    // --- Attackers act afterwards ---
-    let mut step_compromised_nodes: HashSet<AttackGraphNodeId> = HashSet::new();
-    let mut attacker_results: AttackerResults = BTreeMap::new();
-    {
-        let mut graph = graph_rc.borrow_mut();
-        let mut model = model_rc.borrow_mut();
-        for name in &attacker_names {
-            let runtime = &state.attackers[name];
-            let (compromised, attempted, ops) = dyna_attacker_step(
-                &mut graph,
-                &mut model,
-                &mut state.rng,
-                state.settings.ttc_mode,
-                state.settings.run_defense_step_bernoullis,
-                state.settings.run_attack_step_bernoullis,
-                agent_actions(actions, name),
-                &runtime.entry_points,
-                &runtime.action_surface,
-                &runtime.performed_nodes,
-                &runtime.num_attempts,
-                runtime.ttc_dist_overrides.as_ref(),
-                Some(&runtime.ttc_values),
-                &mut state.graph_state,
-                &mut state.enabled_defenses,
-            )?;
-            step_compromised_nodes.extend(compromised.iter().copied());
-            modification_record.extend(ops);
-            attacker_results.insert(name.clone(), (compromised, attempted));
-        }
-    }
-
-    let graph = graph_rc.borrow();
-    let attackers = update_attacker_runtimes(&graph, state, &attacker_names, attacker_results)?;
-    let defenders = update_defender_runtimes(
-        &graph,
-        state,
-        &defender_names,
-        &step_enabled_defenses,
-        &step_compromised_nodes,
-    )?;
-
-    Ok(StepOutcome {
-        attackers,
-        defenders,
-        step_enabled_defenses,
-        step_modification_record: modification_record,
     })
 }
 
 /// Recomputes each attacker's bookkeeping (`action_surface`,
 /// `performed_nodes`, `attempted_nodes`, `num_attempts`, `iteration`)
-/// after this step's compromises/attempts - shared by `plain_step`/
-/// `dyna_step`: identical regardless of whether the compromises came from
+/// after this step's compromises/attempts - shared by `plain_step` and
+/// `DynaSimulator::step`: identical regardless of whether the compromises came from
 /// plain `attacker_step` or model-effect-aware `dyna_attacker_step`, since
 /// both only ever grow `graph_state`/`enabled_defenses`/the graph itself
 /// and this just reads whatever the graph looks like once stepping has
 /// finished.
-fn update_attacker_runtimes(
+pub(crate) fn update_attacker_runtimes(
     graph: &AttackGraph,
     state: &mut SimState,
     attacker_names: &[String],
@@ -830,8 +681,8 @@ type DefenderStepUpdate = (
 /// Recomputes each defender's bookkeeping (`action_surface`,
 /// `performed_nodes`, `compromised_nodes`, `observed_nodes`, `logs`,
 /// `iteration`) after this step's enables/compromises - shared by
-/// `plain_step`/`dyna_step`, same reasoning as `update_attacker_runtimes`.
-fn update_defender_runtimes(
+/// `plain_step` and `DynaSimulator::step`, same reasoning as `update_attacker_runtimes`.
+pub(crate) fn update_defender_runtimes(
     graph: &AttackGraph,
     state: &mut SimState,
     defender_names: &[String],
@@ -1045,7 +896,6 @@ mod tests {
         // Only failed attempts are recorded as attempts.
         assert!(delta.step_attempted_nodes.is_empty());
         assert!(outcome.step_enabled_defenses.is_empty());
-        assert!(outcome.step_modification_record.is_empty());
 
         let state = sim.state().unwrap();
         let a = &state.attackers["attacker"];
@@ -1115,22 +965,26 @@ mod tests {
         ));
     }
 
+    /// The static `Simulator` never runs model effects: compromising
+    /// `InfectedDevice:infect`, whose model effect adds a `Wiper` asset
+    /// under `DynaSimulator` (see `dyna_simulator.rs`), leaves the graph
+    /// exactly as it was.
     #[test]
-    fn dyna_reset_and_step_run_model_effects() {
-        let (graph, model) = wiper_attack_graph();
+    fn step_does_not_run_model_effects() {
+        let (graph, _model) = wiper_attack_graph();
         let infect = graph.full_name_to_node["InfectedDevice:infect"];
-        let initial_node_count = graph.nodes.len();
-        let graph_rc = Rc::new(RefCell::new(graph));
-        let model_rc = Rc::new(RefCell::new(model));
-        let mut sim = Simulator::new_dyna(graph_rc.clone(), model_rc.clone());
-        assert!(sim.model().is_some());
-
+        let pristine: Vec<_> = graph.nodes.keys().collect();
+        let mut sim = Simulator::new(Rc::new(RefCell::new(graph)));
         let s = MalSimulatorSettings {
             compromise_entrypoints_at_start: false,
             ..settings()
         };
-        let agents = || vec![("WiperController".to_string(), attacker(&[infect]))];
-        sim.reset(&s, agents(), 42).unwrap();
+        sim.reset(
+            &s,
+            vec![("WiperController".to_string(), attacker(&[infect]))],
+            42,
+        )
+        .unwrap();
 
         let outcome = sim
             .step(&actions(&[("WiperController", vec![infect])]))
@@ -1138,61 +992,10 @@ mod tests {
         assert!(outcome.attackers["WiperController"]
             .step_performed_nodes
             .contains(&infect));
-        assert!(!outcome.step_modification_record.is_empty());
-        assert!(graph_rc.borrow().nodes.len() > initial_node_count);
-        assert!(model_rc
-            .borrow()
-            .assets
-            .values()
-            .any(|a| a.name == "Wiper-7"));
-
-        // A second reset restores the pristine model/graph.
-        sim.reset(&s, agents(), 42).unwrap();
-        assert_eq!(graph_rc.borrow().nodes.len(), initial_node_count);
-    }
-
-    #[test]
-    fn restore_model_is_a_no_op_for_a_plain_simulator() {
-        let (mut sim, _) = dummy_sim();
-        let before: Vec<_> = sim.graph().borrow().nodes.keys().collect();
-        sim.restore_model().unwrap();
-        assert!(sim.state().is_none());
         assert_eq!(
             sim.graph().borrow().nodes.keys().collect::<Vec<_>>(),
-            before
+            pristine
         );
-    }
-
-    #[test]
-    fn restore_model_undoes_model_effects_and_is_idempotent() {
-        let (graph, model) = wiper_attack_graph();
-        let infect = graph.full_name_to_node["InfectedDevice:infect"];
-        let graph_rc = Rc::new(RefCell::new(graph));
-        let mut sim = Simulator::new_dyna(graph_rc.clone(), Rc::new(RefCell::new(model)));
-
-        // Restoring a pristine model changes nothing (not even node ids),
-        // so `reset`'s own restore after an explicit one is harmless.
-        let pristine: Vec<_> = graph_rc.borrow().nodes.keys().collect();
-        sim.restore_model().unwrap();
-        assert_eq!(graph_rc.borrow().nodes.keys().collect::<Vec<_>>(), pristine);
-
-        let s = MalSimulatorSettings {
-            compromise_entrypoints_at_start: false,
-            ..settings()
-        };
-        let agents = || vec![("WiperController".to_string(), attacker(&[infect]))];
-        sim.reset(&s, agents(), 1).unwrap();
-        sim.step(&actions(&[("WiperController", vec![infect])]))
-            .unwrap();
-        assert!(graph_rc.borrow().nodes.len() > pristine.len());
-
-        // The explicit restore brings the graph back before `reset` runs,
-        // and `reset`'s own restore is then a no-op.
-        sim.restore_model().unwrap();
-        let restored: Vec<_> = graph_rc.borrow().nodes.keys().collect();
-        assert_eq!(restored.len(), pristine.len());
-        sim.reset(&s, agents(), 1).unwrap();
-        assert_eq!(graph_rc.borrow().nodes.keys().collect::<Vec<_>>(), restored);
     }
 
     /// Runs reset + two steps on a fresh dummy simulator with two attackers

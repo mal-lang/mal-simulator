@@ -7,6 +7,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use malsim_core::dyna_simulator::DynaSimulator;
 use malsim_core::scenario::Scenario;
 use malsim_core::simulator::Simulator;
 use maltoolbox_attackgraph::AttackGraphNodeId;
@@ -163,7 +164,7 @@ fn dyna_scenario_reset_and_step() {
     let scenario = Scenario::load_from_file(scenario_path("wiper_scenario.yml")).unwrap();
     let nodes_before = scenario.attack_graph.borrow().nodes.len();
     let infect = node(&scenario, "InfectedDevice:infect");
-    let mut sim = Simulator::new_dyna(scenario.attack_graph.clone(), scenario.model.clone());
+    let mut sim = DynaSimulator::new(scenario.attack_graph.clone(), scenario.model.clone());
 
     for seed in 0..2 {
         // Restore before flattening, as `Scenario::flatten_agents` documents.
@@ -193,7 +194,7 @@ fn dyna_scenario_reset_and_step() {
         let outcome = sim
             .step(&HashMap::from([(attacker.clone(), vec![activate])]))
             .unwrap();
-        assert!(outcome.attackers[&attacker]
+        assert!(outcome.step.attackers[&attacker]
             .step_performed_nodes
             .contains(&activate));
         assert!(sim.state().unwrap().attackers[&attacker]
@@ -243,22 +244,22 @@ fn dyna_reset_restored_nodes_keep_rule_settings() {
         "Defender": {"type": "defender",
                      "observable_steps": {"by_asset_type": {"Object": ["addStart"]}}},
     }));
-    let mut sim = Simulator::new_dyna(scenario.attack_graph.clone(), scenario.model.clone());
+    let mut sim = DynaSimulator::new(scenario.attack_graph.clone(), scenario.model.clone());
     let mut rng = StdRng::seed_from_u64(0);
     let attacker = "Attacker".to_string();
 
-    let mut reset = |sim: &mut Simulator| {
+    let mut reset = |sim: &mut DynaSimulator| {
         sim.restore_model().unwrap();
         let agents = scenario.flatten_agents(&mut rng).unwrap();
         sim.reset(&scenario.sim_settings, agents, 0).unwrap();
     };
-    let step = |sim: &mut Simulator, full_name: &str| {
+    let step = |sim: &mut DynaSimulator, full_name: &str| {
         let target = node(&scenario, full_name);
         sim.step(&HashMap::from([(attacker.clone(), vec![target])]))
             .unwrap();
         target
     };
-    let defender_observes_add_start = |sim: &mut Simulator| {
+    let defender_observes_add_start = |sim: &mut DynaSimulator| {
         step(sim, "Start:0:add");
         let add_start = step(sim, "Object:1:addStart");
         let state = sim.state().unwrap();
@@ -300,15 +301,15 @@ fn dyna_reset_re_resolves_entry_points_and_goals_on_restored_nodes() {
             "Attacker": {"type": "attacker", "entry_points": entry_points,
                          "goals": ["Object:1:addStart"]},
         }));
-        let mut sim = Simulator::new_dyna(scenario.attack_graph.clone(), scenario.model.clone());
+        let mut sim = DynaSimulator::new(scenario.attack_graph.clone(), scenario.model.clone());
         let mut rng = StdRng::seed_from_u64(0);
         let attacker = "Attacker".to_string();
-        let mut reset = |sim: &mut Simulator| {
+        let mut reset = |sim: &mut DynaSimulator| {
             sim.restore_model().unwrap();
             let agents = scenario.flatten_agents(&mut rng).unwrap();
             sim.reset(&scenario.sim_settings, agents, 0).unwrap();
         };
-        let step = |sim: &mut Simulator, full_name: &str| {
+        let step = |sim: &mut DynaSimulator, full_name: &str| {
             let target = node(&scenario, full_name);
             sim.step(&HashMap::from([(attacker.clone(), vec![target])]))
                 .unwrap();
