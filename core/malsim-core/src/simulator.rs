@@ -212,6 +212,16 @@ impl SimState {
                 .map(|a| (&a.action_surface, &a.goals, &a.performed_nodes)),
         )
     }
+
+    /// Port of `MalSimulator.done`: true once no agent is alive, i.e.
+    /// every attacker is terminated and (if there are defenders) the
+    /// defenders are too.
+    pub fn done(&self) -> bool {
+        self.attackers
+            .keys()
+            .all(|name| self.attacker_is_terminated(name) == Some(true))
+            && (self.defenders.is_empty() || self.defender_is_terminated())
+    }
 }
 
 /// One attacker's deltas from a single `Simulator::step` (or
@@ -239,6 +249,39 @@ pub struct StepOutcome {
     pub defenders: BTreeMap<String, DefenderStepOutcome>,
     /// Defenses enabled by this step's defender actions.
     pub step_enabled_defenses: HashSet<AttackGraphNodeId>,
+}
+
+impl StepOutcome {
+    /// A reset seen as a step: everything `state` holds is new. This is
+    /// what Python's `step_*` properties return on the state `reset()`
+    /// gives back (`previous_state is None`).
+    pub fn from_reset(state: &SimState) -> StepOutcome {
+        StepOutcome {
+            attackers: state
+                .attackers
+                .iter()
+                .map(|(name, a)| {
+                    let outcome = AttackerStepOutcome {
+                        step_performed_nodes: a.performed_nodes.clone(),
+                        step_attempted_nodes: a.attempted_nodes.clone(),
+                    };
+                    (name.clone(), outcome)
+                })
+                .collect(),
+            defenders: state
+                .defenders
+                .iter()
+                .map(|(name, d)| {
+                    let outcome = DefenderStepOutcome {
+                        step_observed_nodes: d.observed_nodes.clone(),
+                        step_logs: d.logs.clone(),
+                    };
+                    (name.clone(), outcome)
+                })
+                .collect(),
+            step_enabled_defenses: state.enabled_defenses.clone(),
+        }
+    }
 }
 
 /// Port of `MalSimulator`'s reset/step orchestration, over a static

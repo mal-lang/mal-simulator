@@ -2,6 +2,7 @@
 //! (from the `mal-toolbox` `rust-rewrite` branch) for the attack graph types
 //! this simulator steps through.
 
+pub mod agent_state;
 pub mod assoc_traversal;
 pub mod attack_surface;
 pub mod attacker_step;
@@ -19,6 +20,9 @@ pub mod model_effects;
 pub mod model_state;
 pub mod necessity;
 pub mod observability;
+pub mod policies;
+pub mod rewards;
+pub mod run_simulation;
 pub mod scenario;
 pub mod settings;
 pub mod simulator;

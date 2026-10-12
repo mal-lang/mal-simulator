@@ -52,6 +52,30 @@ impl TtcMode {
         }
     }
 
+    /// Parses the Python enum value (`TTCMode(value)`), e.g. `2` for
+    /// `PRE_SAMPLE`.
+    pub fn from_value(value: u8) -> Option<TtcMode> {
+        match value {
+            0 => Some(TtcMode::EffortBasedPerStepSample),
+            1 => Some(TtcMode::PerStepSample),
+            2 => Some(TtcMode::PreSample),
+            3 => Some(TtcMode::ExpectedValue),
+            4 => Some(TtcMode::Disabled),
+            _ => None,
+        }
+    }
+
+    /// The Python enum value (`TTCMode.value`).
+    pub fn value(self) -> u8 {
+        match self {
+            TtcMode::EffortBasedPerStepSample => 0,
+            TtcMode::PerStepSample => 1,
+            TtcMode::PreSample => 2,
+            TtcMode::ExpectedValue => 3,
+            TtcMode::Disabled => 4,
+        }
+    }
+
     /// The Python enum member name (`TTCMode.name`).
     pub fn name(self) -> &'static str {
         match self {
