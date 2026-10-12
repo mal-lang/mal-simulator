@@ -41,6 +41,10 @@ struct Args {
         help = TTC_MODE_HELP,
     )]
     ttc_mode: u8,
+
+    /// Maximum number of simulation steps to run
+    #[arg(long)]
+    max_steps: Option<u64>,
 }
 
 /// Entrypoint function of the MAL Simulator CLI
@@ -66,7 +70,7 @@ fn run(args: &Args) -> Result<(), Box<dyn Error>> {
             .save_to_file(Some(&scenario.model.borrow()), path)?;
     }
 
-    run_simulation(&mut sim, &scenario, None)?;
+    run_simulation(&mut sim, &scenario, args.max_steps)?;
     Ok(())
 }
 
