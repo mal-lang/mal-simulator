@@ -5,6 +5,7 @@ from collections.abc import Set, Mapping
 
 from dataclasses import dataclass
 from numpy.random import Generator
+import malsim_native
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from malsim.mal_simulator.ttc_utils import (
     attack_step_ttc_values,
@@ -12,6 +13,7 @@ from malsim.mal_simulator.ttc_utils import (
     get_impossible_attack_steps,
 )
 from malsim.mal_simulator.graph_processing import calculate_necessity
+from malsim.mal_simulator.attack_graph_index import build_attack_graph_index
 
 
 from malsim.config.sim_settings import MalSimulatorSettings
@@ -25,6 +27,7 @@ class GraphState:
     pre_enabled_defenses: Set[AttackGraphNode]
     impossible_attack_steps: Set[AttackGraphNode]
     necessity_per_node: Mapping[AttackGraphNode, bool]
+    attack_graph_index: malsim_native.AttackGraphIndex
 
 
 def compute_initial_graph_state(
@@ -52,10 +55,14 @@ def compute_initial_graph_state(
         impossible_attack_steps = get_impossible_attack_steps(graph.attack_steps, rng)
 
     necessity_per_node = calculate_necessity(graph, enabled_defenses)
+    attack_graph_index = build_attack_graph_index(
+        graph, impossible_attack_steps, necessity_per_node
+    )
 
     return GraphState(
         ttc_values=ttc_values,
         pre_enabled_defenses=enabled_defenses,
         impossible_attack_steps=impossible_attack_steps,
         necessity_per_node=necessity_per_node,
+        attack_graph_index=attack_graph_index,
     )
