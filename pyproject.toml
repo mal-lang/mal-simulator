@@ -61,7 +61,7 @@ build-backend = "maturin"
 manifest-path = "py-bindings/malsim-pyo3/Cargo.toml"
 module-name = "malsim._native"
 python-source = "python"
-include = ["malsim/_native-stubs/**/*.pyi"]
+include = ["malsim/py.typed", "malsim/_native.pyi"]
 
 [tool.pytest.ini_options]
 pythonpath = ['python']

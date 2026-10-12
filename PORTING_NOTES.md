@@ -417,7 +417,7 @@ test-support functions `node_count`, `set_detector_rates`,
 `simulator.rs` (`Simulator` pyclass and the dict conversions both
 pyclasses share), `dyna_simulator.rs` (`DynaSimulator` pyclass). It only
 parses dicts, maps errors and builds output (§11). Stubs:
-`python/malsim/_native-stubs/__init__.pyi`.
+`python/malsim/_native.pyi`.
 
 Rust test fixtures: `core/malsim-core/src/test_fixtures.rs` compiles
 `tests/testdata/langs/dummy_lang.mal` (the file `tests/conftest.py::
