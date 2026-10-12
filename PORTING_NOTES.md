@@ -10,10 +10,11 @@ the Python original. Section numbers are referenced from code comments
 
 ## 0. Status
 
-All phases are done (last change 2026-10-11). One line per step, with
+All phases are done (last change 2026-10-12). One line per step, with
 where it landed, is in §5 (Phase A, `MalSimulator`), §6 (Phase B,
-`DynaMalSimulator`) and §7 (Phase C, Rust-only library API + scenario
-loading).
+`DynaMalSimulator`), §7 (Phase C, Rust-only library API + scenario
+loading) and §13 (Phase D, Rust-only policies, rewards, `run_simulation`
+and CLI).
 
 - [x] Phase 0 - Rust workspace scaffolding (`core/`, `py-bindings/`; two
       separate Cargo workspaces).
@@ -26,6 +27,9 @@ loading).
       loading (C1-C6).
 - [x] Static and dynamic simulators split into `Simulator` /
       `DynaSimulator` (§11).
+- [x] Phase D - the Rust-only path has built-in policies, rewards,
+      `run_simulation` and a `malsim` binary (D1-D4, §13). The Python
+      path is untouched by it.
 
 Gates for any further change (all must stay clean):
 
@@ -81,11 +85,11 @@ regenerate the parity golden file with `python -m tests.scenario_parity`
   see §2.6/§7 - since a Rust-only caller has no Python `Scenario` to call
   into. This is new Rust code, not a port/replacement of
   `scenario.py`.)
-- Porting reward computation (`rewards.py`) to Rust - see §2.4. It stays
-  pure Python, unchanged.
-- Decision-agent / policy logic (`policies/`) - explicitly user-pluggable
-  Python, can't move to Rust in general. No built-in policies are ported
-  (§7).
+- Moving the Python path's reward computation (`rewards.py`) or
+  decision agents (`policies/`) onto native - see §2.4. Both stay pure
+  Python, unchanged, for Python callers. (Scope note, as for `Scenario`
+  above: Phase D added *separate* Rust implementations of both for the
+  Rust-only path - §13. The Python path never calls them.)
 
 ## 2. Architectural decisions
 
@@ -239,16 +243,16 @@ the Rust-only path be genuinely self-sufficient. `NodePropertyRule.to_dict
 ()`/`from_dict()`'s existing JSON-ish shape is the de facto schema both
 implementations target, which keeps them honest against each other.
 
-**Scope boundary - `policy` is not instantiable in Rust.** Scenario YAML's
-`agents.<name>.policy` names a Python decision-agent class
+**Scope boundary - the loader does not instantiate `policy`.** Scenario
+YAML's `agents.<name>.policy` names a decision-agent class
 (`agent_settings_factories.py`'s `policy_name_to_class`, e.g.
-`BreadthFirstAttacker`). Per §7's "library API only" decision, no
-built-in policies are ported to Rust. The Rust scenario loader parses and
-carries the `policy` field (so round-tripping/inspection works) but never
-instantiates or drives anything from it - same as today's Python
-`AgentRuntimeMixin.agent`, which is simply not exercised by the Rust-only
-path. The embedding Rust caller is responsible for its own action
-selection regardless of what a scenario file's `policy` field says.
+`BreadthFirstAttacker`). The Rust scenario loader parses and carries the
+`policy` field as an opaque string and never validates or instantiates
+it. Since Phase D (§13) the built-in policies exist in Rust:
+`policies::policy_from_name` instantiates one from that string, and
+`run_simulation::decision_agents(&scenario)` does so for every agent
+(Python's lazy `AgentRuntimeMixin.agent`). An embedding Rust caller that
+steps the `Simulator` itself remains free to ignore the field.
 
 **What's reused, not reimplemented:** the language/model/attack-graph
 construction itself (`create_attack_graph`-equivalent) is *not*
@@ -406,10 +410,13 @@ to mirror Python's (§2.7); this is a map, not a rule.
 | `mal_simulator/attacker_step.py`, `defender_step.py` | Only `attacker_is_terminated`/`defender_is_terminated`. | `attacker_step.rs`, `defender_step.rs` |
 | `mal_simulator/false_alerts.py`, `observability.py` | Only the per-node rule getters. | `false_alerts.rs`, `observability.rs` |
 | (deleted) `attack_surface.py`, `defense_surface.py`, `graph_processing.py`, `reset_agent.py`, `simulator_static_data.py` | - | `attack_surface.rs`, `defense_surface.rs`, `necessity.rs`, `viability.rs` |
-| `mal_simulator/rewards.py`, `run_simulation.py` | Unchanged, pure Python (§2.4). | - |
+| `mal_simulator/rewards.py`, `run_simulation.py` | Unchanged, pure Python (§2.4). | Independent Rust implementations (§13): `rewards.rs`, `run_simulation.rs` |
+| `mal_simulator/agent_state.py`, `attacker_state.py`, `defender_state.py` (as seen by policies/rewards) | The mirrored dataclasses (see above). | `agent_state.rs`: borrowed `AttackerState`/`DefenderState`/`AgentState` views (§11) |
+| `__main__.py` | Unchanged Python CLI. | `core/malsim-cli/src/main.rs` (`malsim` binary, §13) |
 | `dyna_mal_simulator/simulator.py`, `simulator_state.py` | `DynaMalSimulator`, `dyna_reset`/`dyna_step` delegating to `_native.DynaSimulator`; `DynaMalSimulatorState`, `AssetOp`/`AssocOp`, `DetachedAsset`, `modification_record_from_native`. | `dyna_simulator.rs`, `dyna_attacker_step.rs`, `dyna_defender_step.rs`, `dyna_graph_state.rs`, `model_effects.rs`, `assoc_traversal.rs`, `model_state.rs` |
 | `config/*`, `scenario/scenario.py` | Unchanged; used by the Python path only. | Independent Rust loader (§2.6): `settings.rs`, `scenario/{mod,loading,node_property_rule,agent_settings,flatten}.rs` |
-| `envs/`, `policies/`, `visualization/` | Untouched by design; they double as integration tests. | - |
+| `policies/` | Untouched by design; doubles as an integration test. | Independent Rust implementations (§13): `policies/{mod,passive_agent,random_agent,keyboard_input,searchers,heuristic_agent,ttc_soft_min,shortest_path,path_finding}.rs` |
+| `envs/`, `visualization/` | Untouched by design; they double as integration tests. | - |
 
 `py-bindings/malsim-pyo3/src/`: `lib.rs` (capsule extraction, plus the
 test-support functions `node_count`, `set_detector_rates`,
@@ -474,8 +481,9 @@ helper over plain data.
 
 ## 7. Phase C: Rust-only library API + scenario loading (done)
 
-Library API only: no CLI and no built-in policies in Rust. The embedding
-program selects actions itself.
+Phase C itself was library API only: the embedding program selects
+actions itself. Built-in policies and a CLI were added later, in Phase D
+(§13).
 
 - **C1** - `scenario/node_property_rule.rs`: `NodePropertyRule<T:
   RuleValue>`.
@@ -887,6 +895,25 @@ asking again. Each entry names the phase it was decided in.
   That is the type mal-toolbox's `maltoolbox_model::from_dict` and node
   `ttc` already use. Typed structs are built from it by hand-written
   conversion code, not by `serde` derive.
+- **Policies, rewards, `run_simulation` and a CLI exist in Rust**
+  (decided at D, 2026-10-12, reversing C's "library API only"). All nine
+  entries of `policy_name_to_class` are ported, including
+  `KeyboardAgent`. They are for the Rust-only path; the Python path keeps
+  its own, unchanged.
+- **One `DecisionAgent` trait over an `AgentState` enum** (decided at D).
+  `trait DecisionAgent { fn get_next_action(&mut self, &AgentState) ->
+  Result<Option<AttackGraphNodeId>, PolicyError> }`, with `AgentState`
+  an enum of borrowed `AttackerState`/`DefenderState` views
+  (`agent_state.rs`). This mirrors Python's single `DecisionAgent`: one
+  policy map, and a policy handed the wrong kind of agent fails at
+  runtime (`PolicyError::WrongAgentType`) rather than at compile time.
+  Policies that only read the action surface (`RandomAgent`, the
+  searchers, ...) work for both kinds, as `bfs_vs_bfs_scenario.yml`
+  relies on.
+- **The CLI is its own crate, `core/malsim-cli`, and uses `clap`**
+  (decided at D). It builds the `malsim` binary and holds nothing but
+  argument parsing; `run_simulation`, policies and rewards are library
+  modules of `malsim-core`, which stays free of CLI dependencies.
 - **Errors (existing convention, restated at C):** each module gets one
   hand-written error enum with `Display` + `std::error::Error` and
   `From` impls for wrapped errors. No `thiserror`.
@@ -1042,6 +1069,75 @@ entry names its phase.
   still not handled (e.g. a removed goal can never be performed); that
   case predates the port and is a different question from the
   reset-time staleness fixed here.
+- **D: agent states are borrowed views, not owned structs.**
+  `AttackerState`/`DefenderState` in `agent_state.rs` borrow the graph,
+  the model, `SimState`, the agent's runtime struct, its scenario
+  settings and the last `StepOutcome`. Accumulated fields are read
+  through `state.runtime` (`state.runtime.action_surface`, ...), the
+  per-step ones are fields of the view. `StepOutcome::from_reset` gives
+  the "everything is new" deltas Python's `step_*` properties return on
+  a reset state. There is no `previous_state`.
+- **D: rewards are plain functions of the agent state**
+  (`rewards::attacker_step_reward`/`defender_step_reward`/
+  `agent_reward`), not closures built at construction, since the view
+  already carries the settings Python's closures capture. `node_reward`
+  lives in `rewards.rs`, not `graph_utils.rs`, so the step code keeps not
+  depending on `scenario`. A defender with a reward mode other than
+  `CUMULATIVE`/`ONE_OFF` is `RewardError::UnsupportedDefenderRewardMode`
+  when its reward is computed; Python raises `KeyError` when the
+  simulator is constructed.
+- **D: `run_simulation(sim, scenario, max_steps)` takes the scenario.**
+  The Rust `Simulator` holds no agent settings, policies or model, so the
+  `Scenario` the simulator was built from is passed alongside (a
+  simulator on another graph is `RunSimulationError::GraphMismatch`). It
+  resets the simulator itself, like Python. One `StdRng`, seeded from
+  `sim_settings.seed` (OS entropy without one), samples entry points,
+  yields the simulator seed and draws `SAMPLE_TTC` rewards.
+  `run_simulation_with_agents` takes caller-supplied `DecisionAgent`s.
+  Static `Simulator` only, as the Python CLI; progress goes to stdout
+  with `println!` (Python mixes `print` and `logging`).
+- **D: policies iterate action surfaces in node-id order.** Wherever
+  Python iterates a `set` of nodes (`TTCSoftMinAttacker`,
+  `KeyboardAgent`, `ShortestPathAttacker`'s goals and performed nodes,
+  reward sums), Rust sorts by `AttackGraphNode.id` first, so a seeded run
+  is reproducible across processes. For the same reason the searchers'
+  `action_ordering: nothing` sorts by id and `list_random` behaves like
+  `random` (sort, then shuffle): Python's variants rely on set order,
+  which a `HashSet` randomizes per process.
+- **D: policy `seed` must be an integer or `null`** for every policy
+  (Python only checks that in the searchers). Without a seed the policy
+  draws from OS entropy, as `random.Random(None)` does. Unknown `config`
+  keys are ignored, as in Python.
+- **D: unknown policy names still load** (C3 stands, so the parity file
+  is unchanged); they fail with `PolicyError::UnknownPolicy` when
+  `run_simulation`/`decision_agents` instantiates them.
+- **D: `path_finding.rs` runs one backwards Dijkstra per goal** instead
+  of building a networkx graph and searching once per compromised node.
+  Same cheapest path; ties are broken by node id, where networkx's
+  bidirectional search breaks them by traversal order. Python's
+  `_validate_path` AND-step branch (and `_add_paths_to_total_path`) is
+  unreachable - it tests `node not in path` while iterating `path` - so
+  it is not ported: like Python in practice, the path does not account
+  for an AND step's other parents. A missing TTC value is an error
+  (`AgentStateError::MissingTtcValue`) where Python raises `KeyError`.
+- **D: `ShortestPathAttacker` picks its goal with its own seeded rng and
+  waits when there is no path.** Python calls the global
+  `random.choice` (ignoring its `seed`) and raises `StopIteration` on an
+  empty path.
+- **D: `KeyboardAgent` rejects an index equal to the number of actions.**
+  Python's `0 <= node <= len(action_surface)` accepts it and then raises
+  `KeyError`. End of input is `PolicyError::Io` (Python: `EOFError`). It
+  is generic over its reader/writer so tests can drive it;
+  `KeyboardAgent::new()` uses stdin/stdout.
+- **D: the two heuristic defenders share one loop** (`cheapest_defense`
+  with a per-policy predicate); the Python classes are copies of each
+  other. Their unused `seed`/`randomize` config is accepted and ignored.
+- **D: the CLI has no `-g/--send-to-gui`.** The GUI client is not ported.
+  `-s` takes a non-negative seed and `-t` is range-checked by `clap`
+  (Python raises `ValueError` from `TTCMode(n)`). `-o` goes through
+  mal-toolbox's `AttackGraph::save_to_file`, which picks JSON or YAML by
+  extension. As in Python, the CLI replaces the scenario file's
+  `sim_settings` wholesale.
 - **Simulator split (2026-10-11): the static `Simulator.step_native`
   output no longer has `step_modification_record`.** The static path
   never runs model effects, so it was always `[]`, and the core
@@ -1063,3 +1159,32 @@ entry names its phase.
   `"DynaSimulator.step_native() ..."`). Both are still `ValueError`s. The
   old dyna-only "no Model is attached" error is gone, because a
   `DynaSimulator` always has its model.
+
+## 13. Phase D: Rust-only policies, rewards, `run_simulation`, CLI (done)
+
+Everything here is for the Rust-only path. The Python package is not
+changed and does not call any of it; `malsim-pyo3` exposes none of it.
+
+- **D1** - `agent_state.rs` (`AgentState` views, `node_ttc_value`,
+  `sorted_by_id`), `rewards.rs`; `SimState::done`,
+  `StepOutcome::from_reset`, `TtcMode::from_value`/`value`.
+- **D2** - `policies/`: the `DecisionAgent` trait, `PolicyError`,
+  `policy_from_name` and the nine built-in policies. Rust ports of
+  `tests/agents/*.py` in `src/policies/tests.rs` (hand-built graphs) and
+  `tests/run_simulation.rs` (scenario files).
+- **D3** - `run_simulation.rs` (`run_simulation`,
+  `run_simulation_with_agents`, `decision_agents`).
+- **D4** - `core/malsim-cli`: the `malsim` binary
+  (`cargo run -p malsim-cli -- scenario.yml [-s SEED] [-t TTC_MODE]
+  [-o FILE]`).
+
+The Python tests assert some things the Rust ports do not, and the
+reverse:
+
+- `test_defend_compromised_defender` sets rewards on the simulator's
+  settings after the state was built, so in Python both defenses cost 0
+  and node 1 wins twice. The Rust test checks that the cheaper defense
+  actually wins.
+- `ttc_avoider` pins simulator seed 2 and policy seed 0. As in Python the
+  assertion ("only easy steps") is not true for every seed: a hard step
+  whose pre-sampled TTC came out low is drawn now and then.
