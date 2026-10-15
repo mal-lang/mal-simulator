@@ -12,8 +12,9 @@
 //! the `Simulator`'s per-agent bookkeeping (`update_attacker_runtimes`/
 //! `update_defender_runtimes`).
 
+use crate::types::NodeSet;
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 use std::rc::Rc;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
@@ -133,7 +134,7 @@ impl DynaSimulator {
         let mut modification_record: Vec<ModEffectOp> = Vec::new();
 
         // --- Defenders act first ---
-        let mut step_enabled_defenses: HashSet<AttackGraphNodeId> = HashSet::new();
+        let mut step_enabled_defenses: NodeSet = NodeSet::default();
         {
             let mut graph = graph_rc.borrow_mut();
             let mut model = model_rc.borrow_mut();
@@ -165,7 +166,7 @@ impl DynaSimulator {
             .extend(step_enabled_defenses.iter().copied());
 
         // --- Attackers act afterwards ---
-        let mut step_compromised_nodes: HashSet<AttackGraphNodeId> = HashSet::new();
+        let mut step_compromised_nodes: NodeSet = NodeSet::default();
         let mut attacker_results: AttackerResults = BTreeMap::new();
         {
             let mut graph = graph_rc.borrow_mut();

@@ -17,10 +17,11 @@
 //! wall for its own traversal-predicate tests. See `crate::test_fixtures`
 //! and `PORTING_NOTES.md` §10 for the discussion.
 
-use std::collections::{HashMap, HashSet};
+use crate::types::{NodeDenseMap, NodeSet};
 use std::fmt;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNode, AttackGraphNodeId};
+use maltoolbox_language::graph::attack_step::AttackStepType;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NecessityError {
@@ -32,9 +33,6 @@ pub enum NecessityError {
     /// pre-seeded for every node before `evaluate_necessity` runs; see
     /// `calculate_necessity`).
     MissingNecessity(AttackGraphNodeId),
-    /// Mirrors Python's `ValueError` for a `node.type` outside
-    /// `exist`/`notExist`/`defense`/`or`/`and`.
-    UnknownStepType(String, AttackGraphNodeId),
 }
 
 impl fmt::Display for NecessityError {
@@ -46,10 +44,6 @@ impl fmt::Display for NecessityError {
             NecessityError::MissingNecessity(id) => {
                 write!(f, "necessity not yet computed for parent node {id:?}")
             }
-            NecessityError::UnknownStepType(step_type, id) => write!(
-                f,
-                "evaluate_necessity was provided node {id:?} which is of unknown type \"{step_type}\""
-            ),
         }
     }
 }
@@ -64,30 +58,30 @@ impl std::error::Error for NecessityError {}
 pub fn evaluate_necessity(
     node_id: AttackGraphNodeId,
     node: &AttackGraphNode,
-    necessity_per_node: &HashMap<AttackGraphNodeId, bool>,
-    enabled_defenses: &HashSet<AttackGraphNodeId>,
+    necessity_per_node: &NodeDenseMap<bool>,
+    enabled_defenses: &NodeSet,
 ) -> Result<bool, NecessityError> {
     let parent_necessity = |id: &AttackGraphNodeId| -> Result<bool, NecessityError> {
         necessity_per_node
-            .get(id)
+            .get(*id)
             .copied()
             .ok_or(NecessityError::MissingNecessity(*id))
     };
 
-    match node.step_type.as_str() {
-        "exist" => node
+    match node.step_type {
+        AttackStepType::Exist => node
             .existence_status
             .map(|exists| !exists)
             .ok_or(NecessityError::MissingExistenceStatus(node_id)),
-        "notExist" => node
+        AttackStepType::NotExist => node
             .existence_status
             .ok_or(NecessityError::MissingExistenceStatus(node_id)),
-        "defense" => Ok(enabled_defenses.contains(&node_id)),
+        AttackStepType::Defense => Ok(enabled_defenses.contains(&node_id)),
         // Python: `all(necessity_per_node[p] for p in node.parents) or not
         // node.parents` - `all(())` is already `True`, so the `or not
         // node.parents` is redundant for "or" (unlike "and" below); this
         // loop mirrors that without the redundant check.
-        "or" => {
+        AttackStepType::Or => {
             for parent in &node.parents {
                 if !parent_necessity(parent)? {
                     return Ok(false);
@@ -99,7 +93,7 @@ pub fn evaluate_necessity(
         // node.parents` - `any(())` is `False`, so the empty-parents case
         // genuinely needs the explicit `True` here (not redundant, unlike
         // "or").
-        "and" => {
+        AttackStepType::And => {
             if node.parents.is_empty() {
                 return Ok(true);
             }
@@ -110,36 +104,42 @@ pub fn evaluate_necessity(
             }
             Ok(false)
         }
-        other => Err(NecessityError::UnknownStepType(other.to_string(), node_id)),
     }
 }
 
 /// Port of `_propagate_necessity_from_node`.
+///
+/// Implemented with an explicit stack of child iterators instead of
+/// recursion: the visiting order (depth-first, each child's subtree fully
+/// processed before the next sibling is evaluated) and the map updates are
+/// identical to the recursive formulation, and the returned set is the
+/// union of all changed nodes.
 pub fn propagate_necessity_from_node(
     node_id: AttackGraphNodeId,
     graph: &AttackGraph,
-    necessity_per_node: &mut HashMap<AttackGraphNodeId, bool>,
-) -> Result<HashSet<AttackGraphNodeId>, NecessityError> {
-    let mut changed_nodes = HashSet::new();
-    for &child_id in &graph.nodes[node_id].children {
+    necessity_per_node: &mut NodeDenseMap<bool>,
+) -> Result<NodeSet, NecessityError> {
+    let mut changed_nodes = NodeSet::default();
+    // Python passes `frozenset()` (not the real `enabled_defenses`)
+    // into the inner `evaluate_necessity` call - mirrored exactly,
+    // not a bug: a propagated child is never itself re-evaluated as a
+    // `defense` node through this path (only `or`/`and` nodes do,
+    // since propagation starts from `exist`/`notExist`/`defense`
+    // nodes and walks downstream `or`/`and` children, whose necessity
+    // doesn't consult `enabled_defenses` at all).
+    let no_defenses = NodeSet::default();
+    let mut stack = vec![graph.nodes[node_id].children.iter()];
+    while let Some(children) = stack.last_mut() {
+        let Some(&child_id) = children.next() else {
+            stack.pop();
+            continue;
+        };
         let child = &graph.nodes[child_id];
-        // Python passes `frozenset()` (not the real `enabled_defenses`)
-        // into this inner `evaluate_necessity` call - mirrored exactly,
-        // not a bug: a propagated child is never itself re-evaluated as a
-        // `defense` node through this path (only `or`/`and` nodes do,
-        // since propagation starts from `exist`/`notExist`/`defense`
-        // nodes and walks downstream `or`/`and` children, whose necessity
-        // doesn't consult `enabled_defenses` at all).
-        let is_necessary =
-            evaluate_necessity(child_id, child, necessity_per_node, &HashSet::new())?;
-        if necessity_per_node.get(&child_id).copied() != Some(is_necessary) {
+        let is_necessary = evaluate_necessity(child_id, child, necessity_per_node, &no_defenses)?;
+        if necessity_per_node.get(child_id).copied() != Some(is_necessary) {
             necessity_per_node.insert(child_id, is_necessary);
             changed_nodes.insert(child_id);
-            changed_nodes.extend(propagate_necessity_from_node(
-                child_id,
-                graph,
-                necessity_per_node,
-            )?);
+            stack.push(child.children.iter());
         }
     }
     Ok(changed_nodes)
@@ -148,15 +148,18 @@ pub fn propagate_necessity_from_node(
 /// Port of `calculate_necessity`.
 pub fn calculate_necessity(
     graph: &AttackGraph,
-    enabled_defenses: &HashSet<AttackGraphNodeId>,
-) -> Result<HashMap<AttackGraphNodeId, bool>, NecessityError> {
-    let mut necessity_per_node: HashMap<AttackGraphNodeId, bool> =
-        graph.nodes.keys().map(|id| (id, true)).collect();
+    enabled_defenses: &NodeSet,
+) -> Result<NodeDenseMap<bool>, NecessityError> {
+    let mut necessity_per_node = NodeDenseMap::with_capacity(graph.nodes.capacity());
+    for id in graph.nodes.keys() {
+        necessity_per_node.insert(id, true);
+    }
 
-    let node_ids: Vec<AttackGraphNodeId> = graph.nodes.keys().collect();
-    for node_id in node_ids {
-        let node = &graph.nodes[node_id];
-        if matches!(node.step_type.as_str(), "exist" | "notExist" | "defense") {
+    for (node_id, node) in &graph.nodes {
+        if matches!(
+            node.step_type,
+            AttackStepType::Exist | AttackStepType::NotExist | AttackStepType::Defense
+        ) {
             let is_necessary =
                 evaluate_necessity(node_id, node, &necessity_per_node, enabled_defenses)?;
             necessity_per_node.insert(node_id, is_necessary);
@@ -203,14 +206,14 @@ mod tests {
         graph.nodes[and_node_parent1].children.insert(and_node);
         graph.nodes[and_node_parent2].children.insert(and_node);
 
-        let enabled_defenses: HashSet<_> = [enabled_defense_step].into_iter().collect();
+        let enabled_defenses: NodeSet = [enabled_defense_step].into_iter().collect();
         let necessity_per_node = calculate_necessity(&graph, &enabled_defenses).unwrap();
 
-        assert!(necessity_per_node[&exist_node]);
-        assert!(necessity_per_node[&not_exist_node]);
-        assert!(necessity_per_node[&enabled_defense_step]);
-        assert!(necessity_per_node[&or_node]);
-        assert!(necessity_per_node[&and_node]);
+        assert!(necessity_per_node[exist_node]);
+        assert!(necessity_per_node[not_exist_node]);
+        assert!(necessity_per_node[enabled_defense_step]);
+        assert!(necessity_per_node[or_node]);
+        assert!(necessity_per_node[and_node]);
     }
 
     // Port of `tests/test_graph_processing.py::test_necessity_unnecessary`.
@@ -239,14 +242,14 @@ mod tests {
         graph.nodes[and_node].parents.insert(disabled_defense_step);
         graph.nodes[disabled_defense_step].children.insert(and_node);
 
-        let enabled_defenses = HashSet::new();
+        let enabled_defenses = NodeSet::default();
         let necessity_per_node = calculate_necessity(&graph, &enabled_defenses).unwrap();
 
-        assert!(!necessity_per_node[&exist_node]);
-        assert!(!necessity_per_node[&not_exist_node]);
-        assert!(!necessity_per_node[&disabled_defense_step]);
-        assert!(!necessity_per_node[&or_node]);
-        assert!(!necessity_per_node[&and_node]);
+        assert!(!necessity_per_node[exist_node]);
+        assert!(!necessity_per_node[not_exist_node]);
+        assert!(!necessity_per_node[disabled_defense_step]);
+        assert!(!necessity_per_node[or_node]);
+        assert!(!necessity_per_node[and_node]);
     }
 
     // Port of
@@ -275,7 +278,7 @@ mod tests {
         graph.nodes[unp1].children = [or_1unp, and_1np, and_2unp].into_iter().collect();
         graph.nodes[unp2].children = [and_2unp].into_iter().collect();
 
-        let enabled_defenses = HashSet::new();
+        let enabled_defenses = NodeSet::default();
         let mut necessity_per_node = calculate_necessity(&graph, &enabled_defenses).unwrap();
         // Force unp1/unp2 unnecessary, then re-propagate from every
         // top-level parent - mirrors the Python test exercising
@@ -286,7 +289,7 @@ mod tests {
         necessity_per_node.insert(unp1, false);
         necessity_per_node.insert(unp2, false);
 
-        let mut changed_nodes = HashSet::new();
+        let mut changed_nodes = NodeSet::default();
         for &parent in &[np1, np2, unp1, unp2] {
             changed_nodes.extend(
                 propagate_necessity_from_node(parent, &graph, &mut necessity_per_node).unwrap(),
@@ -296,10 +299,10 @@ mod tests {
         assert_eq!(changed_nodes, [or_1unp, and_2unp].into_iter().collect());
 
         for node in [np1, np2, or_2np, and_1np] {
-            assert!(necessity_per_node[&node]);
+            assert!(necessity_per_node[node]);
         }
         for node in [unp1, unp2, or_1unp, and_2unp] {
-            assert!(!necessity_per_node[&node]);
+            assert!(!necessity_per_node[node]);
         }
     }
 }

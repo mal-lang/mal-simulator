@@ -3,7 +3,7 @@
 //! cases live in `loading.rs`; per-node rule semantics in
 //! `node_property_rule.rs`/`flatten.rs`.
 
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 use rand::rngs::StdRng;
@@ -11,6 +11,7 @@ use rand::SeedableRng;
 
 use super::*;
 use crate::settings::{RewardMode, TtcMode};
+use crate::types::NodeSet;
 
 fn scenario_path(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -381,7 +382,9 @@ fn flatten_agents_orders_attackers_first_and_resolves_ids() {
         FlatAgentSettings::Attacker(a) => {
             assert_eq!(
                 a.entry_points,
-                HashSet::from([node_id(&scenario, "OS App:fullAccess")])
+                [node_id(&scenario, "OS App:fullAccess")]
+                    .into_iter()
+                    .collect::<NodeSet>()
             );
         }
         FlatAgentSettings::Defender(_) => panic!("expected attacker first"),

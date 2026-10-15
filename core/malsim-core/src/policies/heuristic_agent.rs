@@ -1,6 +1,6 @@
 //! Port of `defenders/heuristic_agent.py`.
 
-use std::collections::HashSet;
+use crate::types::NodeSet;
 
 use maltoolbox_attackgraph::AttackGraphNodeId;
 use serde_json::{Map, Value};
@@ -14,9 +14,9 @@ use crate::rewards::node_reward;
 /// given the nodes observed as compromised so far.
 fn cheapest_defense(
     policy: &'static str,
-    compromised_nodes: &mut HashSet<AttackGraphNodeId>,
+    compromised_nodes: &mut NodeSet,
     agent_state: &AgentState<'_>,
-    worth_enabling: impl Fn(&DefenderState<'_>, AttackGraphNodeId, &HashSet<AttackGraphNodeId>) -> bool,
+    worth_enabling: impl Fn(&DefenderState<'_>, AttackGraphNodeId, &NodeSet) -> bool,
 ) -> Result<Option<AttackGraphNodeId>, PolicyError> {
     let AgentState::Defender(defender_state) = agent_state else {
         return Err(PolicyError::WrongAgentType {
@@ -57,7 +57,7 @@ fn cheapest_defense(
 /// nodes.
 #[derive(Debug, Clone, Default)]
 pub struct DefendCompromisedDefender {
-    compromised_nodes: HashSet<AttackGraphNodeId>,
+    compromised_nodes: NodeSet,
 }
 
 impl DefendCompromisedDefender {
@@ -94,7 +94,7 @@ impl DecisionAgent for DefendCompromisedDefender {
 /// child that has a compromised parent.
 #[derive(Debug, Clone, Default)]
 pub struct DefendFutureCompromisedDefender {
-    compromised_nodes: HashSet<AttackGraphNodeId>,
+    compromised_nodes: NodeSet,
 }
 
 impl DefendFutureCompromisedDefender {

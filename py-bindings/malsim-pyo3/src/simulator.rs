@@ -36,7 +36,8 @@
 //! internally. `AttackGraph::id_to_node`/`graph.nodes[id].id` are the two
 //! directions of that translation (see `to_node_id`/`stable_ids` below).
 
-use std::collections::{HashMap, HashSet};
+use malsim_core::types::{NodeMap, NodeSet};
+use std::collections::HashMap;
 use std::str::FromStr;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
@@ -110,10 +111,7 @@ fn stable_ids(graph: &AttackGraph, ids: impl IntoIterator<Item = AttackGraphNode
     ids
 }
 
-fn id_value_map<V: Copy>(
-    graph: &AttackGraph,
-    map: &HashMap<AttackGraphNodeId, V>,
-) -> HashMap<i64, V> {
+fn id_value_map<V: Copy>(graph: &AttackGraph, map: &NodeMap<V>) -> HashMap<i64, V> {
     map.iter()
         .filter_map(|(&id, &v)| graph.nodes.get(id).map(|n| (n.id, v)))
         .collect()
@@ -145,10 +143,7 @@ fn extract_id_list(
     ids.into_iter().map(|id| to_node_id(graph, id)).collect()
 }
 
-fn extract_id_set(
-    graph: &AttackGraph,
-    obj: &Bound<'_, PyAny>,
-) -> PyResult<HashSet<AttackGraphNodeId>> {
+fn extract_id_set(graph: &AttackGraph, obj: &Bound<'_, PyAny>) -> PyResult<NodeSet> {
     Ok(extract_id_list(graph, obj)?.into_iter().collect())
 }
 
@@ -156,7 +151,7 @@ fn extract_optional_id_set(
     graph: &AttackGraph,
     dict: &Bound<'_, PyDict>,
     key: &str,
-) -> PyResult<Option<HashSet<AttackGraphNodeId>>> {
+) -> PyResult<Option<NodeSet>> {
     get_dict_value(dict, key)?
         .map(|v| extract_id_set(graph, &v))
         .transpose()
@@ -166,12 +161,12 @@ fn extract_optional_rate_map(
     graph: &AttackGraph,
     dict: &Bound<'_, PyDict>,
     key: &str,
-) -> PyResult<Option<HashMap<AttackGraphNodeId, f64>>> {
+) -> PyResult<Option<NodeMap<f64>>> {
     let Some(v) = get_dict_value(dict, key)? else {
         return Ok(None);
     };
     let raw: HashMap<i64, f64> = v.extract()?;
-    let mut out = HashMap::with_capacity(raw.len());
+    let mut out = NodeMap::with_capacity_and_hasher(raw.len(), Default::default());
     for (id, rate) in raw {
         out.insert(to_node_id(graph, id)?, rate);
     }
@@ -221,17 +216,17 @@ fn parse_ttc_dist_from_py(dict: &Bound<'_, PyDict>) -> PyResult<TtcDist> {
 /// (`dict[node_id, ttc_dict]`, already flattened from
 /// `AttackerSettings.ttc_dists: NodePropertyRule[TTCDist]` on the Python
 /// side via `.per_node()` + `.to_dict()` - §2.4) into
-/// `HashMap<AttackGraphNodeId, TtcDist>`.
+/// `NodeMap<TtcDist>`.
 fn extract_optional_ttc_dist_overrides(
     graph: &AttackGraph,
     dict: &Bound<'_, PyDict>,
     key: &str,
-) -> PyResult<Option<HashMap<AttackGraphNodeId, TtcDist>>> {
+) -> PyResult<Option<NodeMap<TtcDist>>> {
     let Some(v) = get_dict_value(dict, key)? else {
         return Ok(None);
     };
     let raw = v.cast::<PyDict>()?;
-    let mut out = HashMap::with_capacity(raw.len());
+    let mut out = NodeMap::with_capacity_and_hasher(raw.len(), Default::default());
     for (k, val) in raw.iter() {
         let node_id: i64 = k.extract()?;
         let dist_dict = val.cast::<PyDict>()?.clone();
@@ -452,7 +447,11 @@ fn insert_graph_state_fields(
     )?;
     sim_state.set_item(
         "necessity_per_node",
-        id_value_map(graph, &graph_state.necessity_per_node),
+        graph_state
+            .necessity_per_node
+            .iter()
+            .filter_map(|(id, &v)| graph.nodes.get(id).map(|n| (n.id, v)))
+            .collect::<HashMap<i64, bool>>(),
     )?;
     sim_state.set_item(
         "pre_enabled_defenses",
@@ -585,7 +584,7 @@ pub(crate) fn build_step_output(
     let step_enabled_defenses = &outcome.step_enabled_defenses;
     // Every node any attacker compromised this step - what each
     // defender's `compromised_nodes` grew by.
-    let step_compromised_nodes: HashSet<AttackGraphNodeId> = outcome
+    let step_compromised_nodes: NodeSet = outcome
         .attackers
         .values()
         .flat_map(|a| a.step_performed_nodes.iter().copied())

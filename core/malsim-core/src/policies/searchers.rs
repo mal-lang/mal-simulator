@@ -1,6 +1,7 @@
 //! Port of `attackers/searchers.py`: breadth-first and depth-first agents.
 
-use std::collections::{HashSet, VecDeque};
+use crate::types::NodeSet;
+use std::collections::VecDeque;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
 use rand::rngs::StdRng;
@@ -75,7 +76,7 @@ struct Searcher {
     targets: VecDeque<AttackGraphNodeId>,
     current_target: Option<AttackGraphNodeId>,
     /// `_prev_state.action_surface`; `None` before the first call.
-    prev_action_surface: Option<HashSet<AttackGraphNodeId>>,
+    prev_action_surface: Option<NodeSet>,
 }
 
 impl Searcher {
@@ -124,11 +125,7 @@ impl Searcher {
     }
 
     /// Port of `_update_targets`.
-    fn update_targets(
-        &mut self,
-        new_targets: Vec<AttackGraphNodeId>,
-        disabled_nodes: &HashSet<AttackGraphNodeId>,
-    ) {
+    fn update_targets(&mut self, new_targets: Vec<AttackGraphNodeId>, disabled_nodes: &NodeSet) {
         if let Some(current_target) = self.current_target {
             if !disabled_nodes.contains(&current_target) {
                 // If the current target was not compromised, e.g. due to
@@ -150,12 +147,12 @@ impl Searcher {
     /// Receive the next action according to agent policy (bfs/dfs).
     fn get_next_action(&mut self, agent_state: &AgentState<'_>) -> Option<AttackGraphNodeId> {
         let action_surface = agent_state.action_surface();
-        let (new_nodes, disabled_nodes): (Vec<_>, HashSet<_>) = match &self.prev_action_surface {
+        let (new_nodes, disabled_nodes): (Vec<_>, NodeSet) = match &self.prev_action_surface {
             Some(prev) => (
                 action_surface.difference(prev).copied().collect(),
                 prev.difference(action_surface).copied().collect(),
             ),
-            None => (action_surface.iter().copied().collect(), HashSet::new()),
+            None => (action_surface.iter().copied().collect(), NodeSet::default()),
         };
 
         let new_targets = self.order(agent_state.attack_graph(), new_nodes);

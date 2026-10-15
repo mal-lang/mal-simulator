@@ -11,7 +11,8 @@
 //! quirks those helpers get from testing `if rule:` (`NodePropertyRule.
 //! __len__`).
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use crate::types::{NodeMap, NodeSet};
+use std::collections::BTreeSet;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
 use maltoolbox_model::Model;
@@ -53,7 +54,7 @@ fn flatten_actionable_steps(
     rule: Option<&NodePropertyRule<bool>>,
     graph: &AttackGraph,
     model: &Model,
-) -> Option<HashSet<AttackGraphNodeId>> {
+) -> Option<NodeSet> {
     let rule = rule?;
     Some(
         graph
@@ -71,7 +72,7 @@ fn flatten_observable_steps(
     rule: Option<&NodePropertyRule<bool>>,
     graph: &AttackGraph,
     model: &Model,
-) -> Option<HashSet<AttackGraphNodeId>> {
+) -> Option<NodeSet> {
     let rule = rule?;
     Some(
         graph
@@ -90,7 +91,7 @@ fn flatten_rate_map(
     rule: Option<&NodePropertyRule<f64>>,
     graph: &AttackGraph,
     model: &Model,
-) -> Option<HashMap<AttackGraphNodeId, f64>> {
+) -> Option<NodeMap<f64>> {
     let rule = rule?;
     Some(
         graph
@@ -114,7 +115,7 @@ fn flatten_ttc_dists(
     rule: Option<&NodePropertyRule<TtcDist>>,
     graph: &AttackGraph,
     model: &Model,
-) -> Option<HashMap<AttackGraphNodeId, TtcDist>> {
+) -> Option<NodeMap<TtcDist>> {
     let per_node = rule?.per_node(graph, model);
     (!per_node.is_empty()).then_some(per_node)
 }
@@ -192,7 +193,7 @@ mod tests {
         }
     }
 
-    fn ids(graph: &AttackGraph, names: &[&str]) -> HashSet<AttackGraphNodeId> {
+    fn ids(graph: &AttackGraph, names: &[&str]) -> NodeSet {
         names
             .iter()
             .map(|n| graph.get_node_by_full_name(n).unwrap())
@@ -237,7 +238,7 @@ mod tests {
         );
         let ttc = flat.ttc_dists.unwrap();
         assert_eq!(
-            ttc.keys().copied().collect::<HashSet<_>>(),
+            ttc.keys().copied().collect::<NodeSet>(),
             ids(&graph, &["VulnerableDevice:infect"])
         );
     }
@@ -265,7 +266,7 @@ mod tests {
         }));
         let flat = flatten_defender_settings(&d, &graph, &model);
         assert_eq!(flat.actionable_steps.unwrap().len(), graph.nodes.len());
-        assert_eq!(flat.observable_steps, Some(HashSet::new()));
+        assert_eq!(flat.observable_steps, Some(NodeSet::default()));
     }
 
     #[test]
@@ -307,7 +308,7 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(7);
         let mut seen = [false, false];
         for _ in 0..64 {
-            let chosen: HashSet<_> = get_entry_points(&a, &mut rng).into_iter().collect();
+            let chosen: NodeSet = get_entry_points(&a, &mut rng).into_iter().collect();
             let index = options
                 .iter()
                 .position(|o| *o == chosen)

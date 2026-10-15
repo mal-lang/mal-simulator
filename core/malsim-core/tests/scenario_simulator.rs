@@ -8,8 +8,10 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use malsim_core::dyna_simulator::DynaSimulator;
+use malsim_core::graph_utils::sort_by_node_id;
 use malsim_core::scenario::Scenario;
 use malsim_core::simulator::Simulator;
+use malsim_core::types::NodeSet;
 use maltoolbox_attackgraph::AttackGraphNodeId;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -330,7 +332,7 @@ fn dyna_reset_re_resolves_entry_points_and_goals_on_restored_nodes() {
         let runtime = &sim.state().unwrap().attackers[&attacker];
         assert!(runtime.entry_points.contains(&entry_point));
         assert!(runtime.performed_nodes.contains(&entry_point));
-        assert_eq!(runtime.goals, std::collections::HashSet::from([goal]));
+        assert_eq!(runtime.goals, [goal].into_iter().collect::<NodeSet>());
 
         // The episode runs to the restored goal.
         step(&mut sim, "Start:0:add");
@@ -340,4 +342,66 @@ fn dyna_reset_re_resolves_entry_points_and_goals_on_restored_nodes() {
             Some(true)
         );
     }
+}
+
+#[test]
+fn performed_history_follows_action_order() {
+    // ttc_lang has plenty of nodes on the attacker's surface.
+    let scenario = Scenario::load_from_file(scenario_path("ttc_lang_scenario.yml")).unwrap();
+    let mut sim = Simulator::new(scenario.attack_graph.clone());
+    let agents = scenario
+        .flatten_agents(&mut StdRng::seed_from_u64(1))
+        .unwrap();
+    let state = sim.reset(&scenario.sim_settings, agents, 1).unwrap();
+    let by_id = |ids: &NodeSet| {
+        let mut ids: Vec<_> = ids.iter().copied().collect();
+        sort_by_node_id(&scenario.attack_graph.borrow(), &mut ids);
+        ids
+    };
+
+    // After reset the history holds exactly the pre-compromised nodes, each
+    // once (entry points in node-id order, each followed by its new effects).
+    let attacker = &state.attackers["Attacker"];
+    let reset_history = attacker.performed_history.clone();
+    assert_eq!(
+        reset_history.iter().copied().collect::<NodeSet>(),
+        attacker.performed_nodes
+    );
+    assert_eq!(reset_history.len(), attacker.performed_nodes.len());
+    assert_eq!(reset_history[0], by_id(&attacker.entry_points)[0]);
+
+    // Step 1: two surface nodes, in reverse node-id order.
+    let surface = by_id(&attacker.action_surface);
+    assert!(surface.len() >= 2, "need two actions to compare order");
+    let actions = vec![surface[1], surface[0]];
+    sim.step(&HashMap::from([("Attacker".to_string(), actions.clone())]))
+        .unwrap();
+    let history = sim.state().unwrap().attackers["Attacker"]
+        .performed_history
+        .clone();
+    // The reset history is a prefix and the actions follow in order.
+    assert_eq!(&history[..reset_history.len()], &reset_history[..]);
+    let pos = |n: AttackGraphNodeId| history.iter().position(|&h| h == n).unwrap();
+    assert_eq!(history[reset_history.len()], actions[0]);
+    assert!(pos(actions[0]) < pos(actions[1]));
+
+    // Step 2: the history keeps growing, never repeating a node.
+    let next = by_id(&sim.state().unwrap().attackers["Attacker"].action_surface)[0];
+    sim.step(&HashMap::from([("Attacker".to_string(), vec![next])]))
+        .unwrap();
+    let runtime = &sim.state().unwrap().attackers["Attacker"];
+    assert_eq!(&runtime.performed_history[..history.len()], &history[..]);
+    assert_eq!(runtime.performed_history[history.len()], next);
+    assert_eq!(
+        runtime.performed_history.len(),
+        runtime.performed_nodes.len()
+    );
+    assert_eq!(
+        runtime
+            .performed_history
+            .iter()
+            .copied()
+            .collect::<NodeSet>(),
+        runtime.performed_nodes
+    );
 }

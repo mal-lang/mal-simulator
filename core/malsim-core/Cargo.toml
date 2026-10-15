@@ -10,6 +10,8 @@ publish.workspace = true
 maltoolbox-attackgraph = { workspace = true }
 maltoolbox-language = { workspace = true }
 maltoolbox-model = { workspace = true }
+rustc-hash = "2.1"
+slotmap = "1.1"
 rand = "0.10.3"
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
 serde_yaml = "0.9.34"

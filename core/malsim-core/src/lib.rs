@@ -27,6 +27,7 @@ pub mod scenario;
 pub mod settings;
 pub mod simulator;
 pub mod ttc;
+pub mod types;
 pub mod viability;
 
 #[cfg(test)]

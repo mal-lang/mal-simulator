@@ -27,10 +27,11 @@
 //! minimal-diff behavior the Python docstring describes, not its actual
 //! current behavior.
 
+use crate::types::NodeSet;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
-use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
+use maltoolbox_attackgraph::AttackGraph;
 use maltoolbox_model::{AssetSnapshot, Model, ModelError};
 
 #[derive(Debug, Clone)]
@@ -118,12 +119,18 @@ pub fn reconcile_model_to_snapshot(
     let mut new_assets = HashSet::new();
     let mut removed_assets: HashMap<i64, AssetSnapshot> = HashMap::new();
 
-    for asset_id in current_ids.difference(&target_ids) {
-        let snap = model.remove_asset(*asset_id)?;
-        removed_assets.insert(*asset_id, snap);
+    // The std sets/maps here iterate in a per-instance random order; the
+    // model and graph are mutated in the order below, so use id order.
+    let mut to_remove: Vec<i64> = current_ids.difference(&target_ids).copied().collect();
+    to_remove.sort_unstable();
+    for asset_id in to_remove {
+        let snap = model.remove_asset(asset_id)?;
+        removed_assets.insert(asset_id, snap);
     }
 
-    for &asset_id in target_ids.difference(&current_ids) {
+    let mut to_add: Vec<i64> = target_ids.difference(&current_ids).copied().collect();
+    to_add.sort_unstable();
+    for asset_id in to_add {
         let asset_snapshot = &snapshot[&asset_id];
         model.add_asset(
             &asset_snapshot.asset_type,
@@ -139,7 +146,10 @@ pub fn reconcile_model_to_snapshot(
     let mut new_associations = HashSet::new();
     let mut removed_associations = HashSet::new();
 
-    for (&asset_id, asset_snapshot) in snapshot {
+    let mut snapshot_ids: Vec<i64> = snapshot.keys().copied().collect();
+    snapshot_ids.sort_unstable();
+    for asset_id in snapshot_ids {
+        let asset_snapshot = &snapshot[&asset_id];
         let current_associations: HashMap<String, HashSet<i64>> = model
             .get_asset_by_id(asset_id)
             .map(|a| a.associated_assets.clone())
@@ -149,6 +159,8 @@ pub fn reconcile_model_to_snapshot(
         let mut field_names: HashSet<&String> = current_associations.keys().collect();
         field_names.extend(target_associations.keys());
 
+        let mut field_names: Vec<&String> = field_names.into_iter().collect();
+        field_names.sort_unstable();
         for field_name in field_names {
             let current_for_field = current_associations
                 .get(field_name)
@@ -202,17 +214,17 @@ pub fn reset_model_effects(
     graph: &mut AttackGraph,
     model: &mut Model,
     snapshot: &ModelSnapshot,
-) -> Result<HashSet<AttackGraphNodeId>, ModelStateError> {
+) -> Result<NodeSet, ModelStateError> {
     let (new_assets, removed_assets, new_associations, removed_associations) =
         reconcile_model_to_snapshot(model, snapshot)?;
-    let new_nodes = graph.partially_regenerate_graph(
+    Ok(crate::model_effects::regenerate_graph(
+        graph,
         model,
         &new_assets,
         &new_associations,
         &removed_assets,
         &removed_associations,
-    )?;
-    Ok(new_nodes)
+    )?)
 }
 
 #[cfg(test)]

@@ -7,19 +7,20 @@
 //! Each graph-dependent function here is split into a thin
 //! `AttackGraphNode`-reading wrapper plus a graph-independent helper that
 //! does the actual logic over plain data (`&TtcDist`, `Option<&Value>`,
-//! `&str`) - e.g. `attack_step_ttc_value` delegates to
+//! `AttackStepType`) - e.g. `attack_step_ttc_value` delegates to
 //! `ttc_value_for_dist`, `resolve_ttc_dist` delegates to
 //! `resolve_ttc_dist_from_parts`. This isn't a stylistic preference: it's
 //! what makes the actual logic unit-testable without a real
 //! `AttackGraphNode`, which (per `PORTING_NOTES.md` §10) needs a real
-//! `maltoolbox_language::graph::LanguageGraph` to mint - a dev-dependency
-//! this port deliberately didn't add yet. The thin wrappers themselves
-//! are untested one-liners for the same reason.
+//! `maltoolbox_language::graph::LanguageGraph` to mint (now available to
+//! tests via `test_fixtures`, but these helpers stay graph-independent).
+//! The thin wrappers themselves are untested one-liners.
 
-use std::collections::{HashMap, HashSet};
+use crate::types::{NodeDenseMap, NodeMap, NodeSet};
 use std::fmt;
 
-use maltoolbox_attackgraph::{AttackGraph, AttackGraphNode, AttackGraphNodeId};
+use maltoolbox_attackgraph::{AttackGraph, AttackGraphNode};
+use maltoolbox_language::graph::attack_step::AttackStepType;
 use rand::Rng;
 use serde_json::Value;
 
@@ -124,14 +125,23 @@ impl fmt::Display for GraphStateError {
 
 impl std::error::Error for GraphStateError {}
 
-/// Port of `default_ttc_dist`. Takes `step_type.as_str()` rather than a
-/// whole `AttackGraphNode` (Python's version only ever reads `.type` off
-/// the node) - pure string dispatch, graph-independent.
-pub fn default_ttc_dist_for_step_type(step_type: &str) -> Result<TtcDist, GraphStateError> {
+/// Port of `default_ttc_dist`. Takes the node's `AttackStepType` rather
+/// than a whole `AttackGraphNode` (Python's version only ever reads
+/// `.type` off the node) - pure enum dispatch, graph-independent.
+/// `Exist`/`NotExist` have no default TTC and yield `NoDefaultTtcDist`.
+pub fn default_ttc_dist_for_step_type(
+    step_type: AttackStepType,
+) -> Result<TtcDist, GraphStateError> {
     match step_type {
-        "defense" => Ok(named_ttc_dist("Disabled").expect("'Disabled' is a known named dist")),
-        "or" | "and" => Ok(named_ttc_dist("Instant").expect("'Instant' is a known named dist")),
-        other => Err(GraphStateError::NoDefaultTtcDist(other.to_string())),
+        AttackStepType::Defense => {
+            Ok(named_ttc_dist("Disabled").expect("'Disabled' is a known named dist"))
+        }
+        AttackStepType::Or | AttackStepType::And => {
+            Ok(named_ttc_dist("Instant").expect("'Instant' is a known named dist"))
+        }
+        AttackStepType::Exist | AttackStepType::NotExist => Err(GraphStateError::NoDefaultTtcDist(
+            step_type.as_str().to_string(),
+        )),
     }
 }
 
@@ -140,7 +150,7 @@ pub fn default_ttc_dist_for_step_type(step_type: &str) -> Result<TtcDist, GraphS
 /// module docs for why.
 pub fn resolve_ttc_dist_from_parts(
     ttc_json: Option<&Value>,
-    step_type: &str,
+    step_type: AttackStepType,
     ttc_dist_override: Option<&TtcDist>,
 ) -> Result<TtcDist, GraphStateError> {
     if let Some(dist) = ttc_dist_override {
@@ -158,11 +168,7 @@ pub fn resolve_ttc_dist(
     node: &AttackGraphNode,
     ttc_dist_override: Option<&TtcDist>,
 ) -> Result<TtcDist, GraphStateError> {
-    resolve_ttc_dist_from_parts(
-        node.ttc.as_ref(),
-        node.step_type.as_str(),
-        ttc_dist_override,
-    )
+    resolve_ttc_dist_from_parts(node.ttc.as_ref(), node.step_type, ttc_dist_override)
 }
 
 /// Graph-independent half of `attack_step_ttc_value`: what to do with an
@@ -197,9 +203,9 @@ pub fn attack_step_ttc_values(
     graph: &AttackGraph,
     rng: &mut impl Rng,
     ttc_mode: TtcMode,
-    ttc_dist_overrides: Option<&HashMap<AttackGraphNodeId, TtcDist>>,
-) -> Result<HashMap<AttackGraphNodeId, f64>, GraphStateError> {
-    let mut values = HashMap::new();
+    ttc_dist_overrides: Option<&NodeMap<TtcDist>>,
+) -> Result<NodeMap<f64>, GraphStateError> {
+    let mut values = NodeMap::default();
     for &node_id in &graph.attack_steps {
         let node = &graph.nodes[node_id];
         let override_dist = ttc_dist_overrides.and_then(|m| m.get(&node_id));
@@ -230,11 +236,11 @@ pub fn get_pre_enabled_defenses(
     graph: &AttackGraph,
     sample: bool,
     rng: &mut impl Rng,
-) -> Result<HashSet<AttackGraphNodeId>, GraphStateError> {
-    let mut pre_enabled = HashSet::new();
+) -> Result<NodeSet, GraphStateError> {
+    let mut pre_enabled = NodeSet::default();
     for &node_id in &graph.defense_steps {
         let node = &graph.nodes[node_id];
-        if node.step_type.as_str() != "defense" {
+        if node.step_type != AttackStepType::Defense {
             continue;
         }
         let ttc_dist = resolve_ttc_dist(node, None)?;
@@ -264,9 +270,9 @@ pub fn is_impossible_attack_step(
 pub fn get_impossible_attack_steps(
     graph: &AttackGraph,
     rng: &mut impl Rng,
-    ttc_dist_overrides: Option<&HashMap<AttackGraphNodeId, TtcDist>>,
-) -> Result<HashSet<AttackGraphNodeId>, GraphStateError> {
-    let mut impossible = HashSet::new();
+    ttc_dist_overrides: Option<&NodeMap<TtcDist>>,
+) -> Result<NodeSet, GraphStateError> {
+    let mut impossible = NodeSet::default();
     for &node_id in &graph.attack_steps {
         let node = &graph.nodes[node_id];
         let override_dist = ttc_dist_overrides.and_then(|m| m.get(&node_id));
@@ -280,10 +286,10 @@ pub fn get_impossible_attack_steps(
 /// Port of `GraphState`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GraphState {
-    pub ttc_values: HashMap<AttackGraphNodeId, f64>,
-    pub pre_enabled_defenses: HashSet<AttackGraphNodeId>,
-    pub impossible_attack_steps: HashSet<AttackGraphNodeId>,
-    pub necessity_per_node: HashMap<AttackGraphNodeId, bool>,
+    pub ttc_values: NodeMap<f64>,
+    pub pre_enabled_defenses: NodeSet,
+    pub impossible_attack_steps: NodeSet,
+    pub necessity_per_node: NodeDenseMap<bool>,
 }
 
 /// Port of `compute_initial_graph_state`. Takes the three relevant
@@ -303,7 +309,7 @@ pub fn compute_initial_graph_state(
     let impossible_attack_steps = if run_attack_step_bernoullis {
         get_impossible_attack_steps(graph, rng, None)?
     } else {
-        HashSet::new()
+        NodeSet::default()
     };
     let necessity_per_node = calculate_necessity(graph, &pre_enabled_defenses)?;
 
@@ -331,7 +337,7 @@ mod tests {
     #[test]
     fn default_ttc_dist_defense_is_disabled() {
         assert_eq!(
-            default_ttc_dist_for_step_type("defense").unwrap(),
+            default_ttc_dist_for_step_type(AttackStepType::Defense).unwrap(),
             named_ttc_dist("Disabled").unwrap()
         );
     }
@@ -339,18 +345,18 @@ mod tests {
     #[test]
     fn default_ttc_dist_or_and_and_is_instant() {
         assert_eq!(
-            default_ttc_dist_for_step_type("or").unwrap(),
+            default_ttc_dist_for_step_type(AttackStepType::Or).unwrap(),
             named_ttc_dist("Instant").unwrap()
         );
         assert_eq!(
-            default_ttc_dist_for_step_type("and").unwrap(),
+            default_ttc_dist_for_step_type(AttackStepType::And).unwrap(),
             named_ttc_dist("Instant").unwrap()
         );
     }
 
     #[test]
     fn default_ttc_dist_unsupported_step_type_errors() {
-        for step_type in ["exist", "notExist", "something_else"] {
+        for step_type in [AttackStepType::Exist, AttackStepType::NotExist] {
             let err = default_ttc_dist_for_step_type(step_type).unwrap_err();
             assert!(matches!(err, GraphStateError::NoDefaultTtcDist(_)));
         }
@@ -361,12 +367,15 @@ mod tests {
     #[test]
     fn resolve_ttc_dist_override_wins_regardless_of_ttc_json_or_step_type() {
         let override_dist = dist(DistFunction::Exponential, &[0.5]);
-        let resolved = resolve_ttc_dist_from_parts(None, "defense", Some(&override_dist)).unwrap();
+        let resolved =
+            resolve_ttc_dist_from_parts(None, AttackStepType::Defense, Some(&override_dist))
+                .unwrap();
         assert_eq!(resolved, override_dist);
 
         let ttc_json = dist(DistFunction::Uniform, &[1.0, 2.0]).to_dict();
         let resolved =
-            resolve_ttc_dist_from_parts(Some(&ttc_json), "or", Some(&override_dist)).unwrap();
+            resolve_ttc_dist_from_parts(Some(&ttc_json), AttackStepType::Or, Some(&override_dist))
+                .unwrap();
         assert_eq!(resolved, override_dist);
     }
 
@@ -375,16 +384,17 @@ mod tests {
         let explicit = dist(DistFunction::Binomial, &[10.0, 0.1])
             .with_combine(dist(DistFunction::Bernoulli, &[0.5]), Operation::Addition);
         let ttc_json = explicit.to_dict();
-        let resolved = resolve_ttc_dist_from_parts(Some(&ttc_json), "or", None).unwrap();
+        let resolved =
+            resolve_ttc_dist_from_parts(Some(&ttc_json), AttackStepType::Or, None).unwrap();
         assert_eq!(resolved, explicit);
     }
 
     #[test]
     fn resolve_ttc_dist_falls_back_to_default_when_no_ttc_json() {
-        let resolved = resolve_ttc_dist_from_parts(None, "defense", None).unwrap();
+        let resolved = resolve_ttc_dist_from_parts(None, AttackStepType::Defense, None).unwrap();
         assert_eq!(resolved, named_ttc_dist("Disabled").unwrap());
 
-        let err = resolve_ttc_dist_from_parts(None, "exist", None).unwrap_err();
+        let err = resolve_ttc_dist_from_parts(None, AttackStepType::Exist, None).unwrap_err();
         assert!(matches!(err, GraphStateError::NoDefaultTtcDist(_)));
     }
 

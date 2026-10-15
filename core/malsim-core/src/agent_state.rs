@@ -9,7 +9,7 @@
 //! one copies nothing but the defender's `step_compromised_nodes`. See
 //! `PORTING_NOTES.md` §11.
 
-use std::collections::HashSet;
+use crate::types::NodeSet;
 use std::fmt;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
@@ -61,11 +61,20 @@ pub struct AttackerState<'a> {
     /// The accumulated fields: `performed_nodes`, `action_surface`,
     /// `num_attempts`, `goals`, ...
     pub runtime: &'a AttackerRuntime,
-    pub step_performed_nodes: &'a HashSet<AttackGraphNodeId>,
-    pub step_attempted_nodes: &'a HashSet<AttackGraphNodeId>,
+    pub step_performed_nodes: &'a NodeSet,
+    pub step_attempted_nodes: &'a NodeSet,
 }
 
 impl AttackerState<'_> {
+    /// The nodes this attacker has performed (`runtime.performed_nodes`)
+    /// in the order they were performed, each once: the nodes
+    /// compromised at reset first (in node-id order, since the order
+    /// within the pre-compromised set is not defined), then every
+    /// step's compromises in the order the step produced them.
+    pub fn performed_history(&self) -> &[AttackGraphNodeId] {
+        &self.runtime.performed_history
+    }
+
     /// Port of `state_query.py::node_ttc_value`: the attacker's own
     /// (override) TTC value if it has one, else the graph-wide one.
     pub fn node_ttc_value(&self, node: AttackGraphNodeId) -> Result<f64, AgentStateError> {
@@ -98,10 +107,10 @@ pub struct DefenderState<'a> {
     /// `observed_nodes`, `action_surface`, ...
     pub runtime: &'a DefenderRuntime,
     /// Defenses enabled this step (by any defender, as on the Python side).
-    pub step_performed_nodes: &'a HashSet<AttackGraphNodeId>,
+    pub step_performed_nodes: &'a NodeSet,
     /// Nodes any attacker compromised this step.
-    pub step_compromised_nodes: HashSet<AttackGraphNodeId>,
-    pub step_observed_nodes: &'a HashSet<AttackGraphNodeId>,
+    pub step_compromised_nodes: NodeSet,
+    pub step_observed_nodes: &'a NodeSet,
 }
 
 /// `AttackerState | DefenderState`.
@@ -187,7 +196,7 @@ impl<'a> AgentState<'a> {
         }
     }
 
-    pub fn action_surface(&self) -> &'a HashSet<AttackGraphNodeId> {
+    pub fn action_surface(&self) -> &'a NodeSet {
         match self {
             AgentState::Attacker(a) => &a.runtime.action_surface,
             AgentState::Defender(d) => &d.runtime.action_surface,

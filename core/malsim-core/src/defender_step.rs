@@ -1,7 +1,7 @@
 //! Rust port of `python/malsim/mal_simulator/defender_step.py` - see
 //! `PORTING_NOTES.md` §5 Phase A7.
 
-use std::collections::HashSet;
+use crate::types::NodeSet;
 use std::fmt;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
@@ -38,7 +38,7 @@ impl std::error::Error for DefenderStepError {}
 pub fn defender_step(
     graph: &AttackGraph,
     nodes: &[AttackGraphNodeId],
-    action_surface: &HashSet<AttackGraphNodeId>,
+    action_surface: &NodeSet,
 ) -> Result<Vec<AttackGraphNodeId>, DefenderStepError> {
     let mut enabled_defenses = Vec::new();
 
@@ -61,13 +61,7 @@ pub fn defender_step(
 /// mirrors Python's `all(...)` over an empty `attacker_states(...)` dict -
 /// both vacuously `true`.
 pub fn defender_is_terminated<'a>(
-    attackers: impl IntoIterator<
-        Item = (
-            &'a HashSet<AttackGraphNodeId>,
-            &'a HashSet<AttackGraphNodeId>,
-            &'a HashSet<AttackGraphNodeId>,
-        ),
-    >,
+    attackers: impl IntoIterator<Item = (&'a NodeSet, &'a NodeSet, &'a NodeSet)>,
 ) -> bool {
     attackers
         .into_iter()
@@ -85,7 +79,7 @@ mod tests {
     fn defender_step_enables_nodes_in_action_surface() {
         let mut graph = dummy_graph();
         let defense = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
-        let action_surface: HashSet<_> = [defense].into_iter().collect();
+        let action_surface: NodeSet = [defense].into_iter().collect();
 
         let enabled = defender_step(&graph, &[defense], &action_surface).unwrap();
         assert_eq!(enabled, vec![defense]);
@@ -95,7 +89,7 @@ mod tests {
     fn defender_step_skips_nodes_outside_action_surface() {
         let mut graph = dummy_graph();
         let attack_step = add_dummy_node(&mut graph, "DummyOrAttackStep");
-        let empty = HashSet::new();
+        let empty = NodeSet::default();
 
         let enabled = defender_step(&graph, &[attack_step], &empty).unwrap();
         assert!(enabled.is_empty());
@@ -111,7 +105,7 @@ mod tests {
         let mut graph = dummy_graph();
         let defense = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
         let attack_step = add_dummy_node(&mut graph, "DummyOrAttackStep");
-        let action_surface: HashSet<_> = [defense].into_iter().collect();
+        let action_surface: NodeSet = [defense].into_iter().collect();
 
         let enabled = defender_step(&graph, &[attack_step], &action_surface).unwrap();
         assert!(enabled.is_empty());
@@ -122,7 +116,7 @@ mod tests {
         let mut graph = dummy_graph();
         let defense = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
         graph.remove_node(defense).unwrap();
-        let action_surface: HashSet<_> = [defense].into_iter().collect();
+        let action_surface: NodeSet = [defense].into_iter().collect();
 
         let result = defender_step(&graph, &[defense], &action_surface);
         assert!(matches!(result, Err(DefenderStepError::NodeNotInGraph(_))));
@@ -137,7 +131,7 @@ mod tests {
 
     #[test]
     fn defender_terminated_when_all_attackers_terminated() {
-        let empty = HashSet::new();
+        let empty = NodeSet::default();
         // Empty action surface -> terminated, for every attacker.
         assert!(defender_is_terminated([
             (&empty, &empty, &empty),
@@ -149,8 +143,8 @@ mod tests {
     fn defender_not_terminated_when_one_attacker_is_not() {
         let mut graph = dummy_graph();
         let node = add_dummy_node(&mut graph, "DummyOrAttackStep");
-        let surface: HashSet<_> = [node].into_iter().collect();
-        let empty = HashSet::new();
+        let surface: NodeSet = [node].into_iter().collect();
+        let empty = NodeSet::default();
 
         assert!(!defender_is_terminated([
             (&empty, &empty, &empty),

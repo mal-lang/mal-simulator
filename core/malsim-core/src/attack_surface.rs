@@ -11,18 +11,18 @@
 //! already baked in its own per-node default). This module never
 //! constructs or reads a `NodePropertyRule`.
 
-use std::collections::{HashSet, VecDeque};
+use crate::types::{NodeDenseMap, NodeSet};
+use std::collections::VecDeque;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
 
-use crate::graph_utils::{node_is_live, node_is_necessary, node_is_traversable, GraphUtilsError};
+use crate::graph_utils::{
+    node_is_live, node_is_necessary, node_is_traversable, sort_by_node_id, GraphUtilsError,
+};
 
 /// Port of `node_is_actionable`, operating on the already-flattened id-set
 /// instead of a `NodePropertyRule` - see module docs.
-fn node_is_actionable_flat(
-    actionable_steps: Option<&HashSet<AttackGraphNodeId>>,
-    node_id: AttackGraphNodeId,
-) -> bool {
+fn node_is_actionable_flat(actionable_steps: Option<&NodeSet>, node_id: AttackGraphNodeId) -> bool {
     match actionable_steps {
         Some(steps) => steps.contains(&node_id),
         None => true,
@@ -33,6 +33,20 @@ fn causal_mode_is_effect(graph: &AttackGraph, node_id: AttackGraphNodeId) -> boo
     graph.nodes[node_id]
         .causal_mode
         .is_some_and(|m| m.as_str() == "effect")
+}
+
+/// The children of `node_id` that are effects, in node-id order (`children`
+/// is a std set with a per-instance random order, and the traversal below
+/// is order-sensitive).
+fn effect_children(graph: &AttackGraph, node_id: AttackGraphNodeId) -> Vec<AttackGraphNodeId> {
+    let mut children: Vec<AttackGraphNodeId> = graph.nodes[node_id]
+        .children
+        .iter()
+        .copied()
+        .filter(|&child_id| causal_mode_is_effect(graph, child_id))
+        .collect();
+    sort_by_node_id(graph, &mut children);
+    children
 }
 
 /// Port of `get_effects_of_attack_step`.
@@ -48,26 +62,22 @@ fn causal_mode_is_effect(graph: &AttackGraph, node_id: AttackGraphNodeId) -> boo
 pub fn get_effects_of_attack_step(
     graph: &AttackGraph,
     attack_step_id: AttackGraphNodeId,
-    performed_nodes: &HashSet<AttackGraphNodeId>,
-    impossible_attack_steps: &HashSet<AttackGraphNodeId>,
-    enabled_defenses: &HashSet<AttackGraphNodeId>,
-    necessity_per_node: &std::collections::HashMap<AttackGraphNodeId, bool>,
-) -> Result<HashSet<AttackGraphNodeId>, GraphUtilsError> {
-    let mut effects: HashSet<AttackGraphNodeId> = HashSet::new();
+    performed_nodes: &NodeSet,
+    impossible_attack_steps: &NodeSet,
+    enabled_defenses: &NodeSet,
+    necessity_per_node: &NodeDenseMap<bool>,
+) -> Result<NodeSet, GraphUtilsError> {
+    let mut effects: NodeSet = NodeSet::default();
     if !node_is_live(graph, attack_step_id) {
         // Only consider nodes that still exist in the attack graph.
         return Ok(effects);
     }
 
-    let mut visited: HashSet<AttackGraphNodeId> = performed_nodes.clone();
+    let mut visited: NodeSet = performed_nodes.clone();
     visited.insert(attack_step_id);
 
-    let mut potential_effects: VecDeque<AttackGraphNodeId> = graph.nodes[attack_step_id]
-        .children
-        .iter()
-        .copied()
-        .filter(|&child_id| causal_mode_is_effect(graph, child_id))
-        .collect();
+    let mut potential_effects: VecDeque<AttackGraphNodeId> =
+        effect_children(graph, attack_step_id).into();
 
     while let Some(effect_id) = potential_effects.pop_front() {
         if visited.contains(&effect_id) {
@@ -83,13 +93,7 @@ pub fn get_effects_of_attack_step(
         )? {
             visited.insert(effect_id);
             effects.insert(effect_id);
-            potential_effects.extend(
-                graph.nodes[effect_id]
-                    .children
-                    .iter()
-                    .copied()
-                    .filter(|&child_id| causal_mode_is_effect(graph, child_id)),
-            );
+            potential_effects.extend(effect_children(graph, effect_id));
         }
     }
 
@@ -111,13 +115,13 @@ pub fn get_attack_surface(
     graph: &AttackGraph,
     skip_compromised: bool,
     skip_unnecessary: bool,
-    actionable_steps: Option<&HashSet<AttackGraphNodeId>>,
-    performed_nodes: &HashSet<AttackGraphNodeId>,
-    from_nodes: Option<&HashSet<AttackGraphNodeId>>,
-    impossible_attack_steps: &HashSet<AttackGraphNodeId>,
-    enabled_defenses: &HashSet<AttackGraphNodeId>,
-    necessity_per_node: &std::collections::HashMap<AttackGraphNodeId, bool>,
-) -> Result<HashSet<AttackGraphNodeId>, GraphUtilsError> {
+    actionable_steps: Option<&NodeSet>,
+    performed_nodes: &NodeSet,
+    from_nodes: Option<&NodeSet>,
+    impossible_attack_steps: &NodeSet,
+    enabled_defenses: &NodeSet,
+    necessity_per_node: &NodeDenseMap<bool>,
+) -> Result<NodeSet, GraphUtilsError> {
     let from_nodes = from_nodes.unwrap_or(performed_nodes);
 
     // A performed node that deleted its own backing asset (a dyna-MAL
@@ -127,40 +131,45 @@ pub fn get_attack_surface(
     // frozen pre-removal snapshot mal-toolbox keeps so `performed_nodes`
     // can still hold a readable reference to it - never a source of new
     // live actions.
-    let mut from_node_children: HashSet<AttackGraphNodeId> = HashSet::new();
+    let mut surface = NodeSet::default();
+    // Children already evaluated (accepted or rejected): the filters are
+    // pure functions of the child, so each child is evaluated at most once
+    // even when several live parents share it.
+    let mut seen: NodeSet =
+        NodeSet::with_capacity_and_hasher(from_nodes.len() * 4, Default::default());
     for &parent_id in from_nodes {
         if !node_is_live(graph, parent_id) {
             continue;
         }
-        from_node_children.extend(graph.nodes[parent_id].children.iter().copied());
-    }
-
-    let mut surface = HashSet::new();
-    for node_id in from_node_children {
-        // Nodes marked as effects are not actions/attacks.
-        if causal_mode_is_effect(graph, node_id) {
-            continue;
+        for &node_id in &graph.nodes[parent_id].children {
+            if !seen.insert(node_id) {
+                continue;
+            }
+            // Nodes marked as effects are not actions/attacks.
+            if causal_mode_is_effect(graph, node_id) {
+                continue;
+            }
+            if skip_compromised && performed_nodes.contains(&node_id) {
+                continue;
+            }
+            if skip_unnecessary && !node_is_necessary(necessity_per_node, node_id)? {
+                continue;
+            }
+            if !node_is_actionable_flat(actionable_steps, node_id) {
+                continue;
+            }
+            if !node_is_traversable(
+                graph,
+                node_id,
+                performed_nodes,
+                impossible_attack_steps,
+                enabled_defenses,
+                necessity_per_node,
+            )? {
+                continue;
+            }
+            surface.insert(node_id);
         }
-        if skip_compromised && performed_nodes.contains(&node_id) {
-            continue;
-        }
-        if skip_unnecessary && !node_is_necessary(necessity_per_node, node_id)? {
-            continue;
-        }
-        if !node_is_actionable_flat(actionable_steps, node_id) {
-            continue;
-        }
-        if !node_is_traversable(
-            graph,
-            node_id,
-            performed_nodes,
-            impossible_attack_steps,
-            enabled_defenses,
-            necessity_per_node,
-        )? {
-            continue;
-        }
-        surface.insert(node_id);
     }
 
     Ok(surface)
@@ -171,7 +180,6 @@ mod tests {
     use super::*;
     use crate::test_fixtures::{add_dummy_node, dummy_graph};
     use maltoolbox_language::graph::attack_step::CausalMode;
-    use std::collections::HashMap;
 
     fn mark_effect(graph: &mut AttackGraph, node_id: AttackGraphNodeId) {
         graph.nodes[node_id].causal_mode = Some(CausalMode::Effect);
@@ -185,8 +193,8 @@ mod tests {
         let step = add_dummy_node(&mut graph, "DummyOrAttackStep");
         graph.remove_node(step).unwrap();
 
-        let empty = HashSet::new();
-        let empty_map = HashMap::new();
+        let empty = NodeSet::default();
+        let empty_map = NodeDenseMap::default();
         let effects =
             get_effects_of_attack_step(&graph, step, &empty, &empty, &empty, &empty_map).unwrap();
         assert!(effects.is_empty());
@@ -212,8 +220,8 @@ mod tests {
         graph.nodes[effect1].children.insert(effect2);
         graph.nodes[effect2].parents.insert(effect1);
 
-        let empty = HashSet::new();
-        let empty_map = HashMap::new();
+        let empty = NodeSet::default();
+        let empty_map = NodeDenseMap::default();
         let effects =
             get_effects_of_attack_step(&graph, step, &empty, &empty, &empty, &empty_map).unwrap();
 
@@ -233,9 +241,9 @@ mod tests {
         graph.nodes[step].children.insert(effect);
         graph.nodes[effect].parents.insert(step);
 
-        let performed: HashSet<_> = [effect].into_iter().collect();
-        let empty_map = HashMap::new();
-        let empty = HashSet::new();
+        let performed: NodeSet = [effect].into_iter().collect();
+        let empty_map = NodeDenseMap::default();
+        let empty = NodeSet::default();
 
         // `effect` is already performed, so it must not be re-added even
         // though it's reachable as an effect child of `step`.
@@ -259,8 +267,8 @@ mod tests {
         // parent - not traversable yet, so it must not be collected.
         graph.nodes[effect].parents.insert(other_parent);
 
-        let necessity: HashMap<_, _> = [(step, true), (other_parent, true)].into_iter().collect();
-        let empty = HashSet::new();
+        let necessity: NodeDenseMap<_> = [(step, true), (other_parent, true)].into_iter().collect();
+        let empty = NodeSet::default();
 
         let effects =
             get_effects_of_attack_step(&graph, step, &empty, &empty, &empty, &necessity).unwrap();
@@ -273,11 +281,11 @@ mod tests {
         graph: &AttackGraph,
         skip_compromised: bool,
         skip_unnecessary: bool,
-        actionable_steps: Option<&HashSet<AttackGraphNodeId>>,
-        performed_nodes: &HashSet<AttackGraphNodeId>,
-        necessity: &HashMap<AttackGraphNodeId, bool>,
-    ) -> HashSet<AttackGraphNodeId> {
-        let empty = HashSet::new();
+        actionable_steps: Option<&NodeSet>,
+        performed_nodes: &NodeSet,
+        necessity: &NodeDenseMap<bool>,
+    ) -> NodeSet {
+        let empty = NodeSet::default();
         get_attack_surface(
             graph,
             skip_compromised,
@@ -300,8 +308,8 @@ mod tests {
         graph.nodes[performed_node].children.insert(child);
         graph.nodes[child].parents.insert(performed_node);
 
-        let performed: HashSet<_> = [performed_node].into_iter().collect();
-        let necessity: HashMap<_, _> = [(child, true)].into_iter().collect();
+        let performed: NodeSet = [performed_node].into_iter().collect();
+        let necessity: NodeDenseMap<_> = [(child, true)].into_iter().collect();
 
         let result = surface(&graph, true, false, None, &performed, &necessity);
         assert_eq!(result, [child].into_iter().collect());
@@ -316,8 +324,8 @@ mod tests {
         graph.nodes[performed_node].children.insert(effect_child);
         graph.nodes[effect_child].parents.insert(performed_node);
 
-        let performed: HashSet<_> = [performed_node].into_iter().collect();
-        let necessity: HashMap<_, _> = [(effect_child, true)].into_iter().collect();
+        let performed: NodeSet = [performed_node].into_iter().collect();
+        let necessity: NodeDenseMap<_> = [(effect_child, true)].into_iter().collect();
 
         let result = surface(&graph, true, false, None, &performed, &necessity);
         assert!(result.is_empty());
@@ -333,8 +341,8 @@ mod tests {
 
         // Both nodes already performed - with skip_compromised the already-
         // performed child is excluded even though it's otherwise traversable.
-        let performed: HashSet<_> = [parent, child].into_iter().collect();
-        let necessity: HashMap<_, _> = [(child, true)].into_iter().collect();
+        let performed: NodeSet = [parent, child].into_iter().collect();
+        let necessity: NodeDenseMap<_> = [(child, true)].into_iter().collect();
 
         let with_skip = surface(&graph, true, false, None, &performed, &necessity);
         assert!(with_skip.is_empty());
@@ -351,8 +359,8 @@ mod tests {
         graph.nodes[parent].children.insert(child);
         graph.nodes[child].parents.insert(parent);
 
-        let performed: HashSet<_> = [parent].into_iter().collect();
-        let necessity: HashMap<_, _> = [(child, false)].into_iter().collect();
+        let performed: NodeSet = [parent].into_iter().collect();
+        let necessity: NodeDenseMap<_> = [(child, false)].into_iter().collect();
 
         let with_skip = surface(&graph, true, true, None, &performed, &necessity);
         assert!(with_skip.is_empty());
@@ -372,8 +380,8 @@ mod tests {
         graph.nodes[actionable_child].parents.insert(parent);
         graph.nodes[non_actionable_child].parents.insert(parent);
 
-        let performed: HashSet<_> = [parent].into_iter().collect();
-        let necessity: HashMap<_, _> = [(actionable_child, true), (non_actionable_child, true)]
+        let performed: NodeSet = [parent].into_iter().collect();
+        let necessity: NodeDenseMap<_> = [(actionable_child, true), (non_actionable_child, true)]
             .into_iter()
             .collect();
 
@@ -387,7 +395,7 @@ mod tests {
         );
 
         // A rule present -> only the ids explicitly in the set are actionable.
-        let actionable_set: HashSet<_> = [actionable_child].into_iter().collect();
+        let actionable_set: NodeSet = [actionable_child].into_iter().collect();
         let restricted = surface(
             &graph,
             true,
@@ -412,10 +420,11 @@ mod tests {
         graph.nodes[new_node].children.insert(new_child);
         graph.nodes[new_child].parents.insert(new_node);
 
-        let performed: HashSet<_> = [old_performed, new_node].into_iter().collect();
-        let from_nodes: HashSet<_> = [new_node].into_iter().collect();
-        let necessity: HashMap<_, _> = [(old_child, true), (new_child, true)].into_iter().collect();
-        let empty = HashSet::new();
+        let performed: NodeSet = [old_performed, new_node].into_iter().collect();
+        let from_nodes: NodeSet = [new_node].into_iter().collect();
+        let necessity: NodeDenseMap<_> =
+            [(old_child, true), (new_child, true)].into_iter().collect();
+        let empty = NodeSet::default();
 
         let result = get_attack_surface(
             &graph,
@@ -442,8 +451,8 @@ mod tests {
         graph.nodes[dead_parent].children.insert(child);
         graph.nodes[child].parents.insert(dead_parent);
 
-        let performed: HashSet<_> = [dead_parent].into_iter().collect();
-        let necessity: HashMap<_, _> = [(child, true)].into_iter().collect();
+        let performed: NodeSet = [dead_parent].into_iter().collect();
+        let necessity: NodeDenseMap<_> = [(child, true)].into_iter().collect();
 
         graph.remove_node(dead_parent).unwrap();
 
@@ -489,11 +498,10 @@ mod tests {
         link(&mut graph, host_np, access);
         link(&mut graph, auth, access);
 
-        let performed: HashSet<_> = [phishing, connect].into_iter().collect();
-        let no_impossible = HashSet::new();
+        let performed: NodeSet = [phishing, connect].into_iter().collect();
+        let no_impossible = NodeSet::default();
 
-        let surface_with = |impossible: &HashSet<AttackGraphNodeId>,
-                            enabled: &HashSet<AttackGraphNodeId>| {
+        let surface_with = |impossible: &NodeSet, enabled: &NodeSet| {
             let necessity = crate::necessity::calculate_necessity(&graph, enabled).unwrap();
             get_attack_surface(
                 &graph, true, false, None, &performed, None, impossible, enabled, &necessity,
@@ -504,7 +512,7 @@ mod tests {
         // No defenses enabled: `compromise` is reachable (its disabled
         // defense parent is unnecessary, so not required), `access` is not
         // (its necessary `auth` parent is unperformed).
-        let none_enabled = HashSet::new();
+        let none_enabled = NodeSet::default();
         assert_eq!(
             surface_with(&no_impossible, &none_enabled),
             [compromise].into_iter().collect()
@@ -512,7 +520,7 @@ mod tests {
 
         // "This wont help, already compromised" - enabling Host:0:notPresent
         // only blocks `access`, which wasn't on the surface anyway.
-        let host_enabled: HashSet<_> = [host_np].into_iter().collect();
+        let host_enabled: NodeSet = [host_np].into_iter().collect();
         assert_eq!(
             surface_with(&no_impossible, &host_enabled),
             [compromise].into_iter().collect()
@@ -521,18 +529,18 @@ mod tests {
         // "This should block the attack from further propagating" -
         // enabling User:3:notPresent too blocks `compromise`, leaving an
         // empty surface and a terminated attacker.
-        let both_enabled: HashSet<_> = [host_np, user_np].into_iter().collect();
+        let both_enabled: NodeSet = [host_np, user_np].into_iter().collect();
         let blocked_surface = surface_with(&no_impossible, &both_enabled);
         assert!(blocked_surface.is_empty());
         assert!(crate::attacker_step::attacker_is_terminated(
             &blocked_surface,
-            &HashSet::new(),
+            &NodeSet::default(),
             &performed
         ));
 
         // Rust-only extra: an impossible attack step is excluded the same
         // way an enabled-defense-blocked one is.
-        let impossible: HashSet<_> = [compromise].into_iter().collect();
+        let impossible: NodeSet = [compromise].into_iter().collect();
         assert!(surface_with(&impossible, &none_enabled).is_empty());
     }
 }

@@ -8,10 +8,12 @@
 //! path for every start at once. See `PORTING_NOTES.md` §12 for this and
 //! for the unreachable AND-step validation that is not ported.
 
+use crate::types::{NodeMap, NodeSet};
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::collections::BinaryHeap;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
+use maltoolbox_language::graph::attack_step::AttackStepType;
 
 use crate::agent_state::{sorted_by_id, AgentStateError, AttackerState};
 use crate::policies::PolicyError;
@@ -50,7 +52,7 @@ impl Ord for Frontier {
 /// `ttc_values[node]`, with Python's `KeyError` as an error.
 fn ttc_value(
     attack_graph: &AttackGraph,
-    ttc_values: &HashMap<AttackGraphNodeId, f64>,
+    ttc_values: &NodeMap<f64>,
     node: AttackGraphNodeId,
 ) -> Result<f64, PolicyError> {
     ttc_values.get(&node).copied().ok_or_else(|| {
@@ -65,10 +67,10 @@ fn ttc_value(
 fn paths_to_goal(
     attack_graph: &AttackGraph,
     goal_node: AttackGraphNodeId,
-    ttc_values: &HashMap<AttackGraphNodeId, f64>,
-) -> Result<HashMap<AttackGraphNodeId, (f64, Option<AttackGraphNodeId>)>, PolicyError> {
-    let mut best: HashMap<AttackGraphNodeId, (f64, Option<AttackGraphNodeId>)> = HashMap::new();
-    let mut done: HashSet<AttackGraphNodeId> = HashSet::new();
+    ttc_values: &NodeMap<f64>,
+) -> Result<NodeMap<(f64, Option<AttackGraphNodeId>)>, PolicyError> {
+    let mut best: NodeMap<(f64, Option<AttackGraphNodeId>)> = NodeMap::default();
+    let mut done: NodeSet = NodeSet::default();
     let mut frontier = BinaryHeap::new();
 
     let Some(goal) = attack_graph.nodes.get(goal_node) else {
@@ -118,7 +120,7 @@ pub fn get_shortest_path_to(
     attack_graph: &AttackGraph,
     compromised_nodes: &[AttackGraphNodeId],
     goal_node: AttackGraphNodeId,
-    ttc_values: &HashMap<AttackGraphNodeId, f64>,
+    ttc_values: &NodeMap<f64>,
 ) -> Result<Vec<AttackGraphNodeId>, PolicyError> {
     let best = paths_to_goal(attack_graph, goal_node, ttc_values)?;
 
@@ -138,7 +140,7 @@ pub fn get_shortest_path_to(
         return Ok(Vec::new());
     };
 
-    let compromised_nodes: HashSet<AttackGraphNodeId> = compromised_nodes.iter().copied().collect();
+    let compromised_nodes: NodeSet = compromised_nodes.iter().copied().collect();
     let mut planned_path = Vec::new();
     let mut step = Some(start);
     while let Some(node) = step {
@@ -159,9 +161,9 @@ pub fn get_shortest_paths_for_attacker(
     let ttc_values = attack_graph
         .nodes
         .iter()
-        .filter(|(_, n)| matches!(n.step_type.as_str(), "or" | "and"))
+        .filter(|(_, n)| matches!(n.step_type, AttackStepType::Or | AttackStepType::And))
         .map(|(key, _)| Ok((key, attacker_state.node_ttc_value(key)?)))
-        .collect::<Result<HashMap<_, _>, PolicyError>>()?;
+        .collect::<Result<NodeMap<_>, PolicyError>>()?;
 
     let goals = &attacker_state.runtime.goals;
     if goals.is_empty() {

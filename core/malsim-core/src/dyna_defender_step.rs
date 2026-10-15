@@ -5,7 +5,7 @@
 //! attempt/effect-chain logic, just "enable the defense, then run its
 //! model effects."
 
-use std::collections::HashSet;
+use crate::types::NodeSet;
 use std::fmt;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
@@ -71,9 +71,9 @@ pub fn dyna_defender_step(
     run_defense_step_bernoullis: bool,
     run_attack_step_bernoullis: bool,
     nodes: &[AttackGraphNodeId],
-    action_surface: &HashSet<AttackGraphNodeId>,
+    action_surface: &NodeSet,
     graph_state: &mut GraphState,
-    enabled_defenses: &mut HashSet<AttackGraphNodeId>,
+    enabled_defenses: &mut NodeSet,
 ) -> Result<(Vec<AttackGraphNodeId>, Vec<ModEffectOp>), DynaDefenderStepError> {
     let mut enabled = Vec::new();
     let mut modification_record = Vec::new();
@@ -89,17 +89,18 @@ pub fn dyna_defender_step(
 
         enabled.push(node_id);
         let (ops, new_nodes) = execute_model_effects(graph, model, node_id, rng)?;
-        modification_record.extend(ops);
         fold_new_nodes_into_graph_state(
             graph,
             graph_state,
             enabled_defenses,
+            &ops,
             &new_nodes,
             ttc_mode,
             run_defense_step_bernoullis,
             run_attack_step_bernoullis,
             rng,
         )?;
+        modification_record.extend(ops);
     }
 
     Ok((enabled, modification_record))
@@ -108,7 +109,7 @@ pub fn dyna_defender_step(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
+    use crate::types::NodeMap;
 
     use crate::graph_state::compute_initial_graph_state;
     use crate::test_fixtures::{add_dummy_node, dummy_graph_and_model};
@@ -121,10 +122,10 @@ mod tests {
 
     fn empty_graph_state() -> GraphState {
         GraphState {
-            ttc_values: HashMap::new(),
-            pre_enabled_defenses: HashSet::new(),
-            impossible_attack_steps: HashSet::new(),
-            necessity_per_node: HashMap::new(),
+            ttc_values: NodeMap::default(),
+            pre_enabled_defenses: NodeSet::default(),
+            impossible_attack_steps: NodeSet::default(),
+            necessity_per_node: Default::default(),
         }
     }
 
@@ -133,10 +134,10 @@ mod tests {
         let (mut graph, mut model) = dummy_graph_and_model();
         let node = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
         graph.remove_node(node).unwrap();
-        let action_surface: HashSet<_> = [node].into_iter().collect();
+        let action_surface: NodeSet = [node].into_iter().collect();
         let mut r = rng();
         let mut graph_state = empty_graph_state();
-        let mut enabled_defenses = HashSet::new();
+        let mut enabled_defenses = NodeSet::default();
 
         let result = dyna_defender_step(
             &mut graph,
@@ -160,11 +161,11 @@ mod tests {
     fn dyna_defender_step_skips_node_outside_action_surface() {
         let (mut graph, mut model) = dummy_graph_and_model();
         let node = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
-        let empty_set: HashSet<AttackGraphNodeId> = HashSet::new();
+        let empty_set: NodeSet = NodeSet::default();
         let mut r = rng();
         let mut graph_state =
             compute_initial_graph_state(&graph, TtcMode::Disabled, false, false, &mut r).unwrap();
-        let mut enabled_defenses = HashSet::new();
+        let mut enabled_defenses = NodeSet::default();
 
         let (enabled, record) = dyna_defender_step(
             &mut graph,
@@ -187,11 +188,11 @@ mod tests {
     fn dyna_defender_step_enables_defense_with_no_model_effects() {
         let (mut graph, mut model) = dummy_graph_and_model();
         let node = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
-        let action_surface: HashSet<_> = [node].into_iter().collect();
+        let action_surface: NodeSet = [node].into_iter().collect();
         let mut r = rng();
         let mut graph_state =
             compute_initial_graph_state(&graph, TtcMode::Disabled, false, false, &mut r).unwrap();
-        let mut enabled_defenses = HashSet::new();
+        let mut enabled_defenses = NodeSet::default();
 
         let (enabled, record) = dyna_defender_step(
             &mut graph,

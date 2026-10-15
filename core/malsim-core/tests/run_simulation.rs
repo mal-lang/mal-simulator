@@ -21,7 +21,9 @@ use malsim_core::run_simulation::{
 use malsim_core::scenario::{load_scenario_dict, Scenario};
 use malsim_core::simulator::{Simulator, StepOutcome};
 use malsim_core::ttc::TtcDist;
+use malsim_core::types::NodeMap;
 use maltoolbox_attackgraph::AttackGraphNodeId;
+use maltoolbox_language::graph::attack_step::AttackStepType;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use serde_json::{json, Map, Value};
@@ -414,10 +416,10 @@ fn path_finding_ttc_lang() {
 
     let entry_point = graph.get_node_by_full_name("Net1:easyAccess").unwrap();
     let goal = graph.get_node_by_full_name("DataD:read").unwrap();
-    let ttc_values: HashMap<_, _> = graph
+    let ttc_values: NodeMap<_> = graph
         .nodes
         .iter()
-        .filter(|(_, n)| matches!(n.step_type.as_str(), "or" | "and"))
+        .filter(|(_, n)| matches!(n.step_type, AttackStepType::Or | AttackStepType::And))
         .map(|(key, _)| (key, sim.sim.state().unwrap().graph_state.ttc_values[&key]))
         .collect();
     assert_close(ttc_values.values().sum(), 2021.0);

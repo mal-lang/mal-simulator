@@ -5,10 +5,9 @@
 //! counterpart of what `native_settings.py`'s `flatten_*_settings` produce
 //! on the Python side. See `PORTING_NOTES.md` §11.
 
-use std::collections::{HashMap, HashSet};
+use crate::types::{NodeMap, NodeSet};
 use std::fmt;
 
-use maltoolbox_attackgraph::AttackGraphNodeId;
 use serde_json::{Map, Value};
 
 pub use crate::graph_state::TtcMode;
@@ -223,12 +222,12 @@ fn bool_field(field: &str, value: &Value) -> Result<bool, SettingsError> {
 /// caller before reset).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct FlatAttackerSettings {
-    pub entry_points: HashSet<AttackGraphNodeId>,
-    pub goals: HashSet<AttackGraphNodeId>,
+    pub entry_points: NodeSet,
+    pub goals: NodeSet,
     /// `None`: no actionability rule (every node actionable).
-    pub actionable_steps: Option<HashSet<AttackGraphNodeId>>,
+    pub actionable_steps: Option<NodeSet>,
     /// `None`: no TTC overrides.
-    pub ttc_dists: Option<HashMap<AttackGraphNodeId, TtcDist>>,
+    pub ttc_dists: Option<NodeMap<TtcDist>>,
 }
 
 /// One defender's id-resolved settings - the Rust counterpart of
@@ -236,11 +235,11 @@ pub struct FlatAttackerSettings {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct FlatDefenderSettings {
     /// `None`: no actionability rule (every node actionable).
-    pub actionable_steps: Option<HashSet<AttackGraphNodeId>>,
+    pub actionable_steps: Option<NodeSet>,
     /// `None`: no observability rule (every node observable).
-    pub observable_steps: Option<HashSet<AttackGraphNodeId>>,
-    pub false_positive_rates: Option<HashMap<AttackGraphNodeId, f64>>,
-    pub false_negative_rates: Option<HashMap<AttackGraphNodeId, f64>>,
+    pub observable_steps: Option<NodeSet>,
+    pub false_positive_rates: Option<NodeMap<f64>>,
+    pub false_negative_rates: Option<NodeMap<f64>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

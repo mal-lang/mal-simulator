@@ -14,7 +14,7 @@
 //! A6's "already-flattened" pattern rather than a ported settings/state
 //! struct.
 
-use std::collections::{HashMap, HashSet};
+use crate::types::{NodeDenseMap, NodeMap, NodeSet};
 use std::fmt;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
@@ -22,7 +22,7 @@ use rand::Rng;
 
 use crate::attack_surface::get_effects_of_attack_step;
 use crate::graph_state::{resolve_ttc_dist, GraphStateError, TtcMode};
-use crate::graph_utils::{node_is_live, node_is_traversable, GraphUtilsError};
+use crate::graph_utils::{node_is_live, node_is_traversable, sort_by_node_id, GraphUtilsError};
 use crate::ttc::TtcDist;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -80,9 +80,9 @@ impl std::error::Error for AttackerStepError {}
 /// `AttackerSettings.goals` field defaults to an empty `frozenset`, never
 /// `None`).
 pub fn attacker_is_terminated(
-    action_surface: &HashSet<AttackGraphNodeId>,
-    goals: &HashSet<AttackGraphNodeId>,
-    performed_nodes: &HashSet<AttackGraphNodeId>,
+    action_surface: &NodeSet,
+    goals: &NodeSet,
+    performed_nodes: &NodeSet,
 ) -> bool {
     if action_surface.is_empty() {
         return true;
@@ -97,8 +97,8 @@ pub fn attacker_is_terminated(
 /// docs. Returns `None` exactly where Python's assert would fire.
 fn resolve_ttc_value(
     node_id: AttackGraphNodeId,
-    ttc_value_overrides: Option<&HashMap<AttackGraphNodeId, f64>>,
-    graph_ttc_values: &HashMap<AttackGraphNodeId, f64>,
+    ttc_value_overrides: Option<&NodeMap<f64>>,
+    graph_ttc_values: &NodeMap<f64>,
 ) -> Option<f64> {
     ttc_value_overrides
         .and_then(|m| m.get(&node_id))
@@ -135,8 +135,8 @@ pub fn attempt_attacker_step(
     node_id: AttackGraphNodeId,
     num_attempts_before: u64,
     ttc_dist_override: Option<&TtcDist>,
-    ttc_value_overrides: Option<&HashMap<AttackGraphNodeId, f64>>,
-    graph_ttc_values: &HashMap<AttackGraphNodeId, f64>,
+    ttc_value_overrides: Option<&NodeMap<f64>>,
+    graph_ttc_values: &NodeMap<f64>,
 ) -> Result<bool, AttackerStepError> {
     let node = &graph.nodes[node_id];
     let num_attempts = num_attempts_before + 1;
@@ -160,10 +160,10 @@ pub fn attempt_attacker_step(
 pub fn attacker_step_effects(
     graph: &AttackGraph,
     node_id: AttackGraphNodeId,
-    performed_nodes: &HashSet<AttackGraphNodeId>,
-    impossible_attack_steps: &HashSet<AttackGraphNodeId>,
-    enabled_defenses: &HashSet<AttackGraphNodeId>,
-    necessity_per_node: &HashMap<AttackGraphNodeId, bool>,
+    performed_nodes: &NodeSet,
+    impossible_attack_steps: &NodeSet,
+    enabled_defenses: &NodeSet,
+    necessity_per_node: &NodeDenseMap<bool>,
 ) -> Result<Vec<AttackGraphNodeId>, GraphUtilsError> {
     let effects = get_effects_of_attack_step(
         graph,
@@ -173,7 +173,11 @@ pub fn attacker_step_effects(
         enabled_defenses,
         necessity_per_node,
     )?;
-    Ok(effects.into_iter().collect())
+    // The effects come out of a hash set; compromise (and, in the dyna
+    // path, model-effect/RNG) order must not depend on its layout.
+    let mut effects: Vec<AttackGraphNodeId> = effects.into_iter().collect();
+    sort_by_node_id(graph, &mut effects);
+    Ok(effects)
 }
 
 /// Port of `attacker_step`.
@@ -192,16 +196,16 @@ pub fn attacker_step(
     rng: &mut impl Rng,
     ttc_mode: TtcMode,
     nodes: &[AttackGraphNodeId],
-    entry_points: &HashSet<AttackGraphNodeId>,
-    action_surface: &HashSet<AttackGraphNodeId>,
-    performed_nodes: &HashSet<AttackGraphNodeId>,
-    num_attempts: &HashMap<AttackGraphNodeId, u64>,
-    ttc_dist_overrides: Option<&HashMap<AttackGraphNodeId, TtcDist>>,
-    ttc_value_overrides: Option<&HashMap<AttackGraphNodeId, f64>>,
-    graph_ttc_values: &HashMap<AttackGraphNodeId, f64>,
-    impossible_attack_steps: &HashSet<AttackGraphNodeId>,
-    enabled_defenses: &HashSet<AttackGraphNodeId>,
-    necessity_per_node: &HashMap<AttackGraphNodeId, bool>,
+    entry_points: &NodeSet,
+    action_surface: &NodeSet,
+    performed_nodes: &NodeSet,
+    num_attempts: &NodeMap<u64>,
+    ttc_dist_overrides: Option<&NodeMap<TtcDist>>,
+    ttc_value_overrides: Option<&NodeMap<f64>>,
+    graph_ttc_values: &NodeMap<f64>,
+    impossible_attack_steps: &NodeSet,
+    enabled_defenses: &NodeSet,
+    necessity_per_node: &NodeDenseMap<bool>,
 ) -> Result<(Vec<AttackGraphNodeId>, Vec<AttackGraphNodeId>), AttackerStepError> {
     let mut successful_compromises = Vec::new();
     let mut attempted_compromises = Vec::new();
@@ -277,7 +281,7 @@ mod tests {
 
     #[test]
     fn terminated_when_action_surface_empty() {
-        let empty = HashSet::new();
+        let empty = NodeSet::default();
         assert!(attacker_is_terminated(&empty, &empty, &empty));
     }
 
@@ -285,8 +289,8 @@ mod tests {
     fn not_terminated_without_goals_and_nonempty_surface() {
         let mut graph = dummy_graph();
         let node = add_dummy_node(&mut graph, "DummyOrAttackStep");
-        let surface: HashSet<_> = [node].into_iter().collect();
-        let empty = HashSet::new();
+        let surface: NodeSet = [node].into_iter().collect();
+        let empty = NodeSet::default();
         assert!(!attacker_is_terminated(&surface, &empty, &empty));
     }
 
@@ -295,9 +299,9 @@ mod tests {
         let mut graph = dummy_graph();
         let node = add_dummy_node(&mut graph, "DummyOrAttackStep");
         let goal = add_dummy_node(&mut graph, "DummyOrAttackStep");
-        let surface: HashSet<_> = [node].into_iter().collect();
-        let goals: HashSet<_> = [goal].into_iter().collect();
-        let performed: HashSet<_> = [goal].into_iter().collect();
+        let surface: NodeSet = [node].into_iter().collect();
+        let goals: NodeSet = [goal].into_iter().collect();
+        let performed: NodeSet = [goal].into_iter().collect();
         assert!(attacker_is_terminated(&surface, &goals, &performed));
     }
 
@@ -307,9 +311,9 @@ mod tests {
         let node = add_dummy_node(&mut graph, "DummyOrAttackStep");
         let goal1 = add_dummy_node(&mut graph, "DummyOrAttackStep");
         let goal2 = add_dummy_node(&mut graph, "DummyOrAttackStep");
-        let surface: HashSet<_> = [node].into_iter().collect();
-        let goals: HashSet<_> = [goal1, goal2].into_iter().collect();
-        let performed: HashSet<_> = [goal1].into_iter().collect();
+        let surface: NodeSet = [node].into_iter().collect();
+        let goals: NodeSet = [goal1, goal2].into_iter().collect();
+        let performed: NodeSet = [goal1].into_iter().collect();
         assert!(!attacker_is_terminated(&surface, &goals, &performed));
     }
 
@@ -319,7 +323,7 @@ mod tests {
     fn attempt_disabled_mode_always_succeeds() {
         let mut graph = dummy_graph();
         let node = add_dummy_node(&mut graph, "DummyOrAttackStep");
-        let empty_map = HashMap::new();
+        let empty_map = NodeMap::default();
         let mut r = rng();
 
         let result = attempt_attacker_step(
@@ -344,7 +348,7 @@ mod tests {
         let mut graph = dummy_graph();
         let node = add_dummy_node(&mut graph, "DummyOrAttackStep");
         graph.nodes[node].ttc = Some(serde_json::json!({}));
-        let empty_map = HashMap::new();
+        let empty_map = NodeMap::default();
         let mut r = rng();
 
         let result = attempt_attacker_step(
@@ -366,7 +370,7 @@ mod tests {
         let node = add_dummy_node(&mut graph, "DummyOrAttackStep");
         // Default dist for "or" steps is "Instant" (Bernoulli(1.0)):
         // success_probability(effort) is 1.0 for any effort >= 1.
-        let empty_map = HashMap::new();
+        let empty_map = NodeMap::default();
         let mut r = rng();
 
         let result = attempt_attacker_step(
@@ -388,7 +392,7 @@ mod tests {
         let mut graph = dummy_graph();
         let node = add_dummy_node(&mut graph, "DummyOrAttackStep");
         // Default "Instant" dist always samples 1.0, so <= 1 is always true.
-        let empty_map = HashMap::new();
+        let empty_map = NodeMap::default();
         let mut r = rng();
 
         let result = attempt_attacker_step(
@@ -409,7 +413,7 @@ mod tests {
     fn attempt_expected_value_mode_requires_a_ttc_value() {
         let mut graph = dummy_graph();
         let node = add_dummy_node(&mut graph, "DummyOrAttackStep");
-        let empty_map = HashMap::new();
+        let empty_map = NodeMap::default();
         let mut r = rng();
 
         let result = attempt_attacker_step(
@@ -429,8 +433,8 @@ mod tests {
     fn attempt_expected_value_mode_agent_override_wins_over_graph_value() {
         let mut graph = dummy_graph();
         let node = add_dummy_node(&mut graph, "DummyOrAttackStep");
-        let graph_values: HashMap<_, _> = [(node, 100.0)].into_iter().collect();
-        let agent_override: HashMap<_, _> = [(node, 1.0)].into_iter().collect();
+        let graph_values: NodeMap<_> = [(node, 100.0)].into_iter().collect();
+        let agent_override: NodeMap<_> = [(node, 1.0)].into_iter().collect();
         let mut r = rng();
 
         // Agent override (1.0) is used instead of the graph value (100.0):
@@ -457,7 +461,7 @@ mod tests {
         // though no attempt has happened yet.
         let mut graph = dummy_graph();
         let node = add_dummy_node(&mut graph, "DummyOrAttackStep");
-        let graph_values: HashMap<_, _> = [(node, 2.0)].into_iter().collect();
+        let graph_values: NodeMap<_> = [(node, 2.0)].into_iter().collect();
         let mut r = rng();
 
         let result = attempt_attacker_step(
@@ -474,7 +478,7 @@ mod tests {
         assert!(result);
 
         // A ttc_value just above that boundary (2.1) does not succeed yet.
-        let graph_values: HashMap<_, _> = [(node, 2.1)].into_iter().collect();
+        let graph_values: NodeMap<_> = [(node, 2.1)].into_iter().collect();
         let mut r = rng();
         let result = attempt_attacker_step(
             &graph,
@@ -492,12 +496,8 @@ mod tests {
 
     // --- attacker_step ---
 
-    fn empty_sets() -> (
-        HashSet<AttackGraphNodeId>,
-        HashSet<AttackGraphNodeId>,
-        HashSet<AttackGraphNodeId>,
-    ) {
-        (HashSet::new(), HashSet::new(), HashSet::new())
+    fn empty_sets() -> (NodeSet, NodeSet, NodeSet) {
+        (NodeSet::default(), NodeSet::default(), NodeSet::default())
     }
 
     #[test]
@@ -507,9 +507,9 @@ mod tests {
         graph.remove_node(node).unwrap();
 
         let (empty_set, empty_set2, empty_set3) = empty_sets();
-        let empty_map_u64: HashMap<AttackGraphNodeId, u64> = HashMap::new();
-        let empty_map_f64: HashMap<AttackGraphNodeId, f64> = HashMap::new();
-        let empty_map_bool: HashMap<AttackGraphNodeId, bool> = HashMap::new();
+        let empty_map_u64: NodeMap<u64> = NodeMap::default();
+        let empty_map_f64: NodeMap<f64> = NodeMap::default();
+        let empty_map_bool: NodeDenseMap<bool> = NodeDenseMap::default();
         let mut r = rng();
 
         let result = attacker_step(
@@ -536,10 +536,10 @@ mod tests {
         let mut graph = dummy_graph();
         let node = add_dummy_node(&mut graph, "DummyOrAttackStep");
 
-        let empty_set: HashSet<AttackGraphNodeId> = HashSet::new();
-        let empty_map_u64: HashMap<AttackGraphNodeId, u64> = HashMap::new();
-        let empty_map_f64: HashMap<AttackGraphNodeId, f64> = HashMap::new();
-        let empty_map_bool: HashMap<AttackGraphNodeId, bool> = HashMap::new();
+        let empty_set: NodeSet = NodeSet::default();
+        let empty_map_u64: NodeMap<u64> = NodeMap::default();
+        let empty_map_f64: NodeMap<f64> = NodeMap::default();
+        let empty_map_bool: NodeDenseMap<bool> = NodeDenseMap::default();
         let mut r = rng();
 
         // Not in entry_points, not in action_surface -> skipped, no error.
@@ -573,10 +573,10 @@ mod tests {
         let mut graph = dummy_graph();
         let defense = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
 
-        let empty_set: HashSet<AttackGraphNodeId> = HashSet::new();
-        let empty_map_u64: HashMap<AttackGraphNodeId, u64> = HashMap::new();
-        let empty_map_f64: HashMap<AttackGraphNodeId, f64> = HashMap::new();
-        let empty_map_bool: HashMap<AttackGraphNodeId, bool> = HashMap::new();
+        let empty_set: NodeSet = NodeSet::default();
+        let empty_map_u64: NodeMap<u64> = NodeMap::default();
+        let empty_map_f64: NodeMap<f64> = NodeMap::default();
+        let empty_map_bool: NodeDenseMap<bool> = NodeDenseMap::default();
         let mut r = rng();
 
         let (successful, attempted) = attacker_step(
@@ -610,11 +610,11 @@ mod tests {
         graph.nodes[node].parents.insert(parent);
         graph.nodes[parent].children.insert(node);
 
-        let entry_points: HashSet<_> = [node].into_iter().collect();
-        let empty_set: HashSet<AttackGraphNodeId> = HashSet::new();
-        let empty_map_u64: HashMap<AttackGraphNodeId, u64> = HashMap::new();
-        let empty_map_f64: HashMap<AttackGraphNodeId, f64> = HashMap::new();
-        let necessity: HashMap<_, _> = [(node, true), (parent, true)].into_iter().collect();
+        let entry_points: NodeSet = [node].into_iter().collect();
+        let empty_set: NodeSet = NodeSet::default();
+        let empty_map_u64: NodeMap<u64> = NodeMap::default();
+        let empty_map_f64: NodeMap<f64> = NodeMap::default();
+        let necessity: NodeDenseMap<_> = [(node, true), (parent, true)].into_iter().collect();
         let mut r = rng();
 
         let (successful, attempted) = attacker_step(
@@ -651,13 +651,13 @@ mod tests {
         graph.nodes[effect].causal_mode =
             Some(maltoolbox_language::graph::attack_step::CausalMode::Effect);
 
-        let performed: HashSet<_> = [parent].into_iter().collect();
-        let action_surface: HashSet<_> = [node].into_iter().collect();
-        let empty_set: HashSet<AttackGraphNodeId> = HashSet::new();
-        let empty_entry_points: HashSet<AttackGraphNodeId> = HashSet::new();
-        let empty_map_u64: HashMap<AttackGraphNodeId, u64> = HashMap::new();
-        let empty_map_f64: HashMap<AttackGraphNodeId, f64> = HashMap::new();
-        let necessity: HashMap<_, _> = [(node, true), (effect, true)].into_iter().collect();
+        let performed: NodeSet = [parent].into_iter().collect();
+        let action_surface: NodeSet = [node].into_iter().collect();
+        let empty_set: NodeSet = NodeSet::default();
+        let empty_entry_points: NodeSet = NodeSet::default();
+        let empty_map_u64: NodeMap<u64> = NodeMap::default();
+        let empty_map_f64: NodeMap<f64> = NodeMap::default();
+        let necessity: NodeDenseMap<_> = [(node, true), (effect, true)].into_iter().collect();
         let mut r = rng();
 
         let (successful, attempted) = attacker_step(
@@ -689,16 +689,16 @@ mod tests {
         graph.nodes[parent].children.insert(node);
         graph.nodes[node].parents.insert(parent);
 
-        let empty_set: HashSet<AttackGraphNodeId> = HashSet::new();
-        let performed: HashSet<_> = [parent].into_iter().collect();
-        let action_surface: HashSet<_> = [node].into_iter().collect();
-        let empty_map_u64: HashMap<AttackGraphNodeId, u64> = HashMap::new();
-        let empty_map_bool: HashMap<AttackGraphNodeId, bool> = HashMap::new();
+        let empty_set: NodeSet = NodeSet::default();
+        let performed: NodeSet = [parent].into_iter().collect();
+        let action_surface: NodeSet = [node].into_iter().collect();
+        let empty_map_u64: NodeMap<u64> = NodeMap::default();
+        let empty_map_bool: NodeDenseMap<bool> = NodeDenseMap::default();
         // ExpectedValue mode with no resolvable ttc_value is an error, not
         // a "failed attempt" - use a ttc_value that fails the comparison
         // instead (num_attempts_before=0 -> 0 + 2 >= ttc_value is false
         // for ttc_value > 2).
-        let graph_values: HashMap<_, _> = [(node, 100.0)].into_iter().collect();
+        let graph_values: NodeMap<_> = [(node, 100.0)].into_iter().collect();
         let mut r = rng();
 
         let (successful, attempted) = attacker_step(

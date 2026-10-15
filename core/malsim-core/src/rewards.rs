@@ -7,10 +7,10 @@
 //! already carries the settings the closure captured, so these are plain
 //! functions of the state.
 
-use std::collections::HashSet;
+use crate::types::NodeSet;
 use std::fmt;
 
-use maltoolbox_attackgraph::{AttackGraphNode, AttackGraphNodeId};
+use maltoolbox_attackgraph::AttackGraphNode;
 use maltoolbox_model::Model;
 use rand::Rng;
 
@@ -83,8 +83,7 @@ pub fn defender_step_reward(defender_state: &DefenderState<'_>) -> Result<f64, R
         mode => return Err(RewardError::UnsupportedDefenderRewardMode(mode)),
     };
 
-    let nodes: HashSet<AttackGraphNodeId> =
-        enabled_defenses.union(compromised_nodes).copied().collect();
+    let nodes: NodeSet = enabled_defenses.union(compromised_nodes).copied().collect();
     let graph = defender_state.attack_graph;
     let step_reward: f64 = sorted_by_id(graph, nodes)
         .into_iter()

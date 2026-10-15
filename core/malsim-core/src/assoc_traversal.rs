@@ -107,15 +107,27 @@ pub fn sample_size(
     }
 }
 
+/// The elements of `set` in ascending order. The std sets this module
+/// works on iterate in a per-instance random order, so every loop that
+/// draws from the RNG or produces an ordered result goes through this.
+pub fn sorted_vec<T: Clone + Ord>(set: &HashSet<T>) -> Vec<T> {
+    let mut items: Vec<T> = set.iter().cloned().collect();
+    items.sort_unstable();
+    items
+}
+
 /// Port of `_apply_quantity_filter`. Generic over the sampled element
 /// type so it serves both the asset-id sets this module traverses and
 /// the `Addition`/`Removal` tuple sets `model_effects.rs` filters.
-pub fn apply_quantity_filter<T: Eq + Hash + Clone>(
+///
+/// Samples from the elements in sorted order, so the result only depends
+/// on the RNG state, not on the (std `RandomState`) layout of `objects`.
+pub fn apply_quantity_filter<T: Eq + Hash + Clone + Ord>(
     objects: &HashSet<T>,
     quantity: Option<QuantityFilter>,
     rng: &mut impl Rng,
 ) -> HashSet<T> {
-    let items: Vec<T> = objects.iter().cloned().collect();
+    let items = sorted_vec(objects);
     let size = sample_size(quantity, rng, Some(items.len() as i64)).max(0) as usize;
     items.sample(rng, size).cloned().collect()
 }
@@ -136,7 +148,7 @@ fn assoc_traversal(
         return instigating_assets.clone();
     }
     let mut next_assets = HashSet::new();
-    for &asset_id in instigating_assets {
+    for asset_id in sorted_vec(instigating_assets) {
         let Some(asset) = model.get_asset_by_id(asset_id) else {
             continue;
         };
@@ -246,7 +258,7 @@ fn resolve_terminal_traversal<T, F>(
     terminate: &F,
 ) -> Result<TerminalResolve<T>, AssocTraversalError>
 where
-    T: Eq + Hash + Clone,
+    T: Eq + Hash + Clone + Ord,
     F: Fn(&HashSet<i64>, &AssocTraversal) -> Result<TerminalResolve<T>, AssocTraversalError>,
 {
     let Some((last, init)) = chain.split_last() else {
@@ -281,7 +293,7 @@ where
 /// reached by traversal, or the *type* of a not-yet-created asset (when
 /// no live association exists yet) - Python's `LanguageGraphAsset |
 /// ModelAsset` union, translated to ids on both sides.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum AdditionTarget {
     ExistingAsset(i64),
     NewAssetType(AssetId),
@@ -300,7 +312,7 @@ fn parse_addition_terminal(
     traversal: &AssocTraversal,
 ) -> Result<TerminalResolve<Addition>, AssocTraversalError> {
     let mut additions = HashSet::new();
-    for &asset_id in instigating_assets {
+    for asset_id in sorted_vec(instigating_assets) {
         let Some(asset) = model.get_asset_by_id(asset_id) else {
             continue;
         };
@@ -379,7 +391,7 @@ fn parse_removal_terminal(
     traversal: &AssocTraversal,
 ) -> Result<TerminalResolve<Removal>, AssocTraversalError> {
     let mut removals = HashSet::new();
-    for &asset_id in instigating_assets {
+    for asset_id in sorted_vec(instigating_assets) {
         let Some(asset) = model.get_asset_by_id(asset_id) else {
             continue;
         };

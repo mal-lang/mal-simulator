@@ -16,10 +16,12 @@
 //! `Detector`/`AttackGraphNode` objects) is Python's job when crossing the
 //! FFI boundary (§3), not this module's - see `PORTING_NOTES.md` §10.
 
+use crate::graph_utils::{node_order_key, sort_by_node_id};
+use crate::types::NodeSet;
 use std::collections::HashMap;
 use std::fmt;
 
-use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId, Detector};
+use maltoolbox_attackgraph::{AttackGraph, AttackGraphNode, AttackGraphNodeId, Detector};
 use rand::{Rng, RngExt};
 
 /// Identifies a `Detector` within the graph - see module docs for why this
@@ -88,23 +90,44 @@ fn all_detectors(
     graph: &AttackGraph,
 ) -> impl Iterator<Item = (AttackGraphNodeId, &String, &Detector)> {
     graph.nodes.iter().flat_map(|(node_id, node)| {
-        node.detectors
-            .iter()
+        // `detectors` is a std `HashMap`: iterate it by label.
+        sorted_detectors(node)
+            .into_iter()
             .map(move |(label, detector)| (node_id, label, detector))
     })
 }
 
-/// Port of `get_context`.
-fn get_context(
+/// `node`'s detectors ordered by label (a std `HashMap` iterates in a
+/// per-instance random order).
+fn sorted_detectors(node: &AttackGraphNode) -> Vec<(&String, &Detector)> {
+    let mut detectors: Vec<(&String, &Detector)> = node.detectors.iter().collect();
+    detectors.sort_unstable_by(|a, b| a.0.cmp(b.0));
+    detectors
+}
+
+/// `detector.potential_context` ordered by label.
+fn sorted_potential_context(
     detector: &Detector,
-    previous_compromised_nodes: &std::collections::HashSet<AttackGraphNodeId>,
+) -> Vec<(&String, &std::collections::HashSet<AttackGraphNodeId>)> {
+    let mut contexts: Vec<_> = detector.potential_context.iter().collect();
+    contexts.sort_unstable_by(|a, b| a.0.cmp(b.0));
+    contexts
+}
+
+/// Port of `get_context`. When several candidates are compromised the one
+/// with the smallest node id is the context.
+fn get_context(
+    graph: &AttackGraph,
+    detector: &Detector,
+    previous_compromised_nodes: &NodeSet,
 ) -> Result<HashMap<String, AttackGraphNodeId>, EventLoggerError> {
     let mut context_nodes = HashMap::new();
-    for (label, potential_context_nodes) in &detector.potential_context {
+    for (label, potential_context_nodes) in sorted_potential_context(detector) {
         let node_id = potential_context_nodes
             .iter()
             .copied()
-            .find(|id| previous_compromised_nodes.contains(id))
+            .filter(|id| previous_compromised_nodes.contains(id))
+            .min_by_key(|&id| node_order_key(graph, id))
             .ok_or_else(|| {
                 EventLoggerError::NoCompromisedContextNode(detector.node, label.clone())
             })?;
@@ -115,14 +138,16 @@ fn get_context(
 
 /// Port of `get_random_context`.
 fn get_random_context(
+    graph: &AttackGraph,
     detector: &Detector,
 ) -> Result<HashMap<String, AttackGraphNodeId>, EventLoggerError> {
     let mut context_nodes = HashMap::new();
-    for (label, potential_context_nodes) in &detector.potential_context {
+    for (label, potential_context_nodes) in sorted_potential_context(detector) {
+        // Python takes an arbitrary element; take the smallest node id.
         let node_id = potential_context_nodes
             .iter()
             .copied()
-            .next()
+            .min_by_key(|&id| node_order_key(graph, id))
             .ok_or_else(|| {
                 EventLoggerError::EmptyContextCandidates(detector.node, label.clone())
             })?;
@@ -148,7 +173,7 @@ pub fn collect_false_positives(
                 timestep: iteration,
                 detector_id: (node_id, label.clone()),
                 trigger: detector.node,
-                context: get_random_context(detector)?,
+                context: get_random_context(graph, detector)?,
                 false_positive: true,
             });
         }
@@ -164,10 +189,15 @@ pub fn collect_logs(
     iteration: u64,
     graph: &AttackGraph,
     step_compromised_nodes: impl IntoIterator<Item = AttackGraphNodeId>,
-    previous_compromised_nodes: &std::collections::HashSet<AttackGraphNodeId>,
+    previous_compromised_nodes: &NodeSet,
     rng: &mut impl Rng,
 ) -> Result<Vec<LogEntry>, EventLoggerError> {
     let mut logs = Vec::new();
+    // Detector rolls draw from the RNG and the logs come out in this
+    // order, so go through the compromised nodes in node-id order.
+    let mut step_compromised_nodes: Vec<AttackGraphNodeId> =
+        step_compromised_nodes.into_iter().collect();
+    sort_by_node_id(graph, &mut step_compromised_nodes);
     for attack_step_id in step_compromised_nodes {
         // A node can be genuinely compromised this step and still vanish
         // from the graph before this loop reaches it: in the dyna path, a
@@ -195,8 +225,8 @@ pub fn collect_logs(
         if node.model_asset.is_none() {
             return Err(EventLoggerError::MissingModelAsset(attack_step_id));
         }
-        for (label, detector) in &node.detectors {
-            let context = get_context(detector, previous_compromised_nodes)?;
+        for (label, detector) in sorted_detectors(node) {
+            let context = get_context(graph, detector, previous_compromised_nodes)?;
             let fires =
                 !rate_is_truthy(detector.tprate) || detector.tprate.unwrap() >= rng.random::<f64>();
             if fires {
@@ -250,7 +280,7 @@ mod tests {
         // once the step actually has a detector to process.
         add_detector(&mut graph, step, "d", None, None, HashMap::new());
         let mut rng = StdRng::seed_from_u64(1);
-        let result = collect_logs(0, &graph, [step], &HashSet::new(), &mut rng);
+        let result = collect_logs(0, &graph, [step], &NodeSet::default(), &mut rng);
         assert_eq!(result, Err(EventLoggerError::MissingModelAsset(step)));
     }
 
@@ -264,7 +294,7 @@ mod tests {
         // PORTING_NOTES.md §10: a real scenario's pre-compromised node
         // with no model asset and no detectors used to error here).
         let mut rng = StdRng::seed_from_u64(1);
-        let result = collect_logs(0, &graph, [step], &HashSet::new(), &mut rng);
+        let result = collect_logs(0, &graph, [step], &NodeSet::default(), &mut rng);
         assert_eq!(result, Ok(Vec::new()));
     }
 
@@ -276,7 +306,7 @@ mod tests {
         add_detector(&mut graph, step, "d", None, None, HashMap::new());
 
         let mut rng = StdRng::seed_from_u64(2);
-        let logs = collect_logs(5, &graph, [step], &HashSet::new(), &mut rng).unwrap();
+        let logs = collect_logs(5, &graph, [step], &NodeSet::default(), &mut rng).unwrap();
 
         assert_eq!(logs.len(), 1);
         assert_eq!(logs[0].timestep, 5);
@@ -301,7 +331,7 @@ mod tests {
         graph.remove_node(step).unwrap();
 
         let mut rng = StdRng::seed_from_u64(11);
-        let logs = collect_logs(0, &graph, [step], &HashSet::new(), &mut rng).unwrap();
+        let logs = collect_logs(0, &graph, [step], &NodeSet::default(), &mut rng).unwrap();
         assert!(logs.is_empty());
     }
 
@@ -313,7 +343,7 @@ mod tests {
         add_detector(&mut graph, step, "d", Some(1.0), None, HashMap::new());
 
         let mut rng = StdRng::seed_from_u64(3);
-        let logs = collect_logs(0, &graph, [step], &HashSet::new(), &mut rng).unwrap();
+        let logs = collect_logs(0, &graph, [step], &NodeSet::default(), &mut rng).unwrap();
         assert_eq!(logs.len(), 1);
     }
 
@@ -329,7 +359,7 @@ mod tests {
         add_detector(&mut graph, step, "d", Some(-1.0), None, HashMap::new());
 
         let mut rng = StdRng::seed_from_u64(4);
-        let logs = collect_logs(0, &graph, [step], &HashSet::new(), &mut rng).unwrap();
+        let logs = collect_logs(0, &graph, [step], &NodeSet::default(), &mut rng).unwrap();
         assert!(logs.is_empty());
     }
 
@@ -340,7 +370,7 @@ mod tests {
         let candidate = add_dummy_node(&mut graph, "DummyOrAttackStep");
         let other_candidate = add_dummy_node(&mut graph, "DummyOrAttackStep");
         graph.nodes[step].model_asset = Some(1);
-        let potential: HashMap<_, _> = [(
+        let potential: HashMap<String, HashSet<AttackGraphNodeId>> = [(
             "computer".to_string(),
             [candidate, other_candidate].into_iter().collect(),
         )]
@@ -348,7 +378,7 @@ mod tests {
         .collect();
         add_detector(&mut graph, step, "d", None, None, potential);
 
-        let previous: HashSet<_> = [candidate].into_iter().collect();
+        let previous: NodeSet = [candidate].into_iter().collect();
         let mut rng = StdRng::seed_from_u64(5);
         let logs = collect_logs(0, &graph, [step], &previous, &mut rng).unwrap();
 
@@ -365,14 +395,14 @@ mod tests {
         let step = add_dummy_node(&mut graph, "DummyOrAttackStep");
         let candidate = add_dummy_node(&mut graph, "DummyOrAttackStep");
         graph.nodes[step].model_asset = Some(1);
-        let potential: HashMap<_, _> =
+        let potential: HashMap<String, HashSet<AttackGraphNodeId>> =
             [("computer".to_string(), [candidate].into_iter().collect())]
                 .into_iter()
                 .collect();
         add_detector(&mut graph, step, "d", None, None, potential);
 
         let mut rng = StdRng::seed_from_u64(6);
-        let result = collect_logs(0, &graph, [step], &HashSet::new(), &mut rng);
+        let result = collect_logs(0, &graph, [step], &NodeSet::default(), &mut rng);
         assert_eq!(
             result,
             Err(EventLoggerError::NoCompromisedContextNode(
@@ -414,7 +444,7 @@ mod tests {
         let mut graph = dummy_graph();
         let step = add_dummy_node(&mut graph, "DummyOrAttackStep");
         let candidate = add_dummy_node(&mut graph, "DummyOrAttackStep");
-        let potential: HashMap<_, _> =
+        let potential: HashMap<String, HashSet<AttackGraphNodeId>> =
             [("computer".to_string(), [candidate].into_iter().collect())]
                 .into_iter()
                 .collect();

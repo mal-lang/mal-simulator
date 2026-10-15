@@ -12,17 +12,18 @@
 //!
 //! Signature shape mirrors `crate::necessity`: `node_id` is passed
 //! alongside `&AttackGraphNode` (the node doesn't carry its own slotmap
-//! key), per-node results are `HashMap<AttackGraphNodeId, bool>`, and node
-//! sets are `HashSet<AttackGraphNodeId>`. Python's `logger.debug`/
+//! key), per-node results are `NodeMap<bool>`, and node
+//! sets are `NodeSet`. Python's `logger.debug`/
 //! `logger.error` calls are dropped - the crate has no logging dependency.
 //!
 //! Tests use `crate::test_fixtures`' dummy-language graphs, same as
 //! `crate::necessity`'s tests.
 
-use std::collections::{HashMap, HashSet};
+use crate::types::{NodeDenseMap, NodeMap, NodeSet};
 use std::fmt;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNode, AttackGraphNodeId, GraphError};
+use maltoolbox_language::graph::attack_step::AttackStepType;
 
 /// Not `Clone`/`PartialEq`/`Eq` (unlike `crate::necessity::NecessityError`)
 /// because the `Graph` variant wraps `maltoolbox_attackgraph::GraphError`,
@@ -43,9 +44,6 @@ pub enum ViabilityError {
     /// Mirrors Python's `necessity_per_node[node]` `KeyError` in
     /// `prune_unviable_and_unnecessary_nodes`.
     MissingNecessity(AttackGraphNodeId),
-    /// Mirrors Python's `ValueError` for a `node.type` outside
-    /// `exist`/`notExist`/`defense`/`or`/`and`.
-    UnknownStepType(String, AttackGraphNodeId),
     /// Wraps an error from `AttackGraph::remove_node` during pruning -
     /// same convention as `ModelEffectsError::Graph`/`ModelStateError::Graph`.
     Graph(GraphError),
@@ -69,10 +67,6 @@ impl fmt::Display for ViabilityError {
             ViabilityError::MissingNecessity(id) => {
                 write!(f, "necessity not computed for node {id:?}")
             }
-            ViabilityError::UnknownStepType(step_type, id) => write!(
-                f,
-                "evaluate_viability was provided node {id:?} which is of unknown type \"{step_type}\""
-            ),
             ViabilityError::Graph(e) => write!(f, "{e}"),
         }
     }
@@ -87,9 +81,9 @@ impl std::error::Error for ViabilityError {}
 pub fn evaluate_viability(
     node_id: AttackGraphNodeId,
     node: &AttackGraphNode,
-    viability_per_node: &HashMap<AttackGraphNodeId, bool>,
-    enabled_defenses: &HashSet<AttackGraphNodeId>,
-    impossible_attack_steps: &HashSet<AttackGraphNodeId>,
+    viability_per_node: &NodeMap<bool>,
+    enabled_defenses: &NodeSet,
+    impossible_attack_steps: &NodeSet,
 ) -> Result<bool, ViabilityError> {
     if impossible_attack_steps.contains(&node_id) {
         // Impossible step is not viable
@@ -103,20 +97,20 @@ pub fn evaluate_viability(
             .ok_or(ViabilityError::MissingViability(*id))
     };
 
-    match node.step_type.as_str() {
-        "exist" => node
+    match node.step_type {
+        AttackStepType::Exist => node
             .existence_status
             .ok_or(ViabilityError::MissingExistenceStatus(node_id)),
-        "notExist" => node
+        AttackStepType::NotExist => node
             .existence_status
             .map(|exists| !exists)
             .ok_or(ViabilityError::MissingExistenceStatus(node_id)),
-        "defense" => Ok(!enabled_defenses.contains(&node_id)),
+        AttackStepType::Defense => Ok(!enabled_defenses.contains(&node_id)),
         // Python: `any(viability_per_node[p] for p in node.parents) or not
         // node.parents` - `any(())` is `False`, so the empty-parents case
         // genuinely needs the explicit `True` here (the mirror image of
         // necessity's "and" branch).
-        "or" => {
+        AttackStepType::Or => {
             if node.parents.is_empty() {
                 return Ok(true);
             }
@@ -131,7 +125,7 @@ pub fn evaluate_viability(
         // node.parents` - `all(())` is already `True`, so the `or not
         // node.parents` is redundant for "and"; this loop mirrors that
         // without the redundant check.
-        "and" => {
+        AttackStepType::And => {
             for parent in &node.parents {
                 if !parent_viability(parent)? {
                     return Ok(false);
@@ -139,7 +133,6 @@ pub fn evaluate_viability(
             }
             Ok(true)
         }
-        other => Err(ViabilityError::UnknownStepType(other.to_string(), node_id)),
     }
 }
 
@@ -147,10 +140,10 @@ pub fn evaluate_viability(
 pub fn propagate_viability_from_node(
     node_id: AttackGraphNodeId,
     graph: &AttackGraph,
-    viability_per_node: &mut HashMap<AttackGraphNodeId, bool>,
-    impossible_attack_steps: &HashSet<AttackGraphNodeId>,
-) -> Result<HashSet<AttackGraphNodeId>, ViabilityError> {
-    let mut changed_nodes = HashSet::new();
+    viability_per_node: &mut NodeMap<bool>,
+    impossible_attack_steps: &NodeSet,
+) -> Result<NodeSet, ViabilityError> {
+    let mut changed_nodes = NodeSet::default();
     for &child_id in &graph.nodes[node_id].children {
         let child = &graph.nodes[child_id];
         // Python passes `frozenset()` (not the real `enabled_defenses`)
@@ -163,7 +156,7 @@ pub fn propagate_viability_from_node(
             child_id,
             child,
             viability_per_node,
-            &HashSet::new(),
+            &NodeSet::default(),
             impossible_attack_steps,
         )?;
         // Python indexes `viability_per_node[child]` (`KeyError` if
@@ -190,11 +183,10 @@ pub fn propagate_viability_from_node(
 /// Port of `calculate_viability`.
 pub fn calculate_viability(
     graph: &AttackGraph,
-    enabled_defenses: &HashSet<AttackGraphNodeId>,
-    impossible_attack_steps: &HashSet<AttackGraphNodeId>,
-) -> Result<HashMap<AttackGraphNodeId, bool>, ViabilityError> {
-    let mut viability_per_node: HashMap<AttackGraphNodeId, bool> =
-        graph.nodes.keys().map(|id| (id, true)).collect();
+    enabled_defenses: &NodeSet,
+    impossible_attack_steps: &NodeSet,
+) -> Result<NodeMap<bool>, ViabilityError> {
+    let mut viability_per_node: NodeMap<bool> = graph.nodes.keys().map(|id| (id, true)).collect();
 
     // Unlike `calculate_necessity`, Python evaluates *every* node here,
     // not just `exist`/`notExist`/`defense` ones.
@@ -228,9 +220,9 @@ pub fn calculate_viability(
 pub fn make_node_unviable(
     node_id: AttackGraphNodeId,
     graph: &AttackGraph,
-    viability_per_node: &mut HashMap<AttackGraphNodeId, bool>,
-    impossible_attack_steps: &HashSet<AttackGraphNodeId>,
-) -> Result<HashSet<AttackGraphNodeId>, ViabilityError> {
+    viability_per_node: &mut NodeMap<bool>,
+    impossible_attack_steps: &NodeSet,
+) -> Result<NodeSet, ViabilityError> {
     viability_per_node.insert(node_id, false);
     propagate_viability_from_node(node_id, graph, viability_per_node, impossible_attack_steps)
 }
@@ -239,8 +231,8 @@ pub fn make_node_unviable(
 /// node that is unviable or unnecessary from `graph`.
 pub fn prune_unviable_and_unnecessary_nodes(
     graph: &mut AttackGraph,
-    viability_per_node: &HashMap<AttackGraphNodeId, bool>,
-    necessity_per_node: &HashMap<AttackGraphNodeId, bool>,
+    viability_per_node: &NodeMap<bool>,
+    necessity_per_node: &NodeDenseMap<bool>,
 ) -> Result<(), ViabilityError> {
     let viability = |id: AttackGraphNodeId| -> Result<bool, ViabilityError> {
         viability_per_node
@@ -250,7 +242,7 @@ pub fn prune_unviable_and_unnecessary_nodes(
     };
     let necessity = |id: AttackGraphNodeId| -> Result<bool, ViabilityError> {
         necessity_per_node
-            .get(&id)
+            .get(id)
             .copied()
             .ok_or(ViabilityError::MissingNecessity(id))
     };
@@ -259,7 +251,7 @@ pub fn prune_unviable_and_unnecessary_nodes(
     // removal order is deterministic (each node is pushed at most once).
     let mut nodes_to_remove = Vec::new();
     for (node_id, node) in &graph.nodes {
-        if matches!(node.step_type.as_str(), "or" | "and") {
+        if matches!(node.step_type, AttackStepType::Or | AttackStepType::And) {
             // Python: `not viability_per_node[node] or not
             // necessity_per_node[node]` - short-circuits, so necessity is
             // only read here for viable nodes...
@@ -322,8 +314,9 @@ mod tests {
         let and_node_parent2 = add_dummy_node(&mut graph, "DummyAndAttackStep");
         graph.nodes[and_node2].parents = [and_node_parent1, and_node_parent2].into_iter().collect();
 
-        let enabled_defenses = HashSet::new();
-        let viable_nodes = calculate_viability(&graph, &enabled_defenses, &HashSet::new()).unwrap();
+        let enabled_defenses = NodeSet::default();
+        let viable_nodes =
+            calculate_viability(&graph, &enabled_defenses, &NodeSet::default()).unwrap();
 
         // Python asserts `node in viable_nodes` (dict key membership, which
         // holds for every node); the value check below is the stronger
@@ -344,7 +337,7 @@ mod tests {
     // Port of `tests/test_graph_processing.py::test_viability_unviable_nodes`.
     #[test]
     fn calculate_viability_unviable_nodes() {
-        let mut impossible_attack_steps = HashSet::new();
+        let mut impossible_attack_steps = NodeSet::default();
         let mut graph = dummy_graph();
 
         // exists, existence_status = False -> not viable
@@ -382,7 +375,7 @@ mod tests {
         impossible_attack_steps.insert(unviable_and_node_parent1);
         impossible_attack_steps.insert(unviable_and_node_parent2);
 
-        let enabled_defenses: HashSet<_> = [defense_step_node].into_iter().collect();
+        let enabled_defenses: NodeSet = [defense_step_node].into_iter().collect();
         let viability_per_node =
             calculate_viability(&graph, &enabled_defenses, &impossible_attack_steps).unwrap();
 
@@ -424,20 +417,20 @@ mod tests {
         graph.nodes[uvp2].children = [or_2uvp].into_iter().collect();
 
         let mut viability_per_node =
-            calculate_viability(&graph, &HashSet::new(), &HashSet::new()).unwrap();
+            calculate_viability(&graph, &NodeSet::default(), &NodeSet::default()).unwrap();
 
         // Make unviable
         viability_per_node.insert(uvp1, false);
         viability_per_node.insert(uvp2, false);
 
-        let mut changed_nodes = HashSet::new();
+        let mut changed_nodes = NodeSet::default();
         for &parent in &[vp1, vp2, uvp1, uvp2] {
             changed_nodes.extend(
                 propagate_viability_from_node(
                     parent,
                     &graph,
                     &mut viability_per_node,
-                    &HashSet::new(),
+                    &NodeSet::default(),
                 )
                 .unwrap(),
             );
@@ -488,19 +481,19 @@ mod tests {
         let node_to_make_unnecessary = graph
             .nodes
             .iter()
-            .find(|(_, n)| n.step_type.as_str() == "or")
+            .find(|(_, n)| n.step_type == AttackStepType::Or)
             .map(|(id, _)| id)
             .unwrap();
         let node_to_make_unviable = graph
             .nodes
             .iter()
-            .find(|(_, n)| n.step_type.as_str() == "and")
+            .find(|(_, n)| n.step_type == AttackStepType::And)
             .map(|(id, _)| id)
             .unwrap();
 
         let mut viability_per_node =
-            calculate_viability(&graph, &HashSet::new(), &HashSet::new()).unwrap();
-        let mut necessity_per_node = calculate_necessity(&graph, &HashSet::new()).unwrap();
+            calculate_viability(&graph, &NodeSet::default(), &NodeSet::default()).unwrap();
+        let mut necessity_per_node = calculate_necessity(&graph, &NodeSet::default()).unwrap();
         necessity_per_node.insert(node_to_make_unnecessary, false);
         viability_per_node.insert(node_to_make_unviable, false);
 
@@ -523,19 +516,19 @@ mod tests {
         let node_to_make_unnecessary = graph
             .nodes
             .iter()
-            .find(|(_, n)| n.step_type.as_str() == "or")
+            .find(|(_, n)| n.step_type == AttackStepType::Or)
             .map(|(id, _)| id)
             .unwrap();
         let node_to_make_unviable = graph
             .nodes
             .iter()
-            .find(|(_, n)| n.step_type.as_str() == "and")
+            .find(|(_, n)| n.step_type == AttackStepType::And)
             .map(|(id, _)| id)
             .unwrap();
 
         let mut viability_per_node =
-            calculate_viability(&graph, &HashSet::new(), &HashSet::new()).unwrap();
-        let mut necessity_per_node = calculate_necessity(&graph, &HashSet::new()).unwrap();
+            calculate_viability(&graph, &NodeSet::default(), &NodeSet::default()).unwrap();
+        let mut necessity_per_node = calculate_necessity(&graph, &NodeSet::default()).unwrap();
         necessity_per_node.insert(node_to_make_unnecessary, false);
         viability_per_node.insert(node_to_make_unviable, false);
 
@@ -568,11 +561,11 @@ mod tests {
         graph.nodes[and_child].children.insert(grandchild);
 
         let mut viability_per_node =
-            calculate_viability(&graph, &HashSet::new(), &HashSet::new()).unwrap();
+            calculate_viability(&graph, &NodeSet::default(), &NodeSet::default()).unwrap();
         assert!(viability_per_node.values().all(|&v| v));
 
         let made_unviable =
-            make_node_unviable(root, &graph, &mut viability_per_node, &HashSet::new()).unwrap();
+            make_node_unviable(root, &graph, &mut viability_per_node, &NodeSet::default()).unwrap();
 
         assert_eq!(made_unviable, [and_child, grandchild].into_iter().collect());
         assert!(!viability_per_node[&root]);
@@ -590,7 +583,8 @@ mod tests {
         let exist_node = add_dummy_node(&mut graph, "DummyExistAttackStep");
         let not_exist_node = add_dummy_node(&mut graph, "DummyNotExistAttackStep");
 
-        let err = calculate_viability(&graph, &HashSet::new(), &HashSet::new()).unwrap_err();
+        let err =
+            calculate_viability(&graph, &NodeSet::default(), &NodeSet::default()).unwrap_err();
         assert!(matches!(
             err,
             ViabilityError::MissingExistenceStatus(id) if id == exist_node
@@ -599,9 +593,9 @@ mod tests {
         let err = evaluate_viability(
             not_exist_node,
             &graph.nodes[not_exist_node],
-            &HashMap::new(),
-            &HashSet::new(),
-            &HashSet::new(),
+            &NodeMap::default(),
+            &NodeSet::default(),
+            &NodeSet::default(),
         )
         .unwrap_err();
         assert!(matches!(
@@ -617,13 +611,13 @@ mod tests {
     fn evaluate_viability_impossible_step_short_circuits() {
         let mut graph = dummy_graph();
         let exist_node = add_dummy_node(&mut graph, "DummyExistAttackStep");
-        let impossible: HashSet<_> = [exist_node].into_iter().collect();
+        let impossible: NodeSet = [exist_node].into_iter().collect();
 
         let is_viable = evaluate_viability(
             exist_node,
             &graph.nodes[exist_node],
-            &HashMap::new(),
-            &HashSet::new(),
+            &NodeMap::default(),
+            &NodeSet::default(),
             &impossible,
         )
         .unwrap();
@@ -642,9 +636,9 @@ mod tests {
         let err = evaluate_viability(
             child,
             &graph.nodes[child],
-            &HashMap::new(),
-            &HashSet::new(),
-            &HashSet::new(),
+            &NodeMap::default(),
+            &NodeSet::default(),
+            &NodeSet::default(),
         )
         .unwrap_err();
         assert!(matches!(err, ViabilityError::MissingViability(id) if id == parent));
@@ -658,16 +652,22 @@ mod tests {
         let mut graph = dummy_graph();
         let or_node = add_dummy_node(&mut graph, "DummyOrAttackStep");
 
-        let viability_per_node: HashMap<_, _> = [(or_node, false)].into_iter().collect();
-        let err =
-            prune_unviable_and_unnecessary_nodes(&mut graph, &viability_per_node, &HashMap::new())
-                .unwrap_err();
+        let viability_per_node: NodeMap<_> = [(or_node, false)].into_iter().collect();
+        let err = prune_unviable_and_unnecessary_nodes(
+            &mut graph,
+            &viability_per_node,
+            &NodeDenseMap::default(),
+        )
+        .unwrap_err();
         assert!(matches!(err, ViabilityError::MissingNecessity(id) if id == or_node));
         assert!(graph.nodes.contains_key(or_node));
 
-        let err =
-            prune_unviable_and_unnecessary_nodes(&mut graph, &HashMap::new(), &HashMap::new())
-                .unwrap_err();
+        let err = prune_unviable_and_unnecessary_nodes(
+            &mut graph,
+            &NodeMap::default(),
+            &NodeDenseMap::default(),
+        )
+        .unwrap_err();
         assert!(matches!(err, ViabilityError::MissingViability(id) if id == or_node));
     }
 }

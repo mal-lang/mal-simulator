@@ -20,7 +20,7 @@
 //! `attacker_step::attempt_attacker_step` is reused directly below with
 //! no behavioral gap.
 
-use std::collections::{HashMap, HashSet};
+use crate::types::{NodeMap, NodeSet};
 use std::fmt;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
@@ -108,14 +108,14 @@ pub fn dyna_attacker_step(
     run_defense_step_bernoullis: bool,
     run_attack_step_bernoullis: bool,
     nodes: &[AttackGraphNodeId],
-    entry_points: &HashSet<AttackGraphNodeId>,
-    action_surface: &HashSet<AttackGraphNodeId>,
-    performed_nodes: &HashSet<AttackGraphNodeId>,
-    num_attempts: &HashMap<AttackGraphNodeId, u64>,
-    ttc_dist_overrides: Option<&HashMap<AttackGraphNodeId, TtcDist>>,
-    ttc_value_overrides: Option<&HashMap<AttackGraphNodeId, f64>>,
+    entry_points: &NodeSet,
+    action_surface: &NodeSet,
+    performed_nodes: &NodeSet,
+    num_attempts: &NodeMap<u64>,
+    ttc_dist_overrides: Option<&NodeMap<TtcDist>>,
+    ttc_value_overrides: Option<&NodeMap<f64>>,
     graph_state: &mut GraphState,
-    enabled_defenses: &mut HashSet<AttackGraphNodeId>,
+    enabled_defenses: &mut NodeSet,
 ) -> Result<DynaAttackerStepOutcome, DynaAttackerStepError> {
     let mut successful_compromises = Vec::new();
     let mut attempted_compromises = Vec::new();
@@ -165,17 +165,18 @@ pub fn dyna_attacker_step(
 
         successful_compromises.push(node_id);
         let (ops, new_nodes) = execute_model_effects(graph, model, node_id, rng)?;
-        modification_record.extend(ops);
         fold_new_nodes_into_graph_state(
             graph,
             graph_state,
             enabled_defenses,
+            &ops,
             &new_nodes,
             ttc_mode,
             run_defense_step_bernoullis,
             run_attack_step_bernoullis,
             rng,
         )?;
+        modification_record.extend(ops);
 
         let effects = attacker_step_effects(
             graph,
@@ -200,17 +201,18 @@ pub fn dyna_attacker_step(
                 continue;
             }
             let (ops, new_nodes) = execute_model_effects(graph, model, effect_node, rng)?;
-            modification_record.extend(ops);
             fold_new_nodes_into_graph_state(
                 graph,
                 graph_state,
                 enabled_defenses,
+                &ops,
                 &new_nodes,
                 ttc_mode,
                 run_defense_step_bernoullis,
                 run_attack_step_bernoullis,
                 rng,
             )?;
+            modification_record.extend(ops);
         }
     }
 
@@ -236,10 +238,10 @@ mod tests {
 
     fn empty_graph_state() -> GraphState {
         GraphState {
-            ttc_values: HashMap::new(),
-            pre_enabled_defenses: HashSet::new(),
-            impossible_attack_steps: HashSet::new(),
-            necessity_per_node: HashMap::new(),
+            ttc_values: NodeMap::default(),
+            pre_enabled_defenses: NodeSet::default(),
+            impossible_attack_steps: NodeSet::default(),
+            necessity_per_node: Default::default(),
         }
     }
 
@@ -250,9 +252,9 @@ mod tests {
         graph.remove_node(infect_id).unwrap();
         let mut r = rng();
         let mut graph_state = empty_graph_state();
-        let mut enabled_defenses = HashSet::new();
-        let empty_set: HashSet<AttackGraphNodeId> = HashSet::new();
-        let empty_map_u64: HashMap<AttackGraphNodeId, u64> = HashMap::new();
+        let mut enabled_defenses = NodeSet::default();
+        let empty_set: NodeSet = NodeSet::default();
+        let empty_map_u64: NodeMap<u64> = NodeMap::default();
 
         let result = dyna_attacker_step(
             &mut graph,
@@ -284,9 +286,9 @@ mod tests {
         let mut r = rng();
         let mut graph_state =
             compute_initial_graph_state(&graph, TtcMode::Disabled, false, false, &mut r).unwrap();
-        let mut enabled_defenses = HashSet::new();
-        let empty_set: HashSet<AttackGraphNodeId> = HashSet::new();
-        let empty_map_u64: HashMap<AttackGraphNodeId, u64> = HashMap::new();
+        let mut enabled_defenses = NodeSet::default();
+        let empty_set: NodeSet = NodeSet::default();
+        let empty_map_u64: NodeMap<u64> = NodeMap::default();
 
         let (successful, attempted, record) = dyna_attacker_step(
             &mut graph,
@@ -317,12 +319,12 @@ mod tests {
         let mut r = rng();
         let mut graph_state =
             compute_initial_graph_state(&graph, TtcMode::Disabled, false, false, &mut r).unwrap();
-        let mut enabled_defenses: HashSet<AttackGraphNodeId> = HashSet::new();
+        let mut enabled_defenses: NodeSet = NodeSet::default();
 
         let infect_id = graph.full_name_to_node["InfectedDevice:infect"];
-        let entry_points: HashSet<_> = [infect_id].into_iter().collect();
-        let empty_set: HashSet<AttackGraphNodeId> = HashSet::new();
-        let empty_map_u64: HashMap<AttackGraphNodeId, u64> = HashMap::new();
+        let entry_points: NodeSet = [infect_id].into_iter().collect();
+        let empty_set: NodeSet = NodeSet::default();
+        let empty_map_u64: NodeMap<u64> = NodeMap::default();
 
         let (successful, attempted, record) = dyna_attacker_step(
             &mut graph,
@@ -359,6 +361,6 @@ mod tests {
         let wiper_activate_id = graph.full_name_to_node["Wiper-7:activate"];
         assert!(graph_state
             .necessity_per_node
-            .contains_key(&wiper_activate_id));
+            .contains_key(wiper_activate_id));
     }
 }

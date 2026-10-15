@@ -5,16 +5,13 @@
 //! flattened id-set rather than a `NodePropertyRule` - see that module's
 //! docs for the exact `None`/`Some` semantics mirrored here.
 
-use std::collections::HashSet;
+use crate::types::NodeSet;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
 
 use crate::graph_utils::{node_is_blocked, GraphUtilsError};
 
-fn node_is_actionable_flat(
-    actionable_steps: Option<&HashSet<AttackGraphNodeId>>,
-    node_id: AttackGraphNodeId,
-) -> bool {
+fn node_is_actionable_flat(actionable_steps: Option<&NodeSet>, node_id: AttackGraphNodeId) -> bool {
     match actionable_steps {
         Some(steps) => steps.contains(&node_id),
         None => true,
@@ -25,11 +22,11 @@ fn node_is_actionable_flat(
 /// actionable, not blocked, and not already enabled.
 pub fn get_defense_surface(
     graph: &AttackGraph,
-    actionable_steps: Option<&HashSet<AttackGraphNodeId>>,
-    impossible_attack_steps: &HashSet<AttackGraphNodeId>,
-    enabled_defenses: &HashSet<AttackGraphNodeId>,
-) -> Result<HashSet<AttackGraphNodeId>, GraphUtilsError> {
-    let mut surface = HashSet::new();
+    actionable_steps: Option<&NodeSet>,
+    impossible_attack_steps: &NodeSet,
+    enabled_defenses: &NodeSet,
+) -> Result<NodeSet, GraphUtilsError> {
+    let mut surface = NodeSet::default();
     for &node_id in &graph.defense_steps {
         if !node_is_actionable_flat(actionable_steps, node_id) {
             continue;
@@ -58,7 +55,7 @@ mod tests {
         let mut graph = dummy_graph();
         let defense = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
 
-        let empty = HashSet::new();
+        let empty = NodeSet::default();
         let result = get_defense_surface(&graph, None, &empty, &empty).unwrap();
         assert_eq!(result, [defense].into_iter().collect());
     }
@@ -68,8 +65,8 @@ mod tests {
         let mut graph = dummy_graph();
         let defense = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
 
-        let empty = HashSet::new();
-        let enabled: HashSet<_> = [defense].into_iter().collect();
+        let empty = NodeSet::default();
+        let enabled: NodeSet = [defense].into_iter().collect();
         let result = get_defense_surface(&graph, None, &empty, &enabled).unwrap();
         assert!(result.is_empty());
     }
@@ -80,7 +77,7 @@ mod tests {
         let defense = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
         graph.nodes[defense].tags.push("suppress".to_string());
 
-        let empty = HashSet::new();
+        let empty = NodeSet::default();
         let result = get_defense_surface(&graph, None, &empty, &empty).unwrap();
         assert!(result.is_empty());
     }
@@ -91,8 +88,8 @@ mod tests {
         let actionable_defense = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
         let non_actionable_defense = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
 
-        let empty = HashSet::new();
-        let actionable_set: HashSet<_> = [actionable_defense].into_iter().collect();
+        let empty = NodeSet::default();
+        let actionable_set: NodeSet = [actionable_defense].into_iter().collect();
         let result = get_defense_surface(&graph, Some(&actionable_set), &empty, &empty).unwrap();
         assert_eq!(result, [actionable_defense].into_iter().collect());
         assert!(!result.contains(&non_actionable_defense));

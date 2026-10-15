@@ -20,10 +20,11 @@
 //! `false`) falls through to the by-type value instead of winning (see
 //! `RuleValue::is_truthy`).
 
-use std::collections::{BTreeMap, HashMap};
+use crate::types::NodeMap;
+use std::collections::BTreeMap;
 use std::fmt;
 
-use maltoolbox_attackgraph::{AttackGraph, AttackGraphNode, AttackGraphNodeId};
+use maltoolbox_attackgraph::{AttackGraph, AttackGraphNode};
 use maltoolbox_model::Model;
 use serde_json::{Map, Value};
 
@@ -337,7 +338,7 @@ impl<T: RuleValue> NodePropertyRule<T> {
     /// Port of `per_node()`, keyed by node id instead of full name. Like
     /// Python (`value(n, None)`, keep non-`None`), only nodes with a
     /// truthy value are included.
-    pub fn per_node(&self, graph: &AttackGraph, model: &Model) -> HashMap<AttackGraphNodeId, T> {
+    pub fn per_node(&self, graph: &AttackGraph, model: &Model) -> NodeMap<T> {
         graph
             .nodes
             .iter()
@@ -431,11 +432,7 @@ mod tests {
         &graph.nodes[graph.get_node_by_full_name(full_name).unwrap()]
     }
 
-    fn full_names<T>(
-        graph: &AttackGraph,
-        model: &Model,
-        per_node: &HashMap<AttackGraphNodeId, T>,
-    ) -> Vec<String> {
+    fn full_names<T>(graph: &AttackGraph, model: &Model, per_node: &NodeMap<T>) -> Vec<String> {
         let mut names: Vec<String> = per_node
             .keys()
             .map(|&id| graph.full_name_of(id, Some(model)))

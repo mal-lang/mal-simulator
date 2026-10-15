@@ -19,10 +19,12 @@
 //! caller (B2's `dyna_attacker_step`/`dyna_defender_step`) does that fold
 //! itself using this function's returned node ids.
 
+use crate::types::NodeSet;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNode, AttackGraphNodeId};
+use maltoolbox_language::graph::attack_step::AttackStepType;
 use maltoolbox_language::graph::model_effect::{
     DynTarget, LanguageGraphModelEffect, ModelEffectType,
 };
@@ -30,8 +32,8 @@ use maltoolbox_model::{AssetSnapshot, Model, ModelError};
 use rand::Rng;
 
 use crate::assoc_traversal::{
-    apply_quantity_filter, parse_addition, parse_removal, sample_size, traverse_association_chain,
-    AdditionTarget, AssocTraversalError,
+    apply_quantity_filter, parse_addition, parse_removal, sample_size, sorted_vec,
+    traverse_association_chain, AdditionTarget, AssocTraversalError,
 };
 
 #[derive(Debug)]
@@ -209,7 +211,7 @@ fn add_asset_op(
         parse_addition(model, node_asset_id, base, &target.assoc_traversal, rng)?;
     let size = sample_size(quantity, rng, None);
     let mut record = Vec::new();
-    for (left_asset_id, field_name, right) in addition_info {
+    for (left_asset_id, field_name, right) in sorted_vec(&addition_info) {
         for _ in 0..size {
             let asset_type = match right {
                 AdditionTarget::ExistingAsset(existing_id) => {
@@ -262,8 +264,7 @@ fn remove_asset_op(
 
     let mut record = Vec::new();
     let mut removal_assets: HashSet<i64> = HashSet::new();
-    for (_left, _field_name, right_id) in &removal_info {
-        let right_id = *right_id;
+    for (_left, _field_name, right_id) in sorted_vec(&removal_info) {
         if let Some(asset) = model.get_asset_by_id(right_id) {
             // Captured here, before `remove_asset` below - by the time a
             // caller across the FFI boundary reads this record, `right_id`
@@ -273,17 +274,19 @@ fn remove_asset_op(
             let left_ref = AssetRef::from_model(model, right_id);
             // Snapshot both the dict and its sets: `remove_associated_assets`
             // mutates the live `associated_assets` sets in place.
-            let snapshot: Vec<(String, HashSet<i64>)> = asset
+            // In field-name order: `associated_assets` is a std map.
+            let mut snapshot: Vec<(String, HashSet<i64>)> = asset
                 .associated_assets
                 .iter()
                 .map(|(field_name, assoc_assets)| (field_name.clone(), assoc_assets.clone()))
                 .collect();
+            snapshot.sort_unstable_by(|a, b| a.0.cmp(&b.0));
             for (field_name, assoc_assets) in snapshot {
                 if model
                     .remove_associated_assets(right_id, &field_name, &assoc_assets)
                     .is_ok()
                 {
-                    for assoc_id in assoc_assets {
+                    for assoc_id in sorted_vec(&assoc_assets) {
                         let right_ref = AssetRef::from_model(model, assoc_id);
                         record.push(ModEffectOp::Assoc(AssocOp::Removed {
                             left: left_ref.clone(),
@@ -298,7 +301,7 @@ fn remove_asset_op(
         removal_assets.insert(right_id);
     }
 
-    for right_id in removal_assets {
+    for right_id in sorted_vec(&removal_assets) {
         let asset_ref = AssetRef::from_model(model, right_id);
         let snapshot = model.remove_asset(right_id)?;
         record.push(ModEffectOp::Asset(AssetOp::Removed {
@@ -334,7 +337,7 @@ fn add_assoc_op(
     };
 
     let mut record = Vec::new();
-    for (left_id, field_name, right) in addition_info {
+    for (left_id, field_name, right) in sorted_vec(&addition_info) {
         match right {
             AdditionTarget::ExistingAsset(right_id) => {
                 let already_associated = model
@@ -353,7 +356,7 @@ fn add_assoc_op(
                 }));
             }
             AdditionTarget::NewAssetType(_) => {
-                for &candidate_id in base {
+                for candidate_id in sorted_vec(base) {
                     let already_associated = model
                         .get_asset_by_id(left_id)
                         .and_then(|a| a.associated_assets.get(&field_name))
@@ -397,7 +400,7 @@ fn remove_assoc_op(
     };
 
     let mut record = Vec::new();
-    for (left_id, field_name, right_id) in removal_info {
+    for (left_id, field_name, right_id) in sorted_vec(&removal_info) {
         let has_field = model
             .get_asset_by_id(left_id)
             .map(|a| a.associated_assets.contains_key(&field_name))
@@ -464,7 +467,7 @@ pub fn execute_model_effects(
     model: &mut Model,
     action_id: AttackGraphNodeId,
     rng: &mut impl Rng,
-) -> Result<(Vec<ModEffectOp>, HashSet<AttackGraphNodeId>), ModelEffectsError> {
+) -> Result<(Vec<ModEffectOp>, NodeSet), ModelEffectsError> {
     let mut record = Vec::new();
     {
         let node = &graph.nodes[action_id];
@@ -507,7 +510,8 @@ pub fn execute_model_effects(
         }
     }
 
-    let new_nodes = graph.partially_regenerate_graph(
+    let new_nodes = regenerate_graph(
+        graph,
         model,
         &new_assets,
         &new_associations,
@@ -517,10 +521,74 @@ pub fn execute_model_effects(
     Ok((record, new_nodes))
 }
 
+/// `AttackGraph::partially_regenerate_graph`, followed by a renumbering of
+/// the nodes it created.
+///
+/// mal-toolbox creates the nodes of `new_assets` in the iteration order of
+/// that std `HashSet`, which is random per set instance, so which new node
+/// gets which `AttackGraphNode.id` (and which place in
+/// `attack_steps`/`defense_steps`) would differ from run to run. The
+/// created nodes are therefore renumbered here in a canonical order (by
+/// model asset id, then by the order mal-toolbox created an asset's own
+/// nodes in), contiguously from the graph's `next_node_id` before the call.
+/// This makes node ids reproducible, and ids of nodes that mal-toolbox
+/// created and removed again within the batch are not skipped.
+pub(crate) fn regenerate_graph(
+    graph: &mut AttackGraph,
+    model: &Model,
+    new_assets: &HashSet<i64>,
+    new_associations: &HashSet<(i64, String, i64)>,
+    removed_assets: &HashMap<i64, AssetSnapshot>,
+    removed_associations: &HashSet<(i64, String, i64)>,
+) -> Result<NodeSet, maltoolbox_attackgraph::GraphError> {
+    let first_new_id = graph.next_node_id;
+    let new_nodes = graph.partially_regenerate_graph(
+        model,
+        new_assets,
+        new_associations,
+        removed_assets,
+        removed_associations,
+    )?;
+
+    // The surviving nodes created by the call above, in canonical order.
+    let mut created: Vec<(Option<i64>, i64, AttackGraphNodeId)> = graph
+        .id_to_node
+        .iter()
+        .filter(|&(&id, _)| id >= first_new_id)
+        .map(|(&id, &key)| (graph.nodes[key].model_asset, id, key))
+        .collect();
+    created.sort_unstable();
+    let canonical = created
+        .iter()
+        .zip(first_new_id..)
+        .all(|(&(_, id, _), canonical_id)| id == canonical_id);
+    if !canonical || graph.next_node_id != first_new_id + created.len() as i64 {
+        let created_keys: NodeSet = created.iter().map(|&(_, _, key)| key).collect();
+        graph.id_to_node.retain(|&id, _| id < first_new_id);
+        graph.attack_steps.retain(|key| !created_keys.contains(key));
+        graph
+            .defense_steps
+            .retain(|key| !created_keys.contains(key));
+        for (&(_, _, key), id) in created.iter().zip(first_new_id..) {
+            graph.nodes[key].id = id;
+            graph.id_to_node.insert(id, key);
+            match graph.nodes[key].step_type {
+                AttackStepType::Or | AttackStepType::And => graph.attack_steps.push(key),
+                AttackStepType::Defense => graph.defense_steps.push(key),
+                _ => {}
+            }
+        }
+        graph.next_node_id = first_new_id + created.len() as i64;
+    }
+    // `partially_regenerate_graph` returns a std `HashSet`; convert at the boundary.
+    Ok(new_nodes.into_iter().collect())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::test_fixtures::wiper_attack_graph;
+    use crate::types::NodeMap;
     use rand::rngs::StdRng;
     use rand::SeedableRng;
 
@@ -639,7 +707,7 @@ mod tests {
         let fresh_names: HashSet<&String> = fresh.full_name_to_node.keys().collect();
         assert_eq!(incremental_names, fresh_names, "node full_names differ");
 
-        let id_to_full_name = |g: &AttackGraph| -> HashMap<AttackGraphNodeId, String> {
+        let id_to_full_name = |g: &AttackGraph| -> NodeMap<String> {
             g.full_name_to_node
                 .iter()
                 .map(|(name, &id)| (id, name.clone()))
@@ -648,20 +716,19 @@ mod tests {
         let incremental_id_to_name = id_to_full_name(incremental);
         let fresh_id_to_name = id_to_full_name(fresh);
 
-        let edge_names = |id_to_name: &HashMap<AttackGraphNodeId, String>,
-                          ids: &HashSet<AttackGraphNodeId>|
-         -> HashSet<String> {
-            ids.iter()
-                .map(|id| {
-                    id_to_name
-                        .get(id)
-                        .unwrap_or_else(|| {
-                            panic!("edge to node {id:?} missing from full_name_to_node")
-                        })
-                        .clone()
-                })
-                .collect()
-        };
+        let edge_names =
+            |id_to_name: &NodeMap<String>, ids: &HashSet<AttackGraphNodeId>| -> HashSet<String> {
+                ids.iter()
+                    .map(|id| {
+                        id_to_name
+                            .get(id)
+                            .unwrap_or_else(|| {
+                                panic!("edge to node {id:?} missing from full_name_to_node")
+                            })
+                            .clone()
+                    })
+                    .collect()
+            };
         for (full_name, &incr_id) in &incremental.full_name_to_node {
             let fresh_id = fresh.full_name_to_node[full_name];
             assert_eq!(

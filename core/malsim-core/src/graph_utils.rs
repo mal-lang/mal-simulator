@@ -15,17 +15,33 @@
 //! does, same reasoning (testable without a real `AttackGraphNode`).
 //! `is_attack_step` is decomposed the same way, trivially.
 //!
-//! Matches on `node.step_type.as_str()` rather than the
-//! `maltoolbox_language::graph::attack_step::AttackStepType` enum
-//! directly, consistent with `graph_state.rs`/`necessity.rs`: that enum
-//! isn't re-exported by `maltoolbox-attackgraph`, and this port keeps
-//! `maltoolbox-language` a test-only (`dev-dependencies`) dependency of
-//! this crate, not a runtime one - see `PORTING_NOTES.md` §10's A4 entry.
+//! Matches on the `maltoolbox_language::graph::attack_step::AttackStepType`
+//! enum (`node.step_type`) directly, consistent with
+//! `graph_state.rs`/`necessity.rs`/`viability.rs`; `maltoolbox-language`
+//! is a regular (runtime) dependency of this crate.
 
-use std::collections::{HashMap, HashSet};
+use crate::types::{NodeDenseMap, NodeSet};
 use std::fmt;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNode, AttackGraphNodeId};
+use maltoolbox_language::graph::attack_step::AttackStepType;
+
+/// Sorts `nodes` by the stable `AttackGraphNode.id`, the deterministic
+/// order everything that draws from the RNG or produces an ordered result
+/// iterates node sets in. (Slotmap keys are not used for this: the keys of
+/// nodes created at runtime depend on slot reuse.) Nodes no longer in the
+/// graph sort first, by key.
+pub fn sort_by_node_id(graph: &AttackGraph, nodes: &mut [AttackGraphNodeId]) {
+    nodes.sort_unstable_by_key(|&key| node_order_key(graph, key));
+}
+
+/// The key `sort_by_node_id` orders by, for `min_by_key` and friends.
+pub fn node_order_key(
+    graph: &AttackGraph,
+    key: AttackGraphNodeId,
+) -> (Option<i64>, AttackGraphNodeId) {
+    (graph.nodes.get(key).map(|node| node.id), key)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GraphUtilsError {
@@ -40,7 +56,7 @@ pub enum GraphUtilsError {
     /// `node.type` outside `or`/`and`. Unreachable through
     /// `node_is_traversable` itself (callers only reach this match after
     /// `is_attack_step` has already filtered to `or`/`and`), kept for the
-    /// same defensive-parity reason `necessity.rs::UnknownStepType` is.
+    /// defensive parity with the Python `TypeError`.
     UnknownStepType(String, AttackGraphNodeId),
 }
 
@@ -63,14 +79,20 @@ impl fmt::Display for GraphUtilsError {
 impl std::error::Error for GraphUtilsError {}
 
 /// Graph-independent half of `is_attack_step`.
-pub fn is_attack_step_type(step_type: &str) -> bool {
-    !matches!(step_type, "defense" | "exist" | "notExist")
+pub fn is_attack_step_type(step_type: AttackStepType) -> bool {
+    !matches!(
+        step_type,
+        AttackStepType::Defense | AttackStepType::Exist | AttackStepType::NotExist
+    )
 }
 
 /// Port of `is_attack_step`. Only attack steps (`or`/`and`) have
 /// traversability.
 pub fn is_attack_step(node: &AttackGraphNode) -> bool {
-    is_attack_step_type(node.step_type.as_str())
+    !matches!(
+        node.step_type,
+        AttackStepType::Defense | AttackStepType::Exist | AttackStepType::NotExist
+    )
 }
 
 /// Port of `node_is_live`.
@@ -81,29 +103,31 @@ pub fn node_is_live(graph: &AttackGraph, node_id: AttackGraphNodeId) -> bool {
 /// Port of `node_is_necessary` - a thin, error-checked wrapper over a
 /// `necessity_per_node` lookup (`GraphState::necessity_per_node` from A3).
 pub fn node_is_necessary(
-    necessity_per_node: &HashMap<AttackGraphNodeId, bool>,
+    necessity_per_node: &NodeDenseMap<bool>,
     node_id: AttackGraphNodeId,
 ) -> Result<bool, GraphUtilsError> {
     necessity_per_node
-        .get(&node_id)
+        .get(node_id)
         .copied()
         .ok_or(GraphUtilsError::MissingNecessity(node_id))
 }
 
 /// Graph-independent half of `_node_blocks_children`.
 pub fn node_blocks_children_from_parts(
-    step_type: &str,
+    step_type: AttackStepType,
     existence_status: Option<bool>,
     node_id: AttackGraphNodeId,
-    enabled_defenses: &HashSet<AttackGraphNodeId>,
+    enabled_defenses: &NodeSet,
 ) -> Result<bool, GraphUtilsError> {
     match step_type {
-        "exist" => existence_status
+        AttackStepType::Exist => existence_status
             .map(|exists| !exists)
             .ok_or(GraphUtilsError::MissingExistenceStatus(node_id)),
-        "notExist" => existence_status.ok_or(GraphUtilsError::MissingExistenceStatus(node_id)),
-        "defense" => Ok(enabled_defenses.contains(&node_id)),
-        _ => Ok(false),
+        AttackStepType::NotExist => {
+            existence_status.ok_or(GraphUtilsError::MissingExistenceStatus(node_id))
+        }
+        AttackStepType::Defense => Ok(enabled_defenses.contains(&node_id)),
+        AttackStepType::Or | AttackStepType::And => Ok(false),
     }
 }
 
@@ -112,10 +136,10 @@ pub fn node_blocks_children_from_parts(
 fn node_blocks_children(
     node_id: AttackGraphNodeId,
     node: &AttackGraphNode,
-    enabled_defenses: &HashSet<AttackGraphNodeId>,
+    enabled_defenses: &NodeSet,
 ) -> Result<bool, GraphUtilsError> {
     node_blocks_children_from_parts(
-        node.step_type.as_str(),
+        node.step_type,
         node.existence_status,
         node_id,
         enabled_defenses,
@@ -133,12 +157,12 @@ fn node_blocks_children(
 pub fn node_is_blocked(
     graph: &AttackGraph,
     node_id: AttackGraphNodeId,
-    impossible_attack_steps: &HashSet<AttackGraphNodeId>,
-    enabled_defenses: &HashSet<AttackGraphNodeId>,
+    impossible_attack_steps: &NodeSet,
+    enabled_defenses: &NodeSet,
 ) -> Result<bool, GraphUtilsError> {
     let node = &graph.nodes[node_id];
-    match node.step_type.as_str() {
-        "and" => {
+    match node.step_type {
+        AttackStepType::And => {
             if impossible_attack_steps.contains(&node_id) {
                 return Ok(true);
             }
@@ -150,7 +174,7 @@ pub fn node_is_blocked(
             }
             Ok(false)
         }
-        "or" => {
+        AttackStepType::Or => {
             if impossible_attack_steps.contains(&node_id) {
                 return Ok(true);
             }
@@ -170,8 +194,8 @@ pub fn node_is_blocked(
 /// in `performed_nodes` (unnecessary parents are skipped, not required).
 fn and_traversable(
     node: &AttackGraphNode,
-    performed_nodes: &HashSet<AttackGraphNodeId>,
-    necessity_per_node: &HashMap<AttackGraphNodeId, bool>,
+    performed_nodes: &NodeSet,
+    necessity_per_node: &NodeDenseMap<bool>,
 ) -> Result<bool, GraphUtilsError> {
     for &parent_id in &node.parents {
         if node_is_necessary(necessity_per_node, parent_id)?
@@ -192,10 +216,10 @@ fn and_traversable(
 pub fn node_is_traversable(
     graph: &AttackGraph,
     node_id: AttackGraphNodeId,
-    performed_nodes: &HashSet<AttackGraphNodeId>,
-    impossible_attack_steps: &HashSet<AttackGraphNodeId>,
-    enabled_defenses: &HashSet<AttackGraphNodeId>,
-    necessity_per_node: &HashMap<AttackGraphNodeId, bool>,
+    performed_nodes: &NodeSet,
+    impossible_attack_steps: &NodeSet,
+    enabled_defenses: &NodeSet,
+    necessity_per_node: &NodeDenseMap<bool>,
 ) -> Result<bool, GraphUtilsError> {
     let node = &graph.nodes[node_id];
 
@@ -211,10 +235,13 @@ pub fn node_is_traversable(
         return Ok(false);
     }
 
-    match node.step_type.as_str() {
-        "or" => Ok(true),
-        "and" => and_traversable(node, performed_nodes, necessity_per_node),
-        other => Err(GraphUtilsError::UnknownStepType(other.to_string(), node_id)),
+    match node.step_type {
+        AttackStepType::Or => Ok(true),
+        AttackStepType::And => and_traversable(node, performed_nodes, necessity_per_node),
+        other => Err(GraphUtilsError::UnknownStepType(
+            other.as_str().to_string(),
+            node_id,
+        )),
     }
 }
 
@@ -227,15 +254,15 @@ mod tests {
 
     #[test]
     fn is_attack_step_type_true_for_or_and_and() {
-        assert!(is_attack_step_type("or"));
-        assert!(is_attack_step_type("and"));
+        assert!(is_attack_step_type(AttackStepType::Or));
+        assert!(is_attack_step_type(AttackStepType::And));
     }
 
     #[test]
     fn is_attack_step_type_false_for_defense_exist_not_exist() {
-        assert!(!is_attack_step_type("defense"));
-        assert!(!is_attack_step_type("exist"));
-        assert!(!is_attack_step_type("notExist"));
+        assert!(!is_attack_step_type(AttackStepType::Defense));
+        assert!(!is_attack_step_type(AttackStepType::Exist));
+        assert!(!is_attack_step_type(AttackStepType::NotExist));
     }
 
     #[test]
@@ -251,30 +278,48 @@ mod tests {
 
     #[test]
     fn node_blocks_children_exist_blocks_when_not_existing() {
-        let defenses = HashSet::new();
+        let defenses = NodeSet::default();
         let id = AttackGraphNodeId::default();
-        assert!(node_blocks_children_from_parts("exist", Some(false), id, &defenses).unwrap());
-        assert!(!node_blocks_children_from_parts("exist", Some(true), id, &defenses).unwrap());
+        assert!(
+            node_blocks_children_from_parts(AttackStepType::Exist, Some(false), id, &defenses)
+                .unwrap()
+        );
+        assert!(
+            !node_blocks_children_from_parts(AttackStepType::Exist, Some(true), id, &defenses)
+                .unwrap()
+        );
     }
 
     #[test]
     fn node_blocks_children_not_exist_blocks_when_existing() {
-        let defenses = HashSet::new();
+        let defenses = NodeSet::default();
         let id = AttackGraphNodeId::default();
-        assert!(node_blocks_children_from_parts("notExist", Some(true), id, &defenses).unwrap());
-        assert!(!node_blocks_children_from_parts("notExist", Some(false), id, &defenses).unwrap());
+        assert!(node_blocks_children_from_parts(
+            AttackStepType::NotExist,
+            Some(true),
+            id,
+            &defenses
+        )
+        .unwrap());
+        assert!(!node_blocks_children_from_parts(
+            AttackStepType::NotExist,
+            Some(false),
+            id,
+            &defenses
+        )
+        .unwrap());
     }
 
     #[test]
     fn node_blocks_children_missing_existence_status_errors() {
-        let defenses = HashSet::new();
+        let defenses = NodeSet::default();
         let id = AttackGraphNodeId::default();
         assert!(matches!(
-            node_blocks_children_from_parts("exist", None, id, &defenses),
+            node_blocks_children_from_parts(AttackStepType::Exist, None, id, &defenses),
             Err(GraphUtilsError::MissingExistenceStatus(_))
         ));
         assert!(matches!(
-            node_blocks_children_from_parts("notExist", None, id, &defenses),
+            node_blocks_children_from_parts(AttackStepType::NotExist, None, id, &defenses),
             Err(GraphUtilsError::MissingExistenceStatus(_))
         ));
     }
@@ -283,18 +328,32 @@ mod tests {
     fn node_blocks_children_defense_blocks_when_enabled() {
         let mut graph = dummy_graph();
         let defense_id = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
-        let mut defenses = HashSet::new();
-        assert!(!node_blocks_children_from_parts("defense", None, defense_id, &defenses).unwrap());
+        let mut defenses = NodeSet::default();
+        assert!(!node_blocks_children_from_parts(
+            AttackStepType::Defense,
+            None,
+            defense_id,
+            &defenses
+        )
+        .unwrap());
         defenses.insert(defense_id);
-        assert!(node_blocks_children_from_parts("defense", None, defense_id, &defenses).unwrap());
+        assert!(node_blocks_children_from_parts(
+            AttackStepType::Defense,
+            None,
+            defense_id,
+            &defenses
+        )
+        .unwrap());
     }
 
     #[test]
     fn node_blocks_children_or_and_never_block() {
-        let defenses = HashSet::new();
+        let defenses = NodeSet::default();
         let id = AttackGraphNodeId::default();
-        assert!(!node_blocks_children_from_parts("or", None, id, &defenses).unwrap());
-        assert!(!node_blocks_children_from_parts("and", None, id, &defenses).unwrap());
+        assert!(!node_blocks_children_from_parts(AttackStepType::Or, None, id, &defenses).unwrap());
+        assert!(
+            !node_blocks_children_from_parts(AttackStepType::And, None, id, &defenses).unwrap()
+        );
     }
 
     // --- node_is_live ---
@@ -356,8 +415,8 @@ mod tests {
 
         let impossible_and_node = add_dummy_node(&mut graph, "DummyAndAttackStep");
 
-        let enabled_defenses: HashSet<_> = [defense_node].into_iter().collect();
-        let impossible_attack_steps: HashSet<_> = [impossible_and_node].into_iter().collect();
+        let enabled_defenses: NodeSet = [defense_node].into_iter().collect();
+        let impossible_attack_steps: NodeSet = [impossible_and_node].into_iter().collect();
 
         let blocked =
             |id| node_is_blocked(&graph, id, &impossible_attack_steps, &enabled_defenses).unwrap();
@@ -378,8 +437,8 @@ mod tests {
     fn node_is_traversable_false_for_non_attack_step() {
         let mut graph = dummy_graph();
         let defense_id = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
-        let empty = HashSet::new();
-        let empty_map = HashMap::new();
+        let empty = NodeSet::default();
+        let empty_map = NodeDenseMap::default();
         assert!(
             !node_is_traversable(&graph, defense_id, &empty, &empty, &empty, &empty_map).unwrap()
         );
@@ -392,8 +451,8 @@ mod tests {
         let or_node = add_dummy_node(&mut graph, "DummyOrAttackStep");
         graph.nodes[or_node].parents.insert(parent);
 
-        let empty = HashSet::new();
-        let empty_map = HashMap::new();
+        let empty = NodeSet::default();
+        let empty_map = NodeDenseMap::default();
         assert!(!node_is_traversable(&graph, or_node, &empty, &empty, &empty, &empty_map).unwrap());
     }
 
@@ -404,9 +463,9 @@ mod tests {
         let or_node = add_dummy_node(&mut graph, "DummyOrAttackStep");
         graph.nodes[or_node].parents.insert(parent);
 
-        let performed: HashSet<_> = [parent].into_iter().collect();
-        let empty = HashSet::new();
-        let empty_map = HashMap::new();
+        let performed: NodeSet = [parent].into_iter().collect();
+        let empty = NodeSet::default();
+        let empty_map = NodeDenseMap::default();
         assert!(
             node_is_traversable(&graph, or_node, &performed, &empty, &empty, &empty_map).unwrap()
         );
@@ -421,14 +480,14 @@ mod tests {
         graph.nodes[and_node].parents.insert(necessary_parent);
         graph.nodes[and_node].parents.insert(unnecessary_parent);
 
-        let necessity: HashMap<_, _> = [(necessary_parent, true), (unnecessary_parent, false)]
+        let necessity: NodeDenseMap<_> = [(necessary_parent, true), (unnecessary_parent, false)]
             .into_iter()
             .collect();
-        let empty = HashSet::new();
+        let empty = NodeSet::default();
 
         // Only the unnecessary parent performed: parents_reached is true,
         // but the necessary parent is still missing -> not traversable.
-        let only_unnecessary: HashSet<_> = [unnecessary_parent].into_iter().collect();
+        let only_unnecessary: NodeSet = [unnecessary_parent].into_iter().collect();
         assert!(!node_is_traversable(
             &graph,
             and_node,
@@ -440,7 +499,7 @@ mod tests {
         .unwrap());
 
         // Necessary parent performed (unnecessary one isn't) -> traversable.
-        let only_necessary: HashSet<_> = [necessary_parent].into_iter().collect();
+        let only_necessary: NodeSet = [necessary_parent].into_iter().collect();
         assert!(node_is_traversable(
             &graph,
             and_node,
@@ -461,10 +520,10 @@ mod tests {
         graph.nodes[or_node].parents.insert(parent);
         graph.nodes[or_node].parents.insert(defense_node);
 
-        let performed: HashSet<_> = [parent].into_iter().collect();
-        let enabled_defenses: HashSet<_> = [defense_node].into_iter().collect();
-        let empty = HashSet::new();
-        let empty_map = HashMap::new();
+        let performed: NodeSet = [parent].into_iter().collect();
+        let enabled_defenses: NodeSet = [defense_node].into_iter().collect();
+        let empty = NodeSet::default();
+        let empty_map = NodeDenseMap::default();
 
         // `or` node blocked only once *all* parents block - here only the
         // defense parent blocks, the other parent doesn't, so it's not
@@ -489,17 +548,17 @@ mod tests {
         graph.nodes[and_node].parents.insert(parent);
         graph.nodes[and_node].parents.insert(defense_node);
 
-        let performed: HashSet<_> = [parent].into_iter().collect();
-        let enabled_defenses: HashSet<_> = [defense_node].into_iter().collect();
+        let performed: NodeSet = [parent].into_iter().collect();
+        let enabled_defenses: NodeSet = [defense_node].into_iter().collect();
         // The defense parent is marked unnecessary in both calls below, so
         // `and_traversable` alone would pass (only `parent` is required and
         // it's performed) - the only difference between the two calls is
         // whether the defense is enabled, isolating the `node_is_blocked`
         // check.
-        let necessity: HashMap<_, _> = [(parent, true), (defense_node, false)]
+        let necessity: NodeDenseMap<_> = [(parent, true), (defense_node, false)]
             .into_iter()
             .collect();
-        let empty = HashSet::new();
+        let empty = NodeSet::default();
 
         // Defense not enabled -> traversable.
         assert!(

@@ -18,8 +18,9 @@
 //! in `reset`/`step` iterates in that (sorted-name) order, so multi-agent
 //! RNG consumption is deterministic across processes for the same seed.
 
+use crate::types::{NodeMap, NodeSet};
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::rc::Rc;
 
@@ -38,7 +39,7 @@ use crate::graph_state::{
     attack_step_ttc_value, compute_initial_graph_state, is_impossible_attack_step, GraphState,
     GraphStateError, TtcMode,
 };
-use crate::graph_utils::GraphUtilsError;
+use crate::graph_utils::{node_order_key, sort_by_node_id, GraphUtilsError};
 use crate::model_state::ModelStateError;
 use crate::observability::observed_nodes;
 use crate::settings::{
@@ -139,39 +140,47 @@ impl std::error::Error for SimulatorError {}
 /// simulator needs (§3) - not a port of a specific Python type.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AttackerRuntime {
-    pub entry_points: HashSet<AttackGraphNodeId>,
-    pub goals: HashSet<AttackGraphNodeId>,
-    pub actionable_steps: Option<HashSet<AttackGraphNodeId>>,
-    pub performed_nodes: HashSet<AttackGraphNodeId>,
-    pub attempted_nodes: HashSet<AttackGraphNodeId>,
-    pub action_surface: HashSet<AttackGraphNodeId>,
-    pub num_attempts: HashMap<AttackGraphNodeId, u64>,
+    pub entry_points: NodeSet,
+    pub goals: NodeSet,
+    pub actionable_steps: Option<NodeSet>,
+    pub performed_nodes: NodeSet,
+    /// The nodes of `performed_nodes` in the order they were performed:
+    /// first the nodes compromised at reset (entry points and their
+    /// effects, each in node-id order, which is arbitrary but
+    /// deterministic), then every step's successful compromises in the
+    /// order `attacker_step` produced them (the chosen node, then its
+    /// effects in node-id order). A node appears once, at its first
+    /// compromise.
+    pub performed_history: Vec<AttackGraphNodeId>,
+    pub attempted_nodes: NodeSet,
+    pub action_surface: NodeSet,
+    pub num_attempts: NodeMap<u64>,
     pub iteration: u64,
     /// Per-node TTC distribution overrides (`AttackerSettings.ttc_dists`,
     /// already flattened - §2.4) - `None` when this attacker has no
     /// override configured, matching `attempt_attacker_step`'s existing
     /// `ttc_dist_overrides` parameter shape.
-    pub ttc_dist_overrides: Option<HashMap<AttackGraphNodeId, TtcDist>>,
+    pub ttc_dist_overrides: Option<NodeMap<TtcDist>>,
     /// The `AttackerState.ttc_values`/`.impossible_steps` fields this
     /// attacker exposes - override-only when `ttc_dist_overrides` is
     /// `Some`, otherwise a clone of the graph-wide values (see
     /// `attacker_ttc_overrides`'s doc comment).
-    pub ttc_values: HashMap<AttackGraphNodeId, f64>,
-    pub impossible_steps: HashSet<AttackGraphNodeId>,
+    pub ttc_values: NodeMap<f64>,
+    pub impossible_steps: NodeSet,
 }
 
 /// The Rust-side equivalent of the mutable parts of `DefenderState` - see
 /// `AttackerRuntime`'s doc comment.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DefenderRuntime {
-    pub actionable_steps: Option<HashSet<AttackGraphNodeId>>,
-    pub observable_steps: Option<HashSet<AttackGraphNodeId>>,
-    pub false_positive_rates: Option<HashMap<AttackGraphNodeId, f64>>,
-    pub false_negative_rates: Option<HashMap<AttackGraphNodeId, f64>>,
-    pub performed_nodes: HashSet<AttackGraphNodeId>,
-    pub compromised_nodes: HashSet<AttackGraphNodeId>,
-    pub observed_nodes: HashSet<AttackGraphNodeId>,
-    pub action_surface: HashSet<AttackGraphNodeId>,
+    pub actionable_steps: Option<NodeSet>,
+    pub observable_steps: Option<NodeSet>,
+    pub false_positive_rates: Option<NodeMap<f64>>,
+    pub false_negative_rates: Option<NodeMap<f64>>,
+    pub performed_nodes: NodeSet,
+    pub compromised_nodes: NodeSet,
+    pub observed_nodes: NodeSet,
+    pub action_surface: NodeSet,
     pub iteration: u64,
     pub logs: Vec<LogEntry>,
 }
@@ -185,7 +194,7 @@ pub struct SimState {
     pub(crate) rng: StdRng,
     pub settings: MalSimulatorSettings,
     pub graph_state: GraphState,
-    pub enabled_defenses: HashSet<AttackGraphNodeId>,
+    pub enabled_defenses: NodeSet,
     pub attackers: BTreeMap<String, AttackerRuntime>,
     pub defenders: BTreeMap<String, DefenderRuntime>,
 }
@@ -230,15 +239,15 @@ impl SimState {
 /// live in `AttackerRuntime`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct AttackerStepOutcome {
-    pub step_performed_nodes: HashSet<AttackGraphNodeId>,
-    pub step_attempted_nodes: HashSet<AttackGraphNodeId>,
+    pub step_performed_nodes: NodeSet,
+    pub step_attempted_nodes: NodeSet,
 }
 
 /// One defender's deltas from a single `Simulator::step` - newly observed
 /// nodes and newly produced logs.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DefenderStepOutcome {
-    pub step_observed_nodes: HashSet<AttackGraphNodeId>,
+    pub step_observed_nodes: NodeSet,
     pub step_logs: Vec<LogEntry>,
 }
 
@@ -248,7 +257,7 @@ pub struct StepOutcome {
     pub attackers: BTreeMap<String, AttackerStepOutcome>,
     pub defenders: BTreeMap<String, DefenderStepOutcome>,
     /// Defenses enabled by this step's defender actions.
-    pub step_enabled_defenses: HashSet<AttackGraphNodeId>,
+    pub step_enabled_defenses: NodeSet,
 }
 
 impl StepOutcome {
@@ -387,11 +396,17 @@ fn attacker_ttc_overrides(
     graph: &AttackGraph,
     rng: &mut StdRng,
     ttc_mode: TtcMode,
-    ttc_dist_overrides: &HashMap<AttackGraphNodeId, TtcDist>,
-) -> Result<(HashMap<AttackGraphNodeId, f64>, HashSet<AttackGraphNodeId>), SimulatorError> {
-    let mut ttc_values = HashMap::new();
-    let mut impossible_steps = HashSet::new();
-    for (&node_id, dist) in ttc_dist_overrides {
+    ttc_dist_overrides: &NodeMap<TtcDist>,
+) -> Result<(NodeMap<f64>, NodeSet), SimulatorError> {
+    let mut ttc_values = NodeMap::default();
+    let mut impossible_steps = NodeSet::default();
+    // The TTC/Bernoulli draws below follow this order, so not the map's.
+    let mut overrides: Vec<(AttackGraphNodeId, &TtcDist)> = ttc_dist_overrides
+        .iter()
+        .map(|(&id, dist)| (id, dist))
+        .collect();
+    overrides.sort_unstable_by_key(|&(id, _)| node_order_key(graph, id));
+    for (node_id, dist) in overrides {
         // `ttc_dist_overrides` is resolved once at reset and never
         // updated - a dyna-path node it names can later be removed from
         // the graph. A removed node has no TTC left to override.
@@ -441,7 +456,7 @@ pub(crate) fn reset_state(
     }
 
     let mut attackers: BTreeMap<String, AttackerRuntime> = BTreeMap::new();
-    let mut pre_compromised: HashSet<AttackGraphNodeId> = HashSet::new();
+    let mut pre_compromised: NodeSet = NodeSet::default();
 
     for (name, cfg) in attacker_cfgs {
         let FlatAttackerSettings {
@@ -461,10 +476,16 @@ pub(crate) fn reset_state(
             ),
         };
 
-        let mut performed_nodes: HashSet<AttackGraphNodeId> = HashSet::new();
+        let mut performed_nodes: NodeSet = NodeSet::default();
+        let mut performed_history: Vec<AttackGraphNodeId> = Vec::new();
         if settings.compromise_entrypoints_at_start {
-            for &entry_point in &entry_points {
-                performed_nodes.insert(entry_point);
+            let mut sorted_entry_points: Vec<AttackGraphNodeId> =
+                entry_points.iter().copied().collect();
+            sort_by_node_id(graph, &mut sorted_entry_points);
+            for entry_point in sorted_entry_points {
+                if performed_nodes.insert(entry_point) {
+                    performed_history.push(entry_point);
+                }
                 let effects = get_effects_of_attack_step(
                     graph,
                     entry_point,
@@ -473,7 +494,13 @@ pub(crate) fn reset_state(
                     &enabled_defenses,
                     &graph_state.necessity_per_node,
                 )?;
-                performed_nodes.extend(effects);
+                let mut effects: Vec<AttackGraphNodeId> = effects.into_iter().collect();
+                sort_by_node_id(graph, &mut effects);
+                for effect in effects {
+                    if performed_nodes.insert(effect) {
+                        performed_history.push(effect);
+                    }
+                }
             }
         }
 
@@ -501,9 +528,10 @@ pub(crate) fn reset_state(
                 goals,
                 actionable_steps,
                 performed_nodes,
-                attempted_nodes: HashSet::new(),
+                performed_history,
+                attempted_nodes: NodeSet::default(),
                 action_surface,
-                num_attempts: HashMap::new(),
+                num_attempts: NodeMap::default(),
                 iteration: 0,
                 ttc_dist_overrides,
                 ttc_values,
@@ -541,7 +569,7 @@ pub(crate) fn reset_state(
             0,
             graph,
             pre_compromised.iter().copied(),
-            &HashSet::new(),
+            &NodeSet::default(),
             &mut rng,
         )?;
         logs.extend(collect_false_positives(0, graph, &mut rng)?);
@@ -589,7 +617,7 @@ fn plain_step(
     let defender_names: Vec<String> = state.defenders.keys().cloned().collect();
 
     // --- Defenders act first ---
-    let mut step_enabled_defenses: HashSet<AttackGraphNodeId> = HashSet::new();
+    let mut step_enabled_defenses: NodeSet = NodeSet::default();
     {
         let graph = graph_rc.borrow();
         for name in &defender_names {
@@ -607,7 +635,7 @@ fn plain_step(
         .extend(step_enabled_defenses.iter().copied());
 
     // --- Attackers act afterwards ---
-    let mut step_compromised_nodes: HashSet<AttackGraphNodeId> = HashSet::new();
+    let mut step_compromised_nodes: NodeSet = NodeSet::default();
     let mut attacker_results: AttackerResults = BTreeMap::new();
     {
         let graph = graph_rc.borrow();
@@ -670,16 +698,25 @@ pub(crate) fn update_attacker_runtimes(
         let (compromised, attempted) = attacker_results
             .remove(name)
             .expect("every attacker stepped this step");
+        {
+            let runtime = state
+                .attackers
+                .get_mut(name)
+                .expect("attacker_names come from state.attackers");
+            for &node_id in &compromised {
+                if runtime.performed_nodes.insert(node_id) {
+                    runtime.performed_history.push(node_id);
+                }
+            }
+        }
         let new_action_surface = {
             let runtime = &state.attackers[name];
-            let mut performed_nodes = runtime.performed_nodes.clone();
-            performed_nodes.extend(compromised.iter().copied());
             get_attack_surface(
                 graph,
                 state.settings.attack_surface.skip_compromised,
                 state.settings.attack_surface.skip_unnecessary,
                 runtime.actionable_steps.as_ref(),
-                &performed_nodes,
+                &runtime.performed_nodes,
                 None,
                 &state.graph_state.impossible_attack_steps,
                 &state.enabled_defenses,
@@ -691,7 +728,6 @@ pub(crate) fn update_attacker_runtimes(
             .attackers
             .get_mut(name)
             .expect("attacker_names come from state.attackers");
-        runtime.performed_nodes.extend(compromised.iter().copied());
         runtime.attempted_nodes.extend(attempted.iter().copied());
         for &node_id in &attempted {
             *runtime.num_attempts.entry(node_id).or_insert(0) += 1;
@@ -714,12 +750,7 @@ pub(crate) fn update_attacker_runtimes(
 /// `update_defender_runtimes`'s first pass (defense surface, newly observed
 /// nodes, new logs, previous `performed_nodes`) before the second pass
 /// applies them.
-type DefenderStepUpdate = (
-    HashSet<AttackGraphNodeId>,
-    HashSet<AttackGraphNodeId>,
-    Vec<LogEntry>,
-    HashSet<AttackGraphNodeId>,
-);
+type DefenderStepUpdate = (NodeSet, NodeSet, Vec<LogEntry>, NodeSet);
 
 /// Recomputes each defender's bookkeeping (`action_surface`,
 /// `performed_nodes`, `compromised_nodes`, `observed_nodes`, `logs`,
@@ -729,8 +760,8 @@ pub(crate) fn update_defender_runtimes(
     graph: &AttackGraph,
     state: &mut SimState,
     defender_names: &[String],
-    step_enabled_defenses: &HashSet<AttackGraphNodeId>,
-    step_compromised_nodes: &HashSet<AttackGraphNodeId>,
+    step_enabled_defenses: &NodeSet,
+    step_compromised_nodes: &NodeSet,
 ) -> Result<BTreeMap<String, DefenderStepOutcome>, SimulatorError> {
     let mut defender_step_deltas = BTreeMap::new();
     let mut pass1: BTreeMap<String, DefenderStepUpdate> = BTreeMap::new();

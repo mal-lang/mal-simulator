@@ -8,6 +8,7 @@
 //! the Rust `Scenario` and compares, so Rust and Python are checked
 //! against one shared oracle without either calling the other.
 
+use malsim_core::types::NodeMap;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -83,7 +84,7 @@ impl Ctx<'_> {
         ids.map_or(Value::Null, |ids| self.sorted_names(ids))
     }
 
-    fn rate_map(&self, rates: Option<&std::collections::HashMap<AttackGraphNodeId, f64>>) -> Value {
+    fn rate_map(&self, rates: Option<&NodeMap<f64>>) -> Value {
         match rates {
             None => Value::Null,
             Some(rates) => json!({
