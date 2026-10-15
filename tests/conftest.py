@@ -5,8 +5,6 @@ from maltoolbox.model import Model
 from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
 from maltoolbox.language import (
     LanguageGraph,
-    LanguageGraphAttackStep,
-    LanguageGraphAsset,
 )
 
 from malsim.scenario.scenario import Scenario
@@ -18,6 +16,27 @@ def get_node(graph: AttackGraph, full_name: str) -> AttackGraphNode:
     node = graph.get_node_by_full_name(full_name)
     assert node, f'Node {full_name} does not exist in graph'
     return node
+
+
+def connect_nodes(parent: AttackGraphNode, child: AttackGraphNode) -> None:
+    """Wire `parent`/`child` as connected in a manually-built attack graph.
+
+    `node.children.add(x)`/`node.parents.add(x)` only mutates a cached
+    Python-side set the `maltoolbox` PyO3 bindings hand out - it never
+    writes back into the graph's real (Rust-native) edge storage (see
+    `maltoolbox-attackgraph-py/src/node.rs`'s `edges_sets`/`set_children`:
+    only *assigning* `.children`/`.parents` goes through `set_edge_field`,
+    which does sync). `.add()` happened to look correct under the old
+    pure-Python malsim, which only ever read the same cached set back -
+    but `malsim`'s Rust-native hot path (PORTING_NOTES.md §5 Phase A9)
+    reads the graph's real edges directly and silently sees none, so a
+    manually-built graph's action surface comes out empty. Use this
+    helper (assignment, not `.add()`) instead of `children.add`/
+    `parents.add` in any test that constructs a graph node-by-node and
+    then runs it through `MalSimulator`.
+    """
+    parent.children = parent.children | {child}
+    child.parents = child.parents | {parent}
 
 
 def path_testdata(filename: str) -> str:
@@ -72,49 +91,9 @@ def model(corelang_lang_graph: LanguageGraph) -> Model:
 
 
 @pytest.fixture
-def dummy_lang_graph(corelang_lang_graph: LanguageGraph) -> LanguageGraph:
-    """Fixture that generates a dummy LanguageGraph with a dummy
-    LanguageGraphAsset and LanguageGraphAttackStep
-    """
-    lang_graph = LanguageGraph()
-    lang_graph.metadata = {}
-    dummy_asset = LanguageGraphAsset(name='DummyAsset')
-    lang_graph.assets['DummyAsset'] = dummy_asset
-    dummy_or_attack_step_node = LanguageGraphAttackStep(
-        name='DummyOrAttackStep',
-        type='or',
-        asset=dummy_asset,
-        ttc={'arguments': [1.0], 'name': 'Bernoulli', 'type': 'function'},
-    )
-    dummy_asset.attack_steps['DummyOrAttackStep'] = dummy_or_attack_step_node
-
-    dummy_and_attack_step_node = LanguageGraphAttackStep(
-        name='DummyAndAttackStep',
-        type='and',
-        asset=dummy_asset,
-        ttc={'arguments': [1.0], 'name': 'Bernoulli', 'type': 'function'},
-    )
-    dummy_asset.attack_steps['DummyAndAttackStep'] = dummy_and_attack_step_node
-
-    dummy_defense_attack_step_node = LanguageGraphAttackStep(
-        name='DummyDefenseAttackStep',
-        type='defense',
-        asset=dummy_asset,
-        ttc={'arguments': [0.0], 'name': 'Bernoulli', 'type': 'function'},
-    )
-    dummy_asset.attack_steps['DummyDefenseAttackStep'] = dummy_defense_attack_step_node
-
-    dummy_exist_attack_step_node = LanguageGraphAttackStep(
-        name='DummyExistAttackStep', type='exist', asset=dummy_asset
-    )
-    dummy_asset.attack_steps['DummyExistAttackStep'] = dummy_exist_attack_step_node
-
-    dummy_exist_attack_step_node = LanguageGraphAttackStep(
-        name='DummyNotExistAttackStep', type='notExist', asset=dummy_asset
-    )
-    dummy_asset.attack_steps['DummyNotExistAttackStep'] = dummy_exist_attack_step_node
-
-    return lang_graph
+def dummy_lang_graph() -> LanguageGraph:
+    """Fixture that generates a dummy LanguageGraph for testing"""
+    return LanguageGraph.from_mal_spec(path_testdata('langs/dummy_lang.mal'))
 
 
 @pytest.fixture
