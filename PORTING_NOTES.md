@@ -381,11 +381,12 @@ in mal-toolbox) and constructs the unchanged dataclasses itself.
 - per-episode `GraphState` equivalent: ttc values by node id, pre-enabled
   defenses, impossible attack steps, necessity-by-id (all computed once
   at `reset()`)
-- runtime `enabled_defenses: HashSet<NodeId>` (grows during `step()`)
+- runtime `enabled_defenses: NodeSet` (grows during `step()`)
 - per-agent runtime structs (`AttackerRuntime`/`DefenderRuntime`): the
   Rust-side equivalent of the mutable parts of `AttackerState`/
   `DefenderState` (performed/attempted/observed node id sets, action
-  surface, num_attempts, iteration, performed_nodes_order, logs) plus the
+  surface, num_attempts, iteration, performed_nodes_order, logs, and a
+  Rust-only `performed_history` that is not exposed to Python) plus the
   flattened per-agent settings from §2.4 (actionable ids, observable ids,
   FP/FN rate maps, ttc override map) - **not** rewards.
 
@@ -512,7 +513,11 @@ actions itself. Built-in policies and a CLI were added later, in Phase D
   to the current native RNG consumption order and will shift if it
   changes.
 - **Do not assert on `HashMap`/`HashSet`/`frozenset` iteration order.**
-  Rust's default hasher is seeded per process, so an order-dependent
+  Node-id collections (`NodeSet`/`NodeMap`) use a non-randomized hasher,
+  but their order follows insertion history, not `AttackGraphNode.id`.
+  Everything else (i64/`String`-keyed collections, mal-toolbox's
+  `children`/`parents`, `potential_context`, model associated assets)
+  uses the std hasher, seeded per process, so an order-dependent
   test passes or fails per process invocation, not per run within one
   process. Run a suspect test in several separate `cargo test`/`pytest`
   processes.
@@ -578,8 +583,12 @@ enough.
   stable user-facing id, not `AttackGraphNodeId` (an opaque slotmap key).
   `to_node_id`/`stable_ids` in `malsim-pyo3/src/simulator.rs` translate.
 - **`stable_ids` sorts its output**, and agents are processed in name
-  order (§12 C5). Otherwise `HashSet`/`HashMap` order, random per
-  process, would make a fixed seed irreproducible across processes.
+  order (§12 C5). Every RNG-consuming or order-producing iteration over
+  a set in `malsim-core` likewise goes in `AttackGraphNode.id` order
+  (`graph_utils::sort_by_node_id`; asset-id sets in asset-id order).
+  Otherwise std `HashSet`/`HashMap` order, random per process, would
+  make a fixed seed irreproducible across processes. Test:
+  `malsim-core/tests/reproducibility.rs`.
 - **`reset_native` returns full state; `step_native` returns deltas.**
   Monotonic fields come back as `step_*` keys (`step_enabled_defenses`,
   `step_performed_nodes`, `step_attempted_nodes`,
@@ -689,8 +698,11 @@ enough.
   (Python args are `[n, p]`) and `Gamma::new(shape, rate)` with `rate =
   1 / scale`. `ttc.rs` swaps/inverts on purpose.
 - **`NodePropertyRule` arguments become flattened sets/maps** (§2.4):
-  `Option<&HashSet<AttackGraphNodeId>>` for actionability/observability
-  (`None` = no rule configured), `Option<&HashMap<_, f64>>` for rates.
+  `Option<&NodeSet>` for actionability/observability (`None` = no rule
+  configured), `Option<&NodeMap<f64>>` for rates (`NodeSet`/`NodeMap`:
+  `FxHashSet`/`FxHashMap` over `AttackGraphNodeId`, in `types.rs`;
+  `necessity_per_node` is a `NodeDenseMap<bool>`, a slotmap
+  `SecondaryMap`).
   `attack_surface.rs`, `defense_surface.rs` and `observability.rs` each
   keep a private `node_is_*_flat` helper rather than sharing one in
   `graph_utils.rs`, where it would look like the ported
@@ -741,12 +753,22 @@ enough.
   in `build_step_output`). Python's `dyna_step` detects this by
   `'ttc_values' in native_out['sim_state']` and replaces its
   `GraphState` wholesale. A full resend rather than a delta because
-  `necessity_per_node` is recomputed for the whole graph on every fold.
+  `necessity_per_node` is recomputed for the whole graph on every fold
+  that runs.
   Test: `test_native_dyna_simulator_step_resends_graph_state_only_on_model_effect`.
 - **`execute_model_effects` does not fold new nodes into `GraphState`**
   (Python's does). It returns `(modification_record, new_node_ids)`;
   `dyna_attacker_step`/`dyna_defender_step` call
-  `dyna_graph_state.rs::fold_new_nodes_into_graph_state` right after.
+  `dyna_graph_state.rs::fold_new_nodes_into_graph_state` right after,
+  but skip it when the effects returned no ops and no new nodes
+  (equivalent to Python's unconditional call: no RNG draws, same
+  necessity). Python's `add_new_nodes_to_graph_state` has no Rust
+  port; the fold extends the graph state in place.
+- **`model_effects::regenerate_graph` renumbers the nodes created by
+  `partially_regenerate_graph`** canonically (by model asset id, then
+  creation order), contiguously from the prior `next_node_id`, because
+  mal-toolbox creates them in std-`HashSet` order. Temporary until
+  mal-toolbox creates nodes deterministically.
 - **There is no `dyna_attempt_attacker_step`.** Python's differs from
   the static one only by `num_attempts.get(node, 0)`, which the Rust
   `attempt_attacker_step` already does.
