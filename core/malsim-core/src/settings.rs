@@ -95,6 +95,14 @@ impl Default for AttackSurfaceSettings {
 }
 
 impl AttackSurfaceSettings {
+    /// Inverse of `from_value`.
+    pub fn to_value(&self) -> Value {
+        serde_json::json!({
+            "skip_compromised": self.skip_compromised,
+            "skip_unnecessary": self.skip_unnecessary,
+        })
+    }
+
     /// Port of `AttackSurfaceSettings(**d)`.
     pub fn from_value(value: &Value) -> Result<Self, SettingsError> {
         let obj = value
@@ -150,6 +158,20 @@ impl Default for MalSimulatorSettings {
 }
 
 impl MalSimulatorSettings {
+    /// Inverse of `from_value`: every field, with `ttc_mode` as its enum
+    /// name and an unset `seed` as `null`.
+    pub fn to_value(&self) -> Value {
+        serde_json::json!({
+            "uncompromise_untraversable_steps": self.uncompromise_untraversable_steps,
+            "ttc_mode": self.ttc_mode.name(),
+            "seed": self.seed,
+            "attack_surface": self.attack_surface.to_value(),
+            "compromise_entrypoints_at_start": self.compromise_entrypoints_at_start,
+            "run_defense_step_bernoullis": self.run_defense_step_bernoullis,
+            "run_attack_step_bernoullis": self.run_attack_step_bernoullis,
+        })
+    }
+
     /// Port of `MalSimulatorSettings(**d)` including `__post_init__`'s
     /// string-to-enum (`ttc_mode`) and dict-to-dataclass (`attack_surface`)
     /// conversions. `null` for a field leaves its default only for `seed`,

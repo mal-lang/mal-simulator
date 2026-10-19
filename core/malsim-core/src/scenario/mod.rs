@@ -244,6 +244,60 @@ impl Scenario {
         Scenario::from_dict(&load_scenario_dict(scenario_file)?)
     }
 
+    /// Port of `Scenario.to_dict`: the scenario in the shape
+    /// `from_dict` reads. Differences from Python: `sim_settings` is
+    /// written (Python drops it), as are `reward_mode` and
+    /// `ttc_overrides` per agent, so a saved scenario reloads identically.
+    /// A local `lang_file`/`model_file` is written as an absolute path
+    /// (`load_scenario_dict` leaves absolute paths alone), and a model
+    /// given inline is written inline.
+    pub fn to_dict(&self) -> Result<Map<String, Value>, ScenarioError> {
+        let mut attackers = self.attacker_settings_by_full_name.iter();
+        let mut agents = Map::new();
+        for agent in &self.agent_settings {
+            let value = match agent {
+                AgentSettings::Attacker(_) => attackers
+                    .next()
+                    .expect("one by-full-name entry per attacker")
+                    .to_value(),
+                AgentSettings::Defender(d) => d.to_value(),
+            };
+            agents.insert(agent.name().to_string(), value);
+        }
+
+        let mut dict = Map::new();
+        dict.insert("lang_file".into(), absolute_path_value(&self.lang_file)?);
+        dict.insert("agents".into(), Value::Object(agents));
+        dict.insert("sim_settings".into(), self.sim_settings.to_value());
+        match &self.model_file {
+            Some(model_file) => {
+                let model_file = model_file.to_string_lossy();
+                dict.insert("model_file".into(), absolute_path_value(&model_file)?);
+            }
+            None => {
+                dict.insert("model".into(), self.model.borrow().to_dict());
+            }
+        }
+        Ok(dict)
+    }
+
+    /// Port of `Scenario.save_to_file`: writes `to_dict` as YAML. The
+    /// result loads back with `load_from_file`.
+    pub fn save_to_file(&self, path: impl AsRef<Path>) -> Result<(), ScenarioError> {
+        let path = path.as_ref();
+        let yaml = serde_yaml::to_string(&Value::Object(self.to_dict()?)).map_err(|source| {
+            ScenarioFileError::Yaml {
+                path: path.to_path_buf(),
+                source,
+            }
+        })?;
+        std::fs::write(path, yaml).map_err(|source| ScenarioFileError::Io {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        Ok(())
+    }
+
     /// Port of the `attacker_settings` property, in scenario order.
     pub fn attacker_settings(&self) -> impl Iterator<Item = &AttackerSettings<AttackGraphNodeId>> {
         self.agent_settings.iter().filter_map(|a| match a {
@@ -309,6 +363,19 @@ impl Scenario {
 pub enum ModelSource {
     File(PathBuf),
     Dict(Value),
+}
+
+/// A local path made absolute so it doesn't change meaning when the saved
+/// file lives in another directory; `git@` language URLs are kept as is.
+fn absolute_path_value(path: &str) -> Result<Value, ScenarioError> {
+    if path.starts_with("git@") {
+        return Ok(Value::String(path.to_string()));
+    }
+    let absolute = std::path::absolute(path).map_err(|source| ScenarioFileError::Io {
+        path: PathBuf::from(path),
+        source,
+    })?;
+    Ok(Value::String(absolute.to_string_lossy().into_owned()))
 }
 
 /// Python truthiness of a JSON value, for the `get(..) or ..` idioms.

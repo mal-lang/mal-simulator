@@ -13,15 +13,15 @@
 //! there are no Rust policies, and an embedding caller does its own action
 //! selection.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
 use serde_json::{Map, Value};
 
-use crate::scenario::node_property_rule::{NodePropertyRule, NodePropertyRuleError};
+use crate::scenario::node_property_rule::{NodePropertyRule, NodePropertyRuleError, StepValues};
 use crate::settings::RewardMode;
-use crate::ttc::TtcDist;
+use crate::ttc::{ttc_dist_name, TtcDist};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AgentSettingsError {
@@ -231,6 +231,134 @@ impl AttackerSettings<String> {
             goals: to_nodes(&self.goals)?,
             ttc_dists: self.ttc_dists.clone(),
         })
+    }
+}
+
+fn name_list(names: &BTreeSet<String>) -> Value {
+    Value::Array(names.iter().cloned().map(Value::String).collect())
+}
+
+impl EntryPoints<String> {
+    /// Inverse of `load_entry_points`: a list of full names, or a list of
+    /// such lists for alternative sets.
+    pub fn to_value(&self) -> Value {
+        match self {
+            EntryPoints::Single(eps) => name_list(eps),
+            EntryPoints::Multiple(sets) => Value::Array(sets.iter().map(name_list).collect()),
+        }
+    }
+}
+
+/// Inserts `rule` under `key` unless it is absent or empty (Python's
+/// `if self.rule:` guard in `to_dict`).
+fn insert_rule<T: crate::scenario::node_property_rule::RuleValue>(
+    d: &mut Map<String, Value>,
+    key: &str,
+    rule: &Option<NodePropertyRule<T>>,
+) {
+    if let Some(rule) = rule.as_ref().filter(|r| !r.is_empty()) {
+        d.insert(key.into(), rule.to_value());
+    }
+}
+
+/// Inserts the `ttc_overrides` rule in the form the loader reads: each
+/// distribution as its predefined name (`TtcDist` -> `ttc_dist_name`),
+/// not `TtcDist::to_dict`'s dict. A custom distribution has no name and
+/// is written as its dict, so reloading fails loudly instead of the
+/// override being dropped silently.
+fn insert_ttc_rule(d: &mut Map<String, Value>, rule: &Option<NodePropertyRule<TtcDist>>) {
+    let Some(rule) = rule.as_ref().filter(|r| !r.is_empty()) else {
+        return;
+    };
+    let by_asset = |by_asset: &Option<BTreeMap<String, StepValues<TtcDist>>>| match by_asset {
+        None => Value::Null,
+        Some(by_asset) => Value::Object(
+            by_asset
+                .iter()
+                .map(|(asset, steps): (&String, &StepValues<TtcDist>)| {
+                    let steps = match steps {
+                        StepValues::Listed(steps) => {
+                            Value::Array(steps.iter().cloned().map(Value::String).collect())
+                        }
+                        StepValues::Valued(values) => Value::Object(
+                            values
+                                .iter()
+                                .map(|(step, dist)| {
+                                    let dist = ttc_dist_name(dist).map_or_else(
+                                        || dist.to_dict(),
+                                        |n| Value::String(n.into()),
+                                    );
+                                    (step.clone(), dist)
+                                })
+                                .collect(),
+                        ),
+                    };
+                    (asset.clone(), steps)
+                })
+                .collect(),
+        ),
+    };
+    d.insert(
+        "ttc_overrides".into(),
+        serde_json::json!({
+            "by_asset_type": by_asset(&rule.by_asset_type),
+            "by_asset_name": by_asset(&rule.by_asset_name),
+        }),
+    );
+}
+
+/// Inserts `policy`, `config` and `reward_mode` the way both agent types
+/// write them. Unlike Python's `to_dict`, `reward_mode` is always written,
+/// so a non-default mode survives a save/load round trip.
+fn insert_common(
+    d: &mut Map<String, Value>,
+    policy: &Option<String>,
+    config: &Map<String, Value>,
+    reward_mode: RewardMode,
+) {
+    if let Some(policy) = policy {
+        d.insert("policy".into(), Value::String(policy.clone()));
+    }
+    if !config.is_empty() {
+        d.insert("config".into(), Value::Object(config.clone()));
+    }
+    d.insert(
+        "reward_mode".into(),
+        Value::String(reward_mode.name().into()),
+    );
+}
+
+impl AttackerSettings<String> {
+    /// Port of `AttackerSettings.to_dict`, plus `ttc_overrides` (which
+    /// Python drops) so the settings round-trip through
+    /// `agent_settings_from_dict`.
+    pub fn to_value(&self) -> Value {
+        let mut d = Map::new();
+        d.insert("type".into(), AgentType::Attacker.value().into());
+        d.insert("entry_points".into(), self.entry_points.to_value());
+        if !self.goals.is_empty() {
+            d.insert("goals".into(), name_list(&self.goals));
+        }
+        insert_common(&mut d, &self.policy, &self.config, self.reward_mode);
+        insert_rule(&mut d, "actionable_steps", &self.actionable_steps);
+        insert_rule(&mut d, "rewards", &self.rewards);
+        insert_ttc_rule(&mut d, &self.ttc_dists);
+        Value::Object(d)
+    }
+}
+
+impl DefenderSettings {
+    /// Port of `DefenderSettings.to_dict`, plus `reward_mode`.
+    pub fn to_value(&self) -> Value {
+        let mut d = Map::new();
+        d.insert("type".into(), AgentType::Defender.value().into());
+        insert_common(&mut d, &self.policy, &self.config, self.reward_mode);
+        insert_rule(&mut d, "observable_steps", &self.observable_steps);
+        insert_rule(&mut d, "actionable_steps", &self.actionable_steps);
+        insert_rule(&mut d, "rewards", &self.rewards);
+        insert_rule(&mut d, "false_positive_rates", &self.false_positive_rates);
+        insert_rule(&mut d, "false_negative_rates", &self.false_negative_rates);
+        Value::Object(d)
     }
 }
 

@@ -391,3 +391,200 @@ fn flatten_agents_orders_attackers_first_and_resolves_ids() {
     }
     assert!(matches!(flat[1].1, FlatAgentSettings::Defender(_)));
 }
+
+/// A scratch file path unique to this test process, removed on drop.
+struct TempScenarioFile(PathBuf);
+
+impl TempScenarioFile {
+    fn new(test: &str) -> Self {
+        let dir = std::env::temp_dir().join(format!("malsim-core-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        TempScenarioFile(dir.join(format!("{test}.yml")))
+    }
+}
+
+impl Drop for TempScenarioFile {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
+/// Saves `scenario`, reloads it and checks that the agents and settings
+/// came back unchanged. Returns the reloaded scenario.
+fn assert_round_trips(test: &str, scenario: &Scenario) -> Scenario {
+    let file = TempScenarioFile::new(test);
+    scenario.save_to_file(&file.0).unwrap();
+    let reloaded = Scenario::load_from_file(&file.0).unwrap();
+
+    assert_eq!(reloaded.sim_settings, scenario.sim_settings);
+    assert_eq!(
+        reloaded.attacker_settings_by_full_name,
+        scenario.attacker_settings_by_full_name
+    );
+    assert_eq!(
+        reloaded.defender_settings().collect::<Vec<_>>(),
+        scenario.defender_settings().collect::<Vec<_>>()
+    );
+    assert_eq!(
+        reloaded
+            .agent_settings
+            .iter()
+            .map(AgentSettings::name)
+            .collect::<Vec<_>>(),
+        scenario
+            .agent_settings
+            .iter()
+            .map(AgentSettings::name)
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(reloaded.to_dict().unwrap(), scenario.to_dict().unwrap());
+    reloaded
+}
+
+#[test]
+fn save_to_file_round_trips_model_file_scenario() {
+    let scenario = load("simple_scenario.yml");
+    let reloaded = assert_round_trips("save_model_file", &scenario);
+
+    // The model is referenced by file, not inlined.
+    let dict = reloaded.to_dict().unwrap();
+    assert!(dict.contains_key("model_file"));
+    assert!(!dict.contains_key("model"));
+    assert_eq!(reloaded.model_file, scenario.model_file);
+    assert_eq!(
+        attacker(&reloaded, "Attacker1").policy.as_deref(),
+        Some("BreadthFirstAttacker")
+    );
+}
+
+#[test]
+fn save_to_file_round_trips_inline_model() {
+    let mut dict = load_scenario_dict(scenario_path("simple_scenario.yml")).unwrap();
+    let model_file = dict.remove("model_file").unwrap();
+    let model: Value =
+        serde_yaml::from_reader(std::fs::File::open(model_file.as_str().unwrap()).unwrap())
+            .unwrap();
+    dict.insert("model".into(), model);
+    let scenario = Scenario::from_dict(&dict).unwrap();
+    assert!(scenario.model_file.is_none());
+
+    let reloaded = assert_round_trips("save_inline_model", &scenario);
+    assert!(reloaded.model_file.is_none());
+    assert_eq!(
+        reloaded.model.borrow().to_dict(),
+        scenario.model.borrow().to_dict()
+    );
+}
+
+#[test]
+fn save_to_file_round_trips_defender_rules() {
+    let scenario = load("traininglang_fp_fn_scenario.yml");
+    let reloaded = assert_round_trips("save_fp_fn", &scenario);
+    assert!(defender(&reloaded, "defender")
+        .false_positive_rates
+        .is_some());
+    assert!(defender(&reloaded, "defender")
+        .false_negative_rates
+        .is_some());
+}
+
+#[test]
+fn save_to_file_round_trips_observability_and_actionability() {
+    for (test, file) in [
+        (
+            "save_observability",
+            "traininglang_observability_scenario.yml",
+        ),
+        (
+            "save_actionability",
+            "traininglang_actionability_scenario.yml",
+        ),
+    ] {
+        assert_round_trips(test, &load(file));
+    }
+}
+
+#[test]
+fn save_to_file_round_trips_multiple_entry_point_sets() {
+    let scenario = load("bfs_vs_bfs_scenario_multiple_entrypoint_sets.yml");
+    let reloaded = assert_round_trips("save_multiple_entry_points", &scenario);
+    assert!(matches!(
+        attacker(&reloaded, "attacker1").entry_points,
+        EntryPoints::Multiple(_)
+    ));
+}
+
+#[test]
+fn save_to_file_keeps_goals_sim_settings_reward_mode_and_ttc_overrides() {
+    let mut dict = load_scenario_dict(scenario_path("simple_scenario.yml")).unwrap();
+    dict.insert(
+        "sim_settings".into(),
+        serde_json::json!({
+            "ttc_mode": "PRE_SAMPLE",
+            "seed": 7,
+            "attack_surface": {"skip_compromised": false, "skip_unnecessary": true},
+            "compromise_entrypoints_at_start": false,
+            "run_defense_step_bernoullis": false,
+            "run_attack_step_bernoullis": false,
+        }),
+    );
+    dict["agents"]["Attacker1"]["goals"] = serde_json::json!(["OS App:fullAccess"]);
+    dict["agents"]["Attacker1"]["reward_mode"] = "EXPECTED_TTC".into();
+    dict["agents"]["Attacker1"]["config"] = serde_json::json!({"depth": 3});
+    dict["agents"]["Attacker1"]["ttc_overrides"] = serde_json::json!({
+        "by_asset_name": {"OS App": {"fullAccess": "HardAndUncertain"}},
+    });
+    dict["agents"]["Defender1"]["reward_mode"] = "ONE_OFF".into();
+    let scenario = Scenario::from_dict(&dict).unwrap();
+
+    let reloaded = assert_round_trips("save_everything", &scenario);
+    let sim = reloaded.sim_settings;
+    assert_eq!(sim.ttc_mode, TtcMode::PreSample);
+    assert_eq!(sim.seed, Some(7));
+    assert!(!sim.attack_surface.skip_compromised);
+    assert!(sim.attack_surface.skip_unnecessary);
+    assert!(!sim.compromise_entrypoints_at_start);
+
+    let a = attacker(&reloaded, "Attacker1");
+    assert_eq!(a.reward_mode, RewardMode::ExpectedTtc);
+    assert_eq!(a.config["depth"], 3);
+    assert_eq!(
+        a.goals,
+        BTreeSet::from([node_id(&reloaded, "OS App:fullAccess")])
+    );
+    assert!(a.ttc_dists.is_some());
+    assert_eq!(
+        defender(&reloaded, "Defender1").reward_mode,
+        RewardMode::OneOff
+    );
+}
+
+#[test]
+fn save_to_file_writes_absolute_paths_and_omits_empty_fields() {
+    let scenario = load("simple_scenario.yml");
+    let dict = scenario.to_dict().unwrap();
+    assert!(Path::new(dict["lang_file"].as_str().unwrap()).is_absolute());
+    assert!(Path::new(dict["model_file"].as_str().unwrap()).is_absolute());
+
+    let attacker = dict["agents"]["Attacker1"].as_object().unwrap();
+    assert_eq!(attacker["type"], "attacker");
+    for absent in ["goals", "ttc_overrides", "actionable_steps"] {
+        assert!(!attacker.contains_key(absent), "{absent} should be omitted");
+    }
+    assert_eq!(attacker["config"]["seed"], 1);
+    let defender = dict["agents"]["Defender1"].as_object().unwrap();
+    assert_eq!(defender["type"], "defender");
+    assert!(!defender.contains_key("false_positive_rates"));
+}
+
+#[test]
+fn save_to_file_to_unwritable_path_is_an_io_error() {
+    let scenario = load("simple_scenario.yml");
+    let missing_dir = std::env::temp_dir()
+        .join(format!("malsim-core-missing-{}", std::process::id()))
+        .join("scenario.yml");
+    assert!(matches!(
+        scenario.save_to_file(&missing_dir),
+        Err(ScenarioError::File(ScenarioFileError::Io { .. }))
+    ));
+}

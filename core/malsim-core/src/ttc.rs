@@ -432,6 +432,28 @@ impl TtcDist {
 /// distribution object is cached on `TtcDist` itself) rather than a
 /// reference into a shared static, since the Python original's per-entry
 /// identity is not otherwise observable (`TTCDist.__eq__` is structural).
+/// Names accepted by `named_ttc_dist`, in lookup order.
+pub const NAMED_TTC_DISTS: [&str; 9] = [
+    "EasyAndUncertain",
+    "HardAndUncertain",
+    "VeryHardAndUncertain",
+    "EasyAndCertain",
+    "HardAndCertain",
+    "VeryHardAndCertain",
+    "Enabled",
+    "Instant",
+    "Disabled",
+];
+
+/// Inverse of `named_ttc_dist`: the first predefined name whose
+/// distribution equals `dist` (`Enabled` and `Instant` are identical, so
+/// they come back as `Enabled`), or `None` for a custom distribution.
+pub fn ttc_dist_name(dist: &TtcDist) -> Option<&'static str> {
+    NAMED_TTC_DISTS
+        .into_iter()
+        .find(|name| named_ttc_dist(name).as_ref() == Some(dist))
+}
+
 pub fn named_ttc_dist(name: &str) -> Option<TtcDist> {
     let simple = |function: DistFunction, args: &[f64]| {
         TtcDist::new(function, args.to_vec()).expect("named_ttc_dist args are hand-verified valid")
@@ -752,6 +774,21 @@ mod tests {
             TtcDist::new(DistFunction::Exponential, vec![0.1, 0.2]),
             Err(TtcDistError::WrongArgCount { .. })
         ));
+    }
+
+    #[test]
+    fn ttc_dist_name_inverts_named_ttc_dist() {
+        for name in NAMED_TTC_DISTS {
+            let dist = named_ttc_dist(name).expect("listed names are valid");
+            let found = ttc_dist_name(&dist).expect("named dists have a name");
+            assert_eq!(named_ttc_dist(found), Some(dist));
+        }
+        assert_eq!(
+            ttc_dist_name(&named_ttc_dist("Instant").unwrap()),
+            Some("Enabled")
+        );
+        let custom = TtcDist::new(DistFunction::Exponential, vec![3.0]).unwrap();
+        assert_eq!(ttc_dist_name(&custom), None);
     }
 
     #[test]
