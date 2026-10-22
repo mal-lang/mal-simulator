@@ -717,7 +717,7 @@ mod tests {
         let fresh_id_to_name = id_to_full_name(fresh);
 
         let edge_names =
-            |id_to_name: &NodeMap<String>, ids: &HashSet<AttackGraphNodeId>| -> HashSet<String> {
+            |id_to_name: &NodeMap<String>, ids: &NodeSet| -> HashSet<String> {
                 ids.iter()
                     .map(|id| {
                         id_to_name
