@@ -1,0 +1,41 @@
+from collections.abc import Iterable
+from maltoolbox.attackgraph import AttackGraph, AttackGraphNode
+
+
+def get_node(
+    attack_graph: AttackGraph,
+    full_name: str | None = None,
+    node_id: int | None = None,
+) -> AttackGraphNode:
+    """Get node from attack graph by either full name or id"""
+
+    if full_name and not node_id:
+        node = attack_graph.get_node_by_full_name(full_name)
+    elif node_id and not full_name:
+        node = attack_graph.nodes[node_id]
+    else:
+        raise ValueError("Provide either full_name or node_id to 'get_node'")
+
+    if node is None:
+        raise LookupError(f'Could not find node {full_name or node_id}')
+    return node
+
+
+def full_name_or_node_to_node(
+    attack_graph: AttackGraph, node_or_full_name: str | AttackGraphNode
+) -> AttackGraphNode:
+    """If `node_or_full_name` is a full_mame, return corresponding AttackGraphNode"""
+    return (
+        get_node(attack_graph, node_or_full_name)
+        if isinstance(node_or_full_name, str)
+        else node_or_full_name
+    )
+
+
+def full_names_or_nodes_to_nodes(
+    attack_graph: AttackGraph,
+    nodes_or_full_names: Iterable[str | AttackGraphNode],
+) -> Iterable[AttackGraphNode]:
+    """Generator converting nodes full_name to AttackGraphNode objects"""
+    for n in nodes_or_full_names:
+        yield full_name_or_node_to_node(attack_graph, n)

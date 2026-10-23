@@ -20,4 +20,4 @@ jobs:
       - name: Type checking with MyPy
         run: |
           pip install mypy
-          mypy malsim tests --install-types --non-interactive
+          mypy python/malsim tests --install-types --non-interactive

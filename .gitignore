@@ -184,3 +184,4 @@ prof/*
 
 # Claude
 .claude
+.langs/
