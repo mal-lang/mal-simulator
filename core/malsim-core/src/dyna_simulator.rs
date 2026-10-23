@@ -22,12 +22,13 @@ use maltoolbox_model::Model;
 
 use crate::dyna_attacker_step::dyna_attacker_step;
 use crate::dyna_defender_step::dyna_defender_step;
+use crate::history::{PriorSharedState, StepRecord};
 use crate::model_effects::ModEffectOp;
 use crate::model_state::{capture_model_snapshot, reset_model_effects, ModelSnapshot};
 use crate::settings::{FlatAgentSettings, MalSimulatorSettings};
 use crate::simulator::{
-    agent_actions, check_action_agents, update_attacker_runtimes, update_defender_runtimes,
-    AttackerResults, SimState, Simulator, SimulatorError, StepOutcome,
+    agent_actions, check_action_agents, push_step_record, update_attacker_runtimes,
+    update_defender_runtimes, AttackerResults, SimState, Simulator, SimulatorError, StepOutcome,
 };
 
 /// Everything a single `DynaSimulator::step` produced: the same per-agent
@@ -132,6 +133,14 @@ impl DynaSimulator {
         let attacker_names: Vec<String> = state.attackers.keys().cloned().collect();
         let defender_names: Vec<String> = state.defenders.keys().cloned().collect();
         let mut modification_record: Vec<ModEffectOp> = Vec::new();
+        // Model effects can fold new nodes into `graph_state`/
+        // `enabled_defenses`, which the step history can't undo from
+        // deltas - so keep the pre-step values, and drop them again below
+        // if no model effect ran.
+        let prior_shared = PriorSharedState {
+            graph_state: state.graph_state.clone(),
+            enabled_defenses: state.enabled_defenses.clone(),
+        };
 
         // --- Defenders act first ---
         let mut step_enabled_defenses: NodeSet = NodeSet::default();
@@ -161,6 +170,10 @@ impl DynaSimulator {
         // `fold_new_nodes_into_graph_state`) - the defenses actually
         // enabled by this step's requested actions still need merging
         // here, same as `Simulator::step` does for `defender_step`.
+        let new_enabled_defenses: NodeSet = step_enabled_defenses
+            .difference(&state.enabled_defenses)
+            .copied()
+            .collect();
         state
             .enabled_defenses
             .extend(step_enabled_defenses.iter().copied());
@@ -197,14 +210,32 @@ impl DynaSimulator {
         }
 
         let graph = graph_rc.borrow();
-        let attackers = update_attacker_runtimes(&graph, state, &attacker_names, attacker_results)?;
-        let defenders = update_defender_runtimes(
+        let (attackers, attacker_records) =
+            update_attacker_runtimes(&graph, state, &attacker_names, attacker_results)?;
+        let (defenders, defender_records) = update_defender_runtimes(
             &graph,
             state,
             &defender_names,
             &step_enabled_defenses,
             &step_compromised_nodes,
         )?;
+        let record = StepRecord {
+            new_enabled_defenses,
+            prior_shared: (!modification_record.is_empty()).then_some(prior_shared),
+            modification_record_len: state.history.modification_record().len(),
+            ..StepRecord::default()
+        };
+        push_step_record(
+            &graph,
+            state,
+            actions,
+            record,
+            attacker_records,
+            defender_records,
+        );
+        state
+            .history
+            .extend_modification_record(modification_record.clone());
 
         Ok(DynaStepOutcome {
             step: StepOutcome {

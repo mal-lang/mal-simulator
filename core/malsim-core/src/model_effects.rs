@@ -716,19 +716,18 @@ mod tests {
         let incremental_id_to_name = id_to_full_name(incremental);
         let fresh_id_to_name = id_to_full_name(fresh);
 
-        let edge_names =
-            |id_to_name: &NodeMap<String>, ids: &NodeSet| -> HashSet<String> {
-                ids.iter()
-                    .map(|id| {
-                        id_to_name
-                            .get(id)
-                            .unwrap_or_else(|| {
-                                panic!("edge to node {id:?} missing from full_name_to_node")
-                            })
-                            .clone()
-                    })
-                    .collect()
-            };
+        let edge_names = |id_to_name: &NodeMap<String>, ids: &NodeSet| -> HashSet<String> {
+            ids.iter()
+                .map(|id| {
+                    id_to_name
+                        .get(id)
+                        .unwrap_or_else(|| {
+                            panic!("edge to node {id:?} missing from full_name_to_node")
+                        })
+                        .clone()
+                })
+                .collect()
+        };
         for (full_name, &incr_id) in &incremental.full_name_to_node {
             let fresh_id = fresh.full_name_to_node[full_name];
             assert_eq!(

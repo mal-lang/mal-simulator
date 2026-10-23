@@ -40,6 +40,10 @@ use crate::graph_state::{
     GraphStateError, TtcMode,
 };
 use crate::graph_utils::{node_order_key, sort_by_node_id, GraphUtilsError};
+use crate::history::{
+    recording_order, surface_diff, AttackerStepRecord, DefenderStepRecord, EpisodeHistory,
+    StepRecord,
+};
 use crate::model_state::ModelStateError;
 use crate::observability::observed_nodes;
 use crate::settings::{
@@ -197,6 +201,8 @@ pub struct SimState {
     pub enabled_defenses: NodeSet,
     pub attackers: BTreeMap<String, AttackerRuntime>,
     pub defenders: BTreeMap<String, DefenderRuntime>,
+    /// This episode's step history - see `history()`/`snapshot_at()`.
+    pub(crate) history: EpisodeHistory,
 }
 
 impl SimState {
@@ -591,6 +597,7 @@ pub(crate) fn reset_state(
         );
     }
 
+    let history = EpisodeHistory::from_reset(&attackers, &defenders);
     Ok(SimState {
         rng,
         settings,
@@ -598,11 +605,24 @@ pub(crate) fn reset_state(
         enabled_defenses,
         attackers,
         defenders,
+        history,
     })
 }
 
 /// Each attacker's `(compromised, attempted)` nodes from this step's
 /// stepping pass, before `update_attacker_runtimes` folds them in.
+/// Per attacker: the step's deltas and its history record.
+pub(crate) type AttackerUpdates = (
+    BTreeMap<String, AttackerStepOutcome>,
+    BTreeMap<String, AttackerStepRecord>,
+);
+
+/// Per defender: the step's deltas and its history record.
+pub(crate) type DefenderUpdates = (
+    BTreeMap<String, DefenderStepOutcome>,
+    BTreeMap<String, DefenderStepRecord>,
+);
+
 pub(crate) type AttackerResults =
     BTreeMap<String, (Vec<AttackGraphNodeId>, Vec<AttackGraphNodeId>)>;
 
@@ -630,6 +650,10 @@ fn plain_step(
             step_enabled_defenses.extend(enabled);
         }
     }
+    let new_enabled_defenses: NodeSet = step_enabled_defenses
+        .difference(&state.enabled_defenses)
+        .copied()
+        .collect();
     state
         .enabled_defenses
         .extend(step_enabled_defenses.iter().copied());
@@ -663,20 +687,68 @@ fn plain_step(
     }
 
     let graph = graph_rc.borrow();
-    let attackers = update_attacker_runtimes(&graph, state, &attacker_names, attacker_results)?;
-    let defenders = update_defender_runtimes(
+    let (attackers, attacker_records) =
+        update_attacker_runtimes(&graph, state, &attacker_names, attacker_results)?;
+    let (defenders, defender_records) = update_defender_runtimes(
         &graph,
         state,
         &defender_names,
         &step_enabled_defenses,
         &step_compromised_nodes,
     )?;
+    let record = StepRecord {
+        new_enabled_defenses,
+        prior_shared: None,
+        modification_record_len: state.history.modification_record().len(),
+        ..StepRecord::default()
+    };
+    push_step_record(
+        &graph,
+        state,
+        actions,
+        record,
+        attacker_records,
+        defender_records,
+    );
 
     Ok(StepOutcome {
         attackers,
         defenders,
         step_enabled_defenses,
     })
+}
+
+/// Completes `record` with the per-agent records and this step's
+/// `recording` entry, and appends it to the episode history. Called after
+/// the runtimes were updated, by both the static and the dyna step.
+pub(crate) fn push_step_record(
+    graph: &AttackGraph,
+    state: &mut SimState,
+    actions: &HashMap<String, Vec<AttackGraphNodeId>>,
+    mut record: StepRecord,
+    attacker_records: BTreeMap<String, AttackerStepRecord>,
+    defender_records: BTreeMap<String, DefenderStepRecord>,
+) {
+    for (name, r) in &attacker_records {
+        let runtime = &state.attackers[name];
+        let new_nodes = &runtime.performed_history[r.performed_history_len..];
+        let new_set: NodeSet = new_nodes.iter().copied().collect();
+        let order = recording_order(
+            agent_actions(actions, name),
+            &new_set,
+            new_nodes.iter().copied(),
+        );
+        record.recording.insert(name.clone(), order);
+    }
+    for (name, r) in &defender_records {
+        let mut rest: Vec<AttackGraphNodeId> = r.new_performed_nodes.iter().copied().collect();
+        sort_by_node_id(graph, &mut rest);
+        let order = recording_order(agent_actions(actions, name), &r.new_performed_nodes, rest);
+        record.recording.insert(name.clone(), order);
+    }
+    record.attackers = attacker_records;
+    record.defenders = defender_records;
+    state.history.push_step(record);
 }
 
 /// Recomputes each attacker's bookkeeping (`action_surface`,
@@ -692,12 +764,14 @@ pub(crate) fn update_attacker_runtimes(
     state: &mut SimState,
     attacker_names: &[String],
     mut attacker_results: AttackerResults,
-) -> Result<BTreeMap<String, AttackerStepOutcome>, SimulatorError> {
+) -> Result<AttackerUpdates, SimulatorError> {
     let mut attacker_step_deltas = BTreeMap::new();
+    let mut records = BTreeMap::new();
     for name in attacker_names {
         let (compromised, attempted) = attacker_results
             .remove(name)
             .expect("every attacker stepped this step");
+        let performed_history_len = state.attackers[name].performed_history.len();
         {
             let runtime = state
                 .attackers
@@ -728,22 +802,38 @@ pub(crate) fn update_attacker_runtimes(
             .attackers
             .get_mut(name)
             .expect("attacker_names come from state.attackers");
+        let new_attempted_nodes: NodeSet = attempted
+            .iter()
+            .copied()
+            .filter(|id| !runtime.attempted_nodes.contains(id))
+            .collect();
         runtime.attempted_nodes.extend(attempted.iter().copied());
         for &node_id in &attempted {
             *runtime.num_attempts.entry(node_id).or_insert(0) += 1;
         }
+        let (surface_added, surface_removed) =
+            surface_diff(&runtime.action_surface, &new_action_surface);
         runtime.action_surface = new_action_surface;
         runtime.iteration += 1;
 
-        attacker_step_deltas.insert(
+        let outcome = AttackerStepOutcome {
+            step_performed_nodes: compromised.into_iter().collect(),
+            step_attempted_nodes: attempted.into_iter().collect(),
+        };
+        records.insert(
             name.clone(),
-            AttackerStepOutcome {
-                step_performed_nodes: compromised.into_iter().collect(),
-                step_attempted_nodes: attempted.into_iter().collect(),
+            AttackerStepRecord {
+                step_performed_nodes: outcome.step_performed_nodes.clone(),
+                performed_history_len,
+                new_attempted_nodes,
+                step_attempted_nodes: outcome.step_attempted_nodes.clone(),
+                surface_added,
+                surface_removed,
             },
         );
+        attacker_step_deltas.insert(name.clone(), outcome);
     }
-    Ok(attacker_step_deltas)
+    Ok((attacker_step_deltas, records))
 }
 
 /// Per-defender intermediate results computed in
@@ -762,8 +852,9 @@ pub(crate) fn update_defender_runtimes(
     defender_names: &[String],
     step_enabled_defenses: &NodeSet,
     step_compromised_nodes: &NodeSet,
-) -> Result<BTreeMap<String, DefenderStepOutcome>, SimulatorError> {
+) -> Result<DefenderUpdates, SimulatorError> {
     let mut defender_step_deltas = BTreeMap::new();
+    let mut records = BTreeMap::new();
     let mut pass1: BTreeMap<String, DefenderStepUpdate> = BTreeMap::new();
 
     for name in defender_names {
@@ -813,19 +904,47 @@ pub(crate) fn update_defender_runtimes(
             .defenders
             .get_mut(name)
             .expect("defender_names come from state.defenders");
+        let new_performed_nodes: NodeSet = step_enabled_defenses
+            .difference(&runtime.performed_nodes)
+            .copied()
+            .collect();
+        let new_compromised_nodes: NodeSet = step_compromised_nodes
+            .difference(&runtime.compromised_nodes)
+            .copied()
+            .collect();
+        let new_observed_nodes: NodeSet = new_observed
+            .difference(&runtime.observed_nodes)
+            .copied()
+            .collect();
+        let logs_len = runtime.logs.len();
         runtime
             .performed_nodes
             .extend(step_enabled_defenses.iter().copied());
-        runtime.action_surface = defense_surface_full
+        let new_action_surface: NodeSet = defense_surface_full
             .difference(&previous_performed)
             .copied()
             .collect();
+        let (surface_added, surface_removed) =
+            surface_diff(&runtime.action_surface, &new_action_surface);
+        runtime.action_surface = new_action_surface;
         runtime.observed_nodes.extend(new_observed.iter().copied());
         runtime
             .compromised_nodes
             .extend(step_compromised_nodes.iter().copied());
         runtime.logs.extend(logs.iter().cloned());
         runtime.iteration += 1;
+        records.insert(
+            name.clone(),
+            DefenderStepRecord {
+                step_performed_nodes: step_enabled_defenses.clone(),
+                new_performed_nodes,
+                new_compromised_nodes,
+                new_observed_nodes,
+                logs_len,
+                surface_added,
+                surface_removed,
+            },
+        );
 
         defender_step_deltas.insert(
             name.clone(),
@@ -836,7 +955,7 @@ pub(crate) fn update_defender_runtimes(
         );
     }
 
-    Ok(defender_step_deltas)
+    Ok((defender_step_deltas, records))
 }
 
 #[cfg(test)]

@@ -16,6 +16,7 @@ pub mod event_logger;
 pub mod false_alerts;
 pub mod graph_state;
 pub mod graph_utils;
+pub mod history;
 pub mod model_effects;
 pub mod model_state;
 pub mod necessity;
