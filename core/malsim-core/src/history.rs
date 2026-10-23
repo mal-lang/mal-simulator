@@ -244,6 +244,37 @@ pub(crate) fn recording_order(
     out
 }
 
+/// A copy of an episode's state and history, without the RNG: enough to
+/// rebuild any iteration of it (`snapshot_at`) after the simulator has
+/// moved on to a new episode.
+#[derive(Debug, Clone)]
+pub struct EpisodeRecord {
+    graph_state: GraphState,
+    enabled_defenses: NodeSet,
+    attackers: BTreeMap<String, AttackerRuntime>,
+    defenders: BTreeMap<String, DefenderRuntime>,
+    history: EpisodeHistory,
+}
+
+impl EpisodeRecord {
+    /// The step history of the episode.
+    pub fn history(&self) -> &EpisodeHistory {
+        &self.history
+    }
+
+    /// Same as [`SimState::snapshot_at`].
+    pub fn snapshot_at(&self, iteration: u64) -> Option<StateSnapshot> {
+        snapshot_at(
+            &self.graph_state,
+            &self.enabled_defenses,
+            &self.attackers,
+            &self.defenders,
+            &self.history,
+            iteration,
+        )
+    }
+}
+
 impl SimState {
     /// The step history of the current episode.
     pub fn history(&self) -> &EpisodeHistory {
@@ -254,121 +285,149 @@ impl SimState {
     /// episode, rebuilt from the current state and the step history.
     /// `None` for an iteration after the current one.
     pub fn snapshot_at(&self, iteration: u64) -> Option<StateSnapshot> {
-        if iteration > self.history.iteration() {
-            return None;
-        }
-        let mut attackers = self.attackers.clone();
-        let mut defenders = self.defenders.clone();
-        let mut graph_state = self.graph_state.clone();
-        let mut enabled_defenses = self.enabled_defenses.clone();
-        let mut modification_record_len = self.history.modification_record.len();
-
-        for step in self.history.steps[iteration as usize..].iter().rev() {
-            for (name, record) in &step.attackers {
-                let Some(a) = attackers.get_mut(name) else {
-                    continue;
-                };
-                for id in &a.performed_history[record.performed_history_len..] {
-                    a.performed_nodes.remove(id);
-                }
-                a.performed_history.truncate(record.performed_history_len);
-                for id in &record.new_attempted_nodes {
-                    a.attempted_nodes.remove(id);
-                }
-                for id in &record.step_attempted_nodes {
-                    if let Some(count) = a.num_attempts.get_mut(id) {
-                        *count -= 1;
-                        if *count == 0 {
-                            a.num_attempts.remove(id);
-                        }
-                    }
-                }
-                undo_surface(
-                    &mut a.action_surface,
-                    &record.surface_added,
-                    &record.surface_removed,
-                );
-                a.iteration -= 1;
-            }
-            for (name, record) in &step.defenders {
-                let Some(d) = defenders.get_mut(name) else {
-                    continue;
-                };
-                for id in &record.new_performed_nodes {
-                    d.performed_nodes.remove(id);
-                }
-                for id in &record.new_compromised_nodes {
-                    d.compromised_nodes.remove(id);
-                }
-                for id in &record.new_observed_nodes {
-                    d.observed_nodes.remove(id);
-                }
-                d.logs.truncate(record.logs_len);
-                undo_surface(
-                    &mut d.action_surface,
-                    &record.surface_added,
-                    &record.surface_removed,
-                );
-                d.iteration -= 1;
-            }
-            match &step.prior_shared {
-                Some(prior) => {
-                    graph_state = prior.graph_state.clone();
-                    enabled_defenses = prior.enabled_defenses.clone();
-                }
-                None => {
-                    for id in &step.new_enabled_defenses {
-                        enabled_defenses.remove(id);
-                    }
-                }
-            }
-            modification_record_len = step.modification_record_len;
-        }
-
-        let attackers = attackers
-            .into_iter()
-            .map(|(name, a)| {
-                let performed_nodes_order = self.history.performed_nodes_order(&name, iteration);
-                let snapshot = AttackerSnapshot {
-                    entry_points: a.entry_points,
-                    goals: a.goals,
-                    performed_nodes: a.performed_nodes,
-                    attempted_nodes: a.attempted_nodes,
-                    action_surface: a.action_surface,
-                    num_attempts: a.num_attempts,
-                    ttc_values: a.ttc_values,
-                    impossible_steps: a.impossible_steps,
-                    performed_nodes_order,
-                    iteration: a.iteration,
-                };
-                (name, snapshot)
-            })
-            .collect();
-        let defenders = defenders
-            .into_iter()
-            .map(|(name, d)| {
-                let performed_nodes_order = self.history.performed_nodes_order(&name, iteration);
-                let snapshot = DefenderSnapshot {
-                    performed_nodes: d.performed_nodes,
-                    compromised_nodes: d.compromised_nodes,
-                    observed_nodes: d.observed_nodes,
-                    action_surface: d.action_surface,
-                    logs: d.logs,
-                    performed_nodes_order,
-                    iteration: d.iteration,
-                };
-                (name, snapshot)
-            })
-            .collect();
-
-        Some(StateSnapshot {
+        snapshot_at(
+            &self.graph_state,
+            &self.enabled_defenses,
+            &self.attackers,
+            &self.defenders,
+            &self.history,
             iteration,
-            graph_state,
-            enabled_defenses,
-            modification_record: self.history.modification_record[..modification_record_len]
-                .to_vec(),
-            attackers,
-            defenders,
-        })
+        )
     }
+
+    /// A copy of this episode's state and history, without the RNG.
+    pub fn episode_record(&self) -> EpisodeRecord {
+        EpisodeRecord {
+            graph_state: self.graph_state.clone(),
+            enabled_defenses: self.enabled_defenses.clone(),
+            attackers: self.attackers.clone(),
+            defenders: self.defenders.clone(),
+            history: self.history.clone(),
+        }
+    }
+}
+
+fn snapshot_at(
+    graph_state: &GraphState,
+    enabled_defenses: &NodeSet,
+    attackers: &BTreeMap<String, AttackerRuntime>,
+    defenders: &BTreeMap<String, DefenderRuntime>,
+    history: &EpisodeHistory,
+    iteration: u64,
+) -> Option<StateSnapshot> {
+    if iteration > history.iteration() {
+        return None;
+    }
+    let mut attackers = attackers.clone();
+    let mut defenders = defenders.clone();
+    let mut graph_state = graph_state.clone();
+    let mut enabled_defenses = enabled_defenses.clone();
+    let mut modification_record_len = history.modification_record.len();
+
+    for step in history.steps[iteration as usize..].iter().rev() {
+        for (name, record) in &step.attackers {
+            let Some(a) = attackers.get_mut(name) else {
+                continue;
+            };
+            for id in &a.performed_history[record.performed_history_len..] {
+                a.performed_nodes.remove(id);
+            }
+            a.performed_history.truncate(record.performed_history_len);
+            for id in &record.new_attempted_nodes {
+                a.attempted_nodes.remove(id);
+            }
+            for id in &record.step_attempted_nodes {
+                if let Some(count) = a.num_attempts.get_mut(id) {
+                    *count -= 1;
+                    if *count == 0 {
+                        a.num_attempts.remove(id);
+                    }
+                }
+            }
+            undo_surface(
+                &mut a.action_surface,
+                &record.surface_added,
+                &record.surface_removed,
+            );
+            a.iteration -= 1;
+        }
+        for (name, record) in &step.defenders {
+            let Some(d) = defenders.get_mut(name) else {
+                continue;
+            };
+            for id in &record.new_performed_nodes {
+                d.performed_nodes.remove(id);
+            }
+            for id in &record.new_compromised_nodes {
+                d.compromised_nodes.remove(id);
+            }
+            for id in &record.new_observed_nodes {
+                d.observed_nodes.remove(id);
+            }
+            d.logs.truncate(record.logs_len);
+            undo_surface(
+                &mut d.action_surface,
+                &record.surface_added,
+                &record.surface_removed,
+            );
+            d.iteration -= 1;
+        }
+        match &step.prior_shared {
+            Some(prior) => {
+                graph_state = prior.graph_state.clone();
+                enabled_defenses = prior.enabled_defenses.clone();
+            }
+            None => {
+                for id in &step.new_enabled_defenses {
+                    enabled_defenses.remove(id);
+                }
+            }
+        }
+        modification_record_len = step.modification_record_len;
+    }
+
+    let attackers = attackers
+        .into_iter()
+        .map(|(name, a)| {
+            let performed_nodes_order = history.performed_nodes_order(&name, iteration);
+            let snapshot = AttackerSnapshot {
+                entry_points: a.entry_points,
+                goals: a.goals,
+                performed_nodes: a.performed_nodes,
+                attempted_nodes: a.attempted_nodes,
+                action_surface: a.action_surface,
+                num_attempts: a.num_attempts,
+                ttc_values: a.ttc_values,
+                impossible_steps: a.impossible_steps,
+                performed_nodes_order,
+                iteration: a.iteration,
+            };
+            (name, snapshot)
+        })
+        .collect();
+    let defenders = defenders
+        .into_iter()
+        .map(|(name, d)| {
+            let performed_nodes_order = history.performed_nodes_order(&name, iteration);
+            let snapshot = DefenderSnapshot {
+                performed_nodes: d.performed_nodes,
+                compromised_nodes: d.compromised_nodes,
+                observed_nodes: d.observed_nodes,
+                action_surface: d.action_surface,
+                logs: d.logs,
+                performed_nodes_order,
+                iteration: d.iteration,
+            };
+            (name, snapshot)
+        })
+        .collect();
+
+    Some(StateSnapshot {
+        iteration,
+        graph_state,
+        enabled_defenses,
+        modification_record: history.modification_record[..modification_record_len].to_vec(),
+        attackers,
+        defenders,
+    })
 }

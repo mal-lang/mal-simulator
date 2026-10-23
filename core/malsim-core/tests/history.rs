@@ -128,9 +128,16 @@ fn check(file: &str, dyna: bool, seed: u64, steps: u64) -> usize {
     }
 
     let state = driver.state();
+    let record = state.episode_record();
     for (k, expected) in captured.iter().enumerate() {
         let actual = state.snapshot_at(k as u64).unwrap();
         assert_same(&format!("{file} iteration {k}"), expected, &actual);
+        let archived = record.snapshot_at(k as u64).unwrap();
+        assert_same(
+            &format!("{file} archived iteration {k}"),
+            expected,
+            &archived,
+        );
     }
     assert!(state.snapshot_at(state.history().iteration() + 1).is_none());
     modifications

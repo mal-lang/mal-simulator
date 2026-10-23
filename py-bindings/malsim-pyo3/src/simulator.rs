@@ -55,6 +55,10 @@ use malsim_core::simulator::{SimState, Simulator as CoreSimulator, SimulatorErro
 use malsim_core::ttc::{named_ttc_dist, DistFunction, Operation, TtcDist};
 
 use crate::extract_shared_graph;
+use crate::state::{
+    current_sim_state_to_py, no_state_err, recording_to_py, snapshot_to_py, terminated_to_py,
+    Episode, EpisodeSlot,
+};
 
 pub(crate) fn to_py_err<E: std::fmt::Display>(e: E) -> PyErr {
     PyValueError::new_err(e.to_string())
@@ -102,7 +106,10 @@ fn to_node_id(graph: &AttackGraph, stable_id: i64) -> PyResult<AttackGraphNodeId
 /// silently dropped: the thing it refers to no longer exists in the
 /// graph, so it has no stable id left to report - mirrors `collect_logs`'s
 /// same-shaped fix in `malsim-core::event_logger`.
-fn stable_ids(graph: &AttackGraph, ids: impl IntoIterator<Item = AttackGraphNodeId>) -> Vec<i64> {
+pub(crate) fn stable_ids(
+    graph: &AttackGraph,
+    ids: impl IntoIterator<Item = AttackGraphNodeId>,
+) -> Vec<i64> {
     let mut ids: Vec<i64> = ids
         .into_iter()
         .filter_map(|id| graph.nodes.get(id).map(|n| n.id))
@@ -111,7 +118,7 @@ fn stable_ids(graph: &AttackGraph, ids: impl IntoIterator<Item = AttackGraphNode
     ids
 }
 
-fn id_value_map<V: Copy>(graph: &AttackGraph, map: &NodeMap<V>) -> HashMap<i64, V> {
+pub(crate) fn id_value_map<V: Copy>(graph: &AttackGraph, map: &NodeMap<V>) -> HashMap<i64, V> {
     map.iter()
         .filter_map(|(&id, &v)| graph.nodes.get(id).map(|n| (n.id, v)))
         .collect()
@@ -348,6 +355,8 @@ pub(crate) fn parse_agents(
 #[pyclass(name = "Simulator", module = "malsim._native", unsendable)]
 pub struct Simulator {
     inner: CoreSimulator,
+    /// The current episode's archive slot - see `state::EpisodeSlot`.
+    episode: EpisodeSlot,
 }
 
 const CLASS_NAME: &str = "Simulator";
@@ -358,6 +367,7 @@ impl Simulator {
     fn new(graph: &Bound<'_, PyAny>) -> PyResult<Self> {
         Ok(Simulator {
             inner: CoreSimulator::new(extract_shared_graph(graph)?),
+            episode: EpisodeSlot::new(),
         })
     }
 
@@ -372,12 +382,56 @@ impl Simulator {
         let graph_rc = self.inner.graph().clone();
         let settings = parse_settings(settings)?;
         let agents = parse_agents(&graph_rc.borrow(), agents)?;
+        self.episode.end_episode(self.inner.state());
         let state = self
             .inner
             .reset(&settings, agents, seed)
             .map_err(|e| sim_err_to_py(e, CLASS_NAME))?;
         let graph = graph_rc.borrow();
         build_reset_output(py, &graph, state)
+    }
+
+    /// The full current state (agents and `sim_state`), translated on
+    /// every call - see `state::snapshot_to_py`.
+    fn agent_states_native(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let state = self.live_state()?;
+        let graph = self.inner.graph().borrow();
+        let iteration = state.history().iteration();
+        snapshot_to_py(
+            py,
+            &graph,
+            state.snapshot_at(iteration),
+            state.history(),
+            iteration,
+            None,
+        )
+    }
+
+    /// The current `sim_state` part only - see `state::current_sim_state_to_py`.
+    fn sim_state_native(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let state = self.live_state()?;
+        current_sim_state_to_py(py, &self.inner.graph().borrow(), state)
+    }
+
+    /// The episode's recording so far - see `state::recording_to_py`.
+    fn recording_native(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let state = self.live_state()?;
+        recording_to_py(py, &self.inner.graph().borrow(), state)
+    }
+
+    /// Per agent name, whether that agent is terminated.
+    fn terminated_native(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        terminated_to_py(py, self.live_state()?)
+    }
+
+    /// A handle on the current episode, to read its earlier iterations
+    /// (also after the next reset) - see `state::Episode`.
+    fn episode_native(slf: &Bound<'_, Self>) -> PyResult<Episode> {
+        let this = slf.borrow();
+        this.live_state()?;
+        Ok(this
+            .episode
+            .handle(this.inner.graph().clone(), slf.clone().into_any().unbind()))
     }
 
     /// Steps the simulation - see `CoreSimulator::step`.
@@ -398,6 +452,13 @@ impl Simulator {
             .state()
             .ok_or_else(|| not_reset_err(CLASS_NAME))?;
         build_step_output(py, &self.inner.graph().borrow(), state, &outcome, None)
+    }
+}
+
+impl Simulator {
+    /// The live core state - an error before the first successful reset.
+    pub(crate) fn live_state(&self) -> PyResult<&SimState> {
+        self.inner.state().ok_or_else(|| no_state_err(CLASS_NAME))
     }
 }
 
@@ -435,7 +496,7 @@ pub(crate) fn extract_actions(
 /// `build_reset_output` (always) and `build_step_output` (only on a dyna
 /// step that actually ran a model effect - see that function's doc
 /// comment for why these can't be a delta against the previous step).
-fn insert_graph_state_fields(
+pub(crate) fn insert_graph_state_fields(
     sim_state: &Bound<'_, PyDict>,
     graph: &AttackGraph,
     graph_state: &GraphState,
@@ -698,7 +759,7 @@ fn set_asset_ref(d: &Bound<'_, PyDict>, prefix: &str, asset: &AssetRef) -> PyRes
 /// same record removed it, or it's itself a removal), so Python must
 /// never need to resolve these ids back through `model.assets` - see
 /// `PORTING_NOTES.md` §6 Phase B5's differences-log entry.
-fn mod_effect_op_to_py(py: Python<'_>, op: &ModEffectOp) -> PyResult<Py<PyAny>> {
+pub(crate) fn mod_effect_op_to_py(py: Python<'_>, op: &ModEffectOp) -> PyResult<Py<PyAny>> {
     let d = PyDict::new(py);
     match op {
         ModEffectOp::Asset(AssetOp::Added { asset }) => {
@@ -745,7 +806,11 @@ fn stable_id_of(graph: &AttackGraph, id: AttackGraphNodeId) -> PyResult<i64> {
         .ok_or_else(|| PyValueError::new_err(format!("node {id:?} is no longer in the graph")))
 }
 
-fn log_entry_to_py(py: Python<'_>, graph: &AttackGraph, log: &LogEntry) -> PyResult<Py<PyAny>> {
+pub(crate) fn log_entry_to_py(
+    py: Python<'_>,
+    graph: &AttackGraph,
+    log: &LogEntry,
+) -> PyResult<Py<PyAny>> {
     let d = PyDict::new(py);
     d.set_item("timestep", log.timestep)?;
     let (detector_node_id, detector_label) = &log.detector_id;
