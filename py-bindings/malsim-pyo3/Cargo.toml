@@ -1,0 +1,20 @@
+[package]
+name = "malsim-pyo3"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "_native"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+malsim-core = { path = "../../core/malsim-core" }
+maltoolbox-attackgraph = { workspace = true }
+# Already in the dependency tree transitively via malsim-core (same pinned
+# version) - added directly here because Phase B3's Model capsule
+# extraction needs to name `maltoolbox_model::Model` itself.
+maltoolbox-model = { workspace = true }
+pyo3 = { workspace = true, features = ["extension-module"] }

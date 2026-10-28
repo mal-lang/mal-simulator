@@ -1,0 +1,32 @@
+#id: "org.mal-lang.dynaDefense"
+#version: "1.0.0"
+
+category DynaDefense {
+	asset Host {
+		| access
+			->	spawn,
+				retire,
+				compromise,
+				guards.breach
+
+		| spawn
+			A> self / guards
+
+		| retire
+			R> self / guards
+
+		| compromise
+	}
+
+	asset Guard {
+		# shield [Bernoulli(0.5)]
+			-> host.compromise
+
+		| breach [Bernoulli(0.5)]
+			-> host.compromise
+	}
+}
+
+associations {
+	Host [host] 1 <-- guards --> * [guards] Guard
+}

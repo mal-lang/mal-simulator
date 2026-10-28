@@ -4,6 +4,8 @@ from malsim.config.agent_settings import AttackerSettings
 from malsim.mal_simulator import MalSimulator
 from malsim.policies import BreadthFirstAttacker, DepthFirstAttacker
 
+from tests.conftest import connect_nodes
+
 
 def test_breadth_first_traversal_simple(dummy_lang_graph: LanguageGraph) -> None:
     """
@@ -27,12 +29,9 @@ def test_breadth_first_traversal_simple(dummy_lang_graph: LanguageGraph) -> None
     node3 = ag.add_node(lg_attack_step=dummy_or_attack_step)
 
     # Connect nodes (Node1 -> Node2 -> Node3 -> Node4)
-    node0.children.add(node1)
-    node1.parents.add(node0)
-    node1.children.add(node2)
-    node2.parents.add(node1)
-    node2.children.add(node3)
-    node3.parents.add(node2)
+    connect_nodes(node0, node1)
+    connect_nodes(node1, node2)
+    connect_nodes(node2, node3)
 
     sim = MalSimulator(
         ag,
@@ -97,24 +96,17 @@ def test_breadth_first_traversal_complicated(dummy_lang_graph: LanguageGraph) ->
     node7 = ag.add_node(lg_attack_step=dummy_or_attack_step)
 
     # Connect nodes (Node0 -> Node1, Node2, Node7)
-    node0.children.add(node1)
-    node1.parents.add(node0)
-    node0.children.add(node2)
-    node2.parents.add(node0)
-    node0.children.add(node7)
-    node7.parents.add(node0)
+    connect_nodes(node0, node1)
+    connect_nodes(node0, node2)
+    connect_nodes(node0, node7)
 
     # Connect nodes (Node1 -> Node3, Node4)
-    node1.children.add(node3)
-    node3.parents.add(node1)
-    node1.children.add(node4)
-    node4.parents.add(node1)
+    connect_nodes(node1, node3)
+    connect_nodes(node1, node4)
 
     # Connect nodes (Node2 -> Node5, Node6)
-    node2.children.add(node5)
-    node5.parents.add(node2)
-    node2.children.add(node6)
-    node6.parents.add(node2)
+    connect_nodes(node2, node5)
+    connect_nodes(node2, node6)
 
     sim = MalSimulator(
         ag,
@@ -179,24 +171,17 @@ def test_depth_first_traversal_complicated(dummy_lang_graph: LanguageGraph) -> N
     node7 = ag.add_node(lg_attack_step=dummy_or_attack_step)
 
     # Connect nodes (Node0 -> Node1, Node2, Node7)
-    node0.children.add(node1)
-    node1.parents.add(node0)
-    node0.children.add(node2)
-    node2.parents.add(node0)
-    node0.children.add(node7)
-    node7.parents.add(node0)
+    connect_nodes(node0, node1)
+    connect_nodes(node0, node2)
+    connect_nodes(node0, node7)
 
     # Connect nodes (Node1 -> Node3, Node4)
-    node1.children.add(node3)
-    node3.parents.add(node1)
-    node1.children.add(node4)
-    node4.parents.add(node1)
+    connect_nodes(node1, node3)
+    connect_nodes(node1, node4)
 
     # Connect nodes (Node2 -> Node5, Node6)
-    node2.children.add(node5)
-    node5.parents.add(node2)
-    node2.children.add(node6)
-    node6.parents.add(node2)
+    connect_nodes(node2, node5)
+    connect_nodes(node2, node6)
 
     sim = MalSimulator(
         ag,

@@ -5,6 +5,7 @@ agents:
   'attacker1':
     agent_class: BreadthFirstAttacker
     type: attacker
+    reward_mode: CUMULATIVE
     config:
       action_ordering: sorted
     entry_points:

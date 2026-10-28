@@ -30,7 +30,16 @@ def test_ttc_avoider() -> None:
             ),
         ),
     )
-    attacker_agent = TTCSoftMinAttacker({})
+    # `TTCSoftMinAttacker` samples from a softmax, not an argmin - without
+    # a seed it draws from OS entropy (`random.Random(None)`), so even a
+    # heavily-skewed-towards-"easy" weight distribution has some small
+    # chance of drawing "hard" on a given run. This was always technically
+    # flaky, but became practically visible once this port's RNG stream
+    # (PORTING_NOTES.md §2.1) started landing different easy/hard TTC
+    # values for this seed than the pre-port numpy RNG did - seeding the
+    # policy itself removes the only remaining source of run-to-run
+    # variance.
+    attacker_agent = TTCSoftMinAttacker({'seed': 0})
 
     states = sim.agent_states
     attacker_state = states[attacker_agent_name]

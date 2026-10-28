@@ -1,0 +1,62 @@
+lang_file: ../langs/dyna_defense_lang.mal
+model:
+  assets:
+    0:
+      name: Host0
+      type: Host
+      associated_assets:
+        guards:
+          3: Guard3
+    1:
+      name: Host1
+      type: Host
+      associated_assets:
+        guards:
+          4: Guard4
+    2:
+      name: Host2
+      type: Host
+      associated_assets:
+        guards:
+          5: Guard5
+    3:
+      name: Guard3
+      type: Guard
+      associated_assets:
+        host:
+          0: Host0
+    4:
+      name: Guard4
+      type: Guard
+      associated_assets:
+        host:
+          1: Host1
+    5:
+      name: Guard5
+      type: Guard
+      associated_assets:
+        host:
+          2: Host2
+  metadata:
+    MAL-Toolbox Version: 0.3.11
+    info: Created by hand for dyna snapshot coverage.
+    langID: org.mal-lang.dynaDefense
+    langVersion: 1.0.0
+    malVersion: 0.1.0-SNAPSHOT
+    name: Dyna Defense Model
+
+sim_settings:
+  run_defense_step_bernoullis: true
+  run_attack_step_bernoullis: true
+
+agents:
+  Attacker1:
+    type: attacker
+    agent_class: null
+    entry_points:
+      - 'Host0:access'
+      - 'Host1:access'
+      - 'Host2:access'
+  Defender1:
+    type: defender
+    agent_class: null
