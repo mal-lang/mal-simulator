@@ -28,7 +28,9 @@ use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 
-use crate::attack_surface::{get_attack_surface, get_effects_of_attack_step};
+use crate::attack_surface::{
+    get_attack_surface, get_effects_of_attack_step, update_attack_surface,
+};
 use crate::attacker_step::{attacker_step, AttackerStepError};
 use crate::defender_step::{defender_step, DefenderStepError};
 use crate::defense_surface::get_defense_surface;
@@ -687,8 +689,13 @@ fn plain_step(
     }
 
     let graph = graph_rc.borrow();
-    let (attackers, attacker_records) =
-        update_attacker_runtimes(&graph, state, &attacker_names, attacker_results)?;
+    let (attackers, attacker_records) = update_attacker_runtimes(
+        &graph,
+        state,
+        &attacker_names,
+        attacker_results,
+        Some(&new_enabled_defenses),
+    )?;
     let (defenders, defender_records) = update_defender_runtimes(
         &graph,
         state,
@@ -759,11 +766,17 @@ pub(crate) fn push_step_record(
 /// both only ever grow `graph_state`/`enabled_defenses`/the graph itself
 /// and this just reads whatever the graph looks like once stepping has
 /// finished.
+///
+/// `new_enabled_defenses` are the defenses enabled this step. With them,
+/// action surfaces are updated incrementally (`update_attack_surface`);
+/// `None` rebuilds them from scratch, which a step that ran a dyna-MAL
+/// model effect needs.
 pub(crate) fn update_attacker_runtimes(
     graph: &AttackGraph,
     state: &mut SimState,
     attacker_names: &[String],
     mut attacker_results: AttackerResults,
+    new_enabled_defenses: Option<&NodeSet>,
 ) -> Result<AttackerUpdates, SimulatorError> {
     let mut attacker_step_deltas = BTreeMap::new();
     let mut records = BTreeMap::new();
@@ -783,21 +796,9 @@ pub(crate) fn update_attacker_runtimes(
                 }
             }
         }
-        let new_action_surface = {
-            let runtime = &state.attackers[name];
-            get_attack_surface(
-                graph,
-                state.settings.attack_surface.skip_compromised,
-                state.settings.attack_surface.skip_unnecessary,
-                runtime.actionable_steps.as_ref(),
-                &runtime.performed_nodes,
-                None,
-                &state.graph_state.impossible_attack_steps,
-                &state.enabled_defenses,
-                &state.graph_state.necessity_per_node,
-            )?
-        };
-
+        let settings = &state.settings;
+        let graph_state = &state.graph_state;
+        let enabled_defenses = &state.enabled_defenses;
         let runtime = state
             .attackers
             .get_mut(name)
@@ -811,9 +812,53 @@ pub(crate) fn update_attacker_runtimes(
         for &node_id in &attempted {
             *runtime.num_attempts.entry(node_id).or_insert(0) += 1;
         }
-        let (surface_added, surface_removed) =
-            surface_diff(&runtime.action_surface, &new_action_surface);
-        runtime.action_surface = new_action_surface;
+
+        let full_surface = |runtime: &AttackerRuntime| {
+            get_attack_surface(
+                graph,
+                settings.attack_surface.skip_compromised,
+                settings.attack_surface.skip_unnecessary,
+                runtime.actionable_steps.as_ref(),
+                &runtime.performed_nodes,
+                None,
+                &graph_state.impossible_attack_steps,
+                enabled_defenses,
+                &graph_state.necessity_per_node,
+            )
+        };
+        // `update_attack_surface` needs a surface that is exactly
+        // `get_attack_surface`'s result. Before the first step it is not
+        // when reset added the entry points to it.
+        let surface_is_exact = runtime.iteration > 0 || settings.compromise_entrypoints_at_start;
+        let (surface_added, surface_removed) = match new_enabled_defenses {
+            Some(new_defenses) if surface_is_exact => update_attack_surface(
+                graph,
+                &mut runtime.action_surface,
+                settings.attack_surface.skip_compromised,
+                settings.attack_surface.skip_unnecessary,
+                runtime.actionable_steps.as_ref(),
+                &runtime.performed_nodes,
+                runtime.performed_history[performed_history_len..]
+                    .iter()
+                    .copied(),
+                &graph_state.impossible_attack_steps,
+                enabled_defenses,
+                new_defenses.iter().copied(),
+                &graph_state.necessity_per_node,
+            )?,
+            _ => {
+                let new_action_surface = full_surface(runtime)?;
+                let diff = surface_diff(&runtime.action_surface, &new_action_surface);
+                runtime.action_surface = new_action_surface;
+                diff
+            }
+        };
+        #[cfg(debug_assertions)]
+        assert_eq!(
+            runtime.action_surface,
+            full_surface(runtime)?,
+            "incremental attack surface of {name} differs from a full rebuild"
+        );
         runtime.iteration += 1;
 
         let outcome = AttackerStepOutcome {

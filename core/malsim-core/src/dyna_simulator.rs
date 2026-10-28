@@ -210,8 +210,17 @@ impl DynaSimulator {
         }
 
         let graph = graph_rc.borrow();
-        let (attackers, attacker_records) =
-            update_attacker_runtimes(&graph, state, &attacker_names, attacker_results)?;
+        let (attackers, attacker_records) = update_attacker_runtimes(
+            &graph,
+            state,
+            &attacker_names,
+            attacker_results,
+            // A model effect can change the graph and graph state, which
+            // the incremental surface update can't follow.
+            modification_record
+                .is_empty()
+                .then_some(&new_enabled_defenses),
+        )?;
         let (defenders, defender_records) = update_defender_runtimes(
             &graph,
             state,

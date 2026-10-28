@@ -175,6 +175,92 @@ pub fn get_attack_surface(
     Ok(surface)
 }
 
+/// Brings `surface` - the result of `get_attack_surface` for the previous
+/// `performed_nodes`/`enabled_defenses` - up to date after
+/// `new_performed_nodes` were performed and `new_enabled_defenses` enabled,
+/// without rebuilding it. Returns the `(added, removed)` nodes.
+///
+/// `performed_nodes`/`enabled_defenses` are the *updated* sets (already
+/// holding the new nodes); the other arguments are as for
+/// `get_attack_surface` and must be unchanged since `surface` was computed.
+/// The result is then exactly what `get_attack_surface` would return.
+///
+/// Why only these nodes need re-checking: a node's membership depends on
+/// fixed inputs (graph, settings, impossible steps, necessity) plus
+///  - whether it is performed itself (only read with `skip_compromised`),
+///  - whether its parents are performed (`node_is_traversable`),
+///  - whether its parents are enabled defenses (`node_is_blocked`).
+///
+/// Performed nodes and enabled defenses only ever grow, so membership can
+/// only change for the new performed nodes themselves (`skip_compromised`
+/// only), their children, and the children of the new defenses. Nothing
+/// reads whether a *parent* is in the surface, so no change cascades
+/// further. Relies on `parents`/`children` being mirror images for live
+/// nodes, which mal-toolbox maintains.
+///
+/// Not valid across a dyna-MAL model effect (it can change the graph,
+/// impossible steps and necessity): rebuild with `get_attack_surface`
+/// then.
+#[allow(clippy::too_many_arguments)]
+pub fn update_attack_surface(
+    graph: &AttackGraph,
+    surface: &mut NodeSet,
+    skip_compromised: bool,
+    skip_unnecessary: bool,
+    actionable_steps: Option<&NodeSet>,
+    performed_nodes: &NodeSet,
+    new_performed_nodes: impl IntoIterator<Item = AttackGraphNodeId>,
+    impossible_attack_steps: &NodeSet,
+    enabled_defenses: &NodeSet,
+    new_enabled_defenses: impl IntoIterator<Item = AttackGraphNodeId>,
+    necessity_per_node: &NodeDenseMap<bool>,
+) -> Result<(NodeSet, NodeSet), GraphUtilsError> {
+    let mut candidates = NodeSet::default();
+    for node_id in new_performed_nodes {
+        if skip_compromised {
+            candidates.insert(node_id);
+        }
+        if node_is_live(graph, node_id) {
+            candidates.extend(graph.nodes[node_id].children.iter().copied());
+        }
+    }
+    for node_id in new_enabled_defenses {
+        if node_is_live(graph, node_id) {
+            candidates.extend(graph.nodes[node_id].children.iter().copied());
+        }
+    }
+
+    let mut added = NodeSet::default();
+    let mut removed = NodeSet::default();
+    for node_id in candidates {
+        // Same checks, in the same order, as `get_attack_surface`'s loop
+        // body. Being a child of a live performed node is covered by
+        // `node_is_live` plus `node_is_traversable`'s "a parent is
+        // performed" check.
+        let in_surface = node_is_live(graph, node_id)
+            && !causal_mode_is_effect(graph, node_id)
+            && !(skip_compromised && performed_nodes.contains(&node_id))
+            && !(skip_unnecessary && !node_is_necessary(necessity_per_node, node_id)?)
+            && node_is_actionable_flat(actionable_steps, node_id)
+            && node_is_traversable(
+                graph,
+                node_id,
+                performed_nodes,
+                impossible_attack_steps,
+                enabled_defenses,
+                necessity_per_node,
+            )?;
+        if in_surface {
+            if surface.insert(node_id) {
+                added.insert(node_id);
+            }
+        } else if surface.remove(&node_id) {
+            removed.insert(node_id);
+        }
+    }
+    Ok((added, removed))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -542,5 +628,398 @@ mod tests {
         // way an enabled-defense-blocked one is.
         let impossible: NodeSet = [compromise].into_iter().collect();
         assert!(surface_with(&impossible, &none_enabled).is_empty());
+    }
+
+    // --- update_attack_surface ---
+
+    fn link(graph: &mut AttackGraph, parent: AttackGraphNodeId, child: AttackGraphNodeId) {
+        graph.nodes[parent].children.insert(child);
+        graph.nodes[child].parents.insert(parent);
+    }
+
+    fn set(ids: &[AttackGraphNodeId]) -> NodeSet {
+        ids.iter().copied().collect()
+    }
+
+    /// Every node of `graph` necessary except `unnecessary`.
+    fn necessity_except(
+        graph: &AttackGraph,
+        unnecessary: &[AttackGraphNodeId],
+    ) -> NodeDenseMap<bool> {
+        graph
+            .nodes
+            .keys()
+            .map(|id| (id, !unnecessary.contains(&id)))
+            .collect()
+    }
+
+    /// Runs `update_attack_surface` (no impossible steps) and checks the
+    /// result against a full `get_attack_surface` rebuild.
+    #[allow(clippy::too_many_arguments)]
+    fn update(
+        graph: &AttackGraph,
+        surface: &mut NodeSet,
+        skip_compromised: bool,
+        skip_unnecessary: bool,
+        actionable_steps: Option<&NodeSet>,
+        performed: &NodeSet,
+        new_performed: &[AttackGraphNodeId],
+        enabled: &NodeSet,
+        new_enabled: &[AttackGraphNodeId],
+        necessity: &NodeDenseMap<bool>,
+    ) -> (NodeSet, NodeSet) {
+        let empty = NodeSet::default();
+        let delta = update_attack_surface(
+            graph,
+            surface,
+            skip_compromised,
+            skip_unnecessary,
+            actionable_steps,
+            performed,
+            new_performed.iter().copied(),
+            &empty,
+            enabled,
+            new_enabled.iter().copied(),
+            necessity,
+        )
+        .unwrap();
+        let full = get_attack_surface(
+            graph,
+            skip_compromised,
+            skip_unnecessary,
+            actionable_steps,
+            performed,
+            None,
+            &empty,
+            enabled,
+            necessity,
+        )
+        .unwrap();
+        assert_eq!(
+            *surface, full,
+            "incremental surface differs from full rebuild"
+        );
+        delta
+    }
+
+    #[test]
+    fn update_adds_or_child_of_new_performed_node() {
+        let mut graph = dummy_graph();
+        let parent = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let child = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        link(&mut graph, parent, child);
+        let necessity = necessity_except(&graph, &[]);
+        let empty = NodeSet::default();
+
+        for skip_compromised in [false, true] {
+            let mut surface = NodeSet::default();
+            let (added, removed) = update(
+                &graph,
+                &mut surface,
+                skip_compromised,
+                false,
+                None,
+                &set(&[parent]),
+                &[parent],
+                &empty,
+                &[],
+                &necessity,
+            );
+            assert_eq!(surface, set(&[child]));
+            assert_eq!(added, set(&[child]));
+            assert!(removed.is_empty());
+        }
+    }
+
+    #[test]
+    fn update_adds_and_child_only_once_all_necessary_parents_are_performed() {
+        let mut graph = dummy_graph();
+        let a = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let b = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let unnecessary = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let child = add_dummy_node(&mut graph, "DummyAndAttackStep");
+        link(&mut graph, a, child);
+        link(&mut graph, b, child);
+        link(&mut graph, unnecessary, child);
+        let necessity = necessity_except(&graph, &[unnecessary]);
+        let empty = NodeSet::default();
+
+        let mut surface = NodeSet::default();
+        let (added, _) = update(
+            &graph,
+            &mut surface,
+            true,
+            false,
+            None,
+            &set(&[a]),
+            &[a],
+            &empty,
+            &[],
+            &necessity,
+        );
+        assert!(added.is_empty(), "`b` is still missing");
+
+        // `unnecessary` is never performed, and isn't required.
+        let (added, _) = update(
+            &graph,
+            &mut surface,
+            true,
+            false,
+            None,
+            &set(&[a, b]),
+            &[b],
+            &empty,
+            &[],
+            &necessity,
+        );
+        assert_eq!(added, set(&[child]));
+    }
+
+    #[test]
+    fn update_removes_and_child_blocked_by_new_defense() {
+        let mut graph = dummy_graph();
+        let parent = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let defense = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
+        let child = add_dummy_node(&mut graph, "DummyAndAttackStep");
+        let unaffected = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        link(&mut graph, parent, child);
+        link(&mut graph, defense, child);
+        link(&mut graph, parent, unaffected);
+        // A disabled defense parent is unnecessary, so not required.
+        let necessity = necessity_except(&graph, &[defense]);
+        let performed = set(&[parent]);
+
+        for skip_compromised in [false, true] {
+            let mut surface = NodeSet::default();
+            update(
+                &graph,
+                &mut surface,
+                skip_compromised,
+                false,
+                None,
+                &performed,
+                &[parent],
+                &NodeSet::default(),
+                &[],
+                &necessity,
+            );
+            assert_eq!(surface, set(&[child, unaffected]));
+
+            let (added, removed) = update(
+                &graph,
+                &mut surface,
+                skip_compromised,
+                false,
+                None,
+                &performed,
+                &[],
+                &set(&[defense]),
+                &[defense],
+                &necessity,
+            );
+            assert!(added.is_empty());
+            assert_eq!(removed, set(&[child]));
+            assert_eq!(surface, set(&[unaffected]));
+        }
+    }
+
+    #[test]
+    fn update_or_child_with_an_unblocking_parent_survives_new_defense() {
+        let mut graph = dummy_graph();
+        let parent = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let defense = add_dummy_node(&mut graph, "DummyDefenseAttackStep");
+        let child = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        link(&mut graph, parent, child);
+        link(&mut graph, defense, child);
+        let necessity = necessity_except(&graph, &[]);
+        let performed = set(&[parent]);
+
+        let mut surface = NodeSet::default();
+        update(
+            &graph,
+            &mut surface,
+            true,
+            false,
+            None,
+            &performed,
+            &[parent],
+            &NodeSet::default(),
+            &[],
+            &necessity,
+        );
+        // An `or` step is blocked only when every parent blocks it.
+        let (added, removed) = update(
+            &graph,
+            &mut surface,
+            true,
+            false,
+            None,
+            &performed,
+            &[],
+            &set(&[defense]),
+            &[defense],
+            &necessity,
+        );
+        assert!(added.is_empty() && removed.is_empty());
+        assert_eq!(surface, set(&[child]));
+    }
+
+    #[test]
+    fn update_performed_node_leaves_surface_only_with_skip_compromised() {
+        let mut graph = dummy_graph();
+        let parent = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let child = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        link(&mut graph, parent, child);
+        let necessity = necessity_except(&graph, &[]);
+        let empty = NodeSet::default();
+
+        for skip_compromised in [false, true] {
+            let mut surface = NodeSet::default();
+            update(
+                &graph,
+                &mut surface,
+                skip_compromised,
+                false,
+                None,
+                &set(&[parent]),
+                &[parent],
+                &empty,
+                &[],
+                &necessity,
+            );
+            let (added, removed) = update(
+                &graph,
+                &mut surface,
+                skip_compromised,
+                false,
+                None,
+                &set(&[parent, child]),
+                &[child],
+                &empty,
+                &[],
+                &necessity,
+            );
+            assert!(added.is_empty());
+            if skip_compromised {
+                assert_eq!(removed, set(&[child]));
+                assert!(surface.is_empty());
+            } else {
+                assert!(removed.is_empty());
+                assert_eq!(surface, set(&[child]));
+            }
+        }
+    }
+
+    #[test]
+    fn update_applies_effect_actionability_and_necessity_filters() {
+        let mut graph = dummy_graph();
+        let parent = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let effect = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let not_actionable = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let unnecessary = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let plain = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        mark_effect(&mut graph, effect);
+        for child in [effect, not_actionable, unnecessary, plain] {
+            link(&mut graph, parent, child);
+        }
+        let necessity = necessity_except(&graph, &[unnecessary]);
+        let actionable = set(&[parent, effect, unnecessary, plain]);
+        let empty = NodeSet::default();
+
+        let mut surface = NodeSet::default();
+        update(
+            &graph,
+            &mut surface,
+            true,
+            true,
+            Some(&actionable),
+            &set(&[parent]),
+            &[parent],
+            &empty,
+            &[],
+            &necessity,
+        );
+        assert_eq!(surface, set(&[plain]));
+
+        // Without `skip_unnecessary` the unnecessary node is kept.
+        let mut surface = NodeSet::default();
+        update(
+            &graph,
+            &mut surface,
+            true,
+            false,
+            Some(&actionable),
+            &set(&[parent]),
+            &[parent],
+            &empty,
+            &[],
+            &necessity,
+        );
+        assert_eq!(surface, set(&[unnecessary, plain]));
+    }
+
+    #[test]
+    fn update_leaves_existing_members_out_of_the_delta() {
+        let mut graph = dummy_graph();
+        let a = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let b = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let shared = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        link(&mut graph, a, shared);
+        link(&mut graph, b, shared);
+        let necessity = necessity_except(&graph, &[]);
+        let empty = NodeSet::default();
+
+        let mut surface = NodeSet::default();
+        update(
+            &graph,
+            &mut surface,
+            false,
+            false,
+            None,
+            &set(&[a]),
+            &[a],
+            &empty,
+            &[],
+            &necessity,
+        );
+        let (added, removed) = update(
+            &graph,
+            &mut surface,
+            false,
+            false,
+            None,
+            &set(&[a, b]),
+            &[b],
+            &empty,
+            &[],
+            &necessity,
+        );
+        assert!(added.is_empty() && removed.is_empty());
+        assert_eq!(surface, set(&[shared]));
+    }
+
+    #[test]
+    fn update_ignores_children_of_removed_nodes() {
+        let mut graph = dummy_graph();
+        let parent = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        let child = add_dummy_node(&mut graph, "DummyOrAttackStep");
+        link(&mut graph, parent, child);
+        let necessity = necessity_except(&graph, &[]);
+        graph.remove_node(parent).unwrap();
+
+        let mut surface = NodeSet::default();
+        let (added, removed) = update(
+            &graph,
+            &mut surface,
+            false,
+            false,
+            None,
+            &set(&[parent]),
+            &[parent],
+            &NodeSet::default(),
+            &[],
+            &necessity,
+        );
+        assert!(added.is_empty() && removed.is_empty() && surface.is_empty());
     }
 }
