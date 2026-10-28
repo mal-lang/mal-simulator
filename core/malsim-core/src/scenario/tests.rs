@@ -346,7 +346,7 @@ fn sim_settings_are_parsed() {
     assert_eq!(default.sim_settings, MalSimulatorSettings::default());
     assert_eq!(
         attacker(&default, "Attacker1").reward_mode,
-        RewardMode::Cumulative
+        RewardMode::ExpectedTtc
     );
 }
 

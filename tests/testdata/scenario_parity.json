@@ -18,7 +18,7 @@
     "name": "Attacker",
     "type": "attacker",
     "policy": "RandomAgent",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "ComputerA:access"
     ],
@@ -54,7 +54,7 @@
     "name": "Attacker",
     "type": "attacker",
     "policy": "RandomAgent",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "ComputerA:attemptAccess"
     ],
@@ -262,7 +262,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Creds:use"
     ],
@@ -296,7 +296,7 @@
     "name": "Attacker",
     "type": "attacker",
     "policy": "RandomAgent",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Computer:0:physicalAccess"
     ],
@@ -347,7 +347,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": "RandomAgent",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Dice:1:startingPoint"
     ],
@@ -398,7 +398,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Plantation:1:access"
     ],
@@ -449,7 +449,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Bowl:1:access"
     ],
@@ -500,7 +500,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Bowl:1:access"
     ],
@@ -551,7 +551,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Bowl:1:access"
     ],
@@ -602,7 +602,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Bowl:1:access"
     ],
@@ -653,7 +653,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Storage:1:access"
     ],
@@ -704,7 +704,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Typewriter:1:access"
     ],
@@ -755,7 +755,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "MagicPlantation:1:access",
      "Plantation:1:access"
@@ -807,7 +807,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Plantation:1:access",
      "PlantationWithSmallTrees:1:access"
@@ -859,7 +859,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Plantation:1:access"
     ],
@@ -910,7 +910,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Room:1:leave",
      "Room:2:leave"
@@ -962,7 +962,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Host:1:connect"
     ],
@@ -1013,7 +1013,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Glider:1:glide",
      "Glider:2:glide"
@@ -1065,7 +1065,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Looper:1:loop",
      "Looper:2:loop"
@@ -1117,7 +1117,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Host:1:infect"
     ],
@@ -1168,7 +1168,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Table:1:delegateFruit"
     ],
@@ -1219,7 +1219,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Table:1:access"
     ],
@@ -1270,7 +1270,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Table:1:access"
     ],
@@ -1321,7 +1321,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Directory:1:testAll",
      "Directory:1:testBottom",
@@ -1379,7 +1379,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Apples:1:access"
     ],
@@ -1430,7 +1430,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Monkey:1:attemptTheft"
     ],
@@ -1481,7 +1481,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "BananaTree:1:access"
     ],
@@ -1532,7 +1532,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Apples:1:access"
     ],
@@ -1583,7 +1583,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Monkey:1:eatApples",
      "Monkey:1:eatBananas",
@@ -1636,7 +1636,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Table:1:access"
     ],
@@ -1687,7 +1687,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Table:1:access"
     ],
@@ -1738,7 +1738,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Table:1:assembleFruitBowl"
     ],
@@ -1789,7 +1789,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Room:1:addChairs",
      "Room:1:installTable"
@@ -1841,7 +1841,7 @@
     "name": "Attacker",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Start:access"
     ],
@@ -1875,7 +1875,7 @@
     "name": "Attacker",
     "type": "attacker",
     "policy": "RandomAgent",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Object0:reach"
     ],
@@ -1909,7 +1909,7 @@
     "name": "attacker",
     "type": "attacker",
     "policy": "RandomAgent",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "App0OnNetwork0:fullAccess"
     ],
@@ -1945,7 +1945,7 @@
     "name": "attacker1",
     "type": "attacker",
     "policy": "BreadthFirstAttacker",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Program 1:fullAccess"
     ],
@@ -1990,7 +1990,7 @@
     "name": "TestAttacker",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "A:access"
     ],
@@ -2027,7 +2027,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "OS App:fullAccess"
     ],
@@ -2089,7 +2089,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "OS App:fullAccess"
     ],
@@ -2199,7 +2199,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": "BreadthFirstAttacker",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Credentials:6:attemptCredentialsReuse"
     ],
@@ -2321,7 +2321,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": "BreadthFirstAttacker",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "OS App:fullAccess"
     ],
@@ -2383,7 +2383,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Human:attemptSocialEngineering"
     ],
@@ -2544,7 +2544,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": "BreadthFirstAttacker",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Host:0:connect",
      "User:3:phishing"
@@ -2615,7 +2615,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Host:0:connect",
      "User:3:phishing"
@@ -2683,7 +2683,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": "BreadthFirstAttacker",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Host:0:connect",
      "User:3:phishing"
@@ -2764,7 +2764,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": "BreadthFirstAttacker",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Host:0:connect",
      "User:3:phishing"
@@ -2907,7 +2907,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": "BreadthFirstAttacker",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Host:0:connect",
      "User:3:phishing"
@@ -3079,7 +3079,7 @@
     "name": "Attacker1",
     "type": "attacker",
     "policy": "BreadthFirstAttacker",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "Host:0:connect",
      "User:3:phishing"
@@ -3147,7 +3147,7 @@
     "name": "Attacker",
     "type": "attacker",
     "policy": "ShortestPathAttacker",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "ComputerA:easyAccess"
     ],
@@ -3183,7 +3183,7 @@
     "name": "BadAttacker",
     "type": "attacker",
     "policy": "ShortestPathAttacker",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "ComputerA:easyAccess"
     ],
@@ -3340,7 +3340,7 @@
     "name": "GoodAttacker",
     "type": "attacker",
     "policy": "ShortestPathAttacker",
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "ComputerA:easyAccess"
     ],
@@ -3393,7 +3393,7 @@
     "name": "WiperController",
     "type": "attacker",
     "policy": null,
-    "reward_mode": "CUMULATIVE",
+    "reward_mode": "EXPECTED_TTC",
     "entry_points": [
      "C2Server:accessData",
      "InfectedDevice:infect"

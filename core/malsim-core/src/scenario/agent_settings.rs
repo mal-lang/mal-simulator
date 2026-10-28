@@ -559,15 +559,23 @@ fn load_config(
     }
 }
 
-/// `RewardMode[d.get('reward_mode', 'CUMULATIVE')]`.
-fn load_reward_mode(name: &str, d: &Map<String, Value>) -> Result<RewardMode, AgentSettingsError> {
+/// `RewardMode[d.get('reward_mode', <default>)]`, where the default is
+/// `EXPECTED_TTC` for attackers and `CUMULATIVE` for defenders.
+fn load_reward_mode(
+    name: &str,
+    agent_type: AgentType,
+    d: &Map<String, Value>,
+) -> Result<RewardMode, AgentSettingsError> {
     let invalid = |reason: String| AgentSettingsError::InvalidField {
         agent: name.to_string(),
         field: "reward_mode",
         reason,
     };
     match d.get("reward_mode") {
-        None => Ok(RewardMode::Cumulative),
+        None => Ok(match agent_type {
+            AgentType::Attacker => RewardMode::ExpectedTtc,
+            AgentType::Defender => RewardMode::Cumulative,
+        }),
         Some(Value::String(s)) => {
             RewardMode::from_name(s).ok_or_else(|| invalid(format!("unknown RewardMode '{s}'")))
         }
@@ -599,7 +607,7 @@ pub fn agent_settings_from_dict(
 
     let policy = load_policy(name, d)?;
     let config = load_config(name, d)?;
-    let reward_mode = load_reward_mode(name, d)?;
+    let reward_mode = load_reward_mode(name, agent_type, d)?;
 
     Ok(match agent_type {
         AgentType::Attacker => AgentSettings::Attacker(AttackerSettings {
@@ -680,8 +688,8 @@ mod tests {
         assert!(a.rewards.is_some());
         assert!(a.ttc_dists.is_some());
         assert_eq!(a.config["seed"], json!(1));
-        // `agent_settings_from_dict`'s default, not the dataclass's ONE_OFF.
-        assert_eq!(a.reward_mode, RewardMode::Cumulative);
+        // `agent_settings_from_dict`'s default for attackers, not the dataclass's ONE_OFF.
+        assert_eq!(a.reward_mode, RewardMode::ExpectedTtc);
     }
 
     #[test]

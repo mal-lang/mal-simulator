@@ -116,7 +116,7 @@ def agent_settings_from_dict(
             ),
             rewards=NodePropertyRule.from_optional_dict(d.get('rewards')),
             config=config,
-            reward_mode=RewardMode[d.get('reward_mode', 'CUMULATIVE')],
+            reward_mode=RewardMode[d.get('reward_mode', 'EXPECTED_TTC')],
         )
 
     # Defender
