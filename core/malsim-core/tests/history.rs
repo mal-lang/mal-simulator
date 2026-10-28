@@ -3,17 +3,20 @@
 //! the simulator actually had at that iteration, on the static and the
 //! dyna path (including steps whose model effects change the graph).
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::PathBuf;
 
 use malsim_core::dyna_simulator::DynaSimulator;
 use malsim_core::history::StateSnapshot;
+use malsim_core::model_effects::ModEffectOp;
 use malsim_core::scenario::{load_scenario_dict, Scenario};
 use malsim_core::simulator::{SimState, Simulator};
 use malsim_core::types::NodeSet;
 use maltoolbox_attackgraph::AttackGraphNodeId;
+use maltoolbox_language::graph::model_effect::ModelEffectType;
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
+use slotmap::Key;
 
 fn testdata(path: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -39,13 +42,13 @@ impl Driver {
         }
     }
 
-    fn step(&mut self, actions: &HashMap<String, Vec<AttackGraphNodeId>>) -> usize {
+    fn step(&mut self, actions: &HashMap<String, Vec<AttackGraphNodeId>>) -> Vec<ModEffectOp> {
         match self {
             Driver::Static(s) => {
                 s.step(actions).unwrap();
-                0
+                Vec::new()
             }
-            Driver::Dyna(s) => s.step(actions).unwrap().step_modification_record.len(),
+            Driver::Dyna(s) => s.step(actions).unwrap().step_modification_record,
         }
     }
 }
@@ -80,11 +83,50 @@ fn assert_same(label: &str, expected: &StateSnapshot, actual: &StateSnapshot) {
     assert_eq!(expected.defenders, actual.defenders, "{label}: defenders");
 }
 
+/// What a run exercised, so the dyna test can check that the delta-based
+/// `snapshot_at` was tested on the cases that matter.
+#[derive(Debug, Default, Clone, Copy)]
+struct Coverage {
+    /// Model operations seen.
+    modifications: usize,
+    /// Steps with at least one additive operation.
+    additive_steps: usize,
+    /// Steps with at least one subtractive operation.
+    subtractive_steps: usize,
+    /// New node keys reusing the slot index of an earlier key.
+    reused_slots: usize,
+    /// Surviving nodes whose necessity changed between two captures.
+    necessity_changes: usize,
+    /// New keys in `pre_enabled_defenses`.
+    new_pre_enabled: usize,
+    /// New keys in `impossible_attack_steps`.
+    new_impossible: usize,
+    /// Steps where `enabled_defenses` grew by an action.
+    action_enabled_steps: usize,
+}
+
+impl Coverage {
+    fn add(&mut self, other: Coverage) {
+        self.modifications += other.modifications;
+        self.additive_steps += other.additive_steps;
+        self.subtractive_steps += other.subtractive_steps;
+        self.reused_slots += other.reused_slots;
+        self.necessity_changes += other.necessity_changes;
+        self.new_pre_enabled += other.new_pre_enabled;
+        self.new_impossible += other.new_impossible;
+        self.action_enabled_steps += other.action_enabled_steps;
+    }
+}
+
+fn slot(id: AttackGraphNodeId) -> u32 {
+    id.data().as_ffi() as u32
+}
+
 /// Runs `file` for up to `steps` steps with random actions,
 /// capturing the live state after reset and after every step, then checks
-/// `snapshot_at` against every capture. Returns the number of model
-/// modifications seen, so dyna callers can check effects actually ran.
-fn check(file: &str, dyna: bool, seed: u64, steps: u64) -> usize {
+/// `snapshot_at` against every capture. Returns what the run covered, so
+/// dyna callers can check effects actually ran.
+fn check(file: &str, dyna: bool, seed: u64, steps: u64) -> Coverage {
     let scenario = scenario(file);
     let mut driver = if dyna {
         let mut sim = DynaSimulator::new(scenario.attack_graph.clone(), scenario.model.clone());
@@ -102,7 +144,10 @@ fn check(file: &str, dyna: bool, seed: u64, steps: u64) -> usize {
     .unwrap();
 
     let mut captured = vec![current(driver.state())];
-    let mut modifications = 0;
+    let mut coverage = Coverage::default();
+    let mut seen_keys: HashSet<AttackGraphNodeId> =
+        captured[0].graph_state.necessity_per_node.keys().collect();
+    let mut seen_slots: HashSet<u32> = seen_keys.iter().map(|&k| slot(k)).collect();
     for _ in 0..steps {
         if driver.state().done() {
             break;
@@ -123,8 +168,50 @@ fn check(file: &str, dyna: bool, seed: u64, steps: u64) -> usize {
                 actions.insert(name.clone(), vec![pick]);
             }
         }
-        modifications += driver.step(&actions);
+        let ops = driver.step(&actions);
+        coverage.modifications += ops.len();
+        let is_additive = |op: &&ModEffectOp| matches!(op.effect_type(), ModelEffectType::Additive);
+        if ops.iter().any(|op| is_additive(&op)) {
+            coverage.additive_steps += 1;
+        }
+        if ops.iter().any(|op| !is_additive(&op)) {
+            coverage.subtractive_steps += 1;
+        }
         captured.push(current(driver.state()));
+
+        let prev = &captured[captured.len() - 2].graph_state;
+        let prev_enabled = &captured[captured.len() - 2].enabled_defenses;
+        let cur = &captured[captured.len() - 1];
+        let now = &cur.graph_state;
+        for key in now.necessity_per_node.keys() {
+            if seen_keys.insert(key) && !seen_slots.insert(slot(key)) {
+                coverage.reused_slots += 1;
+            }
+        }
+        for (key, necessary) in &now.necessity_per_node {
+            if prev
+                .necessity_per_node
+                .get(key)
+                .is_some_and(|p| p != necessary)
+            {
+                coverage.necessity_changes += 1;
+            }
+        }
+        coverage.new_pre_enabled += now
+            .pre_enabled_defenses
+            .difference(&prev.pre_enabled_defenses)
+            .count();
+        coverage.new_impossible += now
+            .impossible_attack_steps
+            .difference(&prev.impossible_attack_steps)
+            .count();
+        if cur
+            .enabled_defenses
+            .iter()
+            .any(|d| !prev_enabled.contains(d) && !now.pre_enabled_defenses.contains(d))
+        {
+            coverage.action_enabled_steps += 1;
+        }
     }
 
     let state = driver.state();
@@ -140,7 +227,7 @@ fn check(file: &str, dyna: bool, seed: u64, steps: u64) -> usize {
         );
     }
     assert!(state.snapshot_at(state.history().iteration() + 1).is_none());
-    modifications
+    coverage
 }
 
 #[test]
@@ -154,6 +241,7 @@ fn dyna_snapshots_match_live_state() {
     let mut files = vec![
         "actions_effects_scenario.yml".to_string(),
         "dynamic_remove_many_assoc_scenario.yml".to_string(),
+        "dyna_defense_scenario.yml".to_string(),
     ];
     let root = testdata("scenarios/dynamal_example_scenarios");
     for dir in ["basic", "intermediate", "advanced"] {
@@ -166,15 +254,29 @@ fn dyna_snapshots_match_live_state() {
             files.push(format!("dynamal_example_scenarios/{dir}/{name}"));
         }
     }
-    let mut modifications = 0;
+    let mut coverage = Coverage::default();
     for (i, file) in files.iter().enumerate() {
         for seed in 0..3 {
-            modifications += check(file, true, i as u64 * 10 + seed, 60);
+            coverage.add(check(file, true, i as u64 * 10 + seed, 60));
         }
     }
+    eprintln!("dyna snapshot coverage: {coverage:?}");
     assert!(
-        modifications > 0,
+        coverage.modifications > 0,
         "no model effect ran; test proves nothing"
+    );
+    assert!(coverage.additive_steps > 0, "no step added assets");
+    assert!(coverage.subtractive_steps > 0, "no step removed assets");
+    assert!(coverage.reused_slots > 0, "no node reused a freed slot");
+    assert!(
+        coverage.necessity_changes > 0,
+        "no surviving node changed necessity"
+    );
+    assert!(coverage.new_pre_enabled > 0, "no new pre-enabled defense");
+    assert!(coverage.new_impossible > 0, "no new impossible attack step");
+    assert!(
+        coverage.action_enabled_steps > 0,
+        "no defense was enabled by an action"
     );
 }
 

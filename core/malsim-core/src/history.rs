@@ -18,6 +18,7 @@ use std::collections::BTreeMap;
 
 use maltoolbox_attackgraph::AttackGraphNodeId;
 
+use crate::dyna_graph_state::GraphStateDelta;
 use crate::event_logger::LogEntry;
 use crate::graph_state::GraphState;
 use crate::model_effects::ModEffectOp;
@@ -56,24 +57,16 @@ pub(crate) struct DefenderStepRecord {
     pub(crate) surface_removed: NodeSet,
 }
 
-/// The shared (not per-agent) state before a step, kept only when the
-/// step could not be undone from deltas: a dyna step whose model effects
-/// folded new nodes into `graph_state`/`enabled_defenses`.
-#[derive(Debug, Clone)]
-pub(crate) struct PriorSharedState {
-    pub(crate) graph_state: GraphState,
-    pub(crate) enabled_defenses: NodeSet,
-}
-
 /// What one step changed, for undoing it.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct StepRecord {
     pub(crate) attackers: BTreeMap<String, AttackerStepRecord>,
     pub(crate) defenders: BTreeMap<String, DefenderStepRecord>,
-    /// Defenses this step newly added to `enabled_defenses` (unused when
-    /// `prior_shared` is set).
+    /// Defenses this step newly added to `enabled_defenses`.
     pub(crate) new_enabled_defenses: NodeSet,
-    pub(crate) prior_shared: Option<PriorSharedState>,
+    /// What the step's model-effect folds changed in `graph_state` (empty
+    /// for steps without model effects).
+    pub(crate) graph_state_delta: GraphStateDelta,
     /// `modification_record.len()` before the step.
     pub(crate) modification_record_len: usize,
     /// This step's `recording` entry: per agent, the nodes it newly
@@ -372,16 +365,27 @@ fn snapshot_at(
             );
             d.iteration -= 1;
         }
-        match &step.prior_shared {
-            Some(prior) => {
-                graph_state = prior.graph_state.clone();
-                enabled_defenses = prior.enabled_defenses.clone();
+        let delta = &step.graph_state_delta;
+        for id in &delta.new_nodes {
+            graph_state.ttc_values.remove(id);
+            graph_state.pre_enabled_defenses.remove(id);
+            graph_state.impossible_attack_steps.remove(id);
+            enabled_defenses.remove(id);
+        }
+        // Remove before inserting: a SecondaryMap ignores an insert of an older
+        // key while a newer key holds the slot.
+        for (&id, prior) in &delta.necessity_prior {
+            if prior.is_none() {
+                graph_state.necessity_per_node.remove(id);
             }
-            None => {
-                for id in &step.new_enabled_defenses {
-                    enabled_defenses.remove(id);
-                }
+        }
+        for (&id, prior) in &delta.necessity_prior {
+            if let Some(v) = *prior {
+                graph_state.necessity_per_node.insert(id, v);
             }
+        }
+        for id in &step.new_enabled_defenses {
+            enabled_defenses.remove(id);
         }
         modification_record_len = step.modification_record_len;
     }

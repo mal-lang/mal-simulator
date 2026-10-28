@@ -23,6 +23,26 @@ use crate::graph_utils::sort_by_node_id;
 use crate::model_effects::ModEffectOp;
 use crate::necessity::calculate_necessity;
 
+/// What one step's model-effect folds changed in `graph_state`, so the step can be undone.
+#[derive(Debug, Clone, Default)]
+pub struct GraphStateDelta {
+    /// Every node the step's folds created.
+    pub(crate) new_nodes: NodeSet,
+    /// For each `necessity_per_node` key the folds changed, added or dropped: its value
+    /// before the step (`None` = it was absent). The first value seen wins.
+    pub(crate) necessity_prior: NodeMap<Option<bool>>,
+}
+
+impl GraphStateDelta {
+    /// Appends a later delta from the same step; earlier prior values win.
+    pub(crate) fn merge(&mut self, later: GraphStateDelta) {
+        self.new_nodes.extend(later.new_nodes);
+        for (id, prior) in later.necessity_prior {
+            self.necessity_prior.entry(id).or_insert(prior);
+        }
+    }
+}
+
 /// Port of `add_new_nodes_to_graph_state`, in place: extends
 /// `graph_state`'s `ttc_values`/`pre_enabled_defenses`/
 /// `impossible_attack_steps` with the new nodes' and recomputes
@@ -33,7 +53,8 @@ use crate::necessity::calculate_necessity;
 /// RNG draws happen in the same order as the Python original (TTC values,
 /// then defense Bernoullis, then attack-step Bernoullis). `graph_state` is
 /// only mutated once every fallible RNG/TTC step has succeeded.
-/// Returns the newly pre-enabled defenses.
+/// Records what changed in `delta`. Returns the newly pre-enabled defenses.
+#[allow(clippy::too_many_arguments)]
 fn extend_graph_state_with_new_nodes(
     graph: &AttackGraph,
     graph_state: &mut GraphState,
@@ -42,6 +63,7 @@ fn extend_graph_state_with_new_nodes(
     run_attack_step_bernoullis: bool,
     new_nodes: &NodeSet,
     rng: &mut impl Rng,
+    delta: &mut GraphStateDelta,
 ) -> Result<NodeSet, GraphStateError> {
     // RNG draws below follow these Vecs, so they are in node-id order
     // rather than the order of the `new_nodes` set.
@@ -104,6 +126,17 @@ fn extend_graph_state_with_new_nodes(
         calculate_necessity(graph, &union)?
     };
 
+    // Node ids are versioned slotmap keys, so a regenerated node that reuses
+    // a removed node's slot still gets a key no earlier node had. The fold
+    // only ever adds keys; undoing it relies on that.
+    debug_assert!(
+        new_nodes.iter().all(|id| {
+            !graph_state.ttc_values.contains_key(id)
+                && !graph_state.pre_enabled_defenses.contains(id)
+                && !graph_state.impossible_attack_steps.contains(id)
+        }),
+        "a newly created node's key is already present in graph_state"
+    );
     graph_state.ttc_values.extend(new_ttc_values);
     graph_state
         .pre_enabled_defenses
@@ -111,7 +144,18 @@ fn extend_graph_state_with_new_nodes(
     graph_state
         .impossible_attack_steps
         .extend(new_impossible_attack_steps);
-    graph_state.necessity_per_node = necessity_per_node;
+    let old_necessity = std::mem::replace(&mut graph_state.necessity_per_node, necessity_per_node);
+    delta.new_nodes.extend(new_nodes.iter().copied());
+    for (id, &v) in old_necessity.iter() {
+        if graph_state.necessity_per_node.get(id) != Some(&v) {
+            delta.necessity_prior.entry(id).or_insert(Some(v));
+        }
+    }
+    for (id, _) in graph_state.necessity_per_node.iter() {
+        if !old_necessity.contains_key(id) {
+            delta.necessity_prior.entry(id).or_insert(None);
+        }
+    }
     Ok(new_steps_enabled_defenses)
 }
 
@@ -131,6 +175,8 @@ fn extend_graph_state_with_new_nodes(
 /// the same graph with the same `pre_enabled_defenses` it was last
 /// computed with (`compute_initial_graph_state` and every earlier fold
 /// both use `pre_enabled_defenses`), so it comes out identical.
+///
+/// What the fold changed is recorded in `delta`.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn fold_new_nodes_into_graph_state(
     graph: &AttackGraph,
@@ -142,6 +188,7 @@ pub(crate) fn fold_new_nodes_into_graph_state(
     run_defense_step_bernoullis: bool,
     run_attack_step_bernoullis: bool,
     rng: &mut impl Rng,
+    delta: &mut GraphStateDelta,
 ) -> Result<(), GraphStateError> {
     if ops.is_empty() && new_nodes.is_empty() {
         return Ok(());
@@ -154,6 +201,7 @@ pub(crate) fn fold_new_nodes_into_graph_state(
         run_attack_step_bernoullis,
         new_nodes,
         rng,
+        delta,
     )?;
     enabled_defenses.extend(new_enabled);
     Ok(())
@@ -223,6 +271,7 @@ mod tests {
             false,
             &new_nodes,
             &mut r,
+            &mut GraphStateDelta::default(),
         )
         .unwrap();
 
@@ -241,5 +290,130 @@ mod tests {
             new_state.pre_enabled_defenses,
             initial_graph_state.pre_enabled_defenses
         );
+    }
+
+    /// The slot index of a node key (the low 32 bits of its FFI form).
+    fn slot_index(id: AttackGraphNodeId) -> u32 {
+        use slotmap::Key;
+        id.data().as_ffi() as u32
+    }
+
+    /// A node created after another node was removed can reuse its slot,
+    /// but never its key: slotmap bumps the slot's version. So the keys a
+    /// fold adds to `graph_state` are always new ones, which is what lets a
+    /// step's fold be undone by removing exactly the step's new nodes.
+    #[test]
+    fn regenerated_nodes_reuse_slots_but_never_keys() {
+        use crate::model_effects::regenerate_graph;
+
+        let (mut graph, mut model) = wiper_attack_graph();
+        let mut r = rng();
+        let mut state =
+            compute_initial_graph_state(&graph, TtcMode::ExpectedValue, false, false, &mut r)
+                .unwrap();
+        let keys_before: NodeSet = graph.nodes.keys().collect();
+
+        // Remove InfectedData, freeing the slots of its nodes.
+        let data_id = model.get_asset_by_name("InfectedData").unwrap().id;
+        let device_id = model.get_asset_by_name("InfectedDevice").unwrap().id;
+        let snapshot = model.remove_asset(data_id).unwrap();
+        regenerate_graph(
+            &mut graph,
+            &model,
+            &HashSet::new(),
+            &HashSet::new(),
+            &HashMap::from([(data_id, snapshot)]),
+            &HashSet::from([(data_id, "node".to_string(), device_id)]),
+        )
+        .unwrap();
+        let removed: NodeSet = keys_before
+            .iter()
+            .copied()
+            .filter(|&id| !graph.nodes.contains_key(id))
+            .collect();
+        assert!(
+            !removed.is_empty(),
+            "removing InfectedData removed no nodes"
+        );
+
+        // Add a new Data asset; its nodes land in the freed slots.
+        let next_id = model.next_id;
+        let new_data = model
+            .add_asset(
+                "Data",
+                Some("NewData".to_string()),
+                Some(next_id),
+                None,
+                None,
+                false,
+            )
+            .unwrap();
+        model
+            .add_associated_assets(new_data, "node", HashSet::from([device_id]))
+            .unwrap();
+        let new_nodes = regenerate_graph(
+            &mut graph,
+            &model,
+            &HashSet::from([new_data]),
+            &HashSet::from([(new_data, "node".to_string(), device_id)]),
+            &HashMap::new(),
+            &HashSet::new(),
+        )
+        .unwrap();
+
+        // Positive control: without slot reuse this test proves nothing.
+        let removed_slots: HashSet<u32> = removed.iter().map(|&id| slot_index(id)).collect();
+        let reused: Vec<AttackGraphNodeId> = new_nodes
+            .iter()
+            .copied()
+            .filter(|&id| removed_slots.contains(&slot_index(id)))
+            .collect();
+        assert!(!reused.is_empty(), "no new node reused a freed slot");
+
+        // Every new key differs from every key the graph ever held, so none
+        // is already in graph_state.
+        assert!(new_nodes.is_disjoint(&keys_before));
+        for id in &new_nodes {
+            assert!(!state.ttc_values.contains_key(id));
+            assert!(!state.pre_enabled_defenses.contains(id));
+            assert!(!state.impossible_attack_steps.contains(id));
+        }
+
+        // Folding keeps the removed nodes' stale entries and adds the new
+        // ones next to them (also exercises the fold's debug_assert).
+        let ttc_before = state.ttc_values.clone();
+        extend_graph_state_with_new_nodes(
+            &graph,
+            &mut state,
+            TtcMode::ExpectedValue,
+            false,
+            false,
+            &new_nodes,
+            &mut r,
+            &mut GraphStateDelta::default(),
+        )
+        .unwrap();
+        for (id, value) in &ttc_before {
+            assert_eq!(state.ttc_values.get(id), Some(value));
+        }
+
+        // The necessity map is slot-indexed: a reused slot holds the new
+        // node's entry, and the removed node's older key reads as absent.
+        // Restoring an old entry there means removing the new key first,
+        // since `SecondaryMap::insert` ignores keys older than the slot's.
+        for &new_id in &reused {
+            assert!(state.necessity_per_node.contains_key(new_id));
+            let old_id = *removed
+                .iter()
+                .find(|&&id| slot_index(id) == slot_index(new_id))
+                .unwrap();
+            assert!(!state.necessity_per_node.contains_key(old_id));
+            let mut necessity = state.necessity_per_node.clone();
+            assert_eq!(necessity.insert(old_id, true), None);
+            assert!(!necessity.contains_key(old_id), "older key was inserted");
+            necessity.remove(new_id);
+            necessity.insert(old_id, true);
+            assert!(necessity.contains_key(old_id));
+        }
     }
 }

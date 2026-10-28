@@ -12,7 +12,7 @@ use maltoolbox_attackgraph::{AttackGraph, AttackGraphNodeId};
 use maltoolbox_model::Model;
 use rand::Rng;
 
-use crate::dyna_graph_state::fold_new_nodes_into_graph_state;
+use crate::dyna_graph_state::{fold_new_nodes_into_graph_state, GraphStateDelta};
 use crate::graph_state::{GraphState, GraphStateError, TtcMode};
 use crate::graph_utils::{node_is_live, GraphUtilsError};
 use crate::model_effects::{execute_model_effects, ModEffectOp, ModelEffectsError};
@@ -62,6 +62,8 @@ impl std::error::Error for DynaDefenderStepError {}
 /// Port of `dyna_defender_step`. A node outside `action_surface` is
 /// silently skipped (Python logs a warning), not an error - only the
 /// graph-membership check is a hard failure, same as A7's `defender_step`.
+/// The last returned element records what the model-effect folds changed in
+/// `graph_state`.
 #[allow(clippy::too_many_arguments)]
 pub fn dyna_defender_step(
     graph: &mut AttackGraph,
@@ -74,9 +76,10 @@ pub fn dyna_defender_step(
     action_surface: &NodeSet,
     graph_state: &mut GraphState,
     enabled_defenses: &mut NodeSet,
-) -> Result<(Vec<AttackGraphNodeId>, Vec<ModEffectOp>), DynaDefenderStepError> {
+) -> Result<(Vec<AttackGraphNodeId>, Vec<ModEffectOp>, GraphStateDelta), DynaDefenderStepError> {
     let mut enabled = Vec::new();
     let mut modification_record = Vec::new();
+    let mut delta = GraphStateDelta::default();
 
     for &node_id in nodes {
         if !node_is_live(graph, node_id) {
@@ -99,11 +102,12 @@ pub fn dyna_defender_step(
             run_defense_step_bernoullis,
             run_attack_step_bernoullis,
             rng,
+            &mut delta,
         )?;
         modification_record.extend(ops);
     }
 
-    Ok((enabled, modification_record))
+    Ok((enabled, modification_record, delta))
 }
 
 #[cfg(test)]
@@ -167,7 +171,7 @@ mod tests {
             compute_initial_graph_state(&graph, TtcMode::Disabled, false, false, &mut r).unwrap();
         let mut enabled_defenses = NodeSet::default();
 
-        let (enabled, record) = dyna_defender_step(
+        let (enabled, record, _) = dyna_defender_step(
             &mut graph,
             &mut model,
             &mut r,
@@ -194,7 +198,7 @@ mod tests {
             compute_initial_graph_state(&graph, TtcMode::Disabled, false, false, &mut r).unwrap();
         let mut enabled_defenses = NodeSet::default();
 
-        let (enabled, record) = dyna_defender_step(
+        let (enabled, record, _) = dyna_defender_step(
             &mut graph,
             &mut model,
             &mut r,

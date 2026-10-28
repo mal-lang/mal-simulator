@@ -705,7 +705,6 @@ fn plain_step(
     )?;
     let record = StepRecord {
         new_enabled_defenses,
-        prior_shared: None,
         modification_record_len: state.history.modification_record().len(),
         ..StepRecord::default()
     };

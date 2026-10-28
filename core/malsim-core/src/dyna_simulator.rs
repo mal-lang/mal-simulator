@@ -22,7 +22,8 @@ use maltoolbox_model::Model;
 
 use crate::dyna_attacker_step::dyna_attacker_step;
 use crate::dyna_defender_step::dyna_defender_step;
-use crate::history::{PriorSharedState, StepRecord};
+use crate::dyna_graph_state::GraphStateDelta;
+use crate::history::StepRecord;
 use crate::model_effects::ModEffectOp;
 use crate::model_state::{capture_model_snapshot, reset_model_effects, ModelSnapshot};
 use crate::settings::{FlatAgentSettings, MalSimulatorSettings};
@@ -133,14 +134,7 @@ impl DynaSimulator {
         let attacker_names: Vec<String> = state.attackers.keys().cloned().collect();
         let defender_names: Vec<String> = state.defenders.keys().cloned().collect();
         let mut modification_record: Vec<ModEffectOp> = Vec::new();
-        // Model effects can fold new nodes into `graph_state`/
-        // `enabled_defenses`, which the step history can't undo from
-        // deltas - so keep the pre-step values, and drop them again below
-        // if no model effect ran.
-        let prior_shared = PriorSharedState {
-            graph_state: state.graph_state.clone(),
-            enabled_defenses: state.enabled_defenses.clone(),
-        };
+        let mut graph_state_delta = GraphStateDelta::default();
 
         // --- Defenders act first ---
         let mut step_enabled_defenses: NodeSet = NodeSet::default();
@@ -149,7 +143,7 @@ impl DynaSimulator {
             let mut model = model_rc.borrow_mut();
             for name in &defender_names {
                 let runtime = &state.defenders[name];
-                let (enabled, ops) = dyna_defender_step(
+                let (enabled, ops, delta) = dyna_defender_step(
                     &mut graph,
                     &mut model,
                     &mut state.rng,
@@ -163,6 +157,7 @@ impl DynaSimulator {
                 )?;
                 step_enabled_defenses.extend(enabled);
                 modification_record.extend(ops);
+                graph_state_delta.merge(delta);
             }
         }
         // `dyna_defender_step` only folds *newly model-effect-created*
@@ -186,7 +181,7 @@ impl DynaSimulator {
             let mut model = model_rc.borrow_mut();
             for name in &attacker_names {
                 let runtime = &state.attackers[name];
-                let (compromised, attempted, ops) = dyna_attacker_step(
+                let (compromised, attempted, ops, delta) = dyna_attacker_step(
                     &mut graph,
                     &mut model,
                     &mut state.rng,
@@ -205,6 +200,7 @@ impl DynaSimulator {
                 )?;
                 step_compromised_nodes.extend(compromised.iter().copied());
                 modification_record.extend(ops);
+                graph_state_delta.merge(delta);
                 attacker_results.insert(name.clone(), (compromised, attempted));
             }
         }
@@ -230,7 +226,7 @@ impl DynaSimulator {
         )?;
         let record = StepRecord {
             new_enabled_defenses,
-            prior_shared: (!modification_record.is_empty()).then_some(prior_shared),
+            graph_state_delta,
             modification_record_len: state.history.modification_record().len(),
             ..StepRecord::default()
         };

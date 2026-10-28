@@ -328,6 +328,59 @@
    }
   ]
  },
+ "dyna_defense_scenario.yml": {
+  "lang_file": "tests/testdata/langs/dyna_defense_lang.mal",
+  "model_file": null,
+  "num_nodes": 18,
+  "sim_settings": {
+   "ttc_mode": "DISABLED",
+   "run_defense_step_bernoullis": true,
+   "run_attack_step_bernoullis": true,
+   "skip_compromised": true,
+   "skip_unnecessary": false,
+   "compromise_entrypoints_at_start": true,
+   "seed": null,
+   "uncompromise_untraversable_steps": false
+  },
+  "agents": [
+   {
+    "name": "Attacker1",
+    "type": "attacker",
+    "policy": null,
+    "reward_mode": "EXPECTED_TTC",
+    "entry_points": [
+     "Host0:access",
+     "Host1:access",
+     "Host2:access"
+    ],
+    "goals": [],
+    "rewards": null,
+    "actionable_steps": null,
+    "ttc_dists": null,
+    "flat": {
+     "actionable_steps": null,
+     "ttc_dists": null
+    }
+   },
+   {
+    "name": "Defender1",
+    "type": "defender",
+    "policy": null,
+    "reward_mode": "CUMULATIVE",
+    "rewards": null,
+    "actionable_steps": null,
+    "observable_steps": null,
+    "false_positive_rates": null,
+    "false_negative_rates": null,
+    "flat": {
+     "actionable_steps": null,
+     "observable_steps": null,
+     "false_positive_rates": null,
+     "false_negative_rates": null
+    }
+   }
+  ]
+ },
  "dynamal_example_scenarios/advanced/diceLang_scenario.yml": {
   "lang_file": "tests/testdata/langs/dynamal_example_langs/advanced/diceLang.mal",
   "model_file": null,

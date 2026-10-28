@@ -28,7 +28,7 @@ use maltoolbox_model::Model;
 use rand::Rng;
 
 use crate::attacker_step::{attacker_step_effects, attempt_attacker_step, AttackerStepError};
-use crate::dyna_graph_state::fold_new_nodes_into_graph_state;
+use crate::dyna_graph_state::{fold_new_nodes_into_graph_state, GraphStateDelta};
 use crate::graph_state::{GraphState, GraphStateError, TtcMode};
 use crate::graph_utils::{node_is_live, node_is_traversable, GraphUtilsError};
 use crate::model_effects::{execute_model_effects, ModEffectOp, ModelEffectsError};
@@ -88,11 +88,13 @@ impl fmt::Display for DynaAttackerStepError {
 impl std::error::Error for DynaAttackerStepError {}
 
 /// (successful compromises, attempted-but-failed compromises, modification
-/// record from every model effect executed along the way).
+/// record from every model effect executed along the way, what the folds
+/// changed in `graph_state`).
 pub type DynaAttackerStepOutcome = (
     Vec<AttackGraphNodeId>,
     Vec<AttackGraphNodeId>,
     Vec<ModEffectOp>,
+    GraphStateDelta,
 );
 
 /// Port of `dyna_attacker_step`. `performed_nodes` is read-only here, same
@@ -120,6 +122,7 @@ pub fn dyna_attacker_step(
     let mut successful_compromises = Vec::new();
     let mut attempted_compromises = Vec::new();
     let mut modification_record = Vec::new();
+    let mut delta = GraphStateDelta::default();
 
     for &node_id in nodes {
         if !node_is_live(graph, node_id) {
@@ -175,6 +178,7 @@ pub fn dyna_attacker_step(
             run_defense_step_bernoullis,
             run_attack_step_bernoullis,
             rng,
+            &mut delta,
         )?;
         modification_record.extend(ops);
 
@@ -211,6 +215,7 @@ pub fn dyna_attacker_step(
                 run_defense_step_bernoullis,
                 run_attack_step_bernoullis,
                 rng,
+                &mut delta,
             )?;
             modification_record.extend(ops);
         }
@@ -220,6 +225,7 @@ pub fn dyna_attacker_step(
         successful_compromises,
         attempted_compromises,
         modification_record,
+        delta,
     ))
 }
 
@@ -290,7 +296,7 @@ mod tests {
         let empty_set: NodeSet = NodeSet::default();
         let empty_map_u64: NodeMap<u64> = NodeMap::default();
 
-        let (successful, attempted, record) = dyna_attacker_step(
+        let (successful, attempted, record, _) = dyna_attacker_step(
             &mut graph,
             &mut model,
             &mut r,
@@ -326,7 +332,7 @@ mod tests {
         let empty_set: NodeSet = NodeSet::default();
         let empty_map_u64: NodeMap<u64> = NodeMap::default();
 
-        let (successful, attempted, record) = dyna_attacker_step(
+        let (successful, attempted, record, _) = dyna_attacker_step(
             &mut graph,
             &mut model,
             &mut r,
