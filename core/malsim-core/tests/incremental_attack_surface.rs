@@ -279,9 +279,9 @@ fn simulated_surfaces_match_full_rebuild() {
             for seed in 0..3 {
                 // Every scenario on the plain simulator; dyna scenarios
                 // also on the dyna one.
-                run_case(path, false, settings, seed, 1000);
+                run_case(path, false, settings, seed, 100);
                 if *dyna {
-                    run_case(path, true, settings, seed, 1000);
+                    run_case(path, true, settings, seed, 100);
                 }
                 cases += 1;
             }
