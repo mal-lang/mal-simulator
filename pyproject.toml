@@ -62,6 +62,11 @@ include = ["malsim*"]
 
 [tool.pytest.ini_options]
 pythonpath = ['.']
+filterwarnings = [
+    "ignore:.*Overriding environment.*",
+    "ignore:.*to numpy array.*"
+]
+markers = ["integration: deselected during CI"]
 
 [tool.mypy]
 strict = true

@@ -30,9 +30,11 @@ def get_effects_of_attack_step(
     while potential_effects:
         effect = potential_effects.popleft()
         has_visited = performed | set(effects)
-        if effect not in has_visited and node_is_traversable(
-            sim_state, has_visited, effect
-        ):
+
+        if (
+            effect not in has_visited or
+            not sim_state.settings.attack_surface.skip_compromised
+        ) and node_is_traversable(sim_state, has_visited, effect):
             effects.add(effect)
             potential_effects += (
                 n for n in effect.children if n.causal_mode == 'effect'

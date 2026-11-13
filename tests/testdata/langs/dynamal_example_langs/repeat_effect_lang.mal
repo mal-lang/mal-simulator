@@ -1,0 +1,15 @@
+#id: "repeatEffectLang"
+#version: "0.0.1"
+category repeatEffectLang {
+    asset Thing {
+        | add
+          -> addChild
+
+        | effect addChild
+          A> self / children
+    }
+}
+
+associations {
+    Thing [parent] 1 <-- rel --> * [children] Thing
+}

@@ -1046,3 +1046,20 @@ def test_no_memory_growth_over_repeated_simulations() -> None:
         'after repeatedly running independent simulations - this suggests a '
         'memory leak in DynaMalSimulator'
     )
+
+def test_repeated_effects() -> None:
+    """Check that when a dynamic effect is performed on an effect,
+    that this happens repeatedly when skip_compromised = false
+    """
+    scenario_file_path = 'tests/testdata/scenarios/dynamal_example_scenarios/basic/repeat_effect_scenario.yml'
+    scenario = Scenario.load_from_file(scenario_file_path)
+    sim = DynaMalSimulator.from_scenario(scenario)
+    n = 5
+    for i in range(1, n):
+        if sim.sim_state.attack_graph.model is not None:
+            assert len(sim.sim_state.attack_graph.model.assets) == i
+        sim.step({'Attacker': ['root:add']})
+
+    if sim.sim_state.attack_graph.model is not None:
+        assert len(sim.sim_state.attack_graph.model.assets) == n
+
