@@ -1,0 +1,25 @@
+lang_file: ../../../langs/dynamal_example_langs/repeat_effect_lang.mal
+model:
+  metadata:
+    name: repeat-effect
+    langVersion: 0.0.1
+    langID: repeat-effect
+    malVersion: 0.0.1-SNAPSHOT
+    MAL-Toolbox Version: 2.11.0
+    info: Created by the mal-toolbox model python module.
+  assets:
+    0:
+      name: root
+      type: Thing
+      associated_assets: {}
+agents:
+  Attacker:
+    type: attacker
+    agent_class: null
+    entry_points:
+    - root:add
+sim_settings:
+  seed: 0
+  attack_surface:
+    skip_compromised: false
+  compromise_entrypoints_at_start: false
