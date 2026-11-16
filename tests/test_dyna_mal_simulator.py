@@ -1063,3 +1063,16 @@ def test_repeated_effects() -> None:
     if sim.sim_state.attack_graph.model is not None:
         assert len(sim.sim_state.attack_graph.model.assets) == n
 
+def test_remove_self() -> None:
+    """Check that R> self / self works """
+    scenario_file_path = 'tests/testdata/scenarios/dynamal_example_scenarios/basic/remove_self_scenario.yml'
+    scenario = Scenario.load_from_file(scenario_file_path)
+    sim = DynaMalSimulator.from_scenario(scenario)
+
+    if sim.sim_state.attack_graph.model is not None:
+        assert len(sim.sim_state.attack_graph.model.assets) == 1
+
+    sim.step({'Attacker': ['root:removeSelf']})
+    if sim.sim_state.attack_graph.model is not None:
+        assert len(sim.sim_state.attack_graph.model.assets) == 0
+
