@@ -32,8 +32,8 @@ def get_effects_of_attack_step(
         has_visited = performed | set(effects)
 
         if (
-            effect not in has_visited or
-            not sim_state.settings.attack_surface.skip_compromised
+            effect not in has_visited
+            or not sim_state.settings.attack_surface.skip_compromised
         ) and node_is_traversable(sim_state, has_visited, effect):
             effects.add(effect)
             potential_effects += (
