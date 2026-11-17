@@ -1067,7 +1067,7 @@ def test_repeated_effects() -> None:
         assert len(sim.sim_state.attack_graph.model.assets) == n
 
 def test_remove_self() -> None:
-    """Check that R> self / self works """
+    """Check that R> self / self works"""
     top = 'tests/testdata/scenarios/dynamal_example_scenarios/basic/'
     scenario_file_path = top + 'remove_self_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file_path)
