@@ -1051,7 +1051,8 @@ def test_repeated_effects() -> None:
     """Check that when a dynamic effect is performed on an effect,
     that this happens repeatedly when skip_compromised = false
     """
-    scenario_file_path = 'tests/testdata/scenarios/dynamal_example_scenarios/basic/repeat_effect_scenario.yml'
+    top = 'tests/testdata/scenarios/dynamal_example_scenarios/basic/'
+    scenario_file_path = top + 'repeat_effect_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file_path)
     sim = DynaMalSimulator.from_scenario(scenario)
     sim.reset()
@@ -1067,7 +1068,8 @@ def test_repeated_effects() -> None:
 
 def test_remove_self() -> None:
     """Check that R> self / self works """
-    scenario_file_path = 'tests/testdata/scenarios/dynamal_example_scenarios/basic/remove_self_scenario.yml'
+    top = 'tests/testdata/scenarios/dynamal_example_scenarios/basic/'
+    scenario_file_path = top + 'remove_self_scenario.yml'
     scenario = Scenario.load_from_file(scenario_file_path)
     sim = DynaMalSimulator.from_scenario(scenario)
     sim.reset()
