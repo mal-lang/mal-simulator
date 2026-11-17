@@ -1047,6 +1047,7 @@ def test_no_memory_growth_over_repeated_simulations() -> None:
         'memory leak in DynaMalSimulator'
     )
 
+
 def test_repeated_effects() -> None:
     """Check that when a dynamic effect is performed on an effect,
     that this happens repeatedly when skip_compromised = false
@@ -1066,6 +1067,7 @@ def test_repeated_effects() -> None:
     if sim.sim_state.attack_graph.model is not None:
         assert len(sim.sim_state.attack_graph.model.assets) == n
 
+
 def test_remove_self() -> None:
     """Check that R> self / self works"""
     top = 'tests/testdata/scenarios/dynamal_example_scenarios/basic/'
@@ -1080,4 +1082,3 @@ def test_remove_self() -> None:
     sim.step({'Attacker': ['root:removeSelf']})
     if sim.sim_state.attack_graph.model is not None:
         assert len(sim.sim_state.attack_graph.model.assets) == 0
-
