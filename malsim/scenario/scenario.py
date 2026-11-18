@@ -213,9 +213,8 @@ def _validate_scenario_dict(scenario_dict: dict[str, Any]) -> None:
                 raise RuntimeError(
                     f"Only one of '{key_or_keys}' is allowed in scenario file"
                 )
-        elif isinstance(key_or_keys, str):
-            if key_or_keys not in scenario_dict:
-                raise RuntimeError(f"Setting '{key_or_keys}' required in scenario file")
+        elif isinstance(key_or_keys, str) and key_or_keys not in scenario_dict:
+            raise RuntimeError(f"Setting '{key_or_keys}' required in scenario file")
 
 
 def path_relative_to_file_dir(rel_path: str, file: TextIO) -> str:
